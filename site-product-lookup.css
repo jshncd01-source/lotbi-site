@@ -1,0 +1,123 @@
+/* CONVERSATION-INTENT-PRODUCT-KNOWLEDGE-01 — product photo comparison cards
+   (site-product-lookup.js). Two products sit side by side on every phone
+   width; three wrap to two columns below 420px. The media box is a fixed
+   square so a late image never moves the conversation. Light and dark come
+   from the shared theme tokens; the photo box stays white because product
+   photos are shot on white. */
+.lotbi-product-compare {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  min-width: 0;
+}
+
+.lotbi-product-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lotbi-product-compare[data-product-count="1"] .lotbi-product-compare-grid {
+  grid-template-columns: minmax(0, 220px);
+}
+
+@media (min-width: 420px) {
+  .lotbi-product-compare[data-product-count="3"] .lotbi-product-compare-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.lotbi-product-compare-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--lotbi-border-default, rgba(116, 126, 145, .22));
+  border-radius: 16px;
+  background: var(--lotbi-surface-elevated, #ffffff);
+  color: var(--lotbi-text-primary, #212121);
+}
+
+.lotbi-product-compare-media {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.lotbi-product-compare-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+
+.lotbi-product-compare-image.is-ready {
+  opacity: 1;
+}
+
+.lotbi-product-compare-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  background: var(--lotbi-surface-subtle, #f7f7f7);
+  color: var(--lotbi-text-primary, #212121);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.lotbi-product-compare-caption {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 11px 10px;
+}
+
+.lotbi-product-compare-name {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.lotbi-product-compare-host {
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.lotbi-product-compare-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--lotbi-text-primary, #212121);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.lotbi-product-compare-note {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 12px;
+  line-height: 1.4;
+}

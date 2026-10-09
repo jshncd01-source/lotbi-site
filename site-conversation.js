@@ -1,28 +1,32 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-d715f1fd4db1';
-import * as siteCore from './site-core.js?v=aset-d715f1fd4db1';
-import './site-scam-shield.js?v=aset-d715f1fd4db1';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-d715f1fd4db1';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-d715f1fd4db1';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-d715f1fd4db1';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-d715f1fd4db1';
-import * as siteAttachments from './site-attachments.js?v=aset-d715f1fd4db1';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-d715f1fd4db1';
-import {deterministicReply} from './site-deterministic.js?v=aset-d715f1fd4db1';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-d715f1fd4db1';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-d715f1fd4db1';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-d715f1fd4db1';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-d715f1fd4db1';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-d715f1fd4db1';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-d715f1fd4db1';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-d715f1fd4db1';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-d715f1fd4db1';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-d715f1fd4db1';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-d715f1fd4db1';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-d715f1fd4db1';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-d715f1fd4db1';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-d715f1fd4db1';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-d715f1fd4db1';
-import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-d715f1fd4db1';
+import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-ae67674402be';
+import * as siteCore from './site-core.js?v=aset-ae67674402be';
+import './site-scam-shield.js?v=aset-ae67674402be';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-ae67674402be';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-ae67674402be';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-ae67674402be';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-ae67674402be';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-ae67674402be';
+import * as siteAttachments from './site-attachments.js?v=aset-ae67674402be';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-ae67674402be';
+import {deterministicReply} from './site-deterministic.js?v=aset-ae67674402be';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-ae67674402be';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-ae67674402be';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-ae67674402be';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-ae67674402be';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-ae67674402be';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-ae67674402be';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-ae67674402be';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-ae67674402be';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-ae67674402be';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-ae67674402be';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-ae67674402be';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-ae67674402be';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-ae67674402be';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-ae67674402be';
+import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-ae67674402be';
+import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-ae67674402be';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-ae67674402be';
+import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-ae67674402be';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -43,21 +47,24 @@ const attachmentOnlyPlaceholder = count => `첨부 파일 ${count}개를 확인�
 //
 // It is deliberately not the same answer as '기기모드', which follows the OS.
 // This one follows the clock, which is what 대표 asked for. Both stay on offer.
-const AUTO_THEME_DARK_HOUR = 18;
-const AUTO_THEME_LIGHT_HOUR = 7;
+//
+// LOTBI-CONSUMER-THEME-SYNC-01 — the clock and its 07:00 / 22:00 boundaries now
+// live in site-theme-preference.js, which Account mirrors, so the Site and
+// Account cannot switch at different times.
 function resolveScheduledTheme(now = new Date()) {
-  const hour = now.getHours();
-  return hour >= AUTO_THEME_DARK_HOUR || hour < AUTO_THEME_LIGHT_HOUR ? 'dark' : 'light';
+  return resolveThemePreference('auto', now);
 }
-// When the next switch is due, so a tab left open overnight turns dark at 18:00
-// instead of waiting for a reload.
-function millisecondsUntilNextThemeBoundary(now = new Date()) {
-  const hour = now.getHours();
-  const next = new Date(now.getTime());
-  next.setMinutes(0, 0, 0);
-  next.setHours(hour < AUTO_THEME_LIGHT_HOUR || hour >= AUTO_THEME_DARK_HOUR ? AUTO_THEME_LIGHT_HOUR : AUTO_THEME_DARK_HOUR);
-  if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
-  return next.getTime() - now.getTime();
+
+// LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode chosen in Account settings is
+// the shared lotbi_theme_preference_v1 cookie, and it wins over anything this
+// origin stored on its own. Never throws: a blocked cookie jar falls back to the
+// old per-origin key rather than stopping the page.
+function sharedThemePreference() {
+  try {
+    return readThemePreference(globalThis.document?.cookie ?? '');
+  } catch {
+    return undefined;
+  }
 }
 
 // SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — the authoritative copy of this lives
@@ -67,7 +74,7 @@ function millisecondsUntilNextThemeBoundary(now = new Date()) {
 // module also runs on pages that do not carry the inline block, and re-running
 // it is harmless — it writes the same attribute from the same value.
 try {
-  const stored = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
+  const stored = sharedThemePreference() ?? globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
   const savedTheme = stored === 'auto' ? resolveScheduledTheme() : stored;
   if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
     document.documentElement.dataset.siteThemeBootstrap = savedTheme;
@@ -123,6 +130,21 @@ function resolveNamespaceTheme(storedTheme, durableTheme) {
   if (isSiteTheme(storedTheme)) return storedTheme;
   if (isSiteTheme(durableTheme)) return durableTheme;
   return 'system';
+}
+
+// LOTBI-CONSUMER-THEME-SYNC-01 — someone who chose on this origin before the
+// shared cookie existed keeps that choice: an explicit Light, Dark or 자동 is
+// carried into the shared store, marked as imported so Account (where the
+// screen mode is chosen now) can still prefer its own older explicit choice.
+// 'system' is not carried: it is also the value written when nothing was ever
+// chosen, so it says nothing about the user.
+function adoptLegacyTheme(legacyTheme) {
+  if (legacyTheme === 'light' || legacyTheme === 'dark' || legacyTheme === 'auto') {
+    try {
+      writeThemePreference(document, legacyTheme, {hostname: location.hostname, protocol: location.protocol, imported: true});
+    } catch {}
+  }
+  return legacyTheme;
 }
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -181,7 +203,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-d715f1fd4db1';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-ae67674402be';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -274,19 +296,34 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-d715f1fd4db1');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-ae67674402be');
   return shareWithKakaoTalk(options);
 }
 
-// Fail closed: config or import failures mean the KakaoTalk menu item is not
-// exposed to pointer, keyboard or accessibility navigation.
+// Fail closed: config, SDK or import failures mean the KakaoTalk menu item is
+// not exposed to pointer, keyboard or accessibility navigation. A ready item
+// already has the SDK loaded, so choosing it shares within the same tap.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-d715f1fd4db1');
-    return Boolean(await module.loadKakaoShareConfig());
+    const module = await import('./site-kakao-share.js?v=aset-ae67674402be');
+    return Boolean(await module.prepareKakaoShare());
   } catch {
     return false;
   }
+}
+
+// LOTBI-KAKAO-SHARE-ACTUAL-01 — says what leaves LOTBI before it does: this
+// answer (its first 200 characters) and the public lotbiai.com address, never
+// the conversation, its address or anything about the account.
+const KAKAO_SHARE_NOTE = '이 답변 내용과 LOTBI 주소만 보내요';
+
+function describeShareMenuItem(item, id, note) {
+  const hint = document.createElement('small');
+  hint.className = 'lotbi-share-menu-hint';
+  hint.id = id;
+  hint.textContent = note;
+  item.querySelector('span')?.append(hint);
+  item.setAttribute('aria-describedby', id);
 }
 
 async function writeMessageTextToClipboard(text) {
@@ -366,6 +403,11 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
     void openCalendarDraft(calendarDraft).catch(() => report('캘린더를 열지 못했습니다.', 'error'));
   });
 
+  // CHAT-READ-ALOUD-RESTORE-P0 — reads this answer on the device, only when
+  // pressed; see site-message-read-aloud.js. Last in the row so the share
+  // menu stays anchored under 공유하기.
+  const readAloud = createMessageReadAloudButton(value, {report});
+
   const shareMenu = document.createElement('div');
   shareMenu.className = 'lotbi-share-menu';
   shareMenu.id = `lotbi-share-menu-${++shareMenuSequence}`;
@@ -376,14 +418,16 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
   share.setAttribute('aria-controls', shareMenu.id);
   share.setAttribute('aria-expanded', 'false');
 
-  const linkCopy = createShareMenuItem('링크 복사', SHARE_MENU_ICON_LINK, 'link-copy');
+  // LOTBI-KAKAO-SHARE-ACTUAL-01 — KakaoTalk first, then 링크 복사.
   const kakao = createShareMenuItem('카카오톡 공유하기', SHARE_MENU_ICON_KAKAO, 'kakaotalk');
+  const linkCopy = createShareMenuItem('링크 복사', SHARE_MENU_ICON_LINK, 'link-copy');
+  describeShareMenuItem(kakao, `${shareMenu.id}-kakao-note`, KAKAO_SHARE_NOTE);
   shareMenu.append(linkCopy);
 
   const syncKakaoShareMenuItem = async () => {
     const ready = await prepareKakaoShare();
     if (ready) {
-      if (!shareMenu.contains(kakao)) shareMenu.append(kakao);
+      if (!shareMenu.contains(kakao)) shareMenu.prepend(kakao);
     } else {
       kakao.remove();
     }
@@ -428,13 +472,15 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
     closeShareMenu();
     try {
       await shareMessageWithKakao({text: value, url: MESSAGE_ACTION_SHARE_URL});
-      report('카카오톡 공유 화면을 열었습니다.');
+      // Kakao hands over to KakaoTalk (or its share window) and reports no
+      // result back, so this never claims the message was sent.
+      report('카카오톡에서 보낼 친구나 채팅방을 선택해 주세요.');
     } catch {
       report('카카오톡 공유를 열지 못했어요. 링크 복사를 이용해 주세요.', 'error');
     }
   });
 
-  actions.append(copy, share, calendar, feedback, shareMenu);
+  actions.append(copy, share, calendar, readAloud, feedback, shareMenu);
   return actions;
 }
 
@@ -800,6 +846,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
   const storage = safeStorage();
   let sessionToken = typeof initialSessionToken === 'string' && initialSessionToken.trim() ? initialSessionToken.trim() : undefined;
+  // AUTH-SESSION-CONTINUITY-P0-02 — Core refused the Site bearer (its 30
+  // minutes ran out, or it was revoked). Drop it and ask site-continuity.js to
+  // renew it in place; only Account saying "no session" shows the login button.
+  const dropSessionToken = () => {
+    if (!sessionToken) return;
+    sessionToken = undefined;
+    window.dispatchEvent(new CustomEvent(SITE_SESSION_RENEWAL_REQUEST_EVENT));
+  };
   let namespace = normalizedNamespace(identityKey);
   let state = {threads: [], activeThreadId: null, draft: ''};
   let preferences = {color: 'default', theme: 'system', displayName: '', responseGrade: DEFAULT_RESPONSE_GRADE};
@@ -881,7 +935,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (!sessionToken) throw new SiteCoreError('진위확인은 개인정보 보호를 위해 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
       resolve(await analyzeScamShield(sessionToken, detail.formData));
     } catch (error) {
-      if (error instanceof SiteCoreError && isSessionError(error)) sessionToken = undefined;
+      if (error instanceof SiteCoreError && isSessionError(error)) dropSessionToken();
       reject(error);
     }
   });
@@ -1010,7 +1064,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   // SITE-THEME-AUTO-SCHEDULE-02 — only armed while '자동모드' is selected, and
   // always re-armed from the clock rather than a fixed interval, so a machine
-  // that slept through 18:00 corrects itself on the next tick instead of drifting.
+  // that slept through 22:00 corrects itself on the next tick instead of drifting.
   const scheduleThemeBoundary = storedTheme => {
     if (themeBoundaryTimer) { clearTimeout(themeBoundaryTimer); themeBoundaryTimer = undefined; }
     if (storedTheme !== 'auto' || typeof setTimeout !== 'function') return;
@@ -1032,6 +1086,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     syncResponseGradeUi();
     document.body.dataset.responseGrade = preferences.responseGrade;
   };
+  // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode can change in Account while
+  // this tab waits in the background, and '자동모드' can cross a boundary while
+  // the machine sleeps. Coming back to the tab re-reads the shared choice and
+  // re-resolves the clock, so the two origins never stay apart.
+  const syncSharedTheme = () => {
+    if (!stateReady) return;
+    const shared = sharedThemePreference();
+    if (shared && shared !== preferences.theme) { preferences.theme = shared; savePreferences(); }
+    applyPreferences();
+  };
+  window.addEventListener('focus', syncSharedTheme);
+  window.addEventListener('pageshow', syncSharedTheme);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncSharedTheme(); });
   const restoreAvatarHome = () => { if (avatar.parentElement !== homeAvatarAnchor) homeAvatarAnchor.appendChild(avatar); };
   const showThread = () => { thread.hidden = false; document.body.classList.add('conversation-active'); };
   const resetBlankHomeScroll = () => {
@@ -1041,8 +1108,21 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (!document.body.classList.contains('conversation-active')) mainScrollHost.scrollTop = 0;
     });
   };
+  // CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 — the newest question, while it is where
+  // the reader reads from (see setTurnAnchor below). The space element sits
+  // between the thread and the composer and is only ever as tall as the room
+  // that question needs to reach the top of the screen.
+  let turnAnchor = null;
+  let holdTurnAnchor = false;
+  const turnSpace = document.createElement('div');
+  turnSpace.className = 'conversation-turn-space';
+  turnSpace.setAttribute('aria-hidden', 'true');
+  thread.after(turnSpace);
+  const releaseTurnAnchor = () => { turnAnchor = null; holdTurnAnchor = false; turnSpace.style.height = '0px'; };
   const showBlankHome = () => {
+    stopMessageReadAloud('HOME_CLEARED');
     restoreAvatarHome(); thread.replaceChildren(); lastRenderedCreatedAt = undefined; thread.hidden = true; document.body.classList.remove('conversation-active');
+    releaseTurnAnchor();
     resetBlankHomeScroll();
   };
   window.addEventListener('pageshow', resetBlankHomeScroll);
@@ -1080,8 +1160,26 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const READER_SCROLL_WINDOW_MS = 700;
   const READER_SCROLL_KEYS = new Set(['PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'Home', 'End', ' ']);
   const readerScrollActive = () => performance.now() <= readerScrollUntil;
+  // CHAT-IOS-TOUCH-SCROLL-KEYBOARD-01 — 실사용(iPhone 카카오톡): "대화 중 스크롤이
+  // 되지 않는다". A thumb resting on the composer is where a phone scroll often
+  // starts - with the keyboard open the composer is a large part of what is
+  // left of the screen. Touches there used to count as "not the reader", so a
+  // reader following the newest message was snapped back to it by the next
+  // growth, and the composer-tap hold below put a reader back on the line they
+  // had left, 20ms after every move, for the whole drag. A finger that travels
+  // is the reader scrolling wherever it came down; only a tap (no travel)
+  // keeps the composer's own handling.
+  const READER_DRAG_SLOP = 8;
+  let touchOrigin = null;
+  mainScrollHost.addEventListener('touchstart', event => {
+    const touch = event.touches.length === 1 ? event.touches[0] : null;
+    touchOrigin = touch ? {x: touch.clientX, y: touch.clientY} : null;
+  }, {passive: true});
   const markReaderScroll = event => {
-    if (event?.target instanceof Element && event.target.closest('.chat-composer-stack')) return;
+    if (event?.type === 'touchmove' && event.target instanceof Element && event.target.closest('.chat-composer-stack')) {
+      const touch = event.touches[0];
+      if (!touchOrigin || !touch || Math.hypot(touch.clientX - touchOrigin.x, touch.clientY - touchOrigin.y) < READER_DRAG_SLOP) return;
+    }
     readerScrollUntil = performance.now() + READER_SCROLL_WINDOW_MS;
   };
   mainScrollHost.addEventListener('wheel', markReaderScroll, {passive: true});
@@ -1091,11 +1189,185 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const editable = event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]');
     if (!editable && READER_SCROLL_KEYS.has(event.key)) markReaderScroll(event);
   });
+  // CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 — 실사용: "답변이 길어지면 화면이 답변
+  // 마지막 문장까지 계속 내려가서, 방금 보낸 질문과 답변 시작을 보려면 다시
+  // 올려야 한다". Sending a question used to switch following on, so a long
+  // answer carried the reader to its last line and pushed the question off the
+  // top.
+  //
+  // Sending now anchors instead: the question is brought to the top of the
+  // reading area (under the sticky bar) and held there while the answer, its
+  // cards and its images arrive below it. The hold survives growth, the
+  // keyboard opening or closing and the answer completing; the reader's own
+  // scrolling releases it, and so does a scroll the page itself makes
+  // elsewhere (movedAwayFromTurnAnchor). From then on nothing moves the reading position
+  // but the reader, the ↓ 최신 답변 control, and the next question. Following
+  // the bottom still exists, but a reader only gets it by scrolling to the end
+  // themselves (or by opening a conversation, which lands on its newest message).
+  const TURN_ANCHOR_GAP = 12;
+  const topbar = document.querySelector('.chat-topbar');
+  const readingAreaTop = () => {
+    const hostTop = mainScrollHost.getBoundingClientRect().top;
+    return topbar instanceof HTMLElement ? Math.max(hostTop, topbar.getBoundingClientRect().bottom) : hostTop;
+  };
+  // The scrollTop that puts the anchored question at the top of the reading
+  // area, wherever the reader is now.
+  const turnAnchorScrollTop = () => {
+    if (!(turnAnchor instanceof HTMLElement) || !turnAnchor.isConnected || thread.hidden) return null;
+    return Math.max(0, Math.round(mainScrollHost.scrollTop + turnAnchor.getBoundingClientRect().top - readingAreaTop() - TURN_ANCHOR_GAP));
+  };
+  // A question near the end of a long conversation cannot reach the top while
+  // its answer is shorter than the screen: there is nothing below it to scroll
+  // into. turnSpace supplies exactly the missing height and shrinks as the
+  // answer grows, so it never causes a jump. It stays after the answer
+  // completes, because taking it away would clamp the reader back down.
+  const syncTurnSpace = () => {
+    const target = turnAnchorScrollTop();
+    if (target === null) { if (turnSpace.style.height !== '0px') turnSpace.style.height = '0px'; return; }
+    let space = Number.parseFloat(turnSpace.style.height) || 0;
+    // Part of the space can be absorbed by the free room a short conversation
+    // already has, so measure again until the question can really get there.
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const next = Math.max(0, Math.round(space + target - (mainScrollHost.scrollHeight - mainScrollHost.clientHeight)));
+      if (Math.abs(next - space) < 1) break;
+      space = next;
+      turnSpace.style.height = `${space}px`;
+    }
+  };
+  const scrollToTurnAnchor = () => {
+    syncTurnSpace();
+    const target = turnAnchorScrollTop();
+    if (target !== null && Math.abs(mainScrollHost.scrollTop - target) >= 1) mainScrollHost.scrollTop = target;
+  };
+  // The bottom only counts as "following" when it lies past the anchored
+  // question's place at the top. While the answer is shorter than the screen
+  // the two are the same spot, and that spot belongs to the question.
+  const atTailPastTurnAnchor = () => {
+    if (!isThreadNearBottom()) return false;
+    const anchorTop = turnAnchorScrollTop();
+    return anchorTop === null || mainScrollHost.scrollTop > anchorTop + TURN_ANCHOR_GAP;
+  };
+  // Focusing the composer makes the browser scroll the conversation to
+  // "reveal" a composer that is sticky and already on screen - measured 394px
+  // at 375x667 as the keyboard opened, and iOS does the same. A reader on the
+  // tail or held on a question is put back by keepReadingPosition; a reader
+  // somewhere in the middle of an answer is put back here, on the line they
+  // were reading, until the keyboard has settled.
+  let composerFocusHold = null;
+  // Where a line sits on the screen: with the keyboard open (or the viewport
+  // left displaced) home-shell.js pins the whole shell at the visual
+  // viewport's offsetTop - a keyboard's height on iOS and Android Chrome - and
+  // that move is the screen panning, not the reader's line moving
+  // (CHAT-IOS-TOUCH-SCROLL-KEYBOARD-01). The offset is the one the shell was
+  // actually given, so a viewport value that has not reached the shell yet
+  // cannot be mistaken for the line moving.
+  const shellOffsetTop = () => {
+    const pinned = document.body.classList.contains('mobile-keyboard-open') || document.body.classList.contains('mobile-viewport-displaced');
+    return pinned ? Number.parseFloat(document.documentElement.style.getPropertyValue('--lotbi-visible-viewport-offset-top')) || 0 : 0;
+  };
+  const lineTop = node => node.getBoundingClientRect().top - shellOffsetTop();
+  const readingLine = () => {
+    const top = readingAreaTop();
+    for (const node of thread.querySelectorAll('.chat-message-user, .chat-message-body > *, time.conversation-time-separator')) {
+      const box = node.getBoundingClientRect();
+      if (box.height > 0 && box.bottom > top + 1) return {node, top: lineTop(node)};
+    }
+    return null;
+  };
+  // The hold exists to survive growth, the keyboard and the composer. A scroll
+  // that none of those explain - the page's own scrollIntoView, find-in-page, a
+  // focused card being revealed - took the reader somewhere on purpose: the
+  // hold lets go there instead of pulling them back on the next resize.
+  // Right after a tap on the composer the browser reveals it (hundreds of
+  // pixels); while the viewport itself is resizing, the bar and the hero
+  // padding change by a few pixels. Neither is somewhere the reader was taken.
+  let composerFocusUntil = 0;
+  let composerTypingUntil = 0;
+  let viewportSettlingUntil = 0;
+  const settleViewport = ms => { viewportSettlingUntil = Math.max(viewportSettlingUntil, performance.now() + ms); };
+  const movedAwayFromTurnAnchor = top => {
+    const now = performance.now();
+    if (now <= Math.max(composerFocusUntil, composerTypingUntil)) return false;
+    const target = turnAnchorScrollTop();
+    if (target === null) return false;
+    // A page that got shorter clamps scrollTop below the question's place;
+    // that is not a move away, and the turn space restores the room.
+    const maxTop = mainScrollHost.scrollHeight - mainScrollHost.clientHeight;
+    if (maxTop < target - 1 && top >= maxTop - 1) return false;
+    return Math.abs(top - target) > (now <= viewportSettlingUntil ? 24 : 2);
+  };
+  const holdReadingLineForComposer = () => {
+    // A finger on the composer is no longer scrolling the conversation (a tap
+    // also stops iOS momentum), so what follows is not the reader's scroll.
+    readerScrollUntil = 0;
+    composerFocusUntil = performance.now() + 900;
+    const line = thread.hidden || followThreadBottom || holdTurnAnchor ? null : readingLine();
+    composerFocusHold = line ? {...line, until: performance.now() + 900} : null;
+  };
+  const restoreReadingLine = () => {
+    const hold = composerFocusHold;
+    if (!hold) return false;
+    if (performance.now() > hold.until || !hold.node.isConnected || followThreadBottom || holdTurnAnchor) {
+      composerFocusHold = null;
+      return false;
+    }
+    const shift = lineTop(hold.node) - hold.top;
+    if (Math.abs(shift) >= 1) mainScrollHost.scrollTop += shift;
+    return true;
+  };
+  prompt.addEventListener('pointerdown', holdReadingLineForComposer, {passive: true});
+  // Closing the keyboard gives the conversation its room back and the bar its
+  // full height (56px → 64px); a reader in the middle of an answer keeps the
+  // line they were on, as when it opened. Only that line is held: a question
+  // held at the top or a reader following the end is kept as it already is.
+  prompt.addEventListener('blur', () => {
+    if (!composerUsesSoftwareKeyboard() || thread.hidden || followThreadBottom || holdTurnAnchor) return;
+    const line = readingLine();
+    composerFocusHold = line ? {...line, until: performance.now() + 900} : null;
+  });
+  // GATE FIX 02 — typing. site-conversation.css drops the scroller's padding
+  // while the composer has focus, which is what made Chrome scroll the
+  // transcript to reveal the caret on every keystroke. A browser that still
+  // does it (no :has, or rules of its own) has moved nothing the reader chose:
+  // the held question goes straight back and a reader in the middle of an
+  // answer keeps their line, however long after the tap the typing starts.
+  prompt.addEventListener('beforeinput', () => {
+    composerTypingUntil = performance.now() + 600;
+    if (thread.hidden || followThreadBottom || holdTurnAnchor) return;
+    if (composerFocusHold && performance.now() <= composerFocusHold.until) {
+      composerFocusHold.until = Math.max(composerFocusHold.until, composerTypingUntil);
+      return;
+    }
+    const line = readingLine();
+    composerFocusHold = line ? {...line, until: composerTypingUntil} : null;
+  });
+  let lastHostScrollTop = mainScrollHost.scrollTop;
   mainScrollHost.addEventListener('scroll', () => {
-    if (!readerScrollActive() && !isThreadNearBottom()) return;
-    followThreadBottom = isThreadNearBottom();
+    const top = mainScrollHost.scrollTop;
+    const moved = top - lastHostScrollTop;
+    lastHostScrollTop = top;
+    scheduleJumpLatestSync();
+    if (!readerScrollActive()) {
+      // Not the reader: iOS revealing the composer, the keyboard clamping
+      // scrollTop, LOTBI's own scrolls. These may switch following back on at
+      // the tail, never off - and never while a question is being held.
+      if (restoreReadingLine()) return;
+      if (holdTurnAnchor && performance.now() <= composerTypingUntil) { scrollToTurnAnchor(); return; }
+      if (holdTurnAnchor && movedAwayFromTurnAnchor(top)) holdTurnAnchor = false;
+      if (!holdTurnAnchor && atTailPastTurnAnchor()) followThreadBottom = true;
+      return;
+    }
+    composerFocusHold = null;
     // Momentum keeps scrolling after the finger lifts; it is still the reader's.
-    if (readerScrollActive()) readerScrollUntil = performance.now() + 250;
+    readerScrollUntil = performance.now() + 250;
+    if (Math.abs(moved) < 1) return;
+    // The reader's own scroll ends any hold. Going up stops following at once,
+    // even inside the 72px band; coming down to the tail starts it again, and
+    // coming down to a question still at the top holds that question again.
+    holdTurnAnchor = false;
+    if (moved < 0) followThreadBottom = false;
+    else if (atTailPastTurnAnchor()) followThreadBottom = true;
+    else if (turnAnchor && isThreadNearBottom()) holdTurnAnchor = true;
   }, {passive: true});
 
   // The one way the conversation is brought to its newest message. It scrolls
@@ -1105,7 +1377,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let tailFrame = 0;
   let tailTimer = 0;
   const scrollToConversationTail = ({force = false} = {}) => {
-    if (force) followThreadBottom = true;
+    if (force) { followThreadBottom = true; holdTurnAnchor = false; }
     if (!followThreadBottom || thread.hidden) return;
     scrollThread();
     cancelAnimationFrame(tailFrame);
@@ -1114,6 +1386,48 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     tailTimer = window.setTimeout(() => { if (followThreadBottom && !thread.hidden) scrollThread(); }, 320);
   };
   const stickThreadToBottom = () => scrollToConversationTail({force: true});
+  // Sending a question: it becomes the reading anchor and goes to the top now,
+  // with the answer to start right under it.
+  const setTurnAnchor = node => {
+    if (!(node instanceof HTMLElement)) return;
+    turnAnchor = node;
+    holdTurnAnchor = true;
+    followThreadBottom = false;
+    cancelAnimationFrame(tailFrame);
+    window.clearTimeout(tailTimer);
+    scrollToTurnAnchor();
+    requestAnimationFrame(() => { if (holdTurnAnchor && turnAnchor === node) scrollToTurnAnchor(); });
+  };
+  // Growth, the keyboard and resizes keep whatever the reader is doing: the
+  // tail for a reader following it, the question for a reader held on it, and
+  // nothing at all for a reader who scrolled somewhere themselves.
+  const keepReadingPosition = () => {
+    if (thread.hidden) return;
+    if (turnAnchor) syncTurnSpace();
+    if (followThreadBottom) scrollThread();
+    else if (holdTurnAnchor) scrollToTurnAnchor();
+    else restoreReadingLine();
+    scheduleJumpLatestSync();
+  };
+  // ↓ 최신 답변: shown while there is more of the conversation below the screen;
+  // the only control that moves a reader to the newest message on request.
+  const jumpLatest = document.createElement('button');
+  jumpLatest.type = 'button';
+  jumpLatest.className = 'conversation-jump-latest';
+  jumpLatest.hidden = true;
+  jumpLatest.setAttribute('aria-label', '최신 답변으로 이동');
+  jumpLatest.textContent = '↓ 최신 답변';
+  jumpLatest.addEventListener('click', () => { stickThreadToBottom(); jumpLatest.hidden = true; });
+  document.querySelector('.chat-composer-stack')?.prepend(jumpLatest);
+  const JUMP_LATEST_DISTANCE = 120;
+  let jumpLatestFrame = 0;
+  function scheduleJumpLatestSync() {
+    cancelAnimationFrame(jumpLatestFrame);
+    jumpLatestFrame = requestAnimationFrame(() => {
+      const below = mainScrollHost.scrollHeight - mainScrollHost.scrollTop - mainScrollHost.clientHeight;
+      jumpLatest.hidden = thread.hidden || followThreadBottom || below <= JUMP_LATEST_DISTANCE;
+    });
+  }
   // LOTBI puts the cursor back in the composer after every answer. A plain
   // focus() makes the browser scroll the composer "into view" - measured at
   // 390x844, it pulled a reader who had scrolled up 417px down the
@@ -1123,24 +1437,49 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const focusComposerInPlace = () => {
     try { prompt.focus({preventScroll: true}); } catch { prompt.focus(); }
   };
+  // CHAT-MOBILE-KEYBOARD-DISMISS-01 — on a phone, an accepted send switches
+  // from writing to reading. Release the textarea so the software keyboard
+  // closes, and do not restore focus when LOTBI later completes or errors.
+  // Desktop keeps its cursor because no software keyboard covers the answer.
+  const coarsePointerQuery = globalThis.matchMedia?.('(pointer: coarse)');
+  const composerUsesSoftwareKeyboard = () => (
+    coarsePointerQuery?.matches === true || document.body.classList.contains('mobile-keyboard-open')
+  );
+  const dismissComposerKeyboard = () => {
+    if (!composerUsesSoftwareKeyboard()) return;
+    if (document.activeElement === prompt) prompt.blur();
+  };
+  // requestAssistant starts a turn synchronously before its first await. A
+  // refused send (empty, another turn active, uploads in flight) keeps focus.
+  const sendFromReader = startTurn => {
+    const turnBefore = activeTurnGeneration;
+    const turn = startTurn();
+    if (activeTurnGeneration !== turnBefore) dismissComposerKeyboard();
+    return turn;
+  };
+  const returnComposerFocusAfterTurn = () => {
+    if (!composerUsesSoftwareKeyboard()) focusComposerInPlace();
+  };
   if (typeof ResizeObserver === 'function') {
     // Fires for the thread's own growth and for any descendant that changes
     // size later — a loaded image, an expanded card, a late rich result.
-    new ResizeObserver(() => { if (followThreadBottom) scrollThread(); }).observe(thread);
+    new ResizeObserver(keepReadingPosition).observe(thread);
     // The scroller itself shrinking (keyboard, Safari's address bar) and the
     // composer growing (a long draft, attachments) move the bottom too, and
     // neither is a change inside the thread.
-    const tailObserver = new ResizeObserver(() => { if (followThreadBottom && !thread.hidden) scrollThread(); });
-    tailObserver.observe(mainScrollHost);
+    // Only the scroller's own resize is the viewport settling (keyboard,
+    // address bar); the composer shrinking back after a send is not.
+    new ResizeObserver(() => { settleViewport(700); keepReadingPosition(); }).observe(mainScrollHost);
+    const tailObserver = new ResizeObserver(keepReadingPosition);
     const composerStackForTail = document.querySelector('.chat-composer-stack');
     if (composerStackForTail) tailObserver.observe(composerStackForTail);
   }
-  // Tapping the composer means "I am about to reply": show the latest message
-  // right above it, even if the reader had scrolled up to look at something.
-  // A focus() LOTBI itself calls after an answer does not count — only a tap.
-  prompt.addEventListener('pointerdown', () => {
-    if (!thread.hidden) scrollToConversationTail({force: true});
-  }, {passive: true});
+  // CHAT-LONG-ANSWER-SCROLL-ANCHOR-01: tapping the composer no longer drags the
+  // reader to the newest message. Someone reading a long answer from its start
+  // taps the composer to ask a follow-up about what they are reading; the
+  // keyboard opening keeps that place (keepReadingPosition), and ↓ 최신 답변 is
+  // there when they want the end. A reader already following the tail keeps
+  // the tail through the keyboard as before.
   window.addEventListener('pageshow', () => {
     if (document.body.classList.contains('conversation-active')) scrollToConversationTail();
   });
@@ -1161,18 +1500,24 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     window.clearTimeout(timestampRefreshTimer);
     timestampRefreshTimer = window.setTimeout(refreshConversationTimeLabels, millisecondsUntilNextLocalMidnight() + 50);
   };
-  const appendNode = (node, {forceScroll = false, suppressScroll = false} = {}) => {
+  const appendNode = (node, {anchorTurn = false, suppressScroll = false} = {}) => {
     // Following is decided by the held intent, not by where scrollTop happens
     // to be: a shrinking viewport can leave a reader who was following more
-    // than 72px from a bottom that moved.
-    const shouldStick = forceScroll || (!suppressScroll && (followThreadBottom || isThreadNearBottom()));
+    // than 72px from a bottom that moved. Being near the bottom without
+    // following is exactly where an anchored question with a short answer
+    // sits, so nearness alone no longer pulls anyone down
+    // (CHAT-LONG-ANSWER-SCROLL-ANCHOR-01).
+    const shouldStick = !suppressScroll && !anchorTurn && followThreadBottom;
     showThread();
     if (node instanceof HTMLElement && node.dataset.role === 'assistant') {
       const row = document.createElement('div'); row.className = 'chat-assistant-row';
       const slot = document.createElement('div'); slot.className = 'assistant-avatar-slot'; slot.setAttribute('aria-hidden', 'true');
       slot.appendChild(avatar); row.append(slot, node); thread.appendChild(row);
     } else thread.appendChild(node);
-    if (!suppressScroll && shouldStick) stickThreadToBottom();
+    if (anchorTurn) setTurnAnchor(node);
+    else if (shouldStick) scrollToConversationTail();
+    else if (holdTurnAnchor) scrollToTurnAnchor();
+    scheduleJumpLatestSync();
     return node;
   };
   const stopThinking = (handle, reason = 'cancel') => {
@@ -1433,20 +1778,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const detail = document.createElement('button'); detail.type = 'button'; detail.className = 'lotbi-rich-card-action'; detail.disabled = true;
         detail.textContent = '상세보기'; detail.title = '공식 상세 링크를 확인할 수 없습니다.'; actions.appendChild(detail);
       }
-      const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
-      box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card);
-      const syncBoxLabel = () => {
-        const saved = isInLotbiBox(rich, card);
-        box.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
-        box.setAttribute('aria-pressed', String(saved));
-      };
-      syncBoxLabel();
-      box.addEventListener('click', () => {
-        const added = toggleLotbiBox(rich, card);
-        refreshLotbiBoxControls();
-        setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
-      });
-      actions.appendChild(box);
+      if (LOTBI_BOX_UI_ENABLED) {
+        const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
+        box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card);
+        const syncBoxLabel = () => {
+          const saved = isInLotbiBox(rich, card);
+          box.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
+          box.setAttribute('aria-pressed', String(saved));
+        };
+        syncBoxLabel();
+        box.addEventListener('click', () => {
+          const added = toggleLotbiBox(rich, card);
+          refreshLotbiBoxControls();
+          setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
+        });
+        actions.appendChild(box);
+      }
       const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary'; buy.textContent = '구매하기';
       buy.disabled = rich.expired || card.available === false;
       if (rich.expired) buy.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
@@ -1578,43 +1925,62 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const fresh = isPlaceResultFresh(placeResult);
     const defaultMapProvider = readDefaultMapProvider(document.cookie);
     const mapPresentation = defaultMapProviderPresentation(defaultMapProvider);
+    // PLACE-MEDICAL-CARD-UX-FINAL-01 — one card per institution, in Core's
+    // order. Core folds NMC rows by hpid only and NAVER rows not at all (their
+    // ids are list positions), so the same name at the same address, or under
+    // the same verified phone, is one place listed twice.
+    const placeIdentity = value => String(value || '').toLowerCase().replace(/[\s()[\]·.,-]/gu, '');
+    const seenPlaceKeys = new Set();
+    const places = placeResult.results.filter(place => {
+      const keys = [`${placeIdentity(place.name)}@${placeIdentity(place.address)}`];
+      if (place.phoneHref) keys.push(`${placeIdentity(place.name)}@${place.phoneHref}`);
+      if (keys.some(key => seenPlaceKeys.has(key))) return false;
+      for (const key of keys) seenPlaceKeys.add(key);
+      return true;
+    });
+    // Three cards first; the rest of Core's list waits behind "다른 … 보기".
+    let shownCount = Math.min(places.length, 3);
+    const placeKinds = new Set(places.map(place => (place.animalHospitalVerification ? 'ANIMAL' : (place.medicalStatus?.kind || (place.emergencyStatus ? 'EMERGENCY' : '')))));
+    const placeNoun = placeKinds.size === 1
+      ? ({HOSPITAL: '병원', EMERGENCY: '병원', PHARMACY: '약국', ANIMAL: '동물병원'}[[...placeKinds][0]] || '장소')
+      : '장소';
     const rail = document.createElement('section');
-    rail.className = 'lotbi-rich-card-rail lotbi-place-orbit';
-    rail.classList.toggle('has-place-photo', placeResult.results.some(place => Boolean(place.imageUrl)));
-    rail.classList.add('has-place-banner');
+    rail.className = 'lotbi-rich-card-rail lotbi-place-orbit has-orbit-footer';
+    rail.classList.toggle('has-place-photo', places.some(place => Boolean(place.imageUrl)));
     rail.dataset.richCardType = 'PLACE';
     rail.dataset.placeResultSetId = placeResult.resultSetId;
-    rail.dataset.cardCount = String(placeResult.results.length);
+    rail.dataset.cardCount = String(shownCount);
+    rail.dataset.placeCount = String(places.length);
     rail.dataset.freshness = fresh ? 'fresh' : 'stale';
     rail.setAttribute('aria-label', '장소 검색 결과');
     rail.setAttribute('aria-roledescription', 'carousel');
     rail.tabIndex = 0;
 
-    const preserveEmptyMedia = media => {
-      media.replaceChildren();
-      media.classList.remove('lotbi-rich-card-media-loading');
-      media.classList.add('lotbi-rich-card-media-empty');
-      media.hidden = false;
-      media.setAttribute('aria-hidden', 'true');
-      media.dataset.mediaState = 'empty-no-photo';
-      media.dataset.mediaSource = 'NONE';
+    // No photo, no photo box: a card without a usable photo starts with its
+    // 유형·이름·주소. A photo that fails to load takes its box with it, and
+    // the rail may shrink again (fitRail below).
+    let fittedRailHeight = 0;
+    const dropPlaceMedia = media => {
+      media.remove();
+      fittedRailHeight = 0;
+      rail.classList.toggle('has-place-photo', Boolean(rail.querySelector('.lotbi-rich-card-place-media')));
     };
 
     const cards = [];
-    for (const [placeIndex, place] of placeResult.results.entries()) {
+    for (const [placeIndex, place] of places.entries()) {
       const item = document.createElement('article');
       item.className = 'lotbi-rich-card lotbi-rich-card-place lotbi-place-orbit-card';
       item.dataset.candidateIndex = String(place.candidateIndex);
       item.dataset.orbitIndex = String(placeIndex);
       item.setAttribute('role', 'group');
       item.setAttribute('aria-roledescription', 'slide');
-      item.setAttribute('aria-label', `${placeIndex + 1} / ${placeResult.results.length} · ${place.name}`);
+      item.setAttribute('aria-label', `${placeIndex + 1} / ${shownCount} · ${place.name}`);
       item.tabIndex = placeIndex === 0 ? 0 : -1;
 
-      const media = document.createElement('div');
-      media.className = 'lotbi-rich-card-media lotbi-rich-card-place-media lotbi-rich-card-media-loading';
-      media.dataset.mediaState = 'loading';
-      if (place.imageUrl) {
+      const media = place.imageUrl ? document.createElement('div') : null;
+      if (media) {
+        media.className = 'lotbi-rich-card-media lotbi-rich-card-place-media lotbi-rich-card-media-loading';
+        media.dataset.mediaState = 'loading';
         const image = document.createElement('img');
         image.className = 'lotbi-rich-card-image lotbi-place-photo';
         image.alt = `${place.name} 대표 사진`;
@@ -1632,11 +1998,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           media.dataset.mediaSource = 'VERIFIED_PLACE_PHOTO';
         };
         image.addEventListener('load', () => { void revealImage(); }, {once: true});
-        image.addEventListener('error', () => preserveEmptyMedia(media), {once: true});
+        image.addEventListener('error', () => dropPlaceMedia(media), {once: true});
         image.src = place.imageUrl;
         media.appendChild(image);
-      } else {
-        preserveEmptyMedia(media);
       }
 
       const copy = document.createElement('div');
@@ -1742,7 +2106,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         status.textContent = line.text;
         copy.appendChild(status);
       }
-      item.append(media, copy, actions);
+      if (media) item.append(media);
+      item.append(copy, actions);
       cards.push(item);
       rail.appendChild(item);
     }
@@ -1764,10 +2129,40 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     next.setAttribute('aria-label', '다음 장소');
     next.textContent = '›';
 
-    rail.append(previous, next, status);
+    // Where you are (1/3) and, when Core sent more than three, the rest of its
+    // list. Phones have no arrows (CSS): a swipe or drag turns the cards. The
+    // arrows stay for a mouse on wider screens, and the keys work everywhere.
+    const footer = document.createElement('div');
+    footer.className = 'lotbi-place-orbit-footer';
+    const position = document.createElement('span');
+    position.className = 'lotbi-place-orbit-position';
+    position.setAttribute('aria-hidden', 'true');
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'lotbi-place-orbit-more';
+    more.textContent = `다른 ${placeNoun} 보기`;
+    more.setAttribute('aria-label', `다른 ${placeNoun} ${places.length - shownCount}곳 더 보기`);
+    footer.append(position, more);
+
+    rail.append(previous, next, footer, status);
+
+    // The rail is at least as tall as its tallest card plus the footer, so a
+    // long name or a 진료시간 line is never cut off at the top or bottom (the
+    // CSS photo / no-photo heights stay the floor). It only grows while the
+    // cards turn, so the answer below does not jump with each card.
+    if (typeof ResizeObserver === 'function') {
+      const fitRail = () => {
+        const tallest = Math.max(0, ...cards.map(card => card.offsetHeight));
+        fittedRailHeight = Math.max(fittedRailHeight, tallest ? Math.ceil(tallest + footer.offsetHeight) + 8 : 0);
+        rail.style.minHeight = fittedRailHeight ? `${fittedRailHeight}px` : '';
+      };
+      const fitObserver = new ResizeObserver(fitRail);
+      for (const node of [...cards, footer]) fitObserver.observe(node);
+    }
 
     const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
     let activeIndex = 0;
+    let lastStep = 0;
     let suppressClick = false;
     let dragPointerId = null;
     let dragStartX = 0;
@@ -1779,49 +2174,86 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     let capturedBodyTapIndex = null;
 
     const wrapIndex = index => {
-      const count = cards.length;
+      const count = shownCount;
       return count ? ((index % count) + count) % count : 0;
     };
 
     const orbitSlotFor = (index, centerIndex) => {
-      const count = cards.length;
+      const count = shownCount;
       if (!count || index === centerIndex) return 'CENTER';
       const forward = (index - centerIndex + count) % count;
       const backward = (centerIndex - index + count) % count;
       if (forward < backward) return forward === 1 ? 'RIGHT_FRONT' : 'RIGHT_BACK';
       if (backward < forward) return backward === 1 ? 'LEFT_FRONT' : 'LEFT_BACK';
+      // Halfway round (the other of two cards): it waits on the side the last
+      // turn came from, so the card just left goes out the way it was pushed.
+      if (lastStep > 0) return forward === 1 ? 'LEFT_FRONT' : 'LEFT_BACK';
       return forward === 1 ? 'RIGHT_FRONT' : 'RIGHT_BACK';
     };
+    // A turn without a stated direction (a tap on a side card) goes toward the
+    // side that card is on.
+    const stepToward = index => (String(cards[index]?.dataset.orbitSlot || '').startsWith('LEFT') ? -1 : 1);
 
     const applyOrbitState = ({announce = false} = {}) => {
       cards.forEach((card, index) => {
-        const current = index === activeIndex;
-        const slot = orbitSlotFor(index, activeIndex);
-        card.dataset.orbitSlot = slot;
+        const shown = index < shownCount;
+        const current = shown && index === activeIndex;
+        card.hidden = !shown;
+        if (shown) card.dataset.orbitSlot = orbitSlotFor(index, activeIndex);
+        else delete card.dataset.orbitSlot;
         card.classList.toggle('is-primary', current);
         card.setAttribute('aria-current', current ? 'true' : 'false');
+        card.setAttribute('aria-label', `${index + 1} / ${shownCount} · ${places[index].name}`);
         card.tabIndex = current ? 0 : -1;
         for (const control of card.querySelectorAll('a, button')) {
           control.tabIndex = current ? 0 : -1;
           control.setAttribute('aria-disabled', current ? 'false' : 'true');
         }
       });
-      previous.disabled = cards.length < 2;
-      next.disabled = cards.length < 2;
+      previous.disabled = shownCount < 2;
+      next.disabled = shownCount < 2;
+      position.textContent = `${activeIndex + 1}/${shownCount}`;
+      position.hidden = shownCount < 2;
+      more.hidden = shownCount >= places.length;
+      footer.hidden = position.hidden && more.hidden;
+      rail.classList.toggle('has-orbit-footer', !footer.hidden);
       if (announce && cards[activeIndex]) {
-        status.textContent = `${activeIndex + 1} / ${cards.length} · ${placeResult.results[activeIndex].name}`;
+        status.textContent = `${activeIndex + 1} / ${shownCount} · ${places[activeIndex].name}`;
       }
     };
 
-    const setActiveIndex = (index, {focus = false, announce = true} = {}) => {
-      activeIndex = wrapIndex(index);
+    const setActiveIndex = (index, {focus = false, announce = true, step = stepToward(wrapIndex(index))} = {}) => {
+      const target = wrapIndex(index);
+      if (step && target !== activeIndex) {
+        lastStep = step;
+        // The card coming in enters from the side the turn goes toward. With
+        // two cards it can be waiting on the other side; it moves over first,
+        // without animating.
+        const incoming = cards[target];
+        const side = step > 0 ? 'RIGHT' : 'LEFT';
+        if (incoming && !String(incoming.dataset.orbitSlot || '').startsWith(side)) {
+          incoming.hidden = false;
+          incoming.classList.add('is-orbit-repositioning');
+          incoming.dataset.orbitSlot = `${side}_FRONT`;
+          void incoming.offsetWidth;
+          incoming.classList.remove('is-orbit-repositioning');
+        }
+      }
+      activeIndex = target;
       rail.style.removeProperty('--lotbi-orbit-drag-x');
       applyOrbitState({announce});
       if (focus) cards[activeIndex]?.focus({preventScroll: true});
     };
 
-    previous.addEventListener('click', () => setActiveIndex(activeIndex - 1));
-    next.addEventListener('click', () => setActiveIndex(activeIndex + 1));
+    previous.addEventListener('click', () => setActiveIndex(activeIndex - 1, {step: -1}));
+    next.addEventListener('click', () => setActiveIndex(activeIndex + 1, {step: 1}));
+    more.addEventListener('click', () => {
+      if (shownCount >= places.length) return;
+      const firstAdded = shownCount;
+      shownCount = places.length;
+      rail.dataset.cardCount = String(shownCount);
+      setActiveIndex(firstAdded, {focus: true, step: 1});
+    });
 
     cards.forEach((card, index) => {
       card.addEventListener('click', event => {
@@ -1841,33 +2273,37 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     rail.addEventListener('keydown', event => {
       let nextIndex = null;
-      if (event.key === 'ArrowRight') nextIndex = activeIndex + 1;
-      else if (event.key === 'ArrowLeft') nextIndex = activeIndex - 1;
-      else if (event.key === 'Home') nextIndex = 0;
-      else if (event.key === 'End') nextIndex = cards.length - 1;
+      let step = 0;
+      if (event.key === 'ArrowRight') { nextIndex = activeIndex + 1; step = 1; }
+      else if (event.key === 'ArrowLeft') { nextIndex = activeIndex - 1; step = -1; }
+      else if (event.key === 'Home') { nextIndex = 0; step = -1; }
+      else if (event.key === 'End') { nextIndex = shownCount - 1; step = 1; }
       if (nextIndex === null) return;
       event.preventDefault();
-      setActiveIndex(nextIndex, {focus: true});
+      setActiveIndex(nextIndex, {focus: true, step});
     });
 
     rail.addEventListener('wheel', event => {
-      if (cards.length < 2 || wheelLocked) return;
+      if (shownCount < 2 || wheelLocked) return;
       if (Math.abs(event.deltaX) < 24 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
       event.preventDefault();
       wheelLocked = true;
-      setActiveIndex(activeIndex + (event.deltaX > 0 ? 1 : -1));
+      const step = event.deltaX > 0 ? 1 : -1;
+      setActiveIndex(activeIndex + step, {step});
       globalThis.setTimeout?.(() => { wheelLocked = false; }, reducedMotion ? 0 : 180);
     }, {passive: false});
 
     rail.addEventListener('pointerdown', event => {
-      if (cards.length < 2 || (event.pointerType === 'mouse' && event.button !== 0) || event.target?.closest?.('a, button')) return;
+      // One card does not turn, but a drag on it is still a drag, not a tap
+      // that opens the search.
+      if ((event.pointerType === 'mouse' && event.button !== 0) || event.target?.closest?.('a, button')) return;
       const originCard = event.target?.closest?.('.lotbi-place-orbit-card');
       const originIndex = Number(originCard?.dataset?.orbitIndex);
       const centerRect = cards[activeIndex]?.getBoundingClientRect?.() || null;
       pointerOriginIndex = resolvePlaceOrbitPointerIndex({
         targetIndex: Number.isInteger(originIndex) ? originIndex : null,
         activeIndex,
-        cardCount: cards.length,
+        cardCount: shownCount,
         clientX: event.clientX,
         clientY: event.clientY,
         centerRect,
@@ -1927,8 +2363,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
       if (cancelled) {
         applyOrbitState();
+      } else if (crossedDragThreshold && shownCount > 1) {
+        const step = delta < 0 ? 1 : -1;
+        setActiveIndex(activeIndex + step, {step});
       } else if (crossedDragThreshold) {
-        setActiveIndex(activeIndex + (delta < 0 ? 1 : -1));
+        applyOrbitState();
       } else if (Number.isInteger(pointerOriginIndex)) {
         setActiveIndex(pointerOriginIndex);
       } else {
@@ -2670,6 +3109,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (message.role === 'assistant' && rich) {
       const rail = createProductCardRail(rich); if (rail) node.appendChild(rail);
     }
+    if (message.role === 'assistant' && message.meta?.productLookup) {
+      const photos = createProductImageComparison(message.meta.productLookup, {document});
+      if (photos) node.appendChild(photos);
+    }
     if (message.role === 'assistant' && message.meta?.emergencyCall === true) {
       node.appendChild(createEmergencyCallNotice(document));
     }
@@ -2709,6 +3152,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         onChangeSchool: () => {
           clearSchoolPreference(lifeSchoolKey(), storage);
           setStatus('저장된 학교를 지웠어요. 학교 이름을 말씀해 주시면 다시 찾아볼게요.');
+        },
+        // SCHOOL-MEAL-01: [이번 주 급식] asks as an ordinary turn; the saved
+        // school rides along because the question names 급식.
+        onAsk: text => {
+          if (text && !inFlight) void requestAssistant(text, true);
         },
       });
       if (schoolCard) node.appendChild(schoolCard);
@@ -2761,11 +3209,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return appendNode(messageNode(message), options);
   };
   const renderActiveThread = () => {
+    // The answer being read aloud is about to leave the page with the rest.
+    stopMessageReadAloud('CONVERSATION_CHANGED');
     // Thumbnails live only in the document that rendered them; rebuilding the
     // transcript drops those nodes, so their object URLs are released here.
     releaseRenderedPreviewUrls();
     restoreAvatarHome(); thread.replaceChildren();
     lastRenderedCreatedAt = undefined;
+    releaseTurnAnchor();
     const record = threadRecord();
     if (!record || !record.messages.length) { showBlankHome(); return; }
     showThread();
@@ -2916,7 +3367,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     consumeRequestedConversation();
     preferences = {
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
-      theme: resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme()),
+      theme: sharedThemePreference() ?? adoptLegacyTheme(resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme())),
       displayName: typeof loadedPreferences.displayName === 'string' ? loadedPreferences.displayName.slice(0, 40) : '',
       responseGrade: RESPONSE_GRADE_OPTIONS.some(([key]) => key === loadedPreferences.responseGrade) ? loadedPreferences.responseGrade : DEFAULT_RESPONSE_GRADE,
     };
@@ -3063,7 +3514,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       void syncProfilePhoto(identity.profilePhoto);
       openProfilePhotoFromHash();
     } catch (error) {
-      if (isSessionError(error)) sessionToken = undefined;
+      if (isSessionError(error)) dropSessionToken();
       return;
     }
     try {
@@ -3085,6 +3536,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   let routeTraversalPending = false;
   let routeTraversalTimer;
   let pendingRouteTarget = null;
+  // The step back over an entry that was renamed for the screen already on
+  // view (syncSiteRouteToScreen): its popstate changes nothing.
+  let routeCollapseStepPending = false;
   // 진위확인 is a <dialog> owned by site-scam-shield.js; like its session and
   // login requests, opening/closing it goes through window events.
   const isScamShieldOpen = () => Boolean(document.querySelector('[data-scam-dialog]')?.hasAttribute('open'));
@@ -3092,6 +3546,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const closeScamShield = () => window.dispatchEvent(new CustomEvent('lotbi:scam-shield-close-request'));
   const visibleSiteRoute = () => (isScamShieldOpen() ? 'scam' : openSurface?.dataset.siteRoute || '');
   const settleSiteRoutePending = () => { delete document.documentElement.dataset.siteRoutePending; };
+  const currentRouteEntry = () => (window.history.state && typeof window.history.state === 'object' ? window.history.state : {});
+  const stepBackToRouteEntry = () => {
+    routeTraversalPending = true;
+    clearTimeout(routeTraversalTimer);
+    routeTraversalTimer = setTimeout(() => { routeTraversalPending = false; routeCollapseStepPending = false; queueSiteRouteSync(); }, 1500);
+    window.history.back();
+  };
   const syncSiteRouteToScreen = () => {
     routeSyncQueued = false;
     if (routeTraversalPending) return;
@@ -3104,12 +3565,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     const inUrl = parseSiteRouteHash(window.location.hash) || '';
     if (visible === inUrl) return;
-    const entry = window.history.state && typeof window.history.state === 'object' ? window.history.state : {};
+    const entry = currentRouteEntry();
     if (inUrl && routeEntriesPushedHere.has(entry.lotbiRouteKey) && entry.lotbiRouteFrom === visible) {
-      routeTraversalPending = true;
-      clearTimeout(routeTraversalTimer);
-      routeTraversalTimer = setTimeout(() => { routeTraversalPending = false; queueSiteRouteSync(); }, 1500);
-      window.history.back();
+      // SITE-REFRESH-ROUTE-PAGE-CLEANUP-05 — the screen already changed by
+      // other means (새 대화, 대화 전환, a menu over a screen, a session
+      // change…): name it in the URL now, in this task, then step back over
+      // the entry so the history keeps no copy. The entry remembers the screen
+      // it named, so forward reopens it (popstate below).
+      window.history.replaceState({...entry, lotbiRoute: visible, lotbiRouteCollapsedFrom: inUrl}, '', siteRouteUrl(visible));
+      routeCollapseStepPending = true;
+      stepBackToRouteEntry();
       return;
     }
     const key = `route-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -3124,10 +3589,42 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // A tab inside one screen (안심케어 사람/반려동물) replaces the entry in place.
   const replaceSiteRouteInPlace = route => {
     if (routeTraversalPending || parseSiteRouteHash(window.location.hash) === route) return;
-    const entry = window.history.state && typeof window.history.state === 'object' ? window.history.state : {};
-    window.history.replaceState({...entry, lotbiRoute: route}, '', siteRouteUrl(route));
+    window.history.replaceState({...currentRouteEntry(), lotbiRoute: route}, '', siteRouteUrl(route));
   };
   window.addEventListener('lotbi:scam-shield-visibility', queueSiteRouteSync);
+  // SITE-REFRESH-ROUTE-FESTIVAL-BACK-04 — a screen's own ← / × (and Escape)
+  // that returns to the entry this document came from goes back in history
+  // first; the popstate handler then makes the change, so the screen and the
+  // URL change in the same task. Changing the screen first and calling
+  // history.back() after it left a window — a round trip to the browser, tens
+  // of ms on a slow phone — with one screen on view under the other's URL; a
+  // reload, a share or a new tab taken then reopened the screen just left
+  // (축제·행사 ← showed 생활정보 at /#festival). Any other change is made at
+  // once and syncSiteRouteToScreen above names it in the URL in the same task.
+  let pendingRouteLeave = null;
+  const leaveSiteRoute = (destination, change) => {
+    if (pendingRouteLeave) return;
+    const visible = visibleSiteRoute();
+    const entry = currentRouteEntry();
+    const stepsBack = !routeTraversalPending && pendingRouteTarget === null && Boolean(visible)
+      && parseSiteRouteHash(window.location.hash) === visible
+      && routeEntriesPushedHere.has(entry.lotbiRouteKey) && entry.lotbiRouteFrom === destination;
+    if (!stepsBack) { change(); return; }
+    const leave = pendingRouteLeave = {destination, change, timer: 0};
+    // No popstate within a second: make the change anyway; the URL follows
+    // when the step lands (routeTraversalPending holds off a second step).
+    leave.timer = setTimeout(() => {
+      if (pendingRouteLeave !== leave) return;
+      pendingRouteLeave = null;
+      change();
+    }, 1000);
+    stepBackToRouteEntry();
+  };
+  // 진위확인's ×, 취소, Escape and outside tap ask first (site-scam-shield.js).
+  window.addEventListener('lotbi:scam-shield-dismiss-request', event => {
+    event.preventDefault();
+    leaveSiteRoute('', closeScamShield);
+  });
 
   const closeSurface = () => {
     if (!openSurface) return;
@@ -3147,24 +3644,31 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     surfaceRestoreFocus = undefined;
     queueSiteRouteSync();
   };
-  const installSurfaceBehavior = (surface, panel, {modal = false, workspace = '', route = '', dismissOnBackdrop = true, trigger, onClose, onBack, backLabel = '대화로 돌아가기'} = {}) => {
+  // backRoute: the screen onBack opens (← of 축제·행사 / 롯비함 → 생활정보).
+  const installSurfaceBehavior = (surface, panel, {modal = false, workspace = '', route = '', dismissOnBackdrop = true, trigger, onClose, onBack, backRoute = '', backLabel = '대화로 돌아가기'} = {}) => {
     const initiatingFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     closeSurface(); openSurface = surface; openSurfaceTrigger = trigger; surfaceRestoreFocus = initiatingFocus; surfaceCloseCallback = typeof onClose === 'function' ? onClose : undefined;
     if (route) surface.dataset.siteRoute = route;
     queueSiteRouteSync();
+    // The surface's own ×/← (and Escape) leave it through leaveSiteRoute; a
+    // change that lands after another screen took its place leaves that one be.
+    const dismiss = () => leaveSiteRoute('', () => { if (openSurface === surface) closeSurface(); });
+    const goBack = typeof onBack === 'function'
+      ? () => leaveSiteRoute(backRoute, () => { if (openSurface !== surface) return; closeSurface(); onBack(); })
+      : dismiss;
+    const back = panel.querySelector('.site-modal-close');
+    if (back) {
+      back.removeEventListener('click', closeSurface);
+      back.addEventListener('click', goBack);
+    }
     document.body.appendChild(surface); document.body.classList.add(workspace ? 'site-workspace-open' : 'site-overlay-open');
     if (workspace) {
       surface.dataset.workspace = workspace;
       surface.classList.add('consumer-workspace'); panel.setAttribute('role', 'region');
       mainScrollHost.inert = true;
-      const back = panel.querySelector('.site-modal-close');
       if (back) {
         back.textContent = '←'; back.title = backLabel;
         back.setAttribute('aria-label', backLabel);
-        if (typeof onBack === 'function') {
-          back.removeEventListener('click', closeSurface);
-          back.addEventListener('click', () => { closeSurface(); onBack(); });
-        }
         panel.querySelector('.site-modal-header')?.prepend(back);
       }
       for (const entry of document.querySelectorAll('.consumer-primary-nav button')) {
@@ -3176,10 +3680,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (dismissOnBackdrop) {
       const backdropDismiss = createBackdropDismissGuard(surface);
       surface.addEventListener('pointerdown', event => backdropDismiss.notePointerDown(event));
-      surface.addEventListener('click', event => { if (backdropDismiss.shouldDismiss(event)) closeSurface(); });
+      surface.addEventListener('click', event => { if (backdropDismiss.shouldDismiss(event)) dismiss(); });
     }
     surface.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeSurface(); if (typeof onBack === 'function') onBack(); } else if (!workspace) trapFocus(panel, event);
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); goBack(); } else if (!workspace) trapFocus(panel, event);
     });
     if (modal) panel.setAttribute('aria-modal', 'true');
     queueMicrotask(() => focusableNodes(panel)[0]?.focus());
@@ -3250,13 +3754,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     // must release them rather than leak the private bytes into the page.
     let releasePetSurface = null;
     installSurfaceBehavior(backdrop, panel, {
-      workspace: 'care', route: 'pets', backLabel: '안심케어로 돌아가기', onBack: () => openConsumerSection('care'),
+      workspace: 'care', route: 'pets', backLabel: '안심케어로 돌아가기', onBack: () => openConsumerSection('care'), backRoute: 'care',
       onClose: () => { releasePetSurface?.(); releasePetSurface = null; },
     });
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-d715f1fd4db1');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-ae67674402be');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3278,13 +3782,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     panel.classList.add('site-festival-modal');
     let releaseFestivalSurface = null;
     installSurfaceBehavior(backdrop, panel, {
-      workspace: 'life', route: 'festival', backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'),
+      workspace: 'life', route: 'festival', backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life',
       onClose: () => { releaseFestivalSurface?.(); releaseFestivalSurface = null; },
     });
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-d715f1fd4db1');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-ae67674402be');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3296,6 +3800,32 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       content.replaceChildren(Object.assign(document.createElement('p'), {
         className: 'festival-error',
         textContent: '축제·행사 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+
+  // ONNURI-MERCHANT-01: 생활정보 → 온누리상품권 가맹점 찾기 (public Core read).
+  // It stays on the existing 'life' route, so a reload lands on 생활정보.
+  const openOnnuri = async () => {
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('온누리상품권 가맹점', '공공데이터에 등록된 가맹점을 현재 위치나 지역으로 찾아보세요.');
+    panel.classList.add('site-onnuri-modal');
+    let releaseOnnuriSurface = null;
+    // Same route as the 생활정보 section it belongs to (openConsumerSection).
+    const route = 'life';
+    installSurfaceBehavior(backdrop, panel, {
+      workspace: 'life', route, backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'),
+      onClose: () => { releaseOnnuriSurface?.(); releaseOnnuriSurface = null; },
+    });
+    try {
+      const {mountOnnuriMerchants} = await import('./site-life-onnuri.js?v=aset-ae67674402be');
+      const mounted = await mountOnnuriMerchants({root: content});
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
+      releaseOnnuriSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'onnuri-error',
+        textContent: '온누리상품권 가맹점 화면을 열지 못했습니다.',
       }));
     }
   };
@@ -3515,7 +4045,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         if (tokenAtStart !== sessionToken) return;
         serverIdentity = identity;
       } catch (error) {
-        if (isSessionError(error)) sessionToken = undefined;
+        if (isSessionError(error)) dropSessionToken();
         serverIdentity = undefined;
       }
     }
@@ -3540,11 +4070,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       sessionExpiresAt: serverIdentity?.expiresAt || '',
       onDraft: text => { closeSurface(); draft(text); },
       onFestival: () => { closeSurface(); void openFestival(); },
+      onOnnuri: () => { closeSurface(); void openOnnuri(); },
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-d715f1fd4db1'),
-          import('./site-pet.js?v=aset-d715f1fd4db1'),
+          import('./site-person.js?v=aset-ae67674402be'),
+          import('./site-pet.js?v=aset-ae67674402be'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -3553,11 +4084,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-d715f1fd4db1');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-ae67674402be');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-d715f1fd4db1');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-ae67674402be');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -3571,8 +4102,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const {backdrop, panel, content} = modalShell(
       '캘린더',
       sessionToken
-        ? 'LOTBI에 등록된 개인 일정을 확인하고 관리합니다.'
-        : '로그인 없이 캘린더를 확인할 수 있습니다. 계정 동기화는 로그인 후 사용할 수 있어요.',
+        ? '내 일정과 생활 기록을 관리합니다.'
+        : '로그인 없이 쓸 수 있어요. 기기 간 동기화는 로그인 후 가능합니다.',
     );
     panel.classList.add('site-calendar-modal', 'site-calendar-chat-popup');
     installSurfaceBehavior(backdrop, panel, {
@@ -3705,7 +4236,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     } catch (error) {
       if (generation === navigationCalendarStatusGeneration) {
         renderNavigationCalendarStatus({count: 0, hasReminder: false});
-        if (error instanceof SiteCoreError && isSessionError(error)) sessionToken = undefined;
+        if (error instanceof SiteCoreError && isSessionError(error)) dropSessionToken();
       }
     } finally {
       if (generation === navigationCalendarStatusGeneration) scheduleNavigationCalendarMidnightRefresh();
@@ -3719,6 +4250,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   });
 
   const openLotbiBox = trigger => {
+    if (!LOTBI_BOX_UI_ENABLED) return;
     closeMobileDrawer();
     const {backdrop, panel, content} = modalShell('롯비함', '나중에 다시 볼 항목을 모아두는 곳이에요.');
     panel.classList.add('site-lotbi-box-modal');
@@ -3797,7 +4329,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     content.appendChild(list);
     render();
-    installSurfaceBehavior(backdrop, panel, {workspace: 'life', route: 'lotbi-box', trigger, backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life')});
+    installSurfaceBehavior(backdrop, panel, {workspace: 'life', route: LOTBI_BOX_UI_ENABLED ? 'lotbi-box' : '', trigger, backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life'});
   };
 
   const openHelp = () => {
@@ -4007,7 +4539,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       } catch (error) {
         // A failed upload leaves no half-ready attachment and no stale preview.
         releaseComposerPreviewUrl(entry.previewUrl);
-        if (isSessionError(error)) sessionToken = undefined;
+        if (isSessionError(error)) dropSessionToken();
         if (isGuestSessionError(error)) clearGuestSession();
         setStatus(error instanceof Error ? error.message : '첨부 파일을 업로드하지 못했습니다.');
       } finally {
@@ -4336,7 +4868,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           catch (caught) { retry.disabled = false; body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.'; }
           return;
         }
-        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId, turnCreatedAt);
+        wrapper.remove(); await sendFromReader(() => requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId, turnCreatedAt));
       });
       wrapper.appendChild(retry);
     }
@@ -4348,6 +4880,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const sourceTurnCreatedAtIso = new Date(sourceTurnCreatedAt).toISOString();
     const attachments = [...selectedAttachments];
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
+    // A new question ends the reading of the previous answer.
+    stopMessageReadAloud('NEW_TURN');
     const suggestedPetAction = petConversationAction(message, attachments);
     const turnGeneration = ++activeTurnGeneration;
     const turnStillActive = () => turnGeneration === activeTurnGeneration;
@@ -4365,7 +4899,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           const timeoutError = new Error('응답 시간이 오래 걸려 중단했어요. 다시 시도해 주세요.');
           showError(timeoutError, message, true, logicalRequestId, sourceTurnCreatedAt);
           setStatus('LOTBI 응답 시간이 초과되었습니다.');
-          prompt.focus();
+          if (!composerUsesSoftwareKeyboard()) prompt.focus();
         },
       });
       return handle;
@@ -4390,8 +4924,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         sizeBytes: item.sizeBytes,
       }));
       const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt);
-      appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true});
+      appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {anchorTurn: true});
       appendPersistedMessage({...userRecord, meta: {attachments: persistedAttachments}});
+    } else if (recovering && followThreadBottom) {
+      // The conversation was reopened with this question still unanswered: its
+      // answer starts under it exactly as if it had just been sent.
+      const question = [...thread.querySelectorAll('.chat-message-user')].pop();
+      if (question) setTurnAnchor(question);
     }
     const local = attachments.length ? null : deterministicReply(message);
     if (local) {
@@ -4414,7 +4953,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       publishDiagnostics();
       recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: diagnostics.lastCoreRequestDelta, providerCalls: 0, externalAiCalls: diagnostics.lastExternalAiRequestDelta});
       console.info(`[LOTBI deterministic evidence] latencyMs=${diagnostics.lastVisibleAnswerMs} coreRequests=${diagnostics.lastCoreRequestDelta} providerRequests=0 externalAiRequests=${diagnostics.lastExternalAiRequestDelta}`);
-      setStatus('LOTBI의 즉시 응답이 도착했습니다.'); focusComposerInPlace(); return;
+      setStatus('LOTBI의 즉시 응답이 도착했습니다.'); returnComposerFocusAfterTurn(); return;
     }
     if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message)) {
       const calendarRequestId = logicalRequestId || newId('calendar-guest-direct');
@@ -4479,7 +5018,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           thinking.stop('cancel');
           inFlight = false;
           updateSendState();
-          prompt.focus();
+          if (!composerUsesSoftwareKeyboard()) prompt.focus();
         }
       }
       return;
@@ -4493,7 +5032,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const lifeSchool = schoolContextForMessage(message, readSchoolPreference(lifeSchoolKey(), storage));
         const token = await ensureGuestSession();
         if (!turnStillActive()) return;
-        const lifeLocation = await resolveLifeLocationContext(message).catch(() => null);
+        const lifeLocation = await resolveLifeLocationContext(message, {recentContext: recentConversationContext()}).catch(() => null);
         if (!turnStillActive()) return;
         if (!attachments.length) rememberPendingTurn({threadId: activeConversationId, key: guestRequestId, scope: 'GUEST', text: displayMessage, turnCreatedAt: sourceTurnCreatedAt});
         const response = await sendGuestConversationMessage({
@@ -4547,6 +5086,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         if (richProduct) meta.richProduct = richProduct;
+        const productLookup = compactProductLookupMeta(response.productLookup);
+        if (productLookup) meta.productLookup = productLookup;
         const schoolMeta = compactSchoolResultMeta(response.schoolResult);
         if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
         const regionalFoodMeta = compactRegionalFoodMeta(response.regionalFoodResult);
@@ -4572,7 +5113,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         showError(caught, message, true, guestRequestId, sourceTurnCreatedAt);
         setStatus('LOTBI 대화를 완료하지 못했습니다.');
       } finally {
-        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); focusComposerInPlace(); }
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); returnComposerFocusAfterTurn(); }
       }
       return;
     }
@@ -4614,7 +5155,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
         showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
       } finally {
-        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); focusComposerInPlace(); }
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); returnComposerFocusAfterTurn(); }
       }
       return;
     }
@@ -4625,7 +5166,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const lifeSchool = schoolContextForMessage(message, readSchoolPreference(lifeSchoolKey(), storage));
     try {
       const activeSessionToken = sessionToken;
-      const lifeLocation = await resolveLifeLocationContext(message).catch(() => null);
+      const lifeLocation = await resolveLifeLocationContext(message, {recentContext: recentConversationContext()}).catch(() => null);
       if (!turnStillActive()) return;
       if (!attachments.length) rememberPendingTurn({threadId: activeConversationId, key: authenticatedRequestId, scope: 'AUTH', text: displayMessage, turnCreatedAt: sourceTurnCreatedAt});
       const response = await sendConversationMessage(
@@ -4682,6 +5223,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       }
       if (richProduct) meta.richProduct = richProduct;
+      const productLookup = compactProductLookupMeta(response.productLookup);
+      if (productLookup) meta.productLookup = productLookup;
       const schoolMeta = compactSchoolResultMeta(response.schoolResult);
       if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
       const regionalFoodMeta = compactRegionalFoodMeta(response.regionalFoodResult);
@@ -4705,14 +5248,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       forgetPendingTurn(authenticatedRequestId);
       showError(caught, message, true, authenticatedRequestId, sourceTurnCreatedAt); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally {
-      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); focusComposerInPlace(); }
+      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); returnComposerFocusAfterTurn(); }
     }
   };
   // The keyboard has already shrunk the scroller by the time this fires, so
   // "near the bottom" is the wrong question; whether the reader was following
   // the conversation is the right one.
   window.addEventListener('lotbi:keyboard-viewport', () => {
-    if (!thread.hidden && followThreadBottom) scrollToConversationTail();
+    settleViewport(700);
+    if (thread.hidden) return;
+    if (followThreadBottom) scrollToConversationTail();
+    else if (holdTurnAnchor) scrollToTurnAnchor();
+    else restoreReadingLine();
   });
 
   // The newest turn of the open conversation is a question whose answer never
@@ -4757,7 +5304,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (voiceListening && voiceRecognition) voiceRecognition.stop();
     prompt.value = ''; state.draft = ''; saveState();
     prompt.dispatchEvent(new Event('input', {bubbles: true}));
-    await requestAssistant(message, true);
+    await sendFromReader(() => requestAssistant(message, true));
   };
 
   if (PUBLIC_SITE_VOICE_RELEASE_ENABLED && micButton instanceof HTMLButtonElement) {
@@ -4972,7 +5519,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       return;
     }
     const lotbiBoxTrigger = target?.closest('[data-lotbi-box-open]');
-    if (lotbiBoxTrigger instanceof HTMLButtonElement) {
+    if (LOTBI_BOX_UI_ENABLED && lotbiBoxTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
       openLotbiBox(lotbiBoxTrigger);
       return;
@@ -4994,7 +5541,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
       closeConversationMenus();
-      if (openSurface?.dataset.workspace) closeSurface();
+      // Escape with the focus outside the screen closes it like its ×: through
+      // history first when that steps back (leaveSiteRoute).
+      const surface = openSurface;
+      if (surface?.dataset.workspace) leaveSiteRoute('', () => { if (openSurface === surface) closeSurface(); });
     }
   });
   // Page teardown releases every object URL. A bfcache-persisted page keeps its
@@ -5003,6 +5553,24 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     cancelActiveTurn('pagehide');
     if (event instanceof PageTransitionEvent && event.persisted) return;
     releaseAllAttachmentPreviewUrls();
+  });
+  // AUTH-SESSION-CONTINUITY-P0-02 — a Site session renewed without leaving the
+  // page. A renewal of the session this page already holds only swaps the
+  // bearer (same installation, nothing on screen closes). The first session on
+  // a page that loaded signed out of the Site (refresh, tab restore, reopened
+  // browser) is announced next by site-continuity.js with
+  // lotbi:site-session-state, which switches the conversation namespace; the
+  // profile loads after that announcement.
+  registerSiteSessionAdopter(session => {
+    const next = typeof session?.sessionToken === 'string' ? session.sessionToken.trim() : '';
+    if (!next) return false;
+    const installationId = typeof session.installationId === 'string' ? session.installationId : '';
+    if (sessionToken && namespace && installationId && installationId !== namespace) return false;
+    const hadSession = Boolean(sessionToken);
+    sessionToken = next;
+    if (!hadSession || !serverIdentity) setTimeout(() => { void loadServerProfile(); }, 0);
+    updateSendState();
+    return true;
   });
   window.addEventListener(SESSION_STATE_EVENT, event => {
     const detail = event instanceof CustomEvent ? event.detail : undefined;
@@ -5046,7 +5614,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     pets: () => openConsumerSection('care', {careTab: 'pets'}),
     life: () => openConsumerSection('life'),
     festival: () => openFestival(),
-    'lotbi-box': () => openLotbiBox(),
+    ...(LOTBI_BOX_UI_ENABLED ? {'lotbi-box': () => openLotbiBox()} : {}),
   };
   const applySiteRoute = target => {
     if (target !== 'scam' && isScamShieldOpen()) closeScamShield();
@@ -5077,7 +5645,28 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   window.addEventListener('popstate', () => {
     routeTraversalPending = false;
     clearTimeout(routeTraversalTimer);
+    const collapseLanding = routeCollapseStepPending;
+    routeCollapseStepPending = false;
+    const leave = pendingRouteLeave;
+    pendingRouteLeave = null;
+    if (leave) clearTimeout(leave.timer);
     const target = parseSiteRouteHash(window.location.hash);
+    // The step a ←/× asked for: its change runs now, with the URL already moved.
+    if (leave && target === leave.destination) { leave.change(); queueSiteRouteSync(); return; }
+    // The step over an entry renamed for the screen on view: nothing changes;
+    // a screen opened in the meantime gets its own entry.
+    if (collapseLanding) { queueSiteRouteSync(); return; }
+    // Forward onto such an entry: it names again the screen it was renamed
+    // from, and that screen opens (URL and screen in this task).
+    const entry = currentRouteEntry();
+    const renamedFrom = typeof entry.lotbiRouteCollapsedFrom === 'string' && siteRouteHash(entry.lotbiRouteCollapsedFrom) ? entry.lotbiRouteCollapsedFrom : '';
+    if (renamedFrom && routeEntriesPushedHere.has(entry.lotbiRouteKey) && target === (entry.lotbiRoute || '')) {
+      const named = {...entry, lotbiRoute: renamedFrom};
+      delete named.lotbiRouteCollapsedFrom;
+      window.history.replaceState(named, '', siteRouteUrl(renamedFrom));
+      applySiteRoute(renamedFrom);
+      return;
+    }
     if (target === null) return;
     applySiteRoute(target);
   });

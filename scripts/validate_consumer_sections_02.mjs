@@ -5,12 +5,16 @@ const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'
 const source = read('site-consumer-sections.js');
 const conversation = read('site-conversation.js');
 const css = read('site-consumer-design.css');
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '축제·행사', '지역생활정보', '공과금 확인', '전북 맛집·음식']);
-assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 6);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '축제·행사', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교']);
+assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 7);
 // Medical entries build their sentence from the form (LIFE-MEDICAL-CATEGORY-ENTRY-01).
+// 축제·행사 and 온누리상품권 open their own surfaces (ONNURI-MERCHANT-01);
+// 유치원·학교 opens its own screen (KINDERGARTEN-OFFICIAL-INFO-01).
 // 전북 맛집·음식 builds its sentence from its own form (JEONBUK-PILOT-01).
-assert.ok(LIFE_SHORTCUTS.filter(item => item.id !== 'festivals' && !item.medical && !item.regionalFood).every(item => typeof item.prompt === 'string'));
-assert.match(LIFE_SHORTCUTS.find(item => item.id === 'bills').prompt, /등록할지/);
+assert.ok(LIFE_SHORTCUTS.filter(item => !['festivals', 'onnuri', 'education'].includes(item.id) && !item.medical && !item.regionalFood).every(item => typeof item.prompt === 'string'));
+// 공과금 확인 is hidden until an official integration exists — no entry, form or copy.
+assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills'), false);
+assert.doesNotMatch(source, /공과금|고지서|납부기한/);
 assert.ok(source.includes('제휴처 찾아 연결하기'));
 for (const removed of ['사람 실종 신고', '반려동물 실종 신고', '112·119']) assert.ok(!source.includes(removed));
 assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|type = 'file'/);

@@ -7,6 +7,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => readFileSync(path.join(ROOT, rel), 'utf8');
 const coreText = read('site-core.js');
 const conversation = read('site-conversation.js');
+const featureFlags = read('site-feature-flags.js');
 const css = read('site-conversation.css');
 
 const {
@@ -178,9 +179,6 @@ for (const token of [
   'createProductCardRail',
   "response.intent?.action === 'PURCHASE'",
   "rail.dataset.richCardType = 'PRODUCT'",
-  "box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card)",
-  "box.setAttribute('aria-pressed', String(saved))",
-  "refreshLotbiBoxControls()",
   "buy.textContent = '구매하기'",
   "await beginGuestClaimingSiteHandoff(rich.originalText || rich.query || card.title)",
   '아직 주문·결제는 실행하지 않았습니다.',
@@ -188,6 +186,10 @@ for (const token of [
   'display_id: rich.displayId',
   'resolution_hash: rich.resolutionHash',
 ]) assert.ok(conversation.includes(token), 'missing Product Rich Card behavior: ' + token);
+
+assert.match(featureFlags, /export const LOTBI_BOX_UI_ENABLED = false;/, '롯비함 UI is disabled by the shared source flag');
+assert.match(conversation, /if \(LOTBI_BOX_UI_ENABLED\) \{[\s\S]*?box\.dataset\.lotbiBoxToggleKey[\s\S]*?actions\.appendChild\(box\);[\s\S]*?\}/u,
+  'the save control is only created inside the disabled feature gate');
 
 for (const forbidden of ['/orders', '/payments', '/reservations', '/execute', '/select']) {
   assert.ok(!conversation.includes(forbidden), 'Site Rich Card runtime must not invoke execution endpoint: ' + forbidden);
