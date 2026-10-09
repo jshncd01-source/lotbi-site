@@ -562,7 +562,12 @@ try {
         assertCards(noPhoto, `${label}/nophoto/${map || 'default'}`, testCase, {photo: false});
         assert.equal(noPhoto.mapProvider, map || 'NAVER_MAP', `${label}: map provider ${map || 'default'} read from settings`);
         assert.ok(noPhoto.cards.every(card => !card.hasMedia), `${label}: no media box on any card`);
-        assert.ok(noPhoto.rail.h <= Math.round(hospital.rail.h * 0.7), `${label}: no-photo list is compact (${noPhoto.rail.h} vs ${hospital.rail.h})`);
+        // The rail keeps no photo space: below its tallest card it has no more
+        // room than the photo list has below its photo card (the position row).
+        const tallestNoPhoto = Math.max(...noPhoto.cards.map(card => card.card.h));
+        const photoRoom = hospital.rail.h - photoCard.card.h;
+        assert.ok(noPhoto.rail.h - tallestNoPhoto <= photoRoom + 2, `${label}: no-photo list keeps no photo space (rail ${noPhoto.rail.h} − card ${tallestNoPhoto} vs ${photoRoom})`);
+        assert.ok(noPhoto.rail.h <= hospital.rail.h - (photoCard.card.h - tallestNoPhoto) + 2, `${label}: no-photo list is shorter by the photo height (${noPhoto.rail.h} vs ${hospital.rail.h})`);
         if (!map) summary.push(`${label}: photo rail ${hospital.rail.h}px → no-photo rail ${noPhoto.rail.h}px, no-photo card ${noPhotoCard.card.h}px vs photo card ${photoCard.card.h}px`);
       }
 
