@@ -51,12 +51,18 @@ assert.equal(older.name, 'LOTBI 사용자');
 assert.equal(older.publicHandle, GENERATED);
 assert.equal('publicHandleGenerated' in older || 'signupProvider' in older, false);
 
+// The longest name Core accepts (display_name max_length=120, users.name String(120)).
+// A 28-character name fitted the 360px summary under the Linux gate's narrower font and
+// was never cut, so the ellipsis check could not run there; 120 characters overflow
+// every width in any font, including the forced narrow-glyph stage below.
+const LONG_NAME = '아주아주긴이름을가진LOTBI사용자입니다정말로길어요'.repeat(5).slice(0, 120);
+
 const CASES = {
   kakaoLimited: {user: {id: 'usr-kakao', name: 'LOTBI 사용자', profile_photo: null, display_name_is_default: true, signup_provider: 'KAKAO'}, assurance: 'FEDERATED_LIMITED'},
   kakaoFull: {user: {id: 'usr-kakao', name: 'LOTBI 사용자', account_handle: GENERATED, public_handle: GENERATED, email: null, account_handle_is_synthetic: false, display_name_is_default: true, public_handle_is_generated: true, signup_provider: 'KAKAO', profile_photo: null}, assurance: 'FULL'},
   noProvider: {user: {id: 'usr-x', name: null, display_name_is_default: true, signup_provider: null, profile_photo: null}, assurance: 'FEDERATED_LIMITED'},
   named: {user: {id: 'usr-named', name: '홍길동', account_handle: GENERATED, public_handle: 'hong2026', email: null, display_name_is_default: false, public_handle_is_generated: false, signup_provider: 'KAKAO', profile_photo: null}, assurance: 'FULL'},
-  longName: {user: {id: 'usr-long', name: '아주아주긴이름을가진LOTBI사용자입니다정말로길어요', display_name_is_default: false, signup_provider: 'NAVER', profile_photo: null}, assurance: 'FEDERATED_LIMITED'},
+  longName: {user: {id: 'usr-long', name: LONG_NAME, display_name_is_default: false, signup_provider: 'NAVER', profile_photo: null}, assurance: 'FEDERATED_LIMITED'},
   olderCore: {user: {id: 'usr-old', name: 'LOTBI 사용자', account_handle: GENERATED, profile_photo: null}, assurance: 'FULL'},
 };
 
@@ -85,6 +91,8 @@ function browserPath() {
   throw new Error('Chrome/Chromium is required');
 }
 
+// The page shell (.chat-app-shell) gives the desktop sidebar its real 220px column;
+// at 900px and below it is display:block, as on lotbiai.com.
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/home-chat.css">
@@ -93,7 +101,10 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <main id="root"><div data-sidebar-account></div></main><pre id="profile-result">pending</pre>
 <script type="module">
 const out=document.getElementById('profile-result');
-const params=new URLSearchParams(location.search),caseName=params.get('case');
+const params=new URLSearchParams(location.search),caseName=params.get('case'),glyphs=params.get('glyphs')||'default';
+// Narrow-glyph stage: every profile text glyph 3px narrower, like the Linux gate's font
+// (with it the old 28-character name was cut at 320px and fitted at 360px, as on the gate).
+if(glyphs==='narrow'){const style=document.createElement('style');style.textContent='.sidebar-account-name,.sidebar-account-plan,.sidebar-account-handle,.profile-popover-summary-name,.profile-popover-summary-plan,.profile-popover-summary-handle,.profile-popover-summary-email{letter-spacing:-3px!important}';document.head.appendChild(style)}
 const cases=${JSON.stringify(CASES)};
 const current=cases[caseName];
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -107,7 +118,7 @@ counts.other+=1;return new Response('{}',{status:500})};
 try{
 localStorage.clear();
 const conversation=await import('/site-conversation.js?social-signup-profile-ux=1');
-document.getElementById('root').innerHTML='<aside class="chat-sidebar"><ul data-recent-conversations></ul><div class="sidebar-account-footer"><div class="sidebar-account-slot" data-sidebar-account></div></div></aside><main id="main-content" class="chat-home-shell" tabindex="0"><div data-home-avatar-anchor><div data-lotbi-avatar-container class="chat-character-wrap"><span class="chat-character-logo">LOTBI</span></div></div><div id="conversation-thread" class="conversation-thread" hidden></div><div class="chat-composer-stack"><div id="attachment-preview-strip" data-attachment-preview hidden></div><textarea id="lotbi-prompt" class="chat-input"></textarea><div data-attachment-control><button type="button" data-attachment-trigger aria-expanded="false">+</button><div data-attachment-menu hidden><button type="button" role="menuitem" data-attachment-action="camera">카메라</button><button type="button" role="menuitem" data-attachment-action="photos">사진·스크린샷</button><button type="button" role="menuitem" data-attachment-action="files">파일</button></div><input type="file" data-attachment-input="camera"><input type="file" data-attachment-input="photos"><input type="file" data-attachment-input="files"></div></div><div data-response-grade-control><button type="button" data-response-grade-trigger><span data-response-grade-label>스탠다드</span></button><div data-response-grade-menu hidden><button type="button" data-response-grade="LIGHT"></button><button type="button" data-response-grade="STANDARD"></button><button type="button" data-response-grade="PREMIUM"></button></div></div><button class="send-button" type="button">전송</button><button class="mic-button" type="button">마이크</button><p id="chat-status"></p><div id="chat-state-region" hidden></div></main>';
+document.getElementById('root').innerHTML='<div class="chat-app-shell"><aside class="chat-sidebar"><ul data-recent-conversations></ul><div class="sidebar-account-footer"><div class="sidebar-account-slot" data-sidebar-account></div></div></aside><main id="main-content" class="chat-home-shell" tabindex="0"><div data-home-avatar-anchor><div data-lotbi-avatar-container class="chat-character-wrap"><span class="chat-character-logo">LOTBI</span></div></div><div id="conversation-thread" class="conversation-thread" hidden></div><div class="chat-composer-stack"><div id="attachment-preview-strip" data-attachment-preview hidden></div><textarea id="lotbi-prompt" class="chat-input"></textarea><div data-attachment-control><button type="button" data-attachment-trigger aria-expanded="false">+</button><div data-attachment-menu hidden><button type="button" role="menuitem" data-attachment-action="camera">카메라</button><button type="button" role="menuitem" data-attachment-action="photos">사진·스크린샷</button><button type="button" role="menuitem" data-attachment-action="files">파일</button></div><input type="file" data-attachment-input="camera"><input type="file" data-attachment-input="photos"><input type="file" data-attachment-input="files"></div></div><div data-response-grade-control><button type="button" data-response-grade-trigger><span data-response-grade-label>스탠다드</span></button><div data-response-grade-menu hidden><button type="button" data-response-grade="LIGHT"></button><button type="button" data-response-grade="STANDARD"></button><button type="button" data-response-grade="PREMIUM"></button></div></div><button class="send-button" type="button">전송</button><button class="mic-button" type="button">마이크</button><p id="chat-status"></p><div id="chat-state-region" hidden></div></main></div>';
 document.body.dataset.siteAuthState='authenticated';
 if(!conversation.mountConversation({sessionToken:'site-token',identityKey:'install-profile-ux'}))throw new Error('mount');
 await wait(()=>counts.me===1&&counts.subscription===1&&document.querySelector('.sidebar-account-plan'),'identity+plan');
@@ -122,7 +133,8 @@ const summary={name:nameNode?.textContent||'',handle:summaryNode.querySelector('
 const labels=[...pop.querySelectorAll('[role="menuitem"]')].map(n=>n.textContent).join('|');
 const r=pop.getBoundingClientRect(),vw=document.documentElement.clientWidth,vh=document.documentElement.clientHeight;
 const nameStyle=getComputedStyle(nameNode);
-const layout={popover:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width},viewport:{width:vw,height:vh},copyOverflow:copy.scrollWidth-copy.clientWidth,summaryOverflow:summaryNode.scrollWidth-summaryNode.clientWidth,nameEllipsis:nameStyle.textOverflow,nameWhiteSpace:nameStyle.whiteSpace,nameClipped:nameNode.scrollWidth>nameNode.clientWidth,pageOverflow:document.documentElement.scrollWidth-vw,triggerOverflow:trigger.scrollWidth-trigger.clientWidth};
+const triggerName=trigger.querySelector('.sidebar-account-name'),triggerNameStyle=getComputedStyle(triggerName);
+const layout={popover:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width},viewport:{width:vw,height:vh},copyOverflow:copy.scrollWidth-copy.clientWidth,summaryOverflow:summaryNode.scrollWidth-summaryNode.clientWidth,nameEllipsis:nameStyle.textOverflow,nameWhiteSpace:nameStyle.whiteSpace,nameClipped:nameNode.scrollWidth>nameNode.clientWidth,nameScrollWidth:nameNode.scrollWidth,nameClientWidth:nameNode.clientWidth,letterSpacing:nameStyle.letterSpacing,triggerNameEllipsis:triggerNameStyle.textOverflow,triggerNameWhiteSpace:triggerNameStyle.whiteSpace,triggerNameClipped:triggerName.scrollWidth>triggerName.clientWidth,pageOverflow:document.documentElement.scrollWidth-vw,triggerOverflow:trigger.scrollWidth-trigger.clientWidth};
 const text=document.body.innerText;
 out.textContent=JSON.stringify({ok:true,caseName,viewport:{width:innerWidth,height:innerHeight},sidebar,summary,labels,layout,text,counts});
 }catch(e){out.textContent=JSON.stringify({ok:false,caseName,error:String(e?.stack||e),counts})}
@@ -137,25 +149,25 @@ function waitServer() {
   throw new Error('server start');
 }
 
-function wrapperMarkup(caseName, w, h) {
-  return `<!doctype html><html><head><meta charset="utf-8"></head><body><iframe id="case-frame" src="/${INNER_REL}?case=${caseName}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="profile-result">pending</pre><script>const frame=document.getElementById('case-frame'),out=document.getElementById('profile-result');const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('profile-result');if(child&&child.textContent&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e)});clearInterval(timer)}},20);setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},9000);<\/script></body></html>`;
+function wrapperMarkup(caseName, w, h, glyphs) {
+  return `<!doctype html><html><head><meta charset="utf-8"></head><body><iframe id="case-frame" src="/${INNER_REL}?case=${caseName}&glyphs=${glyphs}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="profile-result">pending</pre><script>const frame=document.getElementById('case-frame'),out=document.getElementById('profile-result');const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('profile-result');if(child&&child.textContent&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e)});clearInterval(timer)}},20);setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},9000);<\/script></body></html>`;
 }
 
-function run(browser, caseName, w, h, attempt = 1) {
+function run(browser, caseName, w, h, glyphs, attempt = 1) {
   try {
-    return runOnce(browser, caseName, w, h);
+    return runOnce(browser, caseName, w, h, glyphs);
   } catch (error) {
     // The single local static server sometimes drops a module request between
     // two headless Chrome runs; that is the harness, not the page.
     if (attempt < 3 && /Failed to fetch dynamically imported module|result missing/.test(String(error))) {
-      return run(browser, caseName, w, h, attempt + 1);
+      return run(browser, caseName, w, h, glyphs, attempt + 1);
     }
     throw error;
   }
 }
 
-function runOnce(browser, caseName, w, h) {
-  fs.writeFileSync(WRAPPER, wrapperMarkup(caseName, w, h), 'utf8');
+function runOnce(browser, caseName, w, h, glyphs) {
+  fs.writeFileSync(WRAPPER, wrapperMarkup(caseName, w, h, glyphs), 'utf8');
   const result = spawnSync(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--window-size=1600,1000', '--force-device-scale-factor=1', '--virtual-time-budget=10000', '--dump-dom', ORIGIN + '/' + WRAPPER_REL], {encoding: 'utf8', timeout: 45000, maxBuffer: 12 * 1024 * 1024});
   if (result.error) throw result.error;
   const start = '<pre id="profile-result">', end = '</pre>', i = result.stdout.indexOf(start), j = result.stdout.indexOf(end, i);
@@ -167,9 +179,9 @@ function runOnce(browser, caseName, w, h) {
   return value;
 }
 
-function check(caseName, w, value) {
+function check(caseName, w, glyphs, value) {
   const expected = EXPECT[caseName];
-  const at = `${caseName}@${w}`;
+  const at = `${caseName}@${w}/${glyphs}`;
   assert.equal(value.sidebar.name, expected.name, at + ' sidebar name');
   assert.equal(value.summary.name, expected.name, at + ' summary name');
   assert.equal(value.sidebar.plan, 'LOTBI Free', at + ' sidebar plan');
@@ -192,6 +204,15 @@ function check(caseName, w, value) {
   assert.ok(layout.pageOverflow <= 1, at + ' page overflow ' + JSON.stringify(layout));
   assert.equal(layout.nameEllipsis, 'ellipsis', at + ' long names end with an ellipsis');
   assert.equal(layout.nameWhiteSpace, 'nowrap', at + ' name stays on one line');
+  assert.equal(layout.triggerNameEllipsis, 'ellipsis', at + ' sidebar name ends with an ellipsis');
+  assert.equal(layout.triggerNameWhiteSpace, 'nowrap', at + ' sidebar name stays on one line');
+  assert.ok(layout.triggerOverflow <= 1, at + ' sidebar trigger overflow ' + JSON.stringify(layout));
+  // Whenever a name does not fit, it is cut on one line with an ellipsis (checked above).
+  if (caseName === 'longName') {
+    assert.ok(layout.nameClipped, `${at} the longest allowed name is cut in the summary ` + JSON.stringify(layout));
+    assert.ok(layout.triggerNameClipped, `${at} the longest allowed name is cut in the sidebar ` + JSON.stringify(layout));
+  }
+  if (glyphs === 'narrow') assert.equal(layout.letterSpacing, '-3px', at + ' narrow-glyph stage applied');
   assert.equal(value.counts.other, 0, at + ' unexpected request');
 }
 
@@ -203,11 +224,14 @@ try {
   waitServer();
   const widths = [[320, 640], [360, 740], [390, 844], [430, 932], [1440, 900]];
   for (const caseName of Object.keys(CASES)) {
-    for (const [w, h] of (caseName === 'kakaoLimited' || caseName === 'longName') ? widths : [[390, 844]]) {
-      const value = run(browser, caseName, w, h);
-      check(caseName, w, value);
-      if (caseName === 'longName') assert.ok(value.layout.nameClipped, `longName@${w} is cut with an ellipsis`);
-      console.log('SOCIAL-SIGNUP-PROFILE-UX-01', caseName, w, JSON.stringify({sidebar: value.sidebar, summary: value.summary, layout: value.layout}));
+    const layoutCase = caseName === 'kakaoLimited' || caseName === 'longName';
+    // Layout cases also run with narrow glyphs, so a narrower server font cannot hide an overflow.
+    for (const glyphs of layoutCase ? ['default', 'narrow'] : ['default']) {
+      for (const [w, h] of layoutCase ? widths : [[390, 844]]) {
+        const value = run(browser, caseName, w, h, glyphs);
+        check(caseName, w, glyphs, value);
+        console.log('SOCIAL-SIGNUP-PROFILE-UX-01', caseName, w, glyphs, JSON.stringify({sidebar: {...value.sidebar, name: value.sidebar.name.slice(0, 24)}, summary: {...value.summary, name: value.summary.name.slice(0, 24)}, layout: value.layout}));
+      }
     }
   }
   console.log('SOCIAL-SIGNUP-PROFILE-UX-01 PASS');
