@@ -7,8 +7,9 @@
 //     weekday and the date; a day holding records shows dots, the picked day
 //     is clearly marked and today keeps its own ring
 //   - pressing a day redraws the right side at once, without a new read
-//   - cards: timed records by clock, then 시간 없는 기록; amounts stay on the
-//     card; an empty day says so in plain words
+//   - rows: timed records by clock, then 시간 없는 기록; amounts stay on the
+//     row; an empty day says so in plain words (row shape and the weather
+//     credit: validate_calendar_mobile_week_ux_weather_01)
 //   - weather and the public holiday of the picked day stay visible
 //   - 이전/다음 주 and 오늘 keep working; 오늘 stays in the phone Week
 //   - + 기록 adds to the picked day, a card opens the editor, 삭제 removes it
@@ -204,10 +205,12 @@ try {
       cardsInside: cards.every(card => { const box = card.getBoundingClientRect(); return box.left >= detailBox.left - 0.5 && box.right <= detailBox.right + 0.5; }),
       cardsNoOverflow: cards.every(card => card.scrollWidth <= card.clientWidth + 1),
       cardsNoOverlap: cards.every((card, index) => index === 0 || card.getBoundingClientRect().top >= cards[index - 1].getBoundingClientRect().bottom - 0.5),
-      titleBelowTime: cards.filter(card => card.dataset.lifeGroup !== 'UNTIMED').every(card => {
-        const time = card.querySelector('.calendar-life-time').getBoundingClientRect();
+      // Hairline rows since mobile week UX weather 01: the clock on the left,
+      // the title beside it on the same first line.
+      titleBesideTime: cards.filter(card => card.dataset.lifeGroup !== 'UNTIMED').every(card => {
+        const time = card.querySelector('.calendar-life-time time').getBoundingClientRect();
         const title = card.querySelector('.calendar-life-title').getBoundingClientRect();
-        return title.top >= time.bottom - 1;
+        return title.left >= time.right - 0.5 && Math.abs(title.top - time.top) < 6;
       }),
       amountInsideCard: cards.every(card => {
         const amount = card.querySelector('.calendar-life-amount');
@@ -396,7 +399,7 @@ function checkPhone(v) {
   if (!same(v.cards.amount, ['12,000원'])) fail('an amount must stay on its card');
   if (v.cards.untimedLabel !== '시간 없는 기록') fail('untimed records must be labelled');
   const g = v.geometry;
-  if (!g.railBesideDetail || !g.cardsInside || !g.cardsNoOverflow || !g.cardsNoOverlap || !g.titleBelowTime || !g.amountInsideCard) fail('cards must sit beside the rail without clipping or overlap');
+  if (!g.railBesideDetail || !g.cardsInside || !g.cardsNoOverflow || !g.cardsNoOverlap || !g.titleBesideTime || !g.amountInsideCard) fail('cards must sit beside the rail without clipping or overlap');
   if (g.longTitleLines < 1 || g.longTitleLines > 3 || !g.longTitleWhole) fail(`a long title must wrap whole within three lines, got ${g.longTitleLines}`);
   if (!g.weekTitleWhole) fail('the week title must not be cut');
   if (g.cardTextContrast < 4.5 || (g.cardMetaContrast !== null && g.cardMetaContrast < 4.5)) fail('card text must stay readable');

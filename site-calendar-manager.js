@@ -1459,14 +1459,17 @@ function recurrenceSummary(rule) {
 }
 
 // "☀ 14° / 23°" for a day header: the glyph, then the range when Core sent one.
-function dayWeatherNode(weather, {precipitation = true} = {}) {
+// `condition` adds the word for the sky ("☀ 맑음 14° / 23°") where the glyph
+// is the only weather on screen.
+function dayWeatherNode(weather, {precipitation = true, condition = false} = {}) {
   if (!weather) return null;
   const node = document.createElement('span');
   node.className = 'calendar-day-weather';
   const icon = calendarWeatherIconNode(weather.weatherKind);
   if (icon) node.appendChild(icon);
   const presentation = calendarWeatherPresentation(weather);
-  const text = [presentation.weekLabel, precipitation ? presentation.precipLabel : ''].filter(Boolean).join(' · ');
+  const reading = [condition ? weather.label : '', presentation.weekLabel].filter(Boolean).join(' ');
+  const text = [reading, precipitation ? presentation.precipLabel : ''].filter(Boolean).join(' · ');
   if (text) {
     const label = document.createElement('span');
     label.className = 'calendar-day-weather-text';
@@ -1474,7 +1477,7 @@ function dayWeatherNode(weather, {precipitation = true} = {}) {
     node.appendChild(label);
   }
   if (!node.childElementCount) return null;
-  node.setAttribute('aria-label', ['날씨', weather.label, text].filter(Boolean).join(' '));
+  node.setAttribute('aria-label', ['날씨', condition ? '' : weather.label, text].filter(Boolean).join(' '));
   node.setAttribute('role', 'img');
   return node;
 }
@@ -1745,7 +1748,7 @@ export function calendarWeekLayout() {
 // Week keeps LOTBI's visual language while using the familiar calendar model:
 // dates run left-to-right and clock time runs top-to-bottom. The grid owns its
 // horizontal overflow on narrow screens so the surrounding page never does.
-function renderWeek(state, actions, weatherCredit = null) {
+function renderWeek(state, actions, weatherCredit = null, {timezone} = {}) {
   const section = document.createElement('section');
   section.className = 'calendar-week-agenda';
   const layout = calendarWeekLayout();
@@ -1757,6 +1760,12 @@ function renderWeek(state, actions, weatherCredit = null) {
     ? renderWeekVertical(state, actions, {weatherByDate, holidayMap})
     : renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}));
 
+  // The phone Week draws one day's weather, so it credits only that day. A
+  // week-wide credit under a past day read as weather that never appeared.
+  if (layout === 'vertical') {
+    const shown = weatherByDate.get(state.selectedDate);
+    weatherCredit = calendarWeatherAttribution(shown ? [shown] : [], {timezone});
+  }
   if (weatherCredit) {
     const credit = document.createElement('p');
     credit.className = 'calendar-weather-credit';
@@ -1806,14 +1815,18 @@ function renderWeekVertical(state, actions, {weatherByDate, holidayMap}) {
       holiday ? holiday.name : '',
       `기록 ${count}개`,
     ].filter(Boolean).join(', '));
-    const weekday = document.createElement('span');
-    weekday.className = 'calendar-week-rail-weekday';
-    weekday.textContent = WEEKDAY_INITIALS[day.weekday];
+    // "4 일" on one line, the record dots under it.
+    const line = document.createElement('span');
+    line.className = 'calendar-week-rail-line';
     const number = document.createElement('strong');
     number.className = 'calendar-week-rail-number';
     number.textContent = String(day.day);
+    const weekday = document.createElement('span');
+    weekday.className = 'calendar-week-rail-weekday';
+    weekday.textContent = WEEKDAY_INITIALS[day.weekday];
+    line.append(number, weekday);
     const dots = recordDots(count);
-    control.append(weekday, number, dots);
+    control.append(line, dots);
     control.addEventListener('click', () => { void actions.selectDate(day.date); });
     control.addEventListener('keydown', event => {
       const index = days.findIndex(entry => entry.date === day.date);
@@ -1863,8 +1876,18 @@ function renderWeekDayDetail(state, actions, {weatherByDate, holidayMap}) {
       head.appendChild(lunar);
     }
   }
-  const weather = dayWeatherNode(weatherByDate.get(date), {precipitation: state.showPrecipitation !== false});
-  if (weather) head.appendChild(weather);
+  const weather = dayWeatherNode(weatherByDate.get(date), {precipitation: state.showPrecipitation !== false, condition: true});
+  if (weather) {
+    head.appendChild(weather);
+  } else if (date < state.todayDate && state.weatherReady && !state.weatherMessage) {
+    // Forecasts start today; Core has nothing for a day already past. Say so
+    // once, quietly, instead of leaving a blank that reads as a fault.
+    const past = document.createElement('span');
+    past.className = 'calendar-week-day-weather-note';
+    past.dataset.calendarWeatherNote = 'past';
+    past.textContent = '지난 날짜 날씨 정보 없음';
+    head.appendChild(past);
+  }
   detail.appendChild(head);
 
   const holiday = holidayMap.get(date);
@@ -4799,7 +4822,12 @@ export async function mountLifeCalendarManager({
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'day') viewport.replaceChildren(renderDay(state, actions));
-    else if (state.mode === 'week') viewport.replaceChildren(renderWeek(state, actions, calendarWeatherAttribution(state.weather, {timezone})));
+    else if (state.mode === 'week') {
+      // Weather is on when there is a place to forecast for (or Core already
+      // sent some); only then does a past day say it has none.
+      state.weatherReady = Boolean(currentWeatherLocation) || state.weather.length > 0;
+      viewport.replaceChildren(renderWeek(state, actions, calendarWeatherAttribution(state.weather, {timezone}), {timezone}));
+    }
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
     else {
       const layout = renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone}));

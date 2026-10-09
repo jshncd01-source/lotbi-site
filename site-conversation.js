@@ -4085,8 +4085,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const {backdrop, panel, content} = modalShell(
       '캘린더',
       sessionToken
-        ? 'LOTBI에 등록된 개인 일정을 확인하고 관리합니다.'
-        : '로그인 없이 캘린더를 확인할 수 있습니다. 계정 동기화는 로그인 후 사용할 수 있어요.',
+        ? '내 일정과 생활 기록을 관리합니다.'
+        : '로그인 없이 쓸 수 있어요. 기기 간 동기화는 로그인 후 가능합니다.',
     );
     panel.classList.add('site-calendar-modal', 'site-calendar-chat-popup');
     installSurfaceBehavior(backdrop, panel, {
