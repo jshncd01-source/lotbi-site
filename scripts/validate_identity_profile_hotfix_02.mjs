@@ -69,6 +69,8 @@ assert.equal(conversation.includes('serverIdentity?.accountHandle'), false);
 assert.match(conversation, /return serverIdentity\.publicHandle/);
 assert.equal(conversation.includes("serverIdentity?.email || '프로필 메뉴'"), false);
 assert.equal(continuity.includes("primary.textContent = '로그인된 사용자'"), false);
-assert.match(continuity, /primary\.textContent = 'LOTBI 사용자'/);
+// SOCIAL-SIGNUP-PROFILE-UX-01 — the placeholder before /v2/me answers matches
+// the conversation's own fallback for a person who gave no name.
+assert.match(continuity, /primary\.textContent = '내 프로필'/);
 
 console.log('SITE-ACCOUNT-IDENTITY-PROFILE-HOTFIX-02 PASS');
