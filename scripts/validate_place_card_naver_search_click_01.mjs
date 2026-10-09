@@ -77,7 +77,7 @@ for (const [place, searchContext] of queryCases.filter(([place]) => place.name))
 
 // ── Renderer contract ───────────────────────────────────────────────────
 const conversation = read('site-conversation.js');
-const rendererStart = conversation.indexOf('const createPlaceCardRail = placeValue => {');
+const rendererStart = conversation.indexOf('const createPlaceCardRail = (placeValue, placeOptions = {}) => {');
 const rendererEnd = conversation.indexOf('const normalizeConversationCalendarResult = value => {', rendererStart);
 assert.ok(rendererStart >= 0 && rendererEnd > rendererStart);
 const renderer = conversation.slice(rendererStart, rendererEnd);

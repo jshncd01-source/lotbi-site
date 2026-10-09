@@ -41,7 +41,7 @@ const symbolMatches = [...indexHtml.matchAll(/id="lotbi-icon-festival"/g)];
 const sections = read('site-consumer-sections.js');
 assert.equal((indexHtml.match(/data-consumer-section="life"/g) || []).length, 2, 'desktop and mobile must expose 생활정보');
 assert.match(sections, /id: 'festivals', label: '축제·행사'/, '생활정보 must expose festivals');
-assert.match(sections, /item\.id === 'festivals' \? onFestival\(\)/, 'festival shortcut must use the existing festival owner');
+assert.match(sections, /else if \(item\.id === 'festivals'\) onFestival\(\);/, 'festival shortcut must use the existing festival owner');
 assert.match(conversationJs, /onFestival: \(\) => \{ closeSurface\(\); void openFestival\(\); \}/, '생활정보 must mount the real festival owner');
 assert.equal(symbolMatches.length, 1, 'the festival icon symbol must be defined exactly once');
 

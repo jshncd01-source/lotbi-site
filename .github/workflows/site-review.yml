@@ -70,6 +70,9 @@ jobs:
       - name: Validate Subscribe to Account checkout handoff
         run: node scripts/validate_subscribe_account_checkout_handoff_01.mjs
 
+      - name: Validate subscription prices and plan-change policy copy
+        run: python scripts/validate_subscription_price_proration_01.py
+
       # 새로고침하면 보던 화면 그대로 — 캘린더 · Life Wallet · 진위확인 · 안심케어 ·
       # 반려동물 · 생활정보 · 축제·행사 · 롯비함이 URL fragment(/#calendar …)로
       # 복원된다. 실제 Chrome 에서 reload(일반·강력), 직접 URL, 뒤로/앞으로,
@@ -425,8 +428,8 @@ jobs:
       - name: Validate Place Card carousel never drifts
         run: node scripts/validate_place_card_carousel_no_drift_01.mjs
 
-      # 장소·의료 카드 최종 정리: 휴대폰은 화살표 없이 밀어서 돌리고 카드 한 장이
-      # 온전히 보인다. 사진이 없으면 사진 칸이 없고, 1/3 위치와 세 곳 다음의
+      # 장소·의료 카드 최종 정리: 휴대폰은 화살표 없이 밀어서 돌리고 가운데 카드가
+      # 온전히 보이며 양옆 카드 끝이 보인다(LIFE-MEDICAL-AUTO-SEARCH-CARD-01). 사진이 없으면 사진 칸이 없고, 1/3 위치와 세 곳 다음의
       # "다른 병원 보기", 같은 기관 한 장, 설정 지도앱·네이버 검색 유지를 실제
       # 터치/마우스로 잰다(버튼 바로 위 본문 탭이 전화로 넘어가지 않는지 포함).
       - name: Validate Place / medical card final UX
@@ -676,14 +679,22 @@ jobs:
           node scripts/validate_consumer_sections_02.mjs
           node scripts/validate_surface_drag_dismiss_guard_01.mjs
 
-      # 생활정보 병원·의원/약국 카드는 진입 UI만 더한다. 상세 화면이 만든 문장을
-      # 기존 대화 입력창으로 넘겨 Core 의료 조회가 답하는지(문장 규칙), 카드·칩이
+      # 생활정보 병원·의원/약국/응급실 카드는 입력 화면 없이 누르면 "근처 …"
+      # 질문을 바로 보낸다(입력창에 남기지 않고 포커스도 주지 않음). 카드가
       # 360·375·390x844·412·데스크톱에서 잘리지 않고 탭되는지, 공과금 메뉴·상단 질문
-      # 입력바·하단 저장/안내 줄 없이 설명 바로 아래 카테고리 목록만 빈 칸 없이
-      # 보이는지 실제 탭/클릭으로 확인한다.
+      # 입력바·하단 저장/안내 줄 없이 설명 바로 아래 카테고리 목록만 보이는지
+      # 실제 탭/클릭으로 확인한다.
       - name: Validate life medical category entry
         run: node scripts/validate_life_medical_category_entry_01.mjs
 
+      # 생활정보 → 병원·약국·응급실 자동 검색: 질문 1건·키보드 0·입력창 비움,
+      # 위치(허용 시 현재 위치 / 저장 지역 / 둘 다 없으면 미전송, 권한은 한 번만),
+      # 한 문장 답변, 회전형 카드(가운데 크게·양옆 끝 노출·스와이프·1/3·한 장이면 표시 없음),
+      # 원형 전화·지도 아이콘, 카드 안 운영 확인 한 줄, 일반 응급실 검색 119 박스 없음,
+      # 응급 증상만 작은 119 버튼, 약국 보조 조건, 뒤로/새로고침 재전송 없음, 다크모드.
+      # 320·360·375·390·412·1280 실제 터치/마우스.
+      - name: Validate life medical auto search and turning cards
+        run: node scripts/validate_life_medical_auto_search_card_01.mjs
       # KINDERGARTEN-OFFICIAL-INFO-01: 생활정보 → 유치원·학교 → 유치원. 유치원알리미
       # 시도·시군구 → 목록 → 설립유형·주소·연락처·운영시간·학급·정원·원아·홈페이지·
       # 공시 기준 + 상세 공시 8개, 내 유치원(학교 저장값과 분리), Core 꺼짐 안내,
@@ -701,6 +712,11 @@ jobs:
       # 승인 전 공식 로고 미사용을 375·390·1280에서 실제 탭으로 확인한다.
       - name: Validate Onnuri merchant search
         run: node scripts/validate_onnuri_merchant_search_01.mjs
+
+      # ONNURI-IMPORT-QUALITY-FIX-02: 2026 공식 파일은 소재지가 시·도뿐이라 가맹점은
+      # 소속 시장 위치(MARKET)로 놓인다 — 카드는 '시장까지' 거리·시장 주소·시장 길찾기만.
+      - name: Validate Onnuri market location
+        run: node scripts/validate_onnuri_market_location_02.mjs
 
       # JEONBUK-PILOT-01 — 전북 맛집·음식 / 전북 행정기관 연락처 / 전북 의료기관
       # 등록정보: 이미지 영역 없는 공식 기록 카드, 사용자 지도앱, 공개 번호만, 등록정보만

@@ -5,7 +5,8 @@
 //  - 국립중앙의료원 공식 좌표(NMC_OFFICIAL)는 길찾기 좌표로 쓴다.
 //  - 진료·운영 여부는 "등록 시간상"으로만 쓴다. 등록 시간이 없으면 없다고 쓴다.
 //  - 응급실 병상 숫자는 FRESH 보고만. 오래되면 숫자 없이 "오래됨". "수용 가능" 금지.
-//  - 응급 답변에는 119 전화 안내가 붙는다(새로고침 뒤에도).
+//  - 119 전화 버튼은 응급 증상 메시지(CALL_119)에만 붙는다(새로고침 뒤에도).
+//  - 카드마다 등록 시간이 약속이 아니라는 짧은 한 줄(LIFE-MEDICAL-AUTO-SEARCH-01).
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
@@ -67,7 +68,7 @@ const erResult = {
 
 await check('약국: 등록 시간상 운영 중 + 시간, 전화·공식 좌표 길찾기', async () => {
   const [place] = normalizePlaceResult(pharmacyResult).results;
-  assert.deepEqual(medicalStatusLines(place).map(line => line.text), ['등록 시간상 운영 중 · 오늘 09:00~23:00']);
+  assert.deepEqual(medicalStatusLines(place).map(line => line.text), ['등록 시간상 운영 중 · 오늘 09:00~23:00', '실제 운영 여부는 전화로 확인']);
   assert.equal(buildVerifiedPhoneHref(place), 'tel:0632000001');
   assert.equal(place.navigationCapable, true, 'NMC 공식 WGS84 좌표는 길찾기 좌표다');
   const tmap = buildDefaultMapHref('TMAP', place, {userAgent: 'Mozilla/5.0 (Linux; Android 14)'});
@@ -76,30 +77,33 @@ await check('약국: 등록 시간상 운영 중 + 시간, 전화·공식 좌표
 
 await check('병원: 진료 종료·등록 시간 없음은 그대로, 지어내지 않는다', async () => {
   const closed = normalizeMedicalStatus({kind: 'HOSPITAL', basis: 'NMC_REGISTERED_HOURS', open_state: 'CLOSED', hours_label: '오늘 09:00~18:00'});
-  assert.deepEqual(medicalStatusLines({medicalStatus: closed}).map(line => line.text), ['등록 시간상 진료 종료 · 오늘 09:00~18:00']);
+  assert.deepEqual(medicalStatusLines({medicalStatus: closed}).map(line => line.text), ['등록 시간상 진료 종료 · 오늘 09:00~18:00', '실제 진료 여부는 전화로 확인']);
   const missing = normalizeMedicalStatus({kind: 'HOSPITAL', basis: 'NMC_REGISTERED_HOURS', open_state: 'NOT_LISTED', hours_label: '오늘 진료시간 정보 없음'});
-  assert.deepEqual(medicalStatusLines({medicalStatus: missing}).map(line => line.text), ['오늘 진료시간 정보 없음']);
+  assert.deepEqual(medicalStatusLines({medicalStatus: missing}).map(line => line.text), ['오늘 진료시간 정보 없음', '실제 진료 여부는 전화로 확인']);
   const sunday = normalizeMedicalStatus({kind: 'PHARMACY', basis: 'NMC_REGISTERED_HOURS', open_state: 'LISTED', hours_label: '일요일 10:00~18:00'});
-  assert.deepEqual(medicalStatusLines({medicalStatus: sunday}).map(line => line.text), ['일요일 10:00~18:00']);
+  assert.deepEqual(medicalStatusLines({medicalStatus: sunday}).map(line => line.text), ['일요일 10:00~18:00', '실제 운영 여부는 전화로 확인']);
+  const holiday = normalizeMedicalStatus({kind: 'PHARMACY', basis: 'NMC_REGISTERED_HOURS', open_state: 'OPEN', hours_label: '오늘 09:00~22:00', holiday_basis: 'UNVERIFIED_YEAR'});
+  assert.deepEqual(medicalStatusLines({medicalStatus: holiday}, {partial: true}).map(line => line.text), ['등록 시간상 운영 중 · 오늘 09:00~22:00', '실제 운영 여부는 전화로 확인 · 공휴일 미반영 · 일부 기관만 확인']);
   assert.equal(normalizeMedicalStatus({kind: 'HOSPITAL', basis: 'GUESS', open_state: 'OPEN'}), null);
 });
 
 await check('응급실: FRESH 만 숫자, STALE 은 숫자 없음, 수용 보장 데이터는 거부', async () => {
   const [fresh, stale] = normalizePlaceResult(erResult).results;
-  assert.deepEqual(medicalStatusLines(fresh).map(line => line.text), ['응급실 가용 병상 4 · 10/07 22:15 보고', '병원 공지: 소아 안과 진료 불가']);
-  assert.deepEqual(medicalStatusLines(stale).map(line => line.text), ['실시간 병상 정보 오래됨(10/07 18:00)']);
+  const ER_CONFIRM = '수용 여부는 출발 전 전화로 확인';
+  assert.deepEqual(medicalStatusLines(fresh).map(line => line.text), ['응급실 가용 병상 4 · 10/07 22:15 보고', '병원 공지: 소아 안과 진료 불가', ER_CONFIRM]);
+  assert.deepEqual(medicalStatusLines(stale).map(line => line.text), ['실시간 병상 정보 오래됨(10/07 18:00)', ER_CONFIRM]);
   assert.deepEqual(stale.emergencyStatus.beds, [], 'STALE 보고의 병상 숫자는 버린다');
   const full = normalizeEmergencyStatus({realtime_state: 'FRESH', beds: [{label: '응급실', available: -2}], acceptance_guaranteed: false, updated_at_label: '22:15'});
-  assert.deepEqual(medicalStatusLines({emergencyStatus: full}).map(line => line.text), ['응급실 가용 병상 없음(보고값 -2) · 22:15 보고']);
+  assert.deepEqual(medicalStatusLines({emergencyStatus: full}).map(line => line.text), ['응급실 가용 병상 없음(보고값 -2) · 22:15 보고', ER_CONFIRM]);
   assert.equal(normalizeEmergencyStatus({realtime_state: 'FRESH', beds: [], acceptance_guaranteed: true}), null);
   const none = normalizeEmergencyStatus({realtime_state: 'UNAVAILABLE', beds: [{label: '응급실', available: 5}], acceptance_guaranteed: false});
-  assert.deepEqual(medicalStatusLines({emergencyStatus: none}).map(line => line.text), ['실시간 병상 정보 없음']);
+  assert.deepEqual(medicalStatusLines({emergencyStatus: none}).map(line => line.text), ['실시간 병상 정보 없음', ER_CONFIRM]);
   for (const line of [...medicalStatusLines(fresh), ...medicalStatusLines(stale)]) {
     assert.doesNotMatch(line.text, /수용\s*가능|받아\s*줍|보장/);
   }
 });
 
-await check('119 안내: 응답 notice → meta.emergencyCall → tel:119 버튼', async () => {
+await check('119 안내: 응급 증상 notice → meta.emergencyCall → 작은 tel:119 버튼 하나', async () => {
   let body;
   const reply = await sendGuestConversationMessage({
     guestToken: 'g'.repeat(40), text: '근처 응급실', idempotencyKey: 'guest-medical-0001', timezone: 'Asia/Seoul',
@@ -127,6 +131,9 @@ await check('119 안내: 응답 notice → meta.emergencyCall → tel:119 버튼
   assert.equal(notice.className, 'conversation-emergency-call');
   const link = notice.children.find(child => child.tag === 'a');
   assert.equal(link.href, 'tel:119');
+  // The answer's first sentence says to call 119; the notice is the call only.
+  assert.deepEqual(notice.children.map(child => child.tag), ['a']);
+  assert.equal(link.attributes['aria-label'], '119에 전화하기');
 
   const source = read('site-conversation.js');
   assert.equal((source.match(/if \(response\.medicalNotice\?\.emergencyCall === true\) meta\.emergencyCall = true;/g) || []).length, 2);
@@ -135,10 +142,10 @@ await check('119 안내: 응답 notice → meta.emergencyCall → tel:119 버튼
 
 await check('카드 렌더러: 상태 줄만 추가, 액션은 그대로 두 개', async () => {
   const source = read('site-conversation.js');
-  const start = source.indexOf('const createPlaceCardRail = placeValue => {');
+  const start = source.indexOf('const createPlaceCardRail = (placeValue, placeOptions = {}) => {');
   const end = source.indexOf('const normalizeConversationCalendarResult', start);
   const renderer = source.slice(start, end);
-  assert.match(renderer, /for \(const line of medicalStatusLines\(place\)\)/);
+  assert.match(renderer, /for \(const line of medicalStatusLines\(place, \{partial: placeOptions\.medicalPartial === true\}\)\)/);
   assert.equal((renderer.match(/actions\.appendChild\(/g) || []).length, 2);
   assert.match(source, /medical_status: \{\s*kind: place\.medicalStatus\.kind,/, '저장 meta 에도 남아 새로고침 뒤 같은 카드');
   assert.match(source, /emergency_status: \{\s*realtime_state: place\.emergencyStatus\.realtimeState,/);

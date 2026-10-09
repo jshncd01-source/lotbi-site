@@ -307,21 +307,21 @@ try {
   reading.food.darkColor = getComputedStyle(food).color;
   document.body.dataset.siteTheme = 'light';
 
-  // 생활정보 home: seven shortcuts, no empty cell in any row (and still none
-  // with six, i.e. if the 전북 card were ever taken out).
+  // 생활정보 home: eight shortcuts, no empty cell in any row (and still none
+  // with main's seven, i.e. if the 전북 card were ever taken out).
   document.querySelector('[data-consumer-section="life"]').click();
-  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 7 ? g : null; }, 'life grid');
+  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 8 ? g : null; }, 'life grid');
   await sleep(300);
   const rows = () => {
     const g = box(grid), byRow = new Map();
     for (const button of grid.children) { const b = box(button); const key = Math.round(b.y); const row = byRow.get(key) || {x:Infinity,right:-Infinity,count:0}; row.x = Math.min(row.x, b.x); row.right = Math.max(row.right, b.right); row.count += 1; byRow.set(key, row); }
     return {grid:g, rows:[...byRow.values()]};
   };
-  reading.life = {labels:[...grid.children].map(button => button.textContent.trim()), seven:rows()};
+  reading.life = {labels:[...grid.children].map(button => button.textContent.trim()), withFood:rows()};
   const foodShortcut = grid.querySelector('[data-life-shortcut="jeonbuk-food"]');
   foodShortcut.remove();
   await sleep(100);
-  reading.life.six = rows();
+  reading.life.withoutFood = rows();
   grid.insertBefore(foodShortcut, grid.querySelector('[data-life-shortcut="education"]'));
   // 전북 맛집·음식 detail: chips inside the panel; 전주 + 비빔밥 asks the right sentence.
   grid.querySelector('[data-life-shortcut="jeonbuk-food"]').click();
@@ -439,9 +439,9 @@ try {
       assert.deepEqual(r.medical.lines.map(line => line.state), ['REGISTRY', 'REGISTRY_NO_HOURS']);
       assert.ok(r.medical.lines.every(line => !/진료 중/u.test(line.text)));
       // 생활정보 home grid.
-      assert.deepEqual(r.life.labels, ['병원·의원', '약국', '축제·행사', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교']);
-      assertRowsFilled(`${where} seven`, r.life.seven);
-      assertRowsFilled(`${where} six`, r.life.six);
+      assert.deepEqual(r.life.labels, ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교']);
+      assertRowsFilled(`${where} eight`, r.life.withFood);
+      assertRowsFilled(`${where} seven without 전북`, r.life.withoutFood);
       // 전북 맛집·음식 detail.
       assert.equal(r.detail.title, '전북 맛집·음식');
       assert.ok(r.detail.panelScroll <= 0, `${where}: the panel scrolls sideways`);
