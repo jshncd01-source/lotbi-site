@@ -1,6 +1,9 @@
 name: Site Review Static Smoke Diagnostic
 
 on:
+  push:
+    branches:
+      - codex/calendar-lunar-linux154-repro
   workflow_dispatch:
 
 permissions:
