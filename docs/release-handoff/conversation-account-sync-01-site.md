@@ -1,34 +1,39 @@
 READY_FOR_DEPLOY=YES
-SUPERSEDES=67ac11238c1d57c4b246c477a22629d860773b80 (SITE-T44 gate 반환) · a1e8448699c64de6b11f2cde942174c85545e050 (main 9e39edd0 기준)
+SUPERSEDES=a959802d39cf676e70d0e43d09f79726b9c3941b (SITE-T44b 사전 실행 반환) · 67ac11238c1d57c4b246c477a22629d860773b80 (SITE-T44 gate 반환) · a1e8448699c64de6b11f2cde942174c85545e050 (main 9e39edd0 기준)
 MIGRATION=YES(Core p0_0110_conversation_history — Site 자체는 migration 없음)
 DEPLOY_ORDER=CORE → SITE(→ APP)
 APP_STORAGE_CHECK=앱 "최근 대화"는 Site WebView가 아니라 앱 자체 AsyncStorage를 씀 → lotbi-app feature/conversation-account-sync-01-app에서 같은 API로 맞춤(Android 내부 테스트까지만)
 USER_DECISION_NEEDED=개인정보처리방침 개정 시점(초안: docs/privacy-policy-conversation-history-draft-01.md) · 제6.1조 국외 이전 표에 "대화 기록" 추가 여부 — 배포 차단 아님
 
-# conversation-account-sync-01 (Site) — release handoff (main 576ec346 재병합 + gate 반환 수정)
+# conversation-account-sync-01 (Site) — release handoff (main 576ec346 재병합 + gate 반환 수정 2회)
 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/conversation-account-sync-01-site
 FEATURE_SHA=이 문서 커밋(branch HEAD). `git ls-remote origin refs/heads/feature/conversation-account-sync-01-site`로 확인한다.
-CODE_SHA=1b9d30123c4ef89de5986e34eeee9ec09adfe515
+CODE_SHA=081f06ca058d66e552118615866be8f8e40b6f35
 AUTHORITATIVE_MAIN_AT_DEVELOPMENT=576ec3465e3685e21fbe26a02a02129c76667739 (SITE-T43, 운영 aset-70f733afa919)
 MERGE_METHOD=NORMAL MERGE 1회(576ec346 → 854d9cdf). rebase·force push·reset 없음
 ASSET_VERSION=aset-f54a2f734ab0 (scripts/asset_cache_version.mjs --check PASS)
 PAIRED=lotbi-core feature/conversation-account-sync-01-core(p0_0110, 2026-10-10 01:44 운영 반영) · lotbi-app feature/conversation-account-sync-01-app
 TAKEOVER=원래 개발방 세션이 없어 배포총괄방 요청(2026-10-10 01:0x)으로 생활정보 직전송 Site 방이 이어받았다. 원래 worktree `conversation-account-sync-01-site`를 썼다. 쓰는 세션·프로세스가 없음을 확인했다(남은 미추적 파일 = 원래 방 검사기 임시 폴더 4개, 손대지 않음).
 
-## SITE-T44 gate 반환 수정 (2026-10-10)
+## SITE-T44 / T44b gate 반환 수정 (2026-10-10)
 
-- 반환 내용: gate run 20261009T164459Z-1762193-437214547 TEST_FAILED. `validate_conversation_account_sync_01`이 `timeout: DevToolsActivePort — last=false`(openBrowser)로 멈췄다. site main 576ec346은 그대로였다. 같은 gate의 다른 Chrome 검사기는 통과했다.
-- 이 검사기만 다르던 두 가지를 gate에서 통과하는 검사기(`validate_my_child_school_01` 등)와 같게 맞췄다(커밋 1b9d3012).
-  1. 브라우저 프로필 위치: `os.tmpdir()`(Linux /tmp) → 저장소 안 `scripts/.conversation-sync-*`. 끝나면 지운다(Windows 잠금 대비 20회 재시도).
-  2. 브라우저 후보: `/opt/pw-browsers/chromium`이 없었다 → Windows Chrome 다음, PATH 이름들(`google-chrome-stable`·`chromium` 등) 앞에 넣었다.
-- [추정] 후보가 없어서 Linux에서 PATH의 `chromium`(snap 포장일 수 있음)이 잡혔다. snap은 자기만의 /tmp를 써서 검사기가 기다리는 /tmp 경로에 DevToolsActivePort가 생기지 않은 것으로 본다. gate 서버는 직접 확인하지 않았다.
-- 판정 단정·시나리오·검사 범위는 바꾸지 않았다(13 checks 그대로). `os` import는 쓰지 않게 돼 지웠다.
-- 이 PC에는 WSL 배포판이 없어 Linux로 직접 재현하지 못했다. 대신 시스템 임시 폴더를 쓸 수 없게 한 조건(TEMP·TMP·TMPDIR = 없는 경로)으로 비교했다.
-  - 옛 판(67ac1123): `ENOENT ... mkdtemp`로 바로 실패.
-  - 새 판(1b9d3012): PASS(13 checks).
-  - 정상 조건 새 판도 PASS(13 checks). 두 경우 모두 끝난 뒤 `scripts/.conversation-sync-*`가 남지 않았다.
+- 증상: `validate_conversation_account_sync_01`만 Linux gate에서 `timeout: DevToolsActivePort — last=false`(openBrowser)로 실패했다.
+  - SITE-T44 gate run 20261009T164459Z-1762193-437214547
+  - SITE-T44b 사전 실행 2/2
+  - site main 576ec346은 그대로였다. Windows 로컬은 PASS였다.
+- **원인(배포총괄방이 gate 서버에서 확정)**: gate 브라우저 실행기 `/usr/local/libexec/lotbi-merge-gates/chromium-headless-runtime`은 DevToolsActivePort를 프로필 폴더에 `cp`로 복사한다. 그래서 프로필 폴더가 미리 있어야 한다.
+  - 이 검사기는 `path.join(workDir, 'profile')`을 만들지 않고 넘겼다.
+  - Windows Chrome은 이 폴더를 스스로 만들어서 로컬에서는 드러나지 않았다.
+- 수정(검사기 1파일, 판정 단정·시나리오·범위 무변경, 13 checks 그대로)
+  1. 커밋 081f06ca(이번 원인 수정): 프로필 폴더를 실행 전에 만든다. `fs.mkdtempSync(path.join(workDir, 'profile-'))` — gate에서 통과하는 검사기와 같은 방식이다.
+  2. 커밋 1b9d3012(1차 반환 때 같이 맞춘 것, 유지): 작업 폴더를 저장소 안 `scripts/.conversation-sync-*`로 옮기고 끝나면 정리한다. 브라우저 후보에 `/opt/pw-browsers/chromium`을 PATH 이름 앞에 둔다. 1차 때 적은 "snap 전용 /tmp" 추정은 틀렸다(위 확정 원인으로 대체).
+- 재현·확인(Windows): gate 실행기 동작을 흉내 내는 preload로 비교했다. Chrome 실행 시 `--user-data-dir` 폴더가 없으면 DevToolsActivePort가 그 폴더에 생기지 않게 한다(scratchpad `gate-sim.cjs`, `node --require`).
+  - 옛 판 a959802d + 흉내: "user-data-dir MISSING at launch" → `timeout: DevToolsActivePort — last=false`. gate와 같은 오류다.
+  - 새 판 081f06ca + 흉내: "exists at launch" → PASS(13 checks).
+  - 새 판 일반 실행: PASS(13 checks). 두 경우 모두 끝난 뒤 `scripts/.conversation-sync-*`가 남지 않았다.
+- 다른 검사기: 소스에서 폴더를 만들지 않은 프로필 경로를 그대로 넘기는 사례를 찾지 못했다(읽기만 했다).
 
 ## 이번 재병합
 
@@ -78,7 +83,7 @@ TAKEOVER=원래 개발방 세션이 없어 배포총괄방 요청(2026-10-10 01:
   - my_child_school_01, consumer_sections_02, life_direct_chat_card_compaction_01
   - validate_hardening.py, validate_home_chat.py(UTF-8 출력)
   - `chat_mobile_keyboard_dismiss_01`: 묶음 실행 중 세 번째 폭에서 Chrome 포트 파일 읽기가 Windows 파일 잠금(EBUSY)으로 멈췄다. 단독으로 다시 돌려 PASS. 제품 코드와 관계없다.
-- 위 24개는 코드 89bb1ccc에서 돌렸다. 1b9d3012는 이 검사기 파일만 바꿨으므로 그 검사기를 정상·임시 폴더 불가 두 조건으로 다시 돌렸다(둘 다 PASS). asset --check PASS(aset-f54a2f734ab0, 스크립트 변경은 token과 무관).
+- 위 24개는 코드 89bb1ccc에서 돌렸다. 1b9d3012·081f06ca는 이 검사기 파일만 바꿨으므로 그 검사기만 다시 돌렸다(일반 실행 PASS, gate 흉내 PASS, 시스템 임시 폴더 불가 조건 PASS). asset --check PASS(aset-f54a2f734ab0, 스크립트 변경은 token과 무관).
 - 전체 site-review 회귀: NOT RUN(이 PC CPU 제약). 최종 전체 gate는 배포총괄방(Linux).
 
 NEW_FAILURES=0 (관련 검사기 24개 기준)
