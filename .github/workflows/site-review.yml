@@ -422,8 +422,9 @@ jobs:
       - name: Validate Place Card body opens NAVER search
         run: node scripts/validate_place_card_naver_search_click_01.mjs
 
-      # 생활정보 → 병원·약국 등: 버튼 한 번으로 바로 질문이 전송되고(입력창 재전송 없음),
-      # 키보드는 사용자가 입력창을 탭할 때만 열린다. 사진 없는 장소 카드는 사진 칸 없이 짧다.
+      # 생활정보 모든 질문(병원·약국·응급실, 지역생활정보, 유치원·학교): 한 번 탭으로 바로
+      # 전송되고(입력창 재전송 없음) 키보드는 사용자가 입력창을 탭할 때만 열린다. 사진 없는
+      # 장소 카드는 사진 칸 없이 짧고, 지도는 설정에서 고른 앱. 320·360·390·412·1280, 다크.
       - name: Validate life info direct chat and photo-less place cards
         run: node scripts/validate_life_direct_chat_card_compaction_01.mjs
 

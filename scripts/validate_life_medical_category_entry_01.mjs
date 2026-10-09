@@ -10,9 +10,8 @@
 // category picker only: no free-question bar and no saved-items/help row. It
 // has seven cards (응급실, 온누리상품권, 유치원·학교 included); an odd last card
 // takes its whole row, so there is no empty grid cell.
-// KINDERGARTEN-OFFICIAL-INFO-01: 유치원·학교 is the one life screen that still
-// drafts its question (onDraft); that handoff is pinned below and any other
-// draft handoff in the life cards fails.
+// LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk too, so
+// any draft handoff (onDraft) in the life cards fails.
 //
 // Browser part: real touch/mouse input through the DevTools protocol on
 // 360x780, 375x812, 390x844, 412x915 and 1280x900. Viewport emulation only —
@@ -47,18 +46,8 @@ for (const question of Object.values(LIFE_MEDICAL_QUESTIONS)) {
 // ── Source contract ─────────────────────────────────────────────────────
 const source = read('site-consumer-sections.js');
 assert.match(source, /if \(item\.ask\) onAsk\(item\.ask\);/u, 'a medical card asks at once');
-// The 유치원·학교 draft handoff (KINDERGARTEN-OFFICIAL-INFO-01) is the only
-// onDraft allowed: its two exact uses are taken out, then the same check runs.
-const EDUCATION_DRAFT_USES = [
-  ['{section, root, onAsk, onDraft, onFestival,', '{section, root, onAsk, onFestival,'],
-  ['mountEducation({root: host, onDraft, accountId})', 'mountEducation({root: host, accountId})'],
-];
-let lifeCardsSource = source;
-for (const [use, without] of EDUCATION_DRAFT_USES) {
-  assert.equal(lifeCardsSource.split(use).length, 2, `education draft handoff appears exactly once: ${use}`);
-  lifeCardsSource = lifeCardsSource.replace(use, without);
-}
-assert.doesNotMatch(lifeCardsSource, /openMedicalDetail|data-medical-field|질문 준비하기|onDraft/u, 'no region/condition form, no draft handoff');
+assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/u, '유치원·학교 asks through onAsk');
+assert.doesNotMatch(source, /openMedicalDetail|data-medical-field|질문 준비하기|onDraft/u, 'no region/condition form, no draft handoff');
 assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|geolocation|getCurrentPosition/u, 'no own search engine, storage or location request');
 const conversation = read('site-conversation.js');
 assert.match(conversation, /onAsk: text => \{[\s\S]{0,400}?surfaceRestoreFocus = undefined;\s*closeSurface\(\);\s*askWithoutKeyboard\(text\);/u,
@@ -403,6 +392,7 @@ async function runCase(browser, origin, dir, testCase) {
     sent = await waitFor(() => evaluate(`globalThis.__sent.length === ${sent.length + 1} ? globalThis.__sent.slice() : null`), `${testCase.label}: local sent at once`);
     assert.equal(sent.at(-1).text, '우리 지역 생활정보를 알려 줘\n지역 또는 장소: 전주시 덕진구\n궁금한 생활정보: 쓰레기 배출일');
     assert.equal(state.composer, '', `${testCase.label}: local: nothing left in the composer`);
+    assert.equal(state.composerFocused, false, `${testCase.label}: local: composer not focused`);
     await openLife();
     await tapShortcut('festivals');
     state = await waitFor(async () => { const value = await probe(); return value.festival ? value : null; }, `${testCase.label}: festival surface`);

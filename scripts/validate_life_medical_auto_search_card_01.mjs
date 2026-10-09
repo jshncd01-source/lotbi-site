@@ -35,26 +35,16 @@ assert.deepEqual(LIFE_MEDICAL_QUESTIONS, {hospital: '근처 병원 찾아줘', p
 for (const question of Object.values(LIFE_MEDICAL_QUESTIONS)) {
   assert.equal(lifeLocationIntent(question), true, `${question} reaches the life-location contract`);
 }
-// KINDERGARTEN-OFFICIAL-INFO-01: 유치원·학교 is the one life screen that still
-// drafts its question. Its two exact onDraft uses are taken out first; the same
-// "no draft handoff" check then runs on everything else.
+// LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk as well,
+// so no life screen drafts its question any more.
 const sectionsSource = read('site-consumer-sections.js');
-let sections = sectionsSource;
-for (const [use, without] of [
-  ['{section, root, onAsk, onDraft, onFestival,', '{section, root, onAsk, onFestival,'],
-  ['mountEducation({root: host, onDraft, accountId})', 'mountEducation({root: host, accountId})'],
-]) {
-  assert.equal(sections.split(use).length, 2, `education draft handoff appears exactly once: ${use}`);
-  sections = sections.replace(use, without);
-}
-assert.doesNotMatch(sections, /질문 준비하기|onDraft|openMedicalDetail|data-medical-field|LIFE_MEDICAL_FORMS/u, 'no medical form or draft handoff left');
+assert.match(sectionsSource, /mountEducation\(\{root: host, onAsk, accountId\}\)/u, '유치원·학교 asks through onAsk');
+assert.doesNotMatch(sectionsSource, /질문 준비하기|onDraft|openMedicalDetail|data-medical-field|LIFE_MEDICAL_FORMS/u, 'no medical form or draft handoff left');
 assert.doesNotMatch(sectionsSource, /\bfetch\(|geolocation|getCurrentPosition/u, 'the menu does not search or ask for a location itself');
 const conversation = read('site-conversation.js');
-// The old draft-then-send path is gone for the life cards: the one draft helper
-// left is called only from the 유치원·학교 onDraft handoff, and onAsk sends.
-assert.equal(conversation.split('요청을 입력창에 넣었어요. 내용을 확인한 뒤 전송하세요.').length, 2, 'one draft helper');
-assert.equal(conversation.split('draft(text)').length, 2, 'the draft helper has one caller');
-assert.match(conversation, /onDraft: text => \{ closeSurface\(\); draft\(text\); \}/u, 'that caller is the 유치원·학교 handoff');
+// The old draft-then-send path is gone: no draft helper, no onDraft handoff;
+// onAsk sends.
+assert.doesNotMatch(conversation, /요청을 입력창에 넣었어요|draft\(text\)|onDraft/u, 'no draft handoff left');
 const consumerMountAt = conversation.indexOf('mounted = mountConsumerSection({');
 assert.ok(consumerMountAt >= 0, 'the 생활정보 surface is mounted from the conversation');
 const onAskHandler = conversation.slice(consumerMountAt).match(/onAsk: text => \{[\s\S]*?\n {6}\},/u)?.[0] || '';
