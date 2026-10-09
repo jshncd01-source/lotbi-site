@@ -182,7 +182,7 @@ try {
   const plus = wallet.mountLifeWallet({root: root2, authenticated: true, accountId: account, sessionExpiresAt: new Date(Date.now() + 3600000).toISOString(), sessionToken: 'tok', subscription: {plan: 'PLUS'}});
   await wait(() => root2.querySelector('[data-wallet-share-open]'), 'plus wallet');
   [...root2.querySelectorAll('button')].find(b => b.textContent === '+ 자료 추가').click();
-  await wait(() => root2.querySelector('.wallet-photo-field'), 'plus add form');
+  await wait(() => root2.querySelector('.wallet-attach'), 'plus add form');
   results.plusAdds = !root2.querySelector('.wallet-add-limit');
   plus.dispose();
   const root3 = document.createElement('div'); host.replaceChildren(root3);
