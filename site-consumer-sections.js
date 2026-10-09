@@ -1,5 +1,5 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-79d06f88a740';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-79d06f88a740';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-bca20b82f0b3';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-bca20b82f0b3';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -30,9 +30,11 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'onnuri', label: '온누리상품권', brandSlot: 'onnuri'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
   // KINDERGARTEN-OFFICIAL-INFO-01: 학교(NEIS, 대화) / 유치원(유치원알리미 공시).
-  // Last. With 8 cards every row of two is full; an odd count would let the
-  // last card span its row (site-life-education.css).
   {id: 'education', label: '유치원·학교', icon: 'school'},
+  // MY-CHILD-SCHOOL-01: the signed-in reader's saved schools / 유치원
+  // (site-life-my-child.js). Last. With 9 cards the odd last card spans its
+  // row (site-life-education.css), so the grid has no empty cell.
+  {id: 'my-child', label: '내 아이 학교·유치원', icon: 'backpack'},
 ]);
 
 // Each existing request form should show examples that belong to that service,
@@ -71,6 +73,7 @@ const ICON_PATHS = {
   emergency: ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z', 'M12 8v8M8 12h8'],
   news: ['M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V5Z', 'M17 9h3v10a2 2 0 0 1-2 2', 'M7 9h7M7 12h7M7 15h4'],
   school: ['m2 9 10-5 10 5-10 5L2 9Z', 'M6 11v5c3 2.5 9 2.5 12 0v-5', 'M22 9v6'],
+  backpack: ['M9 6V5a3 3 0 0 1 6 0v1', 'M6 9a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v12H6V9Z', 'M9 13h6v4H9v-4Z'],
 };
 
 function node(tag, className = '', text = '') {
@@ -106,7 +109,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -115,6 +118,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
   let releasePets;
   let releaseWallet;
   let releaseEducation;
+  let releaseMyChild;
 
   if (section === 'life') {
     // The life home only picks a category: free questions belong to the main
@@ -195,11 +199,34 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-79d06f88a740').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-bca20b82f0b3').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
         if (!disposed && current === generation) host.replaceChildren(node('p', 'consumer-error', '유치원·학교 정보를 열지 못했습니다. 잠시 후 다시 열어 주세요.'));
+      });
+    }
+    // MY-CHILD-SCHOOL-01: the saved schools / 유치원 screen is its own module;
+    // the conversation owns the session and mounts it (mountMyChild). Its
+    // "대화로 더 물어보기" asks through the same onAsk as every life card.
+    function openMyChild(item) {
+      const current = ++generation;
+      const back = action('지역정보로 돌아가기', () => {
+        releaseMyChild?.(); releaseMyChild = undefined; generation += 1;
+        root.replaceChildren(heading, grid);
+        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
+      }, {secondary: true});
+      const detail = node('section', 'consumer-life-detail');
+      detail.dataset.lifeDetail = item.id;
+      const title = node('h3', '', item.label); title.tabIndex = -1;
+      const host = node('div', 'consumer-life-my-child');
+      detail.append(back, title, host);
+      root.replaceChildren(detail); title.focus();
+      Promise.resolve(typeof mountMyChild === 'function' ? mountMyChild(host, {onAsk}) : null).then(mounted => {
+        if (disposed || current !== generation) { mounted?.dispose?.(); return; }
+        releaseMyChild = mounted?.dispose;
+      }).catch(() => {
+        if (!disposed && current === generation) host.replaceChildren(node('p', 'consumer-error', '내 아이 학교·유치원을 열지 못했습니다. 잠시 후 다시 열어 주세요.'));
       });
     }
     for (const item of LIFE_SHORTCUTS) {
@@ -210,7 +237,8 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         if (item.ask) onAsk(item.ask);
         else if (item.id === 'festivals') onFestival();
         else item.id === 'news' ? openNewsEntry(item)
-          : item.id === 'onnuri' ? onOnnuri?.() : item.id === 'education' ? openEducation(item) : openLifeDetail(item);
+          : item.id === 'onnuri' ? onOnnuri?.() : item.id === 'education' ? openEducation(item)
+            : item.id === 'my-child' ? openMyChild(item) : openLifeDetail(item);
       });
       grid.append(button);
     }
@@ -292,5 +320,5 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     for (const label of ['지역몰', '공공몰', '생활서비스', '쇼핑']) groups.append(node('span', 'consumer-category-label', label));
     root.append(state, groups, node('p', 'consumer-feature-note', '업체별 실제 연결 가능 여부와 권한은 연결 서비스에서 확인합니다. 소셜 로그인 계정과 제휴처 이용 권한은 다릅니다. 주문·배송 및 자동 주문은 연결만으로 활성화되지 않으며, 실제 결제는 진행하지 않습니다.'));
   }
-  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); releaseEducation?.(); }};
+  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); releaseEducation?.(); releaseMyChild?.(); }};
 }
