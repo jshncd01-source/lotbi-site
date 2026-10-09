@@ -1,70 +1,71 @@
 READY_FOR_DEPLOY=YES
+SUPERSEDES=3b696cfe
 
-# social-signup-profile-ux-01-site — release handoff
+# social-signup-profile-ux-01-site — release handoff (re-READY after SITE-T39b Linux gate failure)
 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/social-signup-profile-ux-01-site
 FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote ... refs/heads/feature/social-signup-profile-ux-01-site`)
-BASE_MAIN=ddcc573dca618a3289594220e53bb22d6c414bad (Ncloud main at development; no drift at push)
-PRODUCTION_AT_DEVELOPMENT=fa6ed88d (aset-1349a7eafa03, image digest 7a08c5c2)
-CODE_SHA=3a24c915f86166c3432532d558500131f459e10b
-ASSET_VERSION=aset-881009a228c5 (asset_cache_version.mjs --write; --check PASS)
-PAIRED_BRANCHES=lotbi-core feature/social-signup-profile-ux-01-core, lotbi-web feature/social-signup-profile-ux-01-web
-THEME_TOKENS_CHANGED=NO (site-theme-tokens.css untouched → no Web theme-token drift)
+BASE_MAIN=9e39edd06446b3e93ec68170de49df9f702e0d07 (normal merge 735846b9; no rebase/force push; no drift at push)
+CODE_SHA=d087ad623 (validator fix on top of merge 735846b9; product code = 3a24c915, unchanged)
+ASSET_VERSION=aset-eea493207233 (asset_cache_version.mjs --write after the merge; --check PASS)
+PAIRED=core d1b2b43e (live, CORE-T26b), web 33187786 (live, WEB-T15) — Site is the last piece.
+THEME_TOKENS_CHANGED=NO
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
+USER_DECISION_NEEDED=NONE
 
-## PROBLEM
+## GATE_FAILURE (SITE-T39b, run 20261009T054624Z-1225792-467110465)
 
-2026-10-09 Samsung Internet, Kakao new signup: the profile menu showed `LOTBI 사용자` / `@u9...` / letter avatar.
-(The current code draws `L사` for that name; the reported `나` is not a string anywhere in Site/Account/App code.)
+`validate_social_signup_profile_ux_01.mjs:209  longName@360 is cut with an ellipsis (actual false)` on Linux Chrome,
+reproducible on this branch alone. Cause: the 28-character test name fitted the 360px summary under the gate's
+narrower font (not cut → the "is cut" assertion failed), while Windows fonts cut it. The product renders correctly
+(ellipsis style + nowrap were already in place); the test name was too short to force an overflow on every font.
 
-## CHANGE
+Reproduced on Windows with a forced narrow-glyph stage (3px narrower per glyph) and the old name:
+320px cut (241 > 210), 360px NOT cut (250 = 250) — the same as the gate.
 
-- `site-core.js` `userFacingIdentity`: Core's `display_name_is_default` → name treated as absent;
-  `public_handle_is_generated` → `publicHandleGenerated: true`; `signup_provider` (KAKAO/NAVER/GOOGLE/APPLE only) →
-  `signupProvider`. The two new fields exist only when Core sends them (older Core → identical object).
-- `site-conversation.js` profile menu (menu items unchanged: 프로필·개인테마·설정·연결 서비스·도움말·로그아웃):
-  - name order: own name → chosen public handle → email local part → `내 프로필` (was `LOTBI 사용자`)
-  - no own name → plain person icon instead of letters (trigger, menu summary, profile photo window)
-  - generated handle hidden in trigger and summary; chosen handle shown as before
-  - summary line: `카카오 계정으로 가입 · LOTBI Free` while there is no own name and Core reports the provider,
-    otherwise unchanged `현재 이용 등급 · LOTBI …`
-- `site-continuity.js`: authenticated placeholder before `/v2/me` answers `내 프로필` (was `LOTBI 사용자`).
-- `site-sidebar-nav.css`: `.sidebar-profile-avatar-default`, `.sidebar-profile-avatar-icon`, hidden icon under a photo.
-- `scripts/validate_social_signup_profile_ux_01.mjs` (new, in site-review.yml) and
-  `scripts/validate_identity_profile_hotfix_02.mjs` (placeholder text expectation `내 프로필`).
-- No auth/session/trusted-device code touched; rendering makes no new requests (validator counts: 1 /v2/me,
-  1 /v2/subscription, 0 others).
+## FIX (validator only; product code unchanged since 3a24c915)
 
-## TEST_STATUS
+- Test name: 120 characters = the longest display name Core accepts (`ConsumerProfileUpdateIn.display_name`
+  max_length=120, `users.name` String(120)). Overflows every width in any font.
+- New narrow-glyph stage for the layout cases (kakao no-name, long name) at every width, so a narrower server font
+  cannot hide an overflow; the stage asserts it applied (`letter-spacing: -3px`).
+- Criteria kept and extended, none weakened: summary name `text-overflow: ellipsis` + `nowrap` always; the 120-char
+  name must be cut; no summary / popover / page overflow; NEW: the sidebar trigger name gets the same checks
+  (ellipsis, nowrap, cut for the long name, no trigger overflow).
+- Fixture now wraps the page shell (`.chat-app-shell`) so the desktop sidebar has its real 220px column (without it
+  the 1440px sidebar was page-wide and could not test the sidebar ellipsis); ≤900px renders as before.
 
-- New validator PASS (headless Chrome): kakao FEDERATED_LIMITED and FULL-with-generated-handle at 320/360/390/430/1440
-  → `내 프로필`, icon, no handle, `카카오 계정으로 가입 · LOTBI Free`; no-provider → `현재 이용 등급 · LOTBI Free`; named
-  user → `홍길동`, `홍`, `@hong2026`; long name ellipsis on one line at every width; older Core → old rendering
-  (`LOTBI 사용자`, `L사`, `@u...`); popover inside viewport, no horizontal overflow, menu labels unchanged.
-- Related existing validators PASS (12): identity_profile_hotfix_02, profile_menu_improvement_01,
-  profile_handle_to_account_01, conversation_sidebar_ux_01, profile_menu_personal_theme_01, home_fresh_entry_01,
-  home_refresh_persistence_01, auth_unknown_recovery_browser_01, chat_read_aloud_restore_browser_01,
-  conversation_calendar_card_02, conversation_calendar_result_time_01, message_calendar_footer_editor_01.
-- `asset_cache_version.mjs --check` PASS. Full validator suite: NOT RUN locally (gate runs it).
-- Screenshot check in the desktop app browser (360px): after = icon + `내 프로필 · LOTBI Free`, summary
-  `카카오 계정으로 가입 · LOTBI Free`; before (older Core payload) = `L사`, `LOTBI 사용자`, `@uabcdefghij2`.
+## TEST_STATUS (merged tree 735846b9 + d087ad62)
 
-## CONFLICT_NOTES
+- New validator PASS, 25 runs: 6 cases; kakao no-name and long name × 320/360/390/430/1440 × default/narrow glyphs.
+  Long name cut everywhere (summary scroll 1434/1074 px vs 178–320 px), summary/popover/page/trigger overflow 0.
+- Full `scripts/validate_*` regression (241): 230 PASS in a 4-way parallel run; 11 re-run sequentially → 5 PASS;
+  remaining 6:
+  - existing local RED, also failing on main 9e39edd0: image_attachment_thumbnail_01, mobile_footer_legal_sheet_01,
+    place_card_compact_01, site_avatar_fallback_runtime
+  - auth_unknown_recovery_browser_01: prints PASS, then Windows EPERM removing its temp Chrome profile; re-run rc 0
+  - calendar_touch_monthnav_daysheet_01: local static-server flake ("Failed to fetch dynamically imported module");
+    branch 1/2 PASS, main 2/3 PASS
+  NEW_FAILURES=0. (Linux run is the gate's; this PC has no WSL/Docker.)
+- Merge: 64 conflicts, all asset-token only except index.html / auth/callback/index.html (main's stylesheet list
+  taken; this branch changed only tokens there) → tokens regenerated.
 
-- `auth-session-continuity-p0-02-site` (login continuity room) also edits site-continuity.js / site-conversation.js;
-  hunks do not overlap (this branch: continuity line 271, conversation 3358-3470 + 3904). Asset tokens will conflict
-  mechanically as usual.
+## CHANGE (unchanged from 3b696cfe)
+
+- `site-core.js` reads Core's `display_name_is_default`, `public_handle_is_generated`, `signup_provider`
+  (fields exist only when Core sends them).
+- `site-conversation.js` profile menu: no own name → `내 프로필` + person icon; generated handle hidden;
+  `카카오 계정으로 가입 · LOTBI Free` only without a name; menu items unchanged.
+- `site-continuity.js` placeholder `내 프로필`; `site-sidebar-nav.css` icon styles.
 
 ## DEPLOY_ORDER
 
-- Any order is safe. Recommended CORE → SITE. With the current Core the Site renders exactly as today.
+- Core d1b2b43e is already live, so SITE can go next. An older Core payload renders exactly as before.
 
 ## NOT_VERIFIED
 
-- Real devices: Android Samsung Internet, Android Chrome, iPhone Safari, PC Chrome with a real Kakao signup.
-  Viewport emulation only (not a device PASS). Dark mode icon contrast: uses existing muted token, not measured.
+- Real devices (Samsung Internet, Android Chrome, iPhone Safari, PC Chrome) with a real Kakao signup.
 
-USER_DECISION_NEEDED=NONE
 NEW_FAILURES=0
