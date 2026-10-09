@@ -1,0 +1,33 @@
+name: Site Review Static Smoke Diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run unchanged static serving smoke command
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path('.github/workflows/site-review.yml').read_text(encoding='utf-8')
+          marker = '      - name: Static serving smoke test\n'
+          tail = source.split(marker, 1)[1]
+          run_marker = '        run: |\n'
+          block = tail.split(run_marker, 1)[1]
+          lines = []
+          for line in block.splitlines():
+              if line.startswith('      - name:'):
+                  break
+              lines.append(line[10:] if line.startswith('          ') else line)
+          Path('/tmp/site-static-smoke.sh').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+          bash /tmp/site-static-smoke.sh
