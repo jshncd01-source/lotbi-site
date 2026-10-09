@@ -1,21 +1,34 @@
 READY_FOR_DEPLOY=YES
-SUPERSEDES=a1e8448699c64de6b11f2cde942174c85545e050 (이전 READY, main 9e39edd0 기준)
+SUPERSEDES=67ac11238c1d57c4b246c477a22629d860773b80 (SITE-T44 gate 반환) · a1e8448699c64de6b11f2cde942174c85545e050 (main 9e39edd0 기준)
 MIGRATION=YES(Core p0_0110_conversation_history — Site 자체는 migration 없음)
 DEPLOY_ORDER=CORE → SITE(→ APP)
 APP_STORAGE_CHECK=앱 "최근 대화"는 Site WebView가 아니라 앱 자체 AsyncStorage를 씀 → lotbi-app feature/conversation-account-sync-01-app에서 같은 API로 맞춤(Android 내부 테스트까지만)
 USER_DECISION_NEEDED=개인정보처리방침 개정 시점(초안: docs/privacy-policy-conversation-history-draft-01.md) · 제6.1조 국외 이전 표에 "대화 기록" 추가 여부 — 배포 차단 아님
 
-# conversation-account-sync-01 (Site) — release handoff (main 576ec346 재병합)
+# conversation-account-sync-01 (Site) — release handoff (main 576ec346 재병합 + gate 반환 수정)
 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/conversation-account-sync-01-site
 FEATURE_SHA=이 문서 커밋(branch HEAD). `git ls-remote origin refs/heads/feature/conversation-account-sync-01-site`로 확인한다.
-CODE_SHA=89bb1ccca6148213e7c097cb08eb2c63d11303e5
+CODE_SHA=1b9d30123c4ef89de5986e34eeee9ec09adfe515
 AUTHORITATIVE_MAIN_AT_DEVELOPMENT=576ec3465e3685e21fbe26a02a02129c76667739 (SITE-T43, 운영 aset-70f733afa919)
 MERGE_METHOD=NORMAL MERGE 1회(576ec346 → 854d9cdf). rebase·force push·reset 없음
 ASSET_VERSION=aset-f54a2f734ab0 (scripts/asset_cache_version.mjs --check PASS)
-PAIRED=lotbi-core feature/conversation-account-sync-01-core(p0_0110, 먼저 배포 — 2026-10-10 01:1x 기준 CORE-T31 gate 중) · lotbi-app feature/conversation-account-sync-01-app
+PAIRED=lotbi-core feature/conversation-account-sync-01-core(p0_0110, 2026-10-10 01:44 운영 반영) · lotbi-app feature/conversation-account-sync-01-app
 TAKEOVER=원래 개발방 세션이 없어 배포총괄방 요청(2026-10-10 01:0x)으로 생활정보 직전송 Site 방이 이어받았다. 원래 worktree `conversation-account-sync-01-site`를 썼다. 쓰는 세션·프로세스가 없음을 확인했다(남은 미추적 파일 = 원래 방 검사기 임시 폴더 4개, 손대지 않음).
+
+## SITE-T44 gate 반환 수정 (2026-10-10)
+
+- 반환 내용: gate run 20261009T164459Z-1762193-437214547 TEST_FAILED. `validate_conversation_account_sync_01`이 `timeout: DevToolsActivePort — last=false`(openBrowser)로 멈췄다. site main 576ec346은 그대로였다. 같은 gate의 다른 Chrome 검사기는 통과했다.
+- 이 검사기만 다르던 두 가지를 gate에서 통과하는 검사기(`validate_my_child_school_01` 등)와 같게 맞췄다(커밋 1b9d3012).
+  1. 브라우저 프로필 위치: `os.tmpdir()`(Linux /tmp) → 저장소 안 `scripts/.conversation-sync-*`. 끝나면 지운다(Windows 잠금 대비 20회 재시도).
+  2. 브라우저 후보: `/opt/pw-browsers/chromium`이 없었다 → Windows Chrome 다음, PATH 이름들(`google-chrome-stable`·`chromium` 등) 앞에 넣었다.
+- [추정] 후보가 없어서 Linux에서 PATH의 `chromium`(snap 포장일 수 있음)이 잡혔다. snap은 자기만의 /tmp를 써서 검사기가 기다리는 /tmp 경로에 DevToolsActivePort가 생기지 않은 것으로 본다. gate 서버는 직접 확인하지 않았다.
+- 판정 단정·시나리오·검사 범위는 바꾸지 않았다(13 checks 그대로). `os` import는 쓰지 않게 돼 지웠다.
+- 이 PC에는 WSL 배포판이 없어 Linux로 직접 재현하지 못했다. 대신 시스템 임시 폴더를 쓸 수 없게 한 조건(TEMP·TMP·TMPDIR = 없는 경로)으로 비교했다.
+  - 옛 판(67ac1123): `ENOENT ... mkdtemp`로 바로 실패.
+  - 새 판(1b9d3012): PASS(13 checks).
+  - 정상 조건 새 판도 PASS(13 checks). 두 경우 모두 끝난 뒤 `scripts/.conversation-sync-*`가 남지 않았다.
 
 ## 이번 재병합
 
@@ -65,6 +78,7 @@ TAKEOVER=원래 개발방 세션이 없어 배포총괄방 요청(2026-10-10 01:
   - my_child_school_01, consumer_sections_02, life_direct_chat_card_compaction_01
   - validate_hardening.py, validate_home_chat.py(UTF-8 출력)
   - `chat_mobile_keyboard_dismiss_01`: 묶음 실행 중 세 번째 폭에서 Chrome 포트 파일 읽기가 Windows 파일 잠금(EBUSY)으로 멈췄다. 단독으로 다시 돌려 PASS. 제품 코드와 관계없다.
+- 위 24개는 코드 89bb1ccc에서 돌렸다. 1b9d3012는 이 검사기 파일만 바꿨으므로 그 검사기를 정상·임시 폴더 불가 두 조건으로 다시 돌렸다(둘 다 PASS). asset --check PASS(aset-f54a2f734ab0, 스크립트 변경은 token과 무관).
 - 전체 site-review 회귀: NOT RUN(이 PC CPU 제약). 최종 전체 gate는 배포총괄방(Linux).
 
 NEW_FAILURES=0 (관련 검사기 24개 기준)
@@ -73,7 +87,7 @@ ENV_CHANGE_REQUIRED=NO (Core kill switch `CONVERSATION_HISTORY_SYNC_AVAILABLE`�
 NEW_SECRET_CREATED=NO
 THEME_TOKENS_CHANGED=NO
 DEVICE_E2E=NOT VERIFIED (삼성 인터넷·iPhone Safari·PC Chrome 교차 실기기 미확인. 모바일은 viewport 에뮬레이션)
-CORE_E2E=NOT VERIFIED (짝 Core p0_0110 운영 미배포 시점. 검사기는 Core 계약과 같은 프로세스 내 가짜 계정 저장소를 쓴다)
+CORE_E2E=NOT VERIFIED (짝 Core p0_0110은 2026-10-10 01:44 운영 반영(배포총괄방). Site가 아직 운영 전이라 실제 E2E는 배포 뒤 smoke에서. 검사기는 Core 계약과 같은 프로세스 내 가짜 계정 저장소를 쓴다)
 
 ## 배포 메모
 
