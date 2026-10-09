@@ -97,7 +97,7 @@ assert.equal(result.ok, true, result.error);
   assert.equal(textless.reason, 'not-a-document');
   assert.equal(textless.confirmEnabled, false, 'a PDF without text must not be saved');
   assert.equal(textless.adjustHidden, true, 'no manual adjustment for something that is not a document');
-  assert.ok(textless.status.includes('신분증이나 문서로 보이지 않습니다'), `textless PDF message: ${textless.status}`);
+  assert.ok(textless.status.includes('등록할 수 있는 자료로 보이지 않습니다'), `textless PDF message: ${textless.status}`);
   assert.equal(brokenView.state, 'error', `a broken PDF must stop with an explanation: ${JSON.stringify(brokenView)}`);
   assert.ok(brokenView.status.includes('PDF를 열지 못했습니다'), `broken PDF message: ${brokenView.status}`);
   console.log(`LIFE_WALLET_PDF_01 PASS — first_aspect=${first.aspect.toFixed(3)} source=${first.sourceWidth}x${first.sourceHeight} reason=${first.reason}`);
