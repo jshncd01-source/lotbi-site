@@ -1,7 +1,7 @@
 READY_FOR_DEPLOY=YES
-SUPERSEDES=aa88b8a0 (Core) / 8cb40b01 (Site)
+SUPERSEDES=a34f84b5 (Site, main da861120 기준 — SITE-T43 내 아이 학교와 카드 목록 충돌로 반환) / 8cb40b01 (Site) / aa88b8a0 (Core)
 MIGRATION=NO
-DEPLOY_ORDER=INDEPENDENT (Site 단독 배포 가능. Core 전북 READY 45fcb549과 순서 무관 — 아래 "Core 없이도 안전")
+DEPLOY_ORDER=INDEPENDENT (Site 단독 배포 가능. Core 전북 READY 45fcb549(CORE-T31)과 순서 무관 — 아래 "Core 없이도 안전")
 ACTIVATION=Site env 없음. 켜는 것은 Core env이며 소유자 결정 뒤 배포총괄방(Core 문서 ACTIVATION).
 USER_DECISION_NEEDED=NONE (배포 차단 아님)
 
@@ -12,13 +12,13 @@ USER_DECISION_NEEDED=NONE (배포 차단 아님)
 REPO=lotbi-site
 FEATURE_BRANCH=feature/jeonbuk-real-world-pilot-01-site
 FEATURE_SHA=이 문서 커밋(branch HEAD). 문서에는 자기 SHA를 넣을 수 없으므로 `git ls-remote`로 확인한다.
-CODE_SHA=36afc86b2d4b3bb5762b3909c44e334fe0d3846d
-AUTHORITATIVE_MAIN=da86112052b090186ceb35f5c7a53be0e63431ec (SITE-T42, merge 커밋 36afc86b. 그 전 819ead3a merge 0d2bdd6a, 06270582 merge dee054a7, 2f1212ea merge 03fdc1fb)
-LATEST_MAIN_RECHECK=2026-10-10 00:1x `git ls-remote` main=da861120 (HEAD에 포함)
-ASSET_TOKEN=aset-fde894948e9b (scripts/asset_cache_version.mjs --write → --check PASS)
-TEST_STATUS=전체 validate_* 등 257개 중 254 PASS / 3 FAIL (36afc86b, 2병렬). 핵심·영향 검사 9/9 PASS (36afc86b, 단독 순차)
+CODE_SHA=7abe58452365046bf0a85017b3b99418d1ee4e80
+AUTHORITATIVE_MAIN=576ec3465e3685e21fbe26a02a02129c76667739 (SITE-T43, merge 커밋 7abe5845. 그 전 da861120 merge 36afc86b, 819ead3a merge 0d2bdd6a, 06270582 merge dee054a7, 2f1212ea merge 03fdc1fb)
+LATEST_MAIN_RECHECK=2026-10-10 01:1x `git ls-remote` main=576ec346 (HEAD에 포함)
+ASSET_TOKEN=aset-80a36d07492c (scripts/asset_cache_version.mjs --write → --check PASS)
+TEST_STATUS=핵심·T43 영향 검사 16개 중 15 PASS / 1 FAIL(기존) (7abe5845, 단독 순차). 전체 validate_* 등 257개 중 254 PASS / 3 FAIL (36afc86b = 직전 main da861120 merge, 2병렬)
 NEW_FAILURES=0
-EXISTING_MAIN_FAILURES=validate_mobile_footer_legal_sheet_01("761px: mobile disclosure leaked into desktop"), validate_site_avatar_fallback_runtime(undici assert(!this.paused)) — 둘 다 기준선 main da861120에서 같은 메시지로 단독 재현
+EXISTING_MAIN_FAILURES=validate_mobile_footer_legal_sheet_01("761px: mobile disclosure leaked into desktop" — main 576ec346·da861120 둘 다 같은 메시지로 단독 재현), validate_site_avatar_fallback_runtime(undici assert(!this.paused) — main da861120에서 단독 재현)
 LOAD_ONLY_FAILURE=validate_place_card_carousel_no_drift_01 — 2병렬 중 Chrome 프로필 파일 EBUSY. 단독 실행 시 이 branch·main 모두 PASS
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
@@ -26,23 +26,25 @@ NEW_SECRET_CREATED=NO
 EXISTING_SECRET_CHANGED=NO
 DEPENDENCIES=없음
 
-## 생활정보 바로가기 배치 (9개)
+## 생활정보 바로가기 배치 (10개)
 
-- main(SITE-T42)의 8개는 병원·의원, 약국, 응급실, 축제·행사, 지역뉴스, 온누리상품권, 지역생활정보, 유치원·학교다. 여기에 "전북 맛집·음식"을 더해 9개다.
-- 새 카드는 지역생활정보 다음, 유치원·학교 앞이다. 유치원·학교는 마지막 그대로다.
-- 생활정보 홈은 2열이다. 9개는 홀수라서 main 규칙(`site-life-education.css`, 홀수 마지막 카드는 한 줄 전체)에 따라 유치원·학교가 마지막 줄 전체를 쓴다. 빈칸이 없다.
+- main(SITE-T43)의 9개는 병원·의원, 약국, 응급실, 축제·행사, 지역뉴스, 온누리상품권, 지역생활정보, 유치원·학교, 내 아이 학교·유치원이다.
+- 여기에 "전북 맛집·음식"을 지역생활정보 바로 다음에 더해 10개다. 나머지 순서는 main 그대로다(유치원·학교, 내 아이 학교·유치원이 끝).
+- 생활정보 홈은 2열이다. 10개는 짝수라서 5줄 모두 두 장씩 꽉 찬다. 마지막 카드도 한 칸 너비다.
+  - 홀수가 되면 main 규칙(`site-life-education.css`)대로 마지막 카드가 한 줄 전체를 쓴다.
 - 이 branch에는 바로가기 전용 grid CSS가 없다. main 규칙만 쓴다.
 - 확인한 검사(360/375/390/412/1280):
   - `validate_life_medical_category_entry_01`: 행마다 꽉 참, 카드 너비·높이 같음, 첫 화면 안, 한 줄 라벨, 44px 이상
-  - `validate_jeonbuk_real_world_pilot_01`: 9개, 그리고 전북 카드를 뺀 main 8개 둘 다 빈칸 없음
-  - `validate_regional_news_p0_01`: 데스크톱에서 마지막 카드가 줄 전체를 채움
+  - `validate_jeonbuk_real_world_pilot_01`: 10개, 그리고 전북 카드를 뺀 main 9개 둘 다 빈칸 없음
+  - `validate_regional_news_p0_01`: 데스크톱 마지막 줄 두 장, 한 칸 너비
+  - `validate_my_child_school_01`: 내 아이 학교·유치원 카드와 화면은 main 그대로
 
 ## 전북 맛집·음식 카드 동작
 
 - 카드를 누르면 지역·음식·테마 칩 폼이 열린다. "롯비에게 물어보기"를 누르면 "전북 전주 비빔밥 맛집 알려줘" 같은 문장을 만든다. 기본 문장은 "전북 맛집 알려줘"다.
 - main 규칙(LIFE-DIRECT-CHAT-CARD-COMPACTION-01, LIFE-MEDICAL-AUTO-SEARCH-01)대로 `onAsk`로 **바로 전송**한다. 입력창에는 아무것도 남지 않는다.
   - 생활정보 카드에서는 `onDraft`를 쓰지 않는다. main 검사기가 이것을 막는다.
-  - `validate_jeonbuk_real_world_pilot_01`이 "바로 전송 + 입력창 비어 있음"을 확인한다(이번에 더 엄격하게 바꿈).
+  - `validate_jeonbuk_real_world_pilot_01`이 "바로 전송 + 입력창 비어 있음"을 확인한다.
 
 ## Core 없이도 안전 (Site 단독 배포 가능)
 
@@ -55,21 +57,19 @@ DEPENDENCIES=없음
 
 모든 merge는 asset 토큰만 다른 충돌을 main 쪽으로 정리한 뒤 `asset_cache_version.mjs --write`로 다시 만들었다. 아래는 토큰 외 충돌이다.
 
-- 36afc86b (main da861120, SITE-T42: 생활정보 직전송 5ef7769a + 지역뉴스 a96e99ff)
-  - `site-core.js` 2곳: `newsResult` 다음에 `regionalFoodResult`·`regionalContactResult`를 둔다.
-  - `site-conversation.js` 4곳: import, 메시지 카드(뉴스 → 전북 음식 → 전북 연락처), 응답 meta 2곳. 모두 합집합이다.
-  - `site-consumer-sections.js` 2곳: import(`savedLifeRegionLabel` + `createJeonbukFoodForm`), 아이콘(`news` + `food`).
-  - 검사기 4개: main 검사를 그대로 두고 기대 목록에 전북 카드를 더했다(9개).
-  - `validate_regional_news_p0_01` 6단계: 짝수 개수 검사(마지막 카드 한 칸 너비, 마지막 줄 2장)는 그대로 두고, 홀수 개수일 때 마지막 카드가 줄 전체를 채우는지 보는 분기를 더했다.
-- 0d2bdd6a (main 819ead3a, SITE-T41: 의료 자동검색 Site c8457c1e)
-  - 의료 카드는 main 그대로다(폼 없이 바로 질문). 전북 폼은 `onAsk`로 바꿨다.
-  - workflow는 main 온누리 시장 위치 단계 뒤에 전북 단계를 둔다.
-- dee054a7 (main 06270582), 03fdc1fb (main 2f1212ea): 이전 방이 처리했다(import·검사기 목록, 자체 grid CSS 제거).
-
-## 다음 main 후보
-
-- SITE-T43 Footer(`feature/site-footer-hosting-ncloud-01` b9c38de4)와 `git merge-tree` 결과 충돌이 없다.
-- 규칙: 나중에 main에 들어가는 쪽이 다시 merge하고 `asset_cache_version.mjs --write`를 다시 돌린다.
+- 7abe5845 (main 576ec346, SITE-T43: 내 아이 학교 Site 08171a3d + Footer 호스팅 표시)
+  - `index.html`, `auth/callback/index.html`: main 쪽(`site-life-my-child.css` 줄 추가). 이 branch는 그 자리에 토큰만 바꿨다.
+  - `site-consumer-sections.js`, `site-conversation.js`: main import + `site-life-regional.js` import.
+  - 카드 목록 끝 주석을 10개 기준으로 고쳤다.
+  - 검사기 6개(consumer_sections_02, life_info_cleanup_final_01, life_medical_auto_search_card_01, life_medical_category_entry_01, my_child_school_01, jeonbuk_real_world_pilot_01): main 검사를 그대로 두고 기대 목록에 전북 카드를 더했다(10개).
+  - `validate_regional_news_p0_01` 6단계: main의 홀수 검사(마지막 카드 한 줄 전체 + 그 앞 줄 두 장)를 그대로 두고, 짝수 개수일 때의 검사(마지막 줄 두 장, 한 칸 너비)를 더했다. 카드 수는 10으로 고정해 확인한다.
+- 36afc86b (main da861120, SITE-T42: 생활정보 직전송 + 지역뉴스)
+  - `site-core.js`, `site-conversation.js`: 뉴스 결과와 전북 결과를 합집합으로 둔다(뉴스 → 전북 음식 → 전북 연락처).
+  - `site-consumer-sections.js`: 아이콘 `news` + `food`.
+- 0d2bdd6a (main 819ead3a, SITE-T41: 의료 자동검색 Site)
+  - 의료 카드는 main 그대로다. 전북 폼은 `onAsk`로 바꿨다.
+  - workflow는 main 단계 뒤에 전북 단계를 둔다.
+- dee054a7 (main 06270582), 03fdc1fb (main 2f1212ea): 이전 방이 처리했다.
 
 ## ACTIVATION (이름만, 값 금지) — Core env, 소유자 결정 뒤 배포총괄방
 
