@@ -222,6 +222,16 @@ try {
   result.create = requests[3];
   await wait(() => !root.querySelector('.calendar-editor-dialog'), 'created');
 
+  // 5b. 반복 전체 삭제 names its scope: Core refuses a scope-less remove of a
+  // repeating record (409 RECURRENCE_SCOPE_REQUIRED, protecting the released App).
+  dialog = await openInstance('2026-10-27');
+  click(dialog.querySelector('.calendar-editor-delete'));
+  await wait(() => root.querySelector('.calendar-delete-confirm-dialog'), 'series delete dialog');
+  click(root.querySelector('.calendar-delete-confirm-submit'));
+  await wait(() => requests.length === 5, 'series delete request');
+  result.seriesDelete = requests[4];
+  await wait(() => !root.querySelector('.calendar-editor-dialog'), 'series deleted');
+
   // 6. Guest mode: no repetition or reminder chips (those need the account).
   const guestRoot = document.getElementById('guest-root');
   root.replaceChildren();
@@ -301,6 +311,9 @@ function check(v) {
   assert.deepEqual(v.deleteButtons, ['취소', '이 날짜만 삭제', '반복 전체 삭제']);
   assert.deepEqual(v.occurrenceDelete.body.scope, 'OCCURRENCE');
   assert.deepEqual(v.occurrenceDelete.body.occurrence_key, '2026-10-20');
+  assert.match(v.seriesDelete.path, /\/remove$/);
+  assert.equal(v.seriesDelete.body.scope, 'SERIES', '반복 전체 삭제는 범위를 밝힌다');
+  assert.equal('occurrence_key' in v.seriesDelete.body, false);
   assert.equal(v.newSectionsHidden, true, 'a blank record opens with every section closed');
   assert.deepEqual(v.customDefault, ['월'], 'custom starts on the chosen date\'s weekday');
   assert.equal(v.allDayHintShown, true);

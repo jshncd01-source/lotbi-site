@@ -939,10 +939,13 @@ export function createCalendarMutationController({
         });
       }
       if (!authenticated) return guestRepository.remove(item.id);
-      const oneDate = isRecurringCalendarItem(item) && scope === 'OCCURRENCE';
+      // 반복 기록은 언제나 범위를 밝힌다 — Core는 범위 없는 반복 기록 삭제를
+      // 409(RECURRENCE_SCOPE_REQUIRED)로 거절한다(범위를 모르는 출시 App 보호).
+      const recurring = isRecurringCalendarItem(item);
+      const oneDate = recurring && scope === 'OCCURRENCE';
       return removeLifeActivity(sessionToken, item.activity_id || item.activityId, {
         logicalRequestId: requestId('remove'), expectedRevision: item.activity_revision ?? item.activityRevision,
-        ...(oneDate ? {scope: 'OCCURRENCE', occurrenceKey: item.occurrence_key} : {}),
+        ...(oneDate ? {scope: 'OCCURRENCE', occurrenceKey: item.occurrence_key} : recurring ? {scope: 'SERIES'} : {}),
       }, fetchImpl);
     },
   });
