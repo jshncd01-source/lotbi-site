@@ -4,8 +4,7 @@ import {mountLifeWallet} from './site-life-wallet.js?v=aset-e37c99b26fbd';
 // module never uploads identity documents or invents account/connection data.
 // onAsk(text) hands a finished question to the conversation, which sends it
 // right away: one tap asks LOTBI, with nothing to confirm or send again.
-// The 유치원·학교 screen (KINDERGARTEN-OFFICIAL-INFO-01) alone keeps the draft
-// handoff: its question goes into the composer to check before sending.
+// The 유치원·학교 screen asks the same way (LIFE-DIRECT-CHAT-CARD-COMPACTION-01).
 //
 // LIFE-MEDICAL-AUTO-SEARCH-01 — 병원·약국·응급실 have no form. The tap sends a
 // fixed question the existing Core medical route (국립중앙의료원 data) reads as
@@ -93,7 +92,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onDraft, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -152,7 +151,7 @@ export function mountConsumerSection({section, root, onAsk, onDraft, onFestival,
       root.replaceChildren(detail); title.focus();
       import('./site-life-education.js?v=aset-e37c99b26fbd').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
-        releaseEducation = mountEducation({root: host, onDraft, accountId}).dispose;
+        releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
         if (!disposed && current === generation) host.replaceChildren(node('p', 'consumer-error', '유치원·학교 정보를 열지 못했습니다. 잠시 후 다시 열어 주세요.'));
       });

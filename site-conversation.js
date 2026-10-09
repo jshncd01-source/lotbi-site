@@ -4104,12 +4104,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     const {backdrop, panel, content} = modalShell(...definition);
     panel.classList.add('consumer-section-panel');
-    // KINDERGARTEN-OFFICIAL-INFO-01: the 유치원·학교 screen drafts its question
-    // for the user to check; the medical and other life cards use onAsk.
-    const draft = text => {
-      prompt.value = text.slice(0, 1000); prompt.dispatchEvent(new Event('input', {bubbles: true})); prompt.focus();
-      setStatus('요청을 입력창에 넣었어요. 내용을 확인한 뒤 전송하세요.');
-    };
     let mounted;
     const route = section === 'care' && careTab === 'pets' ? 'pets' : section;
     installSurfaceBehavior(backdrop, panel, {workspace: section, route, onClose: () => mounted?.dispose()});
@@ -4131,7 +4125,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         closeSurface();
         askWithoutKeyboard(text);
       },
-      onDraft: text => { closeSurface(); draft(text); },
       onFestival: () => { closeSurface(); void openFestival(); },
       onOnnuri: () => { closeSurface(); void openOnnuri(); },
       onSaved: () => { closeSurface(); openLotbiBox(); },
