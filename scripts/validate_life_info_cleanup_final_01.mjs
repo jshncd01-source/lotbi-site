@@ -277,7 +277,7 @@ try {
       const home = await runPhase(devtools, `${origin}/${innerRel}?phase=home`, `${label}/home`);
       console.log(`LIFE_INFO_CLEANUP ${label}`, JSON.stringify({shortcuts: home.life.shortcuts.map(s => s.label), topBar: home.life.topBar, footer: home.life.footer, products: home.products, hash: home.hashOpen.surface}));
       // 1 공과금 menu
-      assert.deepEqual(home.life.shortcuts.map(item => item.id), ['medical', 'pharmacy', 'festivals', 'news', 'onnuri', 'local', 'my-child'], `${label}: 지역정보 menu without 공과금 (REGIONAL-INFO-APPROVED-UX-RESTORE-P0: 병원·응급실 one card, 약국 separate, 유치원·학교 inside 내 아이 학교·유치원)`);
+      assert.deepEqual(home.life.shortcuts.map(item => item.id), ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'onnuri', 'local', 'my-child'], `${label}: 지역정보 menu without 공과금 (REGIONAL-INFO-APPROVED-UX-RESTORE-P0: 병원·응급실 one card, 약국 separate, 유치원·학교 inside 내 아이 학교·유치원; EV-CHARGER-NEARBY-LIST-P0: 전기차 충전소 after 약국)`);
       assert.ok(home.life.shortcuts.every(item => item.visible), `${label}: every menu is visible`);
       for (const detail of home.details) assert.ok(!/공과금|고지서/u.test(detail.text), `${label}: ${detail.id} detail mentions no 공과금`);
       // 2 top question bar

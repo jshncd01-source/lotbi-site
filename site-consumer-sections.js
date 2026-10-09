@@ -1,4 +1,4 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-1229ff0bb60f';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-0589f64c0dcd';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -23,6 +23,9 @@ export const LIFE_MEDICAL_QUESTIONS = Object.freeze({
 // is the one education card and opens 내 아이 정보 (signed-in, MY-CHILD-SCHOOL-01)
 // or 유치원·학교 찾기 (the public lookup, KINDERGARTEN-OFFICIAL-INFO-01).
 // Seven cards: the odd last card spans its row, so the grid has no empty cell.
+// EV-CHARGER-NEARBY-LIST-P0 adds 전기차 충전소 right after 약국: its own list
+// screen (site-life-ev-chargers.js), never a question to the conversation.
+// With it the grid holds an even number of cards and every row is full.
 export const LIFE_MEDICAL_CHOICES = Object.freeze([
   Object.freeze({id: 'hospital', label: '병원·의원 찾기'}),
   Object.freeze({id: 'emergency', label: '응급실 찾기'}),
@@ -34,6 +37,8 @@ export const LIFE_CHILD_CHOICES = Object.freeze([
 export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'medical', label: '병원·응급실', icon: 'hospital', choices: LIFE_MEDICAL_CHOICES},
   {id: 'pharmacy', label: '약국', icon: 'pharmacy', ask: LIFE_MEDICAL_QUESTIONS.pharmacy},
+  // EV-CHARGER-NEARBY-LIST-P0: nearest stations from 한국환경공단 data, no chat.
+  {id: 'ev-chargers', label: '전기차 충전소', icon: 'ev'},
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
   // REGIONAL-NEWS-SCREEN-LIST-01: lists 광역시·도 news titles itself (site-life-news.js).
   {id: 'news', label: '지역뉴스', icon: 'news'},
@@ -73,6 +78,7 @@ const ICON_PATHS = {
   news: ['M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V5Z', 'M17 9h3v10a2 2 0 0 1-2 2', 'M7 9h7M7 12h7M7 15h4'],
   school: ['m2 9 10-5 10 5-10 5L2 9Z', 'M6 11v5c3 2.5 9 2.5 12 0v-5', 'M22 9v6'],
   backpack: ['M9 6V5a3 3 0 0 1 6 0v1', 'M6 9a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v12H6V9Z', 'M9 13h6v4H9v-4Z'],
+  ev: ['M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16', 'M2 21h15', 'm10 7-2.5 4h4L9 15', 'M15 9h1.5a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-2.5-2.5'],
 };
 
 function node(tag, className = '', text = '') {
@@ -108,7 +114,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onEvChargers, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -191,7 +197,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-1229ff0bb60f').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-0589f64c0dcd').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -238,7 +244,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-1229ff0bb60f').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-0589f64c0dcd').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -276,6 +282,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         if (item.ask) onAsk(item.ask);
         else if (item.choices) openMedicalChoice(item);
         else if (item.id === 'festivals') onFestival();
+        else if (item.id === 'ev-chargers') onEvChargers?.();
         else if (item.children) openChildChoice(item);
         else item.id === 'news' ? openNewsEntry(item)
           : item.id === 'onnuri' ? onOnnuri?.() : openLifeDetail(item);

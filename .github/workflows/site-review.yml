@@ -745,6 +745,12 @@ jobs:
       - name: Validate regional news (지역정보 · 지역뉴스)
         run: node scripts/validate_regional_news_p0_01.mjs
 
+      # EV-CHARGER-NEARBY-LIST-P0: 지역정보 → 전기차 충전소는 대화가 아니라 자체 목록 화면
+      # (공공데이터 가까운 순, 급속·완속·충전 가능·반경, 저장한 지도앱 아이콘·링크, 전화 버튼 없음,
+      # 위치 거부 시 지역 선택, 뒤로가기 → 지역정보 → 홈, 360~412px·데스크톱, 라이트·다크).
+      - name: Validate EV charger nearby list
+        run: node scripts/validate_ev_charger_nearby_list_p0_01.mjs
+
       # 진위확인 사진·스크린샷 선택은 카메라를 강제하지 않고(capture 없음),
       # 카메라로 촬영만 capture="environment"를 쓴다. 실제 Chrome 탭으로 각
       # 버튼이 자기 입력의 파일 선택 창을 여는지, 확인하기 전에는 전송되지

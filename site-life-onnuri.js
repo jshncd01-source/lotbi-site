@@ -10,10 +10,10 @@
 // Brand: the official 온누리상품권 logo is NOT used until its use is approved.
 // The slot below is reserved for it and renders nothing; labels are plain text.
 // LOTBI is not presented as an official/partner service of the issuer.
-import {CORE_ORIGIN} from './site-core.js?v=aset-1229ff0bb60f';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-1229ff0bb60f';
-import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-1229ff0bb60f';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-1229ff0bb60f';
+import {CORE_ORIGIN} from './site-core.js?v=aset-0589f64c0dcd';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-0589f64c0dcd';
+import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-0589f64c0dcd';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-0589f64c0dcd';
 
 export const ONNURI_MENU_LABEL = '온누리상품권';
 export const ONNURI_CARD_LABEL = '온누리 가맹점';
