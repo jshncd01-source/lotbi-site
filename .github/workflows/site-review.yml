@@ -52,6 +52,9 @@ jobs:
       - name: Validate clean public URLs
         run: python scripts/validate_clean_urls.py
 
+      - name: Validate plan trusted device limits and notice
+        run: python scripts/validate_trusted_device_plan_limits_01.py
+
       - name: Validate iOS Social Auth return bridge
         run: python scripts/validate_ios_social_return_01.py
 
@@ -66,9 +69,6 @@ jobs:
 
       - name: Validate Subscribe to Account checkout handoff
         run: node scripts/validate_subscribe_account_checkout_handoff_01.mjs
-
-      - name: Validate plan trusted device limits and notice
-        run: python scripts/validate_trusted_device_plan_limits_01.py
 
       # 새로고침하면 보던 화면 그대로 — 캘린더 · Life Wallet · 진위확인 · 안심케어 ·
       # 반려동물 · 생활정보 · 축제·행사 · 롯비함이 URL fragment(/#calendar …)로
