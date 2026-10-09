@@ -7,7 +7,10 @@
 //   - picked and today stay distinct; Sunday/holiday and Saturday keep their
 //     colours
 //   - the picked day's records are hairline rows, not framed cards: time,
-//     title and amount on the first line, the category under the title
+//     title and amount on the first line of every row -- 1,000,000원 and a
+//     long title included -- the category under the title, one clock column
+//     width for all rows. Also run with Linux's wide DejaVu Sans metrics
+//     forced, where a fixed 38px clock column once ran into the title
 //   - weather: the picked day shows its sky, range and rain chance next to
 //     its heading, and the 기상청 credit names only that shown forecast. A
 //     past day has no forecast (Core returns none), so it says
@@ -73,6 +76,15 @@ const params = new URLSearchParams(location.search);
 const theme = params.get('theme') || 'light';
 const weatherMode = params.get('weather') || 'on';
 document.body.dataset.siteTheme = theme;
+// Linux renders the stack with DejaVu Sans, whose digits are far wider than
+// Segoe UI's: "09:00" ran a fixed 38px clock column into the title there and
+// nowhere on Windows. The wide stage forces those metrics on every platform.
+const wideFont = params.get('font') === 'wide';
+if (wideFont) {
+  const style = document.createElement('style');
+  style.textContent = "body, body * { font-family: 'DejaVu Sans', Verdana, 'Noto Sans CJK KR', 'Noto Sans KR', sans-serif !important; }";
+  document.head.appendChild(style);
+}
 const box = node => { const r = node.getBoundingClientRect(); return {left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height}; };
 try {
   localStorage.clear();
@@ -114,6 +126,9 @@ try {
   repo.create({title: '점심', local_date: '2026-10-06', local_datetime: '2026-10-06T09:00:00', all_day: false, entry: {amount_minor: 200000, currency: 'KRW', expense_category: 'OTHER'}});
   repo.create({title: '정형외과 진료 예약 확인하고 약국에 들러 처방전 약 받아오기', local_date: '2026-10-06', local_datetime: '2026-10-06T14:00:00', local_end_datetime: '2026-10-06T15:00:00', all_day: false});
   repo.create({title: '장보기 목록', local_date: '2026-10-06', entry: {amount_minor: 35000, currency: 'KRW', expense_category: 'FOOD'}});
+  // The widest amounts beside a short and a long title.
+  repo.create({title: '월세', local_date: '2026-10-06', local_datetime: '2026-10-06T08:00:00', all_day: false, entry: {amount_minor: 1000000, currency: 'KRW', expense_category: 'LIVING'}});
+  repo.create({title: '아파트 관리비와 가스요금 자동이체 확인하고 영수증 정리하기', local_date: '2026-10-06', local_datetime: '2026-10-06T18:00:00', all_day: false, entry: {amount_minor: 1000000, currency: 'KRW', expense_category: 'LIVING'}});
   repo.create({title: '가족 저녁', local_date: '2026-10-09', local_datetime: '2026-10-09T19:00:00', all_day: false});
 
   const root = document.getElementById('cal-root');
@@ -121,7 +136,7 @@ try {
   await mountLifeCalendarManager({root, initialView: 'week', guestRepository: repo, timezone: 'Asia/Seoul', now: new Date('2026-10-09T02:00:00Z')});
   await wait(() => root.querySelector('.calendar-week-agenda'), 'week mounted');
   const section = () => root.querySelector('.calendar-week-agenda');
-  const result = {ok: true, theme, weatherMode, viewport: {width: innerWidth, height: innerHeight}, layout: section().dataset.weekLayout};
+  const result = {ok: true, theme, weatherMode, wideFont, viewport: {width: innerWidth, height: innerHeight}, layout: section().dataset.weekLayout};
   const credit = () => section().querySelector(':scope > .calendar-weather-credit')?.textContent || '';
   if (weatherMode === 'on') await wait(() => credit(), 'weather credit');
   else await sleep(400);
@@ -216,8 +231,20 @@ try {
     result.pickPast = await pick('2026-10-06');
     result.past = weatherOf();
     const rows = () => [...detail().querySelectorAll('.calendar-life-row')];
-    const first = rows()[0];
     const part = (row, selector) => row.querySelector(selector);
+    const first = rows().find(row => part(row, '.calendar-life-title')?.textContent === '점심');
+    // time | title | amount on one first line, for every row: the clock never
+    // runs into the title, the amount never drops under it.
+    const firstLineOf = row => {
+      const time = part(row, '.calendar-life-time time');
+      const amount = part(row, '.calendar-life-amount');
+      const n = box(part(row, '.calendar-life-title'));
+      const t = time && time.getClientRects().length ? box(time) : null;
+      const a = amount ? box(amount) : null;
+      return (!t || (t.right <= n.left + 0.5 && Math.abs(t.top - n.top) < 6))
+        && (!a || (n.right <= a.left + 0.5 && Math.abs(a.top - n.top) < 6));
+    };
+    const clockColumns = rows().map(row => part(row, '.calendar-life-time')).filter(node => node.getClientRects().length).map(node => Math.round(box(node).width * 10) / 10);
     result.rows = {
       titles: rows().map(row => part(row, '.calendar-life-title')?.textContent || ''),
       first: {
@@ -226,11 +253,12 @@ try {
         meta: part(first, '.calendar-life-meta')?.textContent || '',
         amount: part(first, '.calendar-life-amount')?.textContent || '',
       },
-      firstLine: (() => {
-        const t = box(part(first, '.calendar-life-time time'));
-        const n = box(part(first, '.calendar-life-title'));
-        const a = box(part(first, '.calendar-life-amount'));
-        return t.right <= n.left + 0.5 && n.right <= a.left + 0.5 && Math.abs(t.top - n.top) < 6 && Math.abs(a.top - n.top) < 6;
+      firstLine: rows().every(firstLineOf),
+      firstLineFailures: rows().filter(row => !firstLineOf(row)).map(row => part(row, '.calendar-life-title').textContent),
+      clockColumns,
+      longAmountTitleLines: (() => {
+        const t = rows().map(row => part(row, '.calendar-life-title')).find(node => node.textContent.startsWith('아파트'));
+        return Math.round(box(t).height / (parseFloat(getComputedStyle(t).lineHeight) || 20));
       })(),
       metaUnderTitle: box(part(first, '.calendar-life-meta')).top >= box(part(first, '.calendar-life-title')).bottom - 1,
       unframed: rows().every(row => {
@@ -313,7 +341,7 @@ const WEEK = ['2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07', '2026-10-0
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 function checkPhone(v) {
-  const where = `${v.viewport.width}x${v.viewport.height} ${v.theme} weather=${v.weatherMode}`;
+  const where = `${v.viewport.width}x${v.viewport.height} ${v.theme} weather=${v.weatherMode}${v.wideFont ? ' wide-font' : ''}`;
   const fail = message => { throw new Error(`${where}: ${message} ${JSON.stringify(v)}`); };
   if (v.layout !== 'vertical') fail(`the phone Week must use the rail, got "${v.layout}"`);
   const r = v.rail;
@@ -342,9 +370,11 @@ function checkPhone(v) {
 
   if (v.pickPast.sameTask !== true || v.pickPast.reads !== 0 || v.pickFuture.sameTask !== true || v.pickFuture.reads !== 0) fail('a tap must switch the day at once without a new read');
   const rows = v.rows;
-  if (!same(rows.titles, ['점심', '정형외과 진료 예약 확인하고 약국에 들러 처방전 약 받아오기', '장보기 목록'])) fail('rows must follow the day');
+  if (!same(rows.titles, ['월세', '점심', '정형외과 진료 예약 확인하고 약국에 들러 처방전 약 받아오기', '아파트 관리비와 가스요금 자동이체 확인하고 영수증 정리하기', '장보기 목록'])) fail('rows must follow the day');
   if (!same(rows.first, {time: '09:00', title: '점심', meta: '기타', amount: '200,000원'})) fail('the 09:00 점심 row keeps its time, category and amount');
-  if (!rows.firstLine) fail('time, title and amount must share the first line');
+  if (!rows.firstLine) fail(`time, title and amount must share the first line (${rows.firstLineFailures.join(', ')})`);
+  if (Math.max(...rows.clockColumns) - Math.min(...rows.clockColumns) > 0.5) fail('every row keeps the same clock column');
+  if (rows.longAmountTitleLines < 1 || rows.longAmountTitleLines > 4) fail(`a long title beside a large amount stays within four lines, got ${rows.longAmountTitleLines}`);
   if (!rows.metaUnderTitle) fail('the category sits under the title');
   if (!rows.unframed || !rows.separated) fail('records are hairline rows, not framed cards');
   if (rows.minHeight < 44) fail(`each row must stay a 44px target, got ${rows.minHeight}`);
@@ -387,13 +417,15 @@ try {
   const phones = [
     [320, 640, 'theme=light'], [360, 640, 'theme=light'], [390, 844, 'theme=light'], [430, 932, 'theme=light'],
     [360, 780, 'theme=dark'], [360, 780, 'theme=light&weather=off'], [390, 844, 'theme=light&weather=fail'],
+    // Linux font metrics on every platform (the 2026-10-09 gate failure).
+    [320, 640, 'theme=light&font=wide'], [320, 640, 'theme=dark&font=wide&weather=off'], [360, 640, 'theme=light&font=wide'],
   ];
   const desks = [[1280, 900, 'theme=light'], [1024, 768, 'theme=dark']];
   const summary = [];
   for (const [w, h, query] of phones) {
     const v = run(browser, w, h, query);
     checkPhone(v);
-    summary.push({width: w, height: h, query, weekTop: v.chrome.weekTop, lastDay: v.rail.lastBottom, rail: v.rail.railWidth});
+    summary.push({width: w, height: h, query, weekTop: v.chrome.weekTop, lastDay: v.rail.lastBottom, rail: v.rail.railWidth, clock: v.rows.clockColumns[0]});
   }
   for (const [w, h, query] of desks) {
     const v = run(browser, w, h, query);

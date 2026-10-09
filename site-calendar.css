@@ -2349,10 +2349,13 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
 .calendar-week-day-weather-note { color: var(--lotbi-calendar-muted-ink); font-size: 12px; line-height: 1.4; }
 .calendar-week-day-cards { min-width: 0; display: grid; gap: 0; }
 /* One record, one hairline row: time | what (its category under it) | amount.
-   No frame of its own -- a border would read as a meaning it does not have. */
+   No frame of its own -- a border would read as a meaning it does not have.
+   The clock column is at least 40px and otherwise as wide as "09:00" draws:
+   a wider system font (DejaVu Sans on Linux) ran a fixed 38px column into
+   the title. Clocks use tabular digits, so every row's column stays equal. */
 .calendar-week-day-cards .calendar-life-list .calendar-day-event.calendar-life-row {
   min-height: 44px;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) auto;
   grid-template-areas: "time copy amount";
   align-items: baseline;
   gap: 2px 8px;
@@ -2361,10 +2364,10 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
 }
 .calendar-week-day-cards .calendar-life-list .calendar-day-event.calendar-life-row[data-life-group="UNTIMED"] { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "copy amount"; }
 .calendar-week-day-cards .calendar-life-row[data-life-group="UNTIMED"] .calendar-life-time { display: none; }
-.calendar-week-day-cards .calendar-life-time { grid-area: time; padding-top: 0; }
-.calendar-week-day-cards .calendar-life-copy { grid-area: copy; gap: 1px; }
-.calendar-week-day-cards .calendar-day-event.calendar-life-row .calendar-life-title { -webkit-line-clamp: 4; font-size: 14.5px; line-height: 1.35; }
-.calendar-week-day-cards .calendar-life-amount { grid-area: amount; padding-top: 0; }
+.calendar-week-day-cards .calendar-life-time { grid-area: time; padding-top: 0; white-space: nowrap; }
+.calendar-week-day-cards .calendar-life-copy { grid-area: copy; min-width: 0; gap: 1px; }
+.calendar-week-day-cards .calendar-day-event.calendar-life-row .calendar-life-title { min-width: 0; -webkit-line-clamp: 4; font-size: 14.5px; line-height: 1.35; }
+.calendar-week-day-cards .calendar-life-amount { grid-area: amount; justify-self: end; padding-top: 0; white-space: nowrap; }
 .calendar-week-day-cards .calendar-life-section-label { margin: 6px 0 0; padding: 0 4px; }
 .calendar-week-day-empty { display: grid; gap: 2px; padding: 10px 4px; }
 .calendar-week-day-empty .life-calendar-empty { color: var(--lotbi-text-primary, var(--text, #212121)); font-size: 14px; font-weight: 600; }
@@ -2383,7 +2386,7 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
 @media (max-width: 360px) {
   .calendar-week-vertical { grid-template-columns: 54px minmax(0, 1fr); gap: 8px; }
   .calendar-week-rail-number { min-width: 22px; font-size: 15px; }
-  .calendar-week-day-cards .calendar-life-list .calendar-day-event.calendar-life-row { grid-template-columns: 38px minmax(0, 1fr) auto; gap: 2px 6px; padding: 9px 2px; }
+  .calendar-week-day-cards .calendar-life-list .calendar-day-event.calendar-life-row { grid-template-columns: minmax(38px, max-content) minmax(0, 1fr) auto; gap: 2px 6px; padding: 9px 2px; }
   .calendar-week-day-cards .calendar-life-list .calendar-day-event.calendar-life-row[data-life-group="UNTIMED"] { grid-template-columns: minmax(0, 1fr) auto; }
 }
 

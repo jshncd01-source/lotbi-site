@@ -63,21 +63,21 @@ import {
   listFestivalRegions,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-8e2bf4bdbb9c';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-8e2bf4bdbb9c';
+} from './site-festival-client.js?v=aset-05f15210ca62';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-05f15210ca62';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-8e2bf4bdbb9c';
-import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-8e2bf4bdbb9c';
+} from './site-current-location.js?v=aset-05f15210ca62';
+import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-05f15210ca62';
 // The visit-date picker inside "일정 등록" is a compact month grid, not a
 // custom date engine -- calendarMonthGrid() is the exact same pure cell
 // generator (leading/trailing days, leap years, week length) the main
 // Calendar view itself uses, reused here read-only.
-import {calendarMonthGrid} from './site-calendar-model.js?v=aset-8e2bf4bdbb9c';
+import {calendarMonthGrid} from './site-calendar-model.js?v=aset-05f15210ca62';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -87,8 +87,8 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-8e2bf4bdbb9c';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-8e2bf4bdbb9c';
+} from './site-festival-calendar.js?v=aset-05f15210ca62';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-05f15210ca62';
 // Reuses the exact same deep-link builders the chat Place Card uses
 // (SITE-PLACE-CARD-MAP-DEEPLINK-01) — no new API key, no SDK, no re-derived
 // URL scheme. Each open*Place() call already opens its own new browsing
@@ -98,18 +98,18 @@ import {
   openKakaoNaviPlace,
   openNaverMapsPlace,
   openTmapPlace,
-} from './site-navigation.js?v=aset-8e2bf4bdbb9c';
+} from './site-navigation.js?v=aset-05f15210ca62';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-8e2bf4bdbb9c';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-05f15210ca62';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-8e2bf4bdbb9c';
+} from './site-calendar-weather.js?v=aset-05f15210ca62';
 
 const PAGE_SIZE = 20;
 
