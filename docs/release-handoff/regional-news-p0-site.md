@@ -1,81 +1,68 @@
 READY_FOR_DEPLOY=YES
-SUPERSEDES=e2757290
+SUPERSEDES=a421b5cd (그 전 e2757290)
 MIGRATION=NO
 DEPLOY_ORDER=SITE 단독 (Core fd6a0b54는 이미 운영)
 ACTIVATION=NAVER_NEWS_SEARCH_ENABLED=true — 소유자 승인 뒤 배포총괄방이 켠다. 꺼져 있으면 지역뉴스 질문은 일반 답변.
-USER_DECISION_NEEDED=NONE
+USER_DECISION_NEEDED=NONE (카드 배치는 2026-10-09 소유자 승인: (가) 8개 카드 2열, 응급실+지역뉴스 합집합)
 
-# regional-news-p0-site — release handoff (재병합 02, 2026-10-09)
+# regional-news-p0-site — release handoff (재병합 03, 2026-10-09)
 
 TASK=LOTBI REGIONAL INFO + REGIONAL NEWS P0 (Site) — "생활정보"→"지역정보" 화면 문구, 지역뉴스 카테고리·진입, 뉴스 답변 카드
 REPO=lotbi-site
 FEATURE_BRANCH=feature/regional-news-p0-site
-SITE_BASE_MAIN_SHA=0627058241ff7d562c811fff52063ba5bda9760a
-CODE_SHA=30d97b3c01389410e6068bd5909444a7e30bf43a
+SITE_BASE_MAIN_SHA=819ead3af6b6b74185519fc74b09b733e7305447 (SITE-T41: 의료 자동검색 c8457c1e · 구독 a72aad99 · 온누리 e94b58c1)
+CODE_SHA=89eb54961b35f3a9d67837b962f8223374ada681
 FEATURE_SHA=이 문서 커밋 (branch HEAD — `git ls-remote origin refs/heads/feature/regional-news-p0-site`로 확인)
-ASSET_VERSION=aset-adf14658ba9e
+ASSET_VERSION=aset-1bb3339af2e8
 CORE_DEPENDENCY=lotbi-core feature/regional-news-p0-core fd6a0b54 (news_result 계약 CORE-REGIONAL-NEWS-01) — core main 포함·운영 배포됨, NAVER_NEWS_SEARCH_ENABLED=false
-CORE_CHANGED=NO (이번 재병합)
+CORE_CHANGED=NO
 ENV_CHANGE_REQUIRED=NO (Site)
 SECRET_CHANGE_REQUIRED=NO
 NEW_SECRET_CREATED=NO
 PRODUCTION_DEPLOYED=NO
 
-## 스위치 상태별 동작 (둘 다 검사로 확인)
+## 왜 다시 READY인가
 
-- Core 스위치 꺼짐(지금 운영): Core `run_regional_news`가 `naver_news_search_ready=False`로 None → 일반 대화 경로. 응답에 `news_result` 없음 → Site는 답변 글만 보여 주고 뉴스 카드 0개. 지역뉴스 카테고리·양식·문장 전송은 그대로 동작(Core가 일반 답변).
-- Core 스위치 켜짐: `news_result`(CORE-REGIONAL-NEWS-01) → 뉴스 카드(제목·언론사·시각·요약·원문 열기·관련 보도 N건, 이미지 칸 없음).
-- 검사: `validate_regional_news_p0_01` 3b단계(꺼짐: 같은 진입 → Core에 "전주 뉴스 알려 줘" 그대로, 일반 답변 표시, `.lotbi-news-result` 증가 0) + 3·4·5단계(켜짐: 카드 5개, 원문 열기, 관련 보도 2건 등). 6개 화면 모두.
+a421b5cd(main 06270582 기준)를 낸 뒤 SITE-T41이 site main 819ead3a로 들어갔다(의료 자동검색 포함, 20:49 gate PASS). a421b5cd와 819ead3a는 토큰을 빼고도 5개 파일이 실제로 충돌했다(카테고리 목록·클릭 처리·위치 규칙·검사기 3개). 그래서 이 branch에 main 819ead3a를 정상 merge했다. rebase·force push는 하지 않았다.
 
-## 이번 재병합에서 한 일
+## 이번 재병합에서 한 일 (main 쪽 기능 전부 유지)
 
-- e2757290(옛 main 89adbb37 기준) 위에 최신 site main을 정상 merge: 2f1212ea → 35472a1b, 그 뒤 main 0627058241ff7d562c811fff52063ba5bda9760a → 30d97b3c. rebase·force push 없음.
-- 토큰(`?v=aset-…`) 충돌은 세 쪽 토큰을 같은 값으로 맞춘 3-way 재병합으로 정리하고 `node scripts/asset_cache_version.mjs --write` → `--check` PASS.
-- 실질 충돌 7개 파일 해소 (main 쪽 기능은 전부 유지):
-  1. `site-consumer-sections.js`
-     - `LIFE_SHORTCUTS` = 병원·의원, 약국, 축제·행사, **지역뉴스**, 온누리상품권, 지역생활정보, 유치원·학교 (7개). 지역뉴스는 원래대로 축제·행사 바로 다음. 홀수 7개라 마지막 유치원·학교가 한 줄 전체(main의 site-life-education.css / site-life-onnuri.css 규칙 그대로) → main 배치 검사(빈 칸 없음·모든 행 꽉 참·같은 폭) 통과.
-     - 아이콘 집합에 news·school 둘 다. 클릭: festivals → 축제, news → openNewsEntry, onnuri → 온누리, education → 유치원·학교, 나머지 → 상세.
-     - 상세·유치원·학교 ← 라벨 "지역정보로 돌아가기"(main의 여러 줄 back 동작 그대로).
-  2. `site-conversation.js` — 축제·행사 / 롯비함 surface: main 줄(backRoute 'life', LOTBI_BOX_UI_ENABLED)에 라벨만 "지역정보로 돌아가기". main에 새로 들어온 온누리상품권 surface ← 라벨도 같은 이름으로(원래 명령 범위 "← 지역정보로 돌아가기").
-  3. `site-life-location.js` — main의 `lifeLocationIntent(text, recentContext)`(온누리 후속 질문) + 이 branch의 뉴스 위치 규칙: `const lifeLookup = lifeLocationIntent(text, recentContext); if (!lifeLookup && !newsLocationIntent(text)) return null;`
-  4. `subscribe.html` — 요금표 행 "지역정보 · 날씨·장소·축제 등" (main이 "공과금"을 뺀 문구 + 이름 변경).
-  5. `.github/workflows/site-review.yml` — 지역뉴스 단계 + main의 진위확인·다크 입력창 단계 모두 유지.
-  6. `scripts/validate_consumer_sections_02.mjs` — main 검사 유지(공과금 숨김·금지어 포함), 목록에 지역뉴스 추가(7개), prompt 검사 제외 목록에 'news' 추가.
-  7. `scripts/validate_life_medical_category_entry_01.mjs` — main 검사 유지(빈 칸 없음·모든 행 꽉 참·같은 폭·첫 화면 안·질문바/하단 row 없음), 목록·카드 수만 7개, 제목 문구 '지역정보'. 공과금 상세 시험은 main대로 없음.
-- 문구만 맞춘 main 검사기: `scripts/validate_life_info_cleanup_final_01.mjs` — ← 버튼을 찾는 글자 '지역정보로 돌아가기', 기대 카테고리 id 목록에 'news' 추가. 판정 기준(공과금·질문바·하단 row·롯비함 없음) 그대로.
-- 지역뉴스 검사기에 "Core 스위치 꺼짐" 단계(3b) 추가.
+1. `site-consumer-sections.js`
+   - `LIFE_SHORTCUTS` 8개 = 병원·의원, 약국, 응급실, 축제·행사, **지역뉴스**, 온누리상품권, 지역생활정보, 유치원·학교. 지역뉴스는 축제·행사 바로 다음, 유치원·학교는 마지막.
+   - 8개(짝수)라 2열 4줄이 꽉 찬다. 홀수 마지막 카드가 한 줄 전체를 쓰는 main CSS 규칙은 그대로이고, 이번에는 적용되지 않는다. 그래서 유치원·학교도 다른 카드와 같은 폭이다(소유자 승인 (가)).
+   - 병원·약국·응급실은 main 방식 그대로다(입력 양식 없이 `item.ask` 질문을 바로 보냄). main이 지운 의료 입력 양식 코드와 `createEmergencyCallNotice` import는 지운 상태로 둔다.
+   - `buildRegionalNewsPrompt`는 남긴다. 이 함수가 쓰던 `medicalText`는 의료 양식과 함께 지워졌으므로, 같은 정리(공백 정리·100자)를 함수 안에 직접 넣었다.
+   - 아이콘: 응급실 + 지역뉴스 둘 다. 클릭: main의 블록(`disposed` 확인 → `item.ask` → 축제) 다음에 `news → openNewsEntry`, 온누리, 유치원·학교, 상세.
+   - **지역뉴스도 바로 전송(onAsk)으로 바꿨다.** main 규칙: 지역정보 카드는 한 번 누르면 바로 롯비에게 묻고, 입력창 초안(onDraft)은 유치원·학교만 쓴다(검사기 2개가 이를 소스로 확인). 저장 지역 1탭·양식 "뉴스 찾기"·"내 주변 뉴스"가 모두 바로 전송된다. Core에 가는 문장은 그대로다("전주시 뉴스 알려 줘" 등).
+2. `site-life-location.js` — main의 "권한 요청은 페이지당 한 번"(`allowPrompt`)을 이 branch의 조건(`lifeLookup || LIFE_NEARBY_RE`, 뉴스는 '내 주변'일 때만 현재 위치) 안에 넣었다.
+3. 검사기(main 판정 기준 유지, 목록·개수만 8개로):
+   - `validate_consumer_sections_02` — 라벨 8개, id 8개, `item.ask` = 병원·약국·응급실, prompt 검사 제외에 'news'.
+   - `validate_life_info_cleanup_final_01` — 기대 id 목록에 'news'.
+   - `validate_life_medical_category_entry_01` — 라벨 8개, 제목 '지역정보', 카드 수 8(대기 조건 포함), 주석·결과 문구 eight.
+   - `validate_life_medical_auto_search_card_01` — 라벨 목록에 지역뉴스, 카드 수 대기 8(두 곳). 의료 검사 내용은 그대로.
+   - `validate_regional_news_p0_01` 6단계 — "홀수 마지막 카드 한 줄 전체" 대신 "카드 8개, 마지막=유치원·학교, 마지막 카드도 같은 폭, 마지막 줄에 카드 2개(빈 칸 없음)".
+4. asset 토큰: `node scripts/asset_cache_version.mjs --write` → `--check` PASS.
 
-바꾸지 않은 것: 내부 id `life`, route `#life`, section id, localStorage/cookie key, Core API path, "생활에 필요한 정보" 소제목, "지역생활정보" 카테고리명과 그 양식의 "궁금한 생활정보" 칸 이름, 개발용 주석.
+바꾸지 않은 것: 내부 id `life`, route `#life`, section id, localStorage/cookie key, Core API path, "생활에 필요한 정보" 소제목, "지역생활정보" 카테고리명, 개발용 주석.
 
 ## TEST_STATUS
 
-TESTS=PASS (Windows 로컬, Chrome headless CDP 실제 터치/마우스, viewport emulation — 실기기 아님). 최종 코드 30d97b3c 기준.
-- validate_regional_news_p0_01 PASS — 360x780 · 375x812 · 390x844 · 412x915 · 1280x900 · 390x844 dark
-  - 지역정보 제목·설명, 지역뉴스 카드(아이콘·한 줄·잘림 없음·44px 이상·같은 높이), 가로 스크롤 0
-  - 저장 지역 없음 → 양식(키보드 안 올라옴) → "군산" → Core에 "군산 뉴스 알려 줘" 그대로, 위치 없음, geolocation 0
-  - 스위치 켜짐: 카드 5개, 제목 3줄 이내·언론사·시각·요약, 이미지/미디어 0, 원문 열기(원문 URL·_blank·noopener), 관련 보도 2건 펼침(javascript: 링크 버림), 요약 없는 기사 빈 줄 없음
-  - **스위치 꺼짐(3b)**: 같은 양식 → Core에 "전주 뉴스 알려 줘" 그대로 → 일반 답변 글 표시, 뉴스 카드 묶음 증가 0, 원문 열기 없음, 가로 스크롤 0
-  - ← 지역정보: 홈 복원 + 지역뉴스 카드 포커스 / 저장 지역 전주시 → 1탭 "전주시 뉴스 알려 줘" + location {SAVED_REGION, 전주시} / 내 주변: 위치 사용 기본+권한 거부 → 위치 없음, 위치 사용 끔 → geolocation 0
-  - 다크 카드 글자 대비, 데스크톱 홀수 마지막 카드 한 줄 전체
-- 생활정보·장소·의료 카드 검사기 PASS: life_medical_category_entry_01(카드 7개·빈 칸 없음·모든 행 꽉 참·같은 폭·첫 화면 안), life_info_cleanup_final_01(360/375/390/412/1280), kindergarten_official_info_01, onnuri_merchant_search_01, place_medical_card_ux_final_01, place_card_compact_01, place_card_naver_search_click_01, place_card_carousel_no_drift_01, place_card_cross_platform_01, place_card_map_deeplinks_01, life_detail_design_01, life_location_context_01, site_refresh_route_restore_01, consumer_sections_02, consumer_design_shell_01, consumer_detail_system_01, festival_nav_wiring_01, lotbi_box_nav_01, uiux_phase1_01
-- asset 토큰: `asset_cache_version.mjs --write` → `--check` PASS (aset-adf14658ba9e, targets 135), `sync_theme_bootstrap.mjs --check` PASS
-- 전체 회귀: scripts/validate_* 248개(.mjs 228 · .py 19 · .js 1), CHROME_BIN 슬래시 경로, LF 작업본
-  - 1차(2 shard 병렬, CPU 100%·다른 방 회귀 동시 실행): 233 PASS / 15 FAIL
-  - 15개 단독 재실행(고정 포트가 비었는지 확인 후): 13 PASS → **NEW_FAILURES=0**
-  - 기존 실패 2(main 06270582 기준 작업본에서도 같은 실패): validate_mobile_footer_legal_sheet_01("761px: mobile disclosure leaked into desktop"), validate_site_avatar_fallback_runtime
-  - 나머지 13개는 부하·포트 겹침 원인(단독 PASS): 캘린더 검사기 10개(4191·4193·4197·4198·4267·4318 고정 포트 — 다른 방의 같은 검사기가 포트를 먼저 잡으면 그 방 작업본을 읽어 site-regional-news.js 없음으로 모듈 로드 실패; 포트가 빈 것을 확인한 단독 실행 PASS), auth_unknown_recovery_browser_01(검사 PASS 뒤 Chrome 임시 폴더 삭제 EPERM, 단독 재실행 PASS), chat_dark_login_kakao_share_01·chat_long_answer_scroll_anchor_01(사용자 중지 때 종료, 단독 PASS)
-  - place_card_compact_01: 전체 회귀 PASS. 관련 검사 1차·단독 1회는 4213 포트를 다른 방 검사기가 잡아 실패 → 포트 빈 단독 실행 PASS
-- Linux CI(site-review.yml) NOT TESTED.
+TESTS=PASS (Windows 로컬, Chrome headless CDP 실제 터치/마우스, viewport emulation — 실기기 아님). 최종 코드 89eb54961b35f3a9d67837b962f8223374ada681 기준. 검사기는 한 번에 하나씩 순서대로 실행(병렬 0, 다른 방 검사 실행 0 확인).
+- asset 토큰: `asset_cache_version.mjs --write` → `--check` PASS (aset-1bb3339af2e8, targets 135), `sync_theme_bootstrap.mjs --check` PASS.
+- 핵심 4개 PASS: validate_consumer_sections_02 · validate_regional_news_p0_01(360x780 · 375x812 · 390x844 · 412x915 · 1280x900 · 390x844 dark, 6개 화면 모두 entry=DIRECT, 뉴스 카드 5개, 스위치 꺼짐 3b 단계 포함, 데스크톱 8개 꽉 찬 2열·마지막 카드 같은 폭) · validate_life_medical_category_entry_01 · validate_life_medical_auto_search_card_01.
+- 관련 28개 중 27개 PASS: life_info_cleanup_final_01, life_location_context_01, kindergarten_official_info_01, onnuri_merchant_search_01, site_refresh_route_restore_01, consumer_design_shell_01, consumer_detail_system_01, life_detail_design_01, festival_nav_wiring_01, lotbi_box_nav_01, uiux_phase1_01, consumer_documents_01, brand_logo_theme_aware_01, brand_official_logo_01, life_wallet_entry_lock_01, pet_family_web_01, safecare_people_01, safecare_web_ui_redesign_01, static_pages_theme_01, subscribe_account_checkout_handoff_01, accessibility.py, site.py, plan_usage_matrix_v1.py, refund_subscription_policy_alignment_01.py, subscription_plan_banner_v1.py, subscription_price_proration_01.py, trusted_device_plan_limits_01.py.
+- 기존 실패 1: validate_mobile_footer_legal_sheet_01("761px: mobile disclosure leaked into desktop") — main 819ead3a 원본(git archive)에서도 같은 실패. **NEW_FAILURES=0.**
+- 대상 선정: 바뀐 파일(site-consumer-sections.js · site-life-location.js · subscribe.html · LIFE_SHORTCUTS · data-life-shortcut)을 참조하는 scripts/validate_* 전부(32개). 전체 248개 회귀는 다시 돌리지 않음(a421b5cd 때 전체 NEW_FAILURES=0, 이번 변경은 위 파일 범위).
+- 검사 중 고친 것(판정 기준 완화 없음): ① 지역뉴스 onDraft→onAsk(위 1번, main 검사기 2개가 요구). ② validate_regional_news_p0_01 5단계 '위치 사용 끔' 회차 앞 2.6초 대기 — main의 askWithoutKeyboard가 2.5초 안 같은 질문을 두 번 누름으로 보고 한 번만 보내기 때문. 확인 항목은 그대로.
+- Linux CI(site-review.yml)·실기기(iPhone Safari·카카오톡 내장 브라우저·Android) NOT TESTED.
 
 ## 겹치는 작업 (나중에 main에 들어가는 쪽이 다시 merge)
 
-이 READY(30d97b3c01389410e6068bd5909444a7e30bf43a) 기준 token 정규화 merge-tree 미리보기:
-- life-medical-auto-search-card-01-site @ c8457c1e: main과는 실질 충돌 0, 이 branch와 5개 파일(site-consumer-sections.js 4 · site-life-location.js 1 · 검사기 3개 — 카테고리 목록·위치 규칙). 해소 기준: 카테고리 목록은 두 쪽 합집합(그쪽 응급실 + 지역뉴스), 홀수/짝수에 따라 main의 "빈 칸 없음" 검사 그대로, ← 라벨 "지역정보로 돌아가기", site-life-location은 `lifeLookup`(그쪽 규칙 포함) + `newsLocationIntent`.
-- my-child-school-01-site @ 271cb2dc: main과 실질 충돌 0, 이 branch와 4개 파일(site-consumer-sections.js 1 · 검사기 3개 — 카테고리 목록).
-- life-info-direct-chat-card-compaction-01-site @ 5e2ca2c5: main과도 이미 6개 파일 충돌(옛 main 기준), 이 branch와도 같은 6개. 1탭 전송은 그 branch의 onDraft 변경을 쓰며, 지역뉴스는 onDraft만 호출하므로 그쪽이 들어오면 지역뉴스도 1탭 전송(검사기 `sentAfterEntry`가 DRAFT·DIRECT 둘 다 받음).
-- jeonbuk-real-world-pilot-01-site @ 8cb40b01: main과도 이미 5개 파일 충돌, 이 branch와 6개(site-review.yml · site-conversation.js · site-core.js · site-consumer-sections.js · 검사기 2).
+- my-child-school-01-site @ 271cb2dc: 아직 main에 없다. main 819ead3a와도 4개 파일이 충돌하고, 이 branch와도 4개 파일이 충돌한다(site-consumer-sections.js·카테고리 목록 검사기 3개). 해소 기준은 카드 목록 합집합(이 branch의 8개를 기준으로 그쪽 변경 추가)이다. main의 "빈 칸 없음" 검사는 홀수·짝수 모두 그대로 쓴다.
+- life-info-direct-chat-card-compaction-01-site @ 5ef7769a(main 819ead3a 포함): 토큰을 빼면 이 branch(89eb5496)와 실질 충돌은 1곳뿐이다. `scripts/validate_life_medical_category_entry_01.mjs` 머리 주석(카드 수 문장 + 유치원·학교 onDraft 문장)이다. 해소는 두 문장을 합치면 된다: "has eight cards (응급실, 지역뉴스, 온누리상품권, 유치원·학교 included); an odd last card would take its whole row …" + 그쪽의 "LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk too, so any draft handoff (onDraft) in the life cards fails." 지역뉴스는 이미 onAsk만 쓰므로 그쪽의 "onDraft 0개" 검사와도 맞는다. 그쪽 검사기의 카드 7개 기대값은 이 branch의 8개 줄과 같은 줄이라 자동 병합에서 8개가 남는다.
+- jeonbuk-real-world-pilot-01-site @ 8cb40b01: 같은 site-consumer-sections.js를 바꾸므로 나중에 들어가는 쪽이 재병합한다.
 
 ## DEPLOY_ORDER
 
-1. 이 Site branch merge·배포 (Core fd6a0b54는 이미 운영, 스위치 꺼짐 → 지역뉴스 질문은 일반 답변, 화면 이름은 "지역정보")
-2. (별도, 소유자 승인 뒤) 배포총괄방이 Core env `NAVER_NEWS_SEARCH_ENABLED=true` → Production "오늘 전주 뉴스" smoke로 카드 확인
+1. 이 Site branch merge·배포(Core fd6a0b54는 이미 운영, 스위치 꺼짐 → 지역뉴스 질문은 일반 답변, 화면 이름은 "지역정보"). site main 819ead3a(SITE-T41)가 아직 운영에 없으면 이 branch에 이미 들어 있다.
+2. (별도, 소유자 승인 뒤) 배포총괄방이 Core env `NAVER_NEWS_SEARCH_ENABLED=true` → Production "오늘 전주 뉴스" smoke로 카드 확인.
