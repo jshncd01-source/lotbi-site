@@ -21,7 +21,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
-import os from 'node:os';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -35,6 +34,9 @@ function browserPath() {
   const candidates = [
     process.env.CHROME_BIN,
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    // The Linux gate's browser, ahead of any PATH chromium (same order as the
+    // other browser validators, e.g. validate_my_child_school_01).
+    '/opt/pw-browsers/chromium',
     'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser',
   ].filter(Boolean);
   for (const candidate of candidates) {
@@ -384,7 +386,10 @@ async function main() {
   const browser = browserPath();
   const server = await startServer();
   const origin = `http://127.0.0.1:${server.address().port}`;
-  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lotbi-conversation-sync-'));
+  // The browser profile lives in a temporary folder inside the repository, like
+  // the other browser validators: the Linux gate's browser could not report
+  // DevToolsActivePort from a profile under the system temp folder.
+  const workDir = fs.mkdtempSync(path.join(ROOT, 'scripts/.conversation-sync-'));
   const cdp = await openBrowser(browser, path.join(workDir, 'profile'));
   const passed = [];
   const step = label => { passed.push(label); console.log(`PASS ${label}`); };
@@ -635,7 +640,10 @@ async function main() {
     cdp.close();
     server.close();
     await sleep(300);
-    try { fs.rmSync(workDir, {recursive: true, force: true}); } catch { /* Windows may still hold the profile */ }
+    // Windows may hold the profile for a moment after the browser exits.
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try { fs.rmSync(workDir, {recursive: true, force: true}); break; } catch { await sleep(250); }
+    }
   }
 }
 
