@@ -689,6 +689,11 @@ jobs:
       - name: Validate Onnuri merchant search
         run: node scripts/validate_onnuri_merchant_search_01.mjs
 
+      # ONNURI-IMPORT-QUALITY-FIX-02: 2026 공식 파일은 소재지가 시·도뿐이라 가맹점은
+      # 소속 시장 위치(MARKET)로 놓인다 — 카드는 '시장까지' 거리·시장 주소·시장 길찾기만.
+      - name: Validate Onnuri market location
+        run: node scripts/validate_onnuri_market_location_02.mjs
+
       - name: Validate 진위확인 production connection
         run: |
           node --check site-scam-shield.js
