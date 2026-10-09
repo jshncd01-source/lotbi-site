@@ -53,7 +53,7 @@ DEPLOY_ORDER=CORE → SITE (필수). Core가 먼저 나가야 반복·알림 필
 
 ## TEST_STATUS
 
-로컬 Windows + Chrome 141, 최신 main merge CODE_SHA 기준(2026-10-09):
+로컬 Windows + Chrome 154.0.8037.99, 최신 main merge CODE_SHA 기준(2026-10-09):
 - SITE-UNIVERSAL-LIFE-CALENDAR-01 Linux gate와 같은 정적·Node·브라우저 검사 목록을 직렬 실행: **전체 PASS**. `validate_site.py`, JS syntax 12개, auth/calendar client·UI·월/년·게스트·실제 편집기·날씨·공휴일·알림·모달·터치·월 geometry·월간 가계부·사진 등록·대화 연결·캐시·주간 timegrid·모바일 세로 주간·반복·음력·toolbar 포함.
 - `validate_calendar_recurring_events_01`: PASS — OCCURRENCE 수정·삭제, SERIES 수정·삭제(반복 전체 삭제 요청에 scope SERIES), 사용자 지정 반복, 알림, 금액 충돌, 게스트 불변.
 - `validate_calendar_expense_summary_01`: PASS, `validate_calendar_week_mobile_vertical_01`: 320/360/375/390/412px light/dark 및 desktop PASS, `validate_calendar_lunar_model_01`·`validate_calendar_lunar_settings_ui_01`: PASS.
