@@ -335,6 +335,7 @@ jobs:
           node scripts/validate_calendar_system_dark_01.mjs
           node scripts/validate_calendar_editor_footer_contrast_01.mjs
           node scripts/validate_calendar_week_mobile_vertical_01.mjs
+          node scripts/validate_calendar_mobile_week_ux_weather_01.mjs
           node scripts/validate_calendar_add_from_image_01.mjs
           node --check site-calendar-draft-write.js
           node scripts/validate_conversation_calendar_auto_suggest_01.mjs
@@ -555,6 +556,12 @@ jobs:
 
       - name: Validate auth UNKNOWN recovery in browser
         run: node scripts/validate_auth_unknown_recovery_browser_01.mjs
+
+      - name: Validate Site session restore and renewal in place
+        run: node scripts/validate_auth_session_continuity_p0_02.mjs
+
+      - name: Validate HTML document cache policy
+        run: python scripts/validate_document_cache_policy_01.py
 
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
@@ -838,3 +845,13 @@ jobs:
 
           callback_url="$(curl --silent --show-error --location --output /dev/null --write-out '%{url_effective}' 'http://127.0.0.1:4173/auth/callback?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss')"
           [[ "$callback_url" == *'/auth/callback/?code='*'&state='* ]] || { echo "callback redirect did not preserve code/state query: $callback_url" >&2; exit 1; }
+
+          # AUTH-SESSION-CONTINUITY-P0-02 — documents revalidate, login callback/start are never stored, assets unchanged.
+          cache_control() { curl --silent --show-error --head "http://127.0.0.1:4173$1" | tr -d '\r' | awk 'tolower($1)=="cache-control:"{print $2}'; }
+          for path in '/auth/callback/' '/auth/callback/?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss' '/auth/start/'; do
+            [[ "$(cache_control "$path")" == 'no-store' ]] || { echo "${path} must be Cache-Control: no-store" >&2; exit 1; }
+          done
+          for path in '/' '/index.html' '/terms' '/site-asset-version.json'; do
+            [[ "$(cache_control "$path")" == 'no-cache' ]] || { echo "${path} must be Cache-Control: no-cache" >&2; exit 1; }
+          done
+          [[ -z "$(cache_control '/site-auth.js')" ]] || { echo "versioned scripts keep their caching" >&2; exit 1; }
