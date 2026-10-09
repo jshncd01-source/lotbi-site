@@ -332,7 +332,7 @@ async function runCase(browser, origin, dir, testCase) {
     // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: the applied (computed) grid is the
     // approved two columns on every width, phones included — not one column.
     assert.equal(main.gridColumns, 2, `${testCase.label}: 지역정보 menu uses two columns (computed ${main.gridColumns})`);
-    assert.equal(main.shortcuts.at(-1).spansRow, true, `${testCase.label}: the odd last card spans its row`);
+    assert.equal(main.shortcuts.at(-1).spansRow, main.shortcuts.length % 2 === 1, `${testCase.label}: only an odd last card spans its row`);
     const cells = main.shortcuts.reduce((sum, card) => sum + (card.spansRow ? main.gridColumns : 1), 0);
     assert.ok(main.gridColumns >= 1 && cells % main.gridColumns === 0, `${testCase.label}: ${main.shortcuts.length} cards fill ${main.gridColumns} columns without an empty cell`);
     const rows = new Map();
