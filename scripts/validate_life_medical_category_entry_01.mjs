@@ -8,8 +8,8 @@
 //
 // LIFE-UTILITY-BILL-MENU-REMOVE-01: 공과금 확인 stays hidden. The life home is a
 // category picker only: no free-question bar and no saved-items/help row. It
-// has seven cards (응급실, 온누리상품권, 유치원·학교 included); an odd last card
-// takes its whole row, so there is no empty grid cell.
+// has eight cards (응급실, 지역뉴스, 온누리상품권, 유치원·학교 included); an odd last card
+// would take its whole row, so there is no empty grid cell.
 // LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk too, so
 // any draft handoff (onDraft) in the life cards fails.
 //
@@ -28,11 +28,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Shortcut list ───────────────────────────────────────────────────────
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보', '유치원·학교']);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '유치원·학교']);
 assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => [item.id, item.ask]), [
   ['hospital', '근처 병원 찾아줘'], ['pharmacy', '근처 약국 찾아줘'], ['emergency', '근처 응급실 찾아줘'],
 ]);
-for (const id of ['festivals', 'local', 'onnuri', 'education']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
+for (const id of ['festivals', 'news', 'local', 'onnuri', 'education']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills' || /공과금/u.test(item.label)), false, '공과금 확인 stays hidden');
 assert.ok(Object.isFrozen(LIFE_SHORTCUTS) && Object.isFrozen(LIFE_MEDICAL_QUESTIONS));
 // Each question carries "근처", so Core takes it to the 국립중앙의료원 lookup
@@ -159,7 +159,7 @@ const PROBE = `(() => {
     header: box(panel?.querySelector('.site-modal-header')), description: box(panel?.querySelector('.site-modal-description')), label: box(workspace?.querySelector('.consumer-section-label')),
     focusedShortcut: document.activeElement?.dataset?.lifeShortcut || '',
     shortcuts,
-    detail: detail ? {id: detail.dataset.lifeDetail || '', title: detail.querySelector('h3')?.textContent || '', box: box(detail), back: box([...detail.querySelectorAll('.consumer-action')].find(b => b.textContent === '생활정보로 돌아가기')),
+    detail: detail ? {id: detail.dataset.lifeDetail || '', title: detail.querySelector('h3')?.textContent || '', box: box(detail), back: box([...detail.querySelectorAll('.consumer-action')].find(b => b.textContent === '지역정보로 돌아가기')),
       submit: box(detail.querySelector('form button[type=submit]')), note: detail.querySelector('.consumer-feature-note')?.textContent || '',
       emergency: Boolean(detail.querySelector('.conversation-emergency-call')), emergencyText: detail.querySelector('.conversation-emergency-call')?.textContent || '',
       call: detail.querySelector('.conversation-emergency-call-link')?.getAttribute('href') || '', fields, chips} : null,
@@ -303,7 +303,7 @@ async function runCase(browser, origin, dir, testCase) {
     };
     const openLife = async () => {
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(async () => (await probe()).shortcuts.length === 7, `${testCase.label}: life shortcuts`);
+      await waitFor(async () => (await probe()).shortcuts.length === 8, `${testCase.label}: life shortcuts`);
       await sleep(250);
     };
     const tapShortcut = async id => {
@@ -314,12 +314,12 @@ async function runCase(browser, origin, dir, testCase) {
       await tap(center);
     };
 
-    // 1. Life main: seven cards (응급실, 온누리상품권 and 유치원·학교 added, 공과금 확인
-    // hidden), full rows, no empty cell — an odd last card takes its whole row.
+    // 1. Life main: eight cards (응급실, 지역뉴스, 온누리상품권 and 유치원·학교 added,
+    // 공과금 확인 hidden), full rows, no empty cell — an odd last card would take its whole row.
     await openLife();
     const main = await probe();
-    assert.equal(main.title, '생활정보');
-    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보', '유치원·학교']);
+    assert.equal(main.title, '지역정보');
+    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '유치원·학교']);
     assert.equal(main.billsVisible, false, `${testCase.label}: 공과금 확인 is not shown anywhere on the life surface`);
     // ONNURI-MERCHANT-01 / KINDERGARTEN-OFFICIAL-INFO-01: with an odd number of cards the
     // last one spans the row (site-life-onnuri.css, site-life-education.css), so a
@@ -420,4 +420,4 @@ try {
   }
 }
 
-console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국/응급실 send one nearby question at once (no form, nothing left in the composer, composer not focused); 공과금 확인 hidden, seven life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');
+console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국/응급실 send one nearby question at once (no form, nothing left in the composer, composer not focused); 공과금 확인 hidden, eight life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');
