@@ -113,6 +113,8 @@ jobs:
           chmod +x "$RUNNER_TEMP/chrome-154/chrome-linux64/chrome"
           echo "CHROME_BIN=$RUNNER_TEMP/chrome-154/chrome-linux64/chrome" >> "$GITHUB_ENV"
           "$RUNNER_TEMP/chrome-154/chrome-linux64/chrome" --version
+      - name: Exact Chrome 154 lunar layout reproduction
+        run: node scripts/validate_calendar_lunar_compact_layout_01.mjs
       - name: Public Site static validation
         run: python scripts/validate_site.py
       - name: Existing Site auth continuity
