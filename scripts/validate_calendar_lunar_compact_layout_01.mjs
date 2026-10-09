@@ -105,7 +105,8 @@ try {
   const rect = node => node.getBoundingClientRect();
   const shown = node => node && getComputedStyle(node).display !== 'none' && rect(node).width > 0;
   const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
-  const result = {ok: true, width: innerWidth, heights: {}, labels: {}, problems: [], wrapped: [], sameLine: 0, lunarCells: 0};
+  const grid = root.querySelector('.calendar-month-grid');
+  const result = {ok: true, width: innerWidth, weekCount: Number(grid?.dataset.weekCount || 0), heights: {}, labels: {}, problems: [], wrapped: [], sameLine: 0, lunarCells: 0};
   for (const cell of root.querySelectorAll('.calendar-month-grid .calendar-date-cell')) {
     const date = cell.dataset.calendarDate;
     const box = rect(cell);
@@ -143,11 +144,18 @@ try {
 }
 </script></body></html>`;
 
-// [viewport width, height, the month's "now"]. 2026-10: an ordinary month
-// (음9.1 on a two-digit date). 2027-12: 음11.1/음12.1 month starts, today on
-// one. 2028-06: a leap month starts (음윤5.1) three days after today.
+// [viewport width, height, the month's "now"]. The first two months are exact
+// four- and six-week grids; the remaining cases cover ordinary, month-start
+// and leap-month compact lunar labels.
 const WIDTHS = [[320, 700], [344, 780], [360, 800], [375, 812], [390, 844], [412, 915], [600, 900], [700, 900], [768, 1024], [1024, 900], [1280, 900]];
-const MONTHS = ['2026-10-08T01:00:00Z', '2027-12-28T01:00:00Z', '2028-06-20T01:00:00Z'];
+const MONTH_CASES = [
+  ['2026-02-08T01:00:00Z', 4],
+  ['2026-05-08T01:00:00Z', 6],
+  ['2026-10-08T01:00:00Z', 5],
+  ['2027-12-28T01:00:00Z', 5],
+  ['2028-06-20T01:00:00Z', 5],
+];
+const MONTHS = MONTH_CASES.map(([now]) => now);
 const CASES = [];
 for (const [w, h] of WIDTHS) for (const now of MONTHS) for (const lunar of ['0', '1']) CASES.push({w, h, now, lunar});
 
@@ -217,6 +225,8 @@ try {
       const on = results.find(c => c.w === w && c.now === now && c.lunar === '1');
       const tag = `${w}px ${now.slice(0, 7)}`;
       if (!off?.ok || !on?.ok) { failures.push(`${tag}: ${(off?.ok ? on : off)?.error}`); continue; }
+      const expectedWeeks = MONTH_CASES.find(([candidate]) => candidate === now)?.[1];
+      if (off.weekCount !== expectedWeeks || on.weekCount !== expectedWeeks) failures.push(`${tag}: expected ${expectedWeeks} weeks, got off=${off.weekCount} on=${on.weekCount}`);
       if (on.lunarCells === 0) failures.push(`${tag}: no lunar labels rendered`);
       for (const problem of on.problems) failures.push(`${tag}: ${problem}`);
       // 음력을 끈 화면은 이 작업이 바꾸지 않았다(높이 비교만 한다). 그 화면의
