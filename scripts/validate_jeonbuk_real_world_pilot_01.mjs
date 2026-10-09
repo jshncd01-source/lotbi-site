@@ -453,7 +453,9 @@ try {
       assert.deepEqual(r.detail.pressed, ['전주', '비빔밥']);
       assert.match(r.detail.note, /공식 공공데이터/u);
       const prompt = '전북 전주 비빔밥 맛집 알려줘';
-      assert.ok(r.handoff.composer === prompt || r.handoff.sent.includes(prompt), `${where}: handoff ${JSON.stringify(r.handoff)}`);
+      // Like every life form but 유치원·학교 (LIFE-MEDICAL-AUTO-SEARCH-01): sent
+      // at once, nothing left in the composer to send again.
+      assert.ok(r.handoff.sent.includes(prompt) && r.handoff.composer === '', `${where}: handoff ${JSON.stringify(r.handoff)}`);
     });
   }
 } finally {
