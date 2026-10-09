@@ -1,32 +1,32 @@
-import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-ae67674402be';
-import * as siteCore from './site-core.js?v=aset-ae67674402be';
-import './site-scam-shield.js?v=aset-ae67674402be';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-ae67674402be';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-ae67674402be';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-ae67674402be';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-ae67674402be';
-import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-ae67674402be';
-import * as siteAttachments from './site-attachments.js?v=aset-ae67674402be';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-ae67674402be';
-import {deterministicReply} from './site-deterministic.js?v=aset-ae67674402be';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-ae67674402be';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-ae67674402be';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-ae67674402be';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-ae67674402be';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-ae67674402be';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-ae67674402be';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-ae67674402be';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-ae67674402be';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-ae67674402be';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-ae67674402be';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-ae67674402be';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-ae67674402be';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-ae67674402be';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-ae67674402be';
-import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-ae67674402be';
-import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-ae67674402be';
-import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-ae67674402be';
-import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-ae67674402be';
+import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-6b33616ff5fe';
+import * as siteCore from './site-core.js?v=aset-6b33616ff5fe';
+import './site-scam-shield.js?v=aset-6b33616ff5fe';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-6b33616ff5fe';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-6b33616ff5fe';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-6b33616ff5fe';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-6b33616ff5fe';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-6b33616ff5fe';
+import * as siteAttachments from './site-attachments.js?v=aset-6b33616ff5fe';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-6b33616ff5fe';
+import {deterministicReply} from './site-deterministic.js?v=aset-6b33616ff5fe';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-6b33616ff5fe';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-6b33616ff5fe';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-6b33616ff5fe';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-6b33616ff5fe';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-6b33616ff5fe';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-6b33616ff5fe';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-6b33616ff5fe';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-6b33616ff5fe';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-6b33616ff5fe';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-6b33616ff5fe';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-6b33616ff5fe';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-6b33616ff5fe';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-6b33616ff5fe';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-6b33616ff5fe';
+import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-6b33616ff5fe';
+import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-6b33616ff5fe';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-6b33616ff5fe';
+import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-6b33616ff5fe';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -203,7 +203,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-ae67674402be';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-6b33616ff5fe';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -296,7 +296,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-ae67674402be');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-6b33616ff5fe');
   return shareWithKakaoTalk(options);
 }
 
@@ -305,7 +305,7 @@ async function shareMessageWithKakao(options) {
 // already has the SDK loaded, so choosing it shares within the same tap.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-ae67674402be');
+    const module = await import('./site-kakao-share.js?v=aset-6b33616ff5fe');
     return Boolean(await module.prepareKakaoShare());
   } catch {
     return false;
@@ -3380,11 +3380,32 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     schedulePendingTurnResume();
     refreshAuthenticatedProfileSlots();
   };
-  const canonicalProfileName = () => {
+  const canonicalProfileName = () => ownProfileName() || '내 프로필';
+  // SOCIAL-SIGNUP-PROFILE-UX-01 — a new Kakao signup showed "LOTBI 사용자" over
+  // "@u9...": neither was the person's choice. A name they never gave reads
+  // "내 프로필" with a plain person icon, and a server-generated handle stays in
+  // the Account details instead of the menu.
+  const ownProfileName = () => {
     if (serverIdentity?.name) return serverIdentity.name;
-    if (serverIdentity?.publicHandle) return serverIdentity.publicHandle;
-    const emailLocalPart = serverIdentity?.email?.split('@', 1)[0]?.trim();
-    return emailLocalPart || 'LOTBI 사용자';
+    if (serverIdentity?.publicHandle && !serverIdentity.publicHandleGenerated) return serverIdentity.publicHandle;
+    return serverIdentity?.email?.split('@', 1)[0]?.trim() || '';
+  };
+  const chosenPublicHandle = () => (serverIdentity?.publicHandleGenerated ? '' : serverIdentity?.publicHandle || '');
+  const SIGNUP_PROVIDER_LABELS = {KAKAO: '카카오', NAVER: '네이버', GOOGLE: 'Google', APPLE: 'Apple'};
+  const signupProviderLabel = () => {
+    const provider = SIGNUP_PROVIDER_LABELS[serverIdentity?.signupProvider];
+    return provider && !ownProfileName() ? `${provider} 계정으로 가입` : '';
+  };
+  const PLAN_LABELS = {FREE: 'LOTBI Free', BASIC: 'LOTBI Basic', PLUS: 'LOTBI Plus', PRO: 'LOTBI Pro', LOTBI_PLUS: 'LOTBI Plus'};
+  const profilePlanName = () => (serverSubscription?.plan ? PLAN_LABELS[serverSubscription.plan] || serverSubscription.plan : '');
+  const defaultProfileIcon = () => {
+    const svgNamespace = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/');
+    const icon = document.createElementNS(svgNamespace, 'svg');
+    icon.classList.add('sidebar-profile-avatar-icon'); icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('aria-hidden', 'true');
+    for (const pathValue of ['M20 21a8 8 0 0 0-16 0', 'M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z']) {
+      const path = document.createElementNS(svgNamespace, 'path'); path.setAttribute('d', pathValue); icon.appendChild(path);
+    }
+    return icon;
   };
   // PROFILE-PHOTO-ACCOUNT-SYNC-01 — the account's photo from Core, identical on
   // Account, Site and App. Only the current version is held, as an in-memory
@@ -3419,7 +3440,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const visual = document.createElement(profilePhotoUrl ? 'img' : 'span');
     visual.className = 'sidebar-profile-avatar';
     if (visual instanceof HTMLImageElement) { visual.src = profilePhotoUrl; visual.alt = ''; }
-    else { visual.textContent = initials(canonicalProfileName()); visual.setAttribute('aria-hidden', 'true'); }
+    else if (ownProfileName()) { visual.textContent = initials(ownProfileName()); visual.setAttribute('aria-hidden', 'true'); }
+    else { visual.classList.add('sidebar-profile-avatar-default'); visual.appendChild(defaultProfileIcon()); visual.setAttribute('aria-hidden', 'true'); }
     return visual;
   };
   const profileButton = ({includePlan = true} = {}) => {
@@ -3431,16 +3453,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const name = document.createElement('span'); name.className = 'sidebar-account-name'; name.textContent = canonicalProfileName();
     copy.appendChild(name);
     if (includePlan && serverSubscription?.plan) {
-      const planLabels = {FREE: 'LOTBI Free', BASIC: 'LOTBI Basic', PLUS: 'LOTBI Plus', PRO: 'LOTBI Pro', LOTBI_PLUS: 'LOTBI Plus'};
       const plan = document.createElement('span');
       plan.className = 'sidebar-account-plan';
-      plan.textContent = planLabels[serverSubscription.plan] || serverSubscription.plan;
+      plan.textContent = profilePlanName();
       copy.appendChild(plan);
     }
-    if (serverIdentity?.publicHandle) {
+    if (chosenPublicHandle()) {
       const detail = document.createElement('span');
       detail.className = 'sidebar-account-handle';
-      detail.textContent = `@${serverIdentity.publicHandle}`;
+      detail.textContent = `@${chosenPublicHandle()}`;
       copy.appendChild(detail);
     }
     const chevron = document.createElement('span');
@@ -3453,16 +3474,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const copy = document.createElement('div'); copy.className = 'profile-popover-summary-copy';
     const name = document.createElement('strong'); name.className = 'profile-popover-summary-name'; name.textContent = canonicalProfileName();
     copy.appendChild(name);
-    if (serverIdentity?.publicHandle) {
-      const handle = document.createElement('span'); handle.className = 'profile-popover-summary-handle'; handle.textContent = `@${serverIdentity.publicHandle}`; copy.appendChild(handle);
+    if (chosenPublicHandle()) {
+      const handle = document.createElement('span'); handle.className = 'profile-popover-summary-handle'; handle.textContent = `@${chosenPublicHandle()}`; copy.appendChild(handle);
     }
     if (serverIdentity?.email) {
       const email = document.createElement('span'); email.className = 'profile-popover-summary-email'; email.textContent = serverIdentity.email; copy.appendChild(email);
     }
     if (serverSubscription?.plan) {
-      const planLabels = {FREE: 'LOTBI Free', BASIC: 'LOTBI Basic', PLUS: 'LOTBI Plus', PRO: 'LOTBI Pro', LOTBI_PLUS: 'LOTBI Plus'};
-      const planName = planLabels[serverSubscription.plan] || serverSubscription.plan;
-      const plan = document.createElement('span'); plan.className = 'profile-popover-summary-plan'; plan.textContent = `현재 이용 등급 · ${planName}`; copy.appendChild(plan);
+      // "카카오 계정으로 가입 · LOTBI Free" only from Core's verified signup link.
+      const plan = document.createElement('span'); plan.className = 'profile-popover-summary-plan'; plan.textContent = `${signupProviderLabel() || '현재 이용 등급'} · ${profilePlanName()}`; copy.appendChild(plan);
     }
     summary.append(profileVisual(), copy); return summary;
   };
@@ -3760,7 +3780,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-ae67674402be');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-6b33616ff5fe');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3788,7 +3808,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-ae67674402be');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-6b33616ff5fe');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3818,7 +3838,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseOnnuriSurface?.(); releaseOnnuriSurface = null; },
     });
     try {
-      const {mountOnnuriMerchants} = await import('./site-life-onnuri.js?v=aset-ae67674402be');
+      const {mountOnnuriMerchants} = await import('./site-life-onnuri.js?v=aset-6b33616ff5fe');
       const mounted = await mountOnnuriMerchants({root: content});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseOnnuriSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -3906,8 +3926,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const profilePhotoEmbed = isProfilePhotoEmbed();
     if (profilePhotoEmbed) document.documentElement.dataset.profilePhotoEmbed = 'true';
     const {backdrop, panel, content} = modalShell('프로필 사진');
-    const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(canonicalProfileName());
-    const showPreview = () => { preview.style.backgroundImage = profilePhotoUrl ? `url("${profilePhotoUrl}")` : ''; };
+    const preview = document.createElement('div'); preview.className = 'profile-photo-preview';
+    if (ownProfileName()) preview.textContent = initials(ownProfileName()); else preview.appendChild(defaultProfileIcon());
+    const showPreview = () => {
+      preview.style.backgroundImage = profilePhotoUrl ? `url("${profilePhotoUrl}")` : '';
+      preview.classList.toggle('profile-photo-preview-filled', Boolean(profilePhotoUrl));
+    };
     showPreview();
     const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
     const photoPicker = document.createElement('div'); photoPicker.className = 'profile-photo-picker';
@@ -4074,8 +4098,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-ae67674402be'),
-          import('./site-pet.js?v=aset-ae67674402be'),
+          import('./site-person.js?v=aset-6b33616ff5fe'),
+          import('./site-pet.js?v=aset-6b33616ff5fe'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -4084,11 +4108,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-ae67674402be');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-6b33616ff5fe');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-ae67674402be');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-6b33616ff5fe');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },

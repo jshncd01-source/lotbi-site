@@ -1428,6 +1428,7 @@ export async function reviewProductCard(sessionToken, {
 }
 
 const SYNTHETIC_EMAIL_FIRST_HANDLE_RE = /^e1[0-9a-f]{20}$/;
+const SIGNUP_PROVIDERS = Object.freeze(['KAKAO', 'NAVER', 'GOOGLE', 'APPLE']);
 
 function optionalIdentityText(value, field) {
   if (value === null || value === undefined) return '';
@@ -1447,11 +1448,16 @@ function userFacingIdentity(user) {
   const synthetic = user?.account_handle_is_synthetic === true
     || Boolean(rawAccountHandle && email && SYNTHETIC_EMAIL_FIRST_HANDLE_RE.test(rawAccountHandle));
   const publicHandle = canonicalPublicHandle || (!synthetic ? rawAccountHandle : '');
+  // SOCIAL-SIGNUP-PROFILE-UX-01 — Core marks the social signup placeholder name
+  // and the server-generated u... handle; neither is the person's own choice.
+  // Older Core sends no marks and everything stays as it was.
   return Object.freeze({
-    name,
+    name: user?.display_name_is_default === true ? '' : name,
     email,
     publicHandle,
     accountHandle: publicHandle,
+    ...(publicHandle && user?.public_handle_is_generated === true ? {publicHandleGenerated: true} : {}),
+    ...(SIGNUP_PROVIDERS.includes(user?.signup_provider) ? {signupProvider: user.signup_provider} : {}),
   });
 }
 

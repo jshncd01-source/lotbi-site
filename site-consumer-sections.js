@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-ae67674402be';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-ae67674402be';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-ae67674402be';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-6b33616ff5fe';
+import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-6b33616ff5fe';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-6b33616ff5fe';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -263,7 +263,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onOnnu
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-ae67674402be').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-6b33616ff5fe').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onDraft, accountId}).dispose;
       }).catch(() => {
