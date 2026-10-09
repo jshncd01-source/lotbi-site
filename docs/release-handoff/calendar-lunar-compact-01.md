@@ -1,65 +1,72 @@
 READY_FOR_DEPLOY=YES
+SUPERSEDES=192eb069
+MIGRATION=NO
+USER_DECISION_NEEDED=NONE
 
-# calendar-lunar-compact-01 — release handoff
+# calendar-lunar-compact-01 — Linux gate fix release handoff
 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/calendar-lunar-compact-01
 FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote origin refs/heads/feature/calendar-lunar-compact-01`)
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=3d6a5eec14f3e64218ad17c87e1b6ae9cfafaef3 (개발 c9c19e4c → 33aa5d9a 위로 재커밋 → 3d6a5eec 정상 merge)
-CODE_SHA=f367f38e66c5b3a98971dbdb6a3042ce6c7b5851 (merge commit; 기능 커밋 78da051f)
-ASSET_VERSION=aset-da1cc4911b7a
+CODE_SHA=35482582d3fb3b0a0029a050e31fc1066e9643ab
+MAIN_MERGE_SHA=28dc9e38aaeb02154362bdc51fcac53fd83cbb64
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=fa6ed88d3608536050de0fb56136ae9b920a4c55
+ASSET_VERSION=aset-1bd92d88e20a
+FAILED_RELEASE_SHA=ba32dc93
 
-## SCOPE (월간 캘린더 음력 표시 간결화, Site only, 최소 UI 수정)
+## Linux gate 실패와 원인
 
-- 월간 칸의 음력이 양력 숫자 "아래"에서 "바로 오른쪽"으로 옮겨졌다. 표기: 평소 '음28', 음력 월이 바뀌는 날(음력 1일)만 '음9.1', 윤달 시작은 '음윤5.1'.
-- 글자: 데스크톱 10px, 폰 9px. 색은 새 토큰 `--lotbi-calendar-lunar-ink`(라이트 #687180 / 다크 #a8b2c0) — 소비자 화면이 muted-ink를 본문색으로 덮어써도 음력은 회색으로 남는다.
-- 칸을 읽어 주는 이름(aria-label)은 전체 표기 '음력 8월 15일'을 그대로 유지. 주간 헤더·일정 상세의 '8월 15일' 표기는 바꾸지 않았다.
-- 칸 높이·7열 구조·토/일/공휴일 색(숫자에만 적용)·오늘 링·선택 칸 스타일은 그대로. 음력을 끈 화면은 DOM·CSS가 바뀌지 않는다(새 CSS 선택자는 모두 `[data-lunar="true"]` 칸 또는 `.calendar-date-line`/`.calendar-date-lunar` 한정).
-- 좁은 폰(357px 이하, 칸 약 39px 이하)은 모든 칸의 음력을 숫자 바로 밑에 일관되게 둔다. 358px 이상은 한 줄이며, 한 줄에 안 들어가는 드문 긴 표기(예: 360px에서 '음12.1', 390px에서 '음윤5.1')만 숫자 밑으로 내려간다 — 잘림·겹침 없음, 칸 높이 그대로.
-- 음력을 켠 폰 칸에서만: 날씨 글리프는 오른쪽 위 → 오른쪽 아래(기록 점 줄 아래), '확인 필요' 점은 오른쪽 아래 → 오른쪽 위, 오늘 점은 숫자 오른쪽 위에 겹쳐 표시(줄 폭을 쓰지 않음). 태블릿 폭(컨테이너 ≤679px)은 날씨 글리프 자리를 비워 두고 넘치면 음력이 숫자 밑으로.
-- 날짜 계산 로직(solarToLunar, 음력 데이터)과 일정 기능은 변경 없음.
+- 기존 trusted Linux gate `20261008T143327Z-720494-1150016930`은 Chrome for Testing 154, 320px, 2027-12에서 음력 ON 52px / OFF 59px로 실패했다. `ba32dc93`은 main에 병합·배포되지 않았다.
+- 모바일 날짜 셀과 날짜 버튼은 `min-height: 52px`만 있었고, 음력 ON 상태에만 별도의 flex 축소 규칙이 적용됐다. 따라서 Windows와 Linux의 기본 글꼴 glyph·line-box·flex intrinsic size 계산 차이가 그리드 행 높이에 들어갈 수 있었고, ON/OFF 상태의 높이 경로가 달랐다.
+- 수정은 600px 이하에서 날짜 셀과 날짜 버튼 모두 `height/min-height/max-height: 52px`, 버튼 `flex: 0 0 52px`, `box-sizing: border-box`로 같은 geometry를 사용하게 했다. 음력 라벨은 내부에서만 줄바꿈하며 그리드 행 크기를 바꾸지 않는다.
+- 음력 라벨을 숨기지 않았고 기존 모바일 9px/데스크톱 10px 글꼴 크기를 유지했다. validator의 높이 허용 오차·겹침·잘림 조건도 완화하지 않았다.
 
-## FILES
+## Linux 재현과 수정 검증
 
-- site-calendar-lunar.js: `lunarDateCompactLabel()` 추가(기존 `lunarDateLabel` 유지)
-- site-calendar-manager.js: 월간 칸 렌더링(숫자+음력 한 줄 `.calendar-date-line`, `data-lunar`/`data-weather` 표시)
-- site-calendar.css: 음력 토큰·한 줄 배치·폰/태블릿 배치 규칙
-- scripts/validate_calendar_lunar_model_01.mjs, scripts/validate_calendar_lunar_settings_ui_01.mjs: 새 표기 단정으로 갱신
-- scripts/validate_calendar_lunar_compact_layout_01.mjs(신규): 실제 대화 팝업 틀(site-calendar-chat-popup) + 날씨·기록 점·공휴일·오늘·확인 필요 표시가 있는 상태에서 320/344/360/375/390/412/600/700/768/1024/1280px × 3개월(2026-10, 2027-12 '음12.1', 2028-06 '음윤5.1')을 한 번의 Chrome 실행으로 측정 — 겹침·잘림 0, 음력 켬/끔 칸 높이 동일
-- .github/workflows/site-universal-life-calendar-01.yml: 신규 validator 연결
-- asset token 재생성(asset_cache_version.mjs --write)
+- 과거 trusted gate의 52px/59px 실패는 RED 증거로 확인했다.
+- 2026-10-09 현재 GitHub `ubuntu-latest`에서 실패 release `ba32dc93`을 동일한 공식 Chrome for Testing 154.0.8037.92로 재실행했으나 기존 불일치는 재현되지 않고 정확한 음력 레이아웃 단계가 PASS했다. 따라서 현재 runner에서 원래 실패를 독립 재현했다고 보고하지 않는다. 과거 runner 이미지/글꼴 상태 차이 또는 간헐적 intrinsic layout 경로로 판단한다.
+- 수정 코드 SHA `35482582`를 같은 Linux Chrome for Testing 154.0.8037.92에서 실행한 정확한 단계는 PASS했다: run `37871053192`, step `Exact Chrome 154 lunar layout reproduction`.
+- 그 Chrome 154 고정 run의 후속 날씨 fixture는 음력 코드와 무관한 Chrome 프로세스 `ETIMEDOUT`(180초)로 종료됐다. 캘린더 전체 회귀는 수정 SHA를 기본 Linux Chrome으로 재실행해 run `37871462460` 전체 PASS했다.
+- 확장한 레이아웃 validator는 4주(2026-02), 6주(2026-05), 5주(2026-10/2027-12/2028-06)를 명시적으로 단정한다. 320/344/360/375/390/412/600/700/768/1024/1280px에서 음력 ON/OFF 모든 날짜 칸 높이 동일, 음력 라벨 겹침 0, 셀 밖 잘림 0을 검사한다.
+- 320px, 2027-12는 ON/OFF 모두 52px이다. 2027-12는 일요일 시작 기준 실제 5주 grid이며, 별도 6주 fixture인 2026-05도 모든 칸이 52px로 동일하다.
 
-## BRANCH HISTORY
+## 기능 보존 범위
 
-- 처음 코드는 공용 clone(deployment-rail-01/lotbi-site)의 worktree에서 c9c19e4c 기준으로 만들고 커밋(ab431cfc, push 안 함)했다.
-  2026-10-08 재부팅 때 그 공용 clone의 .git/config가 NUL로 손상돼 git을 쓸 수 없게 되어, 전용 clone(C:/Users/jshnc/LOTBI-NCLOUD/calendar-site-clone-20261008)에서
-  최신 main 33aa5d9a 위에 같은 변경 파일을 옮겨 다시 커밋했다(78da051f). main c9c19e4c..33aa5d9a의 변경은 급식 카드·축제 뒤로가기·검사 파일이며
-  캘린더 파일은 토큰만 바뀌었다. 옮긴 결과의 asset 토큰(aset-9d81fcdb301d)이 이전 worktree에서 main을 merge한 결과와 같아 내용 동일을 확인.
-- f367f38e: 그 사이 main이 3d6a5eec로 나가(캘린더 편집기 하단 대비·system-dark validator CRLF 수정 등) 정상 merge. 토큰만 다른 충돌은 main 쪽 선택 후 재계산,
-  실제 충돌 1곳은 이 branch의 음력 import 줄(site-calendar-manager.js). merge 결과의 main 대비 차이 = 이 branch 변경 파일 7개뿐(토큰 제외)임을 파일별로 확인.
+- 월간 날짜 배열, 음력 날짜·월초·윤달 표기와 전체 aria-label
+- 대한민국 공휴일과 휴일 색상
+- 일정 추가·수정·삭제 및 최신 main의 일정 기능
+- 모바일 세로형 주간 달력과 PC 주간 time-grid
+- 라이트·다크·시스템 테마
+- 가계부 월 합계는 월간 화면에서만 표시
+- 음력 OFF 기본값, 설정 저장, 월간/주간 음력 표시
 
-## TEST_STATUS
+## 변경 파일
 
-로컬 Windows + Chrome(CHROME_BIN):
-- 개발 트리(c9c19e4c 기준) scripts/validate_* 전체 213개: 1차 197 PASS / 16 FAIL → 16건 단독 재실행 후 남은 5건 중
-  validate_image_attachment_thumbnail_01 · validate_mobile_footer_legal_sheet_01 · validate_site_avatar_fallback_runtime 는 main에서도 FAIL(기존 RED),
-  validate_auth_unknown_recovery_browser_01 은 main에서도 같은 Windows 임시 Chrome 프로필 삭제 EPERM으로 FAIL(환경),
-  validate_place_card_compact_01 은 단독 재실행 PASS(부하성).
-- 최종 커밋(f367f38e, main 3d6a5eec merge 후): 캘린더 validator 전체 + life_calendar_client · guest_calendar_local · conversation_calendar_* · message_calendar_footer_editor ·
-  consumer_design_shell · site_refresh_route_restore · validate_site/hardening/accessibility(.py) · mobile_entry 58개: 52 PASS 1차, 실패 5건(동적 모듈 로딩 실패·결과 누락·fixture 시간 초과)은 재시도 PASS.
-  validate_calendar_lunar_compact_layout_01(11폭×3개월, 겹침·잘림 0, 음력 켬/끔 높이 동일) PASS, validate_calendar_system_dark_01 PASS, asset_cache_version --check PASS.
-- 같은 PC에서 다른 세션 10여 개가 Chrome 검사를 동시에 돌려(고정 포트 공유) 부하성 간헐 실패가 많았다 — 모두 단독 재실행으로 판정.
+- `site-calendar.css`: 모바일 날짜 셀/버튼 높이와 flex basis를 52px로 고정
+- `scripts/validate_calendar_lunar_compact_layout_01.mjs`: 4주·5주·6주 grid 단정 추가
+- `site-asset-version.json` 및 생성된 로컬 JS/CSS 참조: content hash token 재생성
+- 기존 음력 기능 파일과 workflow는 최초 READY 범위를 그대로 유지
+
+## 검증 증거
+
+- Windows Chrome for Testing 154.0.8037.92:
+  - `validate_calendar_lunar_compact_layout_01.mjs` PASS
+  - `validate_calendar_lunar_model_01.mjs` PASS
+  - `validate_calendar_lunar_settings_ui_01.mjs` PASS
+  - `node --check site-calendar-manager.js site-calendar-lunar.js` 각각 PASS
+- Linux 기본 Chrome, 수정 SHA `35482582`: `SITE-UNIVERSAL-LIFE-CALENDAR-01` run `37871462460` PASS.
+  - 월간/연간 모델, 공휴일, 일정 editor, 반응형, 모바일/PC 주간, 가계부 합계, 테마, 음력 model/settings/layout 포함.
+- Linux Site 전체 Review Gate: 원본 129개 기능 단계 중 128개는 확장 run `37871779441`에서 PASS했다. 마지막 `Static serving smoke test`는 앞선 실브라우저 단계의 누적 실행 시간으로 30분 job 제한에 걸려 시작 중 취소됐고, 원본 workflow의 해당 명령 블록을 변경 없이 추출해 실행한 run `37874277884`에서 PASS했다. 두 run을 합쳐 원본 전체 검증 명령이 모두 PASS했다.
+- asset token: `node scripts/asset_cache_version.mjs` PASS, `aset-1bd92d88e20a`, targets=130, refs=156.
+- `git diff --check` PASS.
 
 NEW_FAILURES=0
-MAIN_AT_PUSH=ee8c1b6fef4ec11c0bf642f60b0e7ddead067b2e — 3d6a5eec 이후 main 변경은 site-conversation.js(화면 URL)와 validate_site_refresh_route_restore_01뿐으로 이 branch 변경 파일과 겹치지 않음(통합 시 asset token 충돌만 예상).
-
-MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 CORE_CHANGE_REQUIRED=NO
-DEPENDENCIES=없음. 같은 날 반복 일정 작업(feature/calendar-recurring-events-01, Site)도 site-calendar-manager.js·site-calendar.css의 다른 부분을 고친다 — 두 branch 모두 main 위에서 서로 다른 줄을 바꾸며, 공통 충돌은 asset token뿐(관례대로 main 쪽 선택 후 --write).
+DEPENDENCIES=NONE
 
-## NOT TESTED
+## 배포 주의
 
-- 실제 iPhone Safari·Android 실기기·카카오톡 내장 브라우저(이 PC에는 WebKit·실기기 없음). 확인한 것은 데스크톱 Chrome 엔진의 폭별 측정(에뮬레이션)뿐이다.
-
-USER_DECISION_NEEDED=NONE
+- Ncloud Git이 Source of Truth다. `origin/main`의 `fa6ed88d`를 정상 merge했으며 rebase/reset/force push를 사용하지 않았다.
+- main 직접 push, main 병합, Production 배포를 수행하지 않았다.
+- 이 문서 커밋이 feature branch 마지막 커밋이다.
