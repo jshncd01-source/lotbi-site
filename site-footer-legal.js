@@ -8,7 +8,7 @@
 //
 // With JS, the *same* panel node moves into the bottom sheet and is restored on
 // close/fold-width change. There is never a second copy of legal/business data.
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-cc49a8a81634';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-86bac3dbf6c2';
 
 const MOBILE_QUERY = '(max-width: 760px)';
 const footer = document.querySelector('.chat-home-footer');
