@@ -1,72 +1,64 @@
 READY_FOR_DEPLOY=YES
-SUPERSEDES=192eb069
+SUPERSEDES=8a31a674
 MIGRATION=NO
 USER_DECISION_NEEDED=NONE
 
-# calendar-lunar-compact-01 — Linux gate fix release handoff
+# calendar-lunar-compact-01 — Linux gate 재실패 수정 READY
 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/calendar-lunar-compact-01
-FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote origin refs/heads/feature/calendar-lunar-compact-01`)
-CODE_SHA=35482582d3fb3b0a0029a050e31fc1066e9643ab
-MAIN_MERGE_SHA=28dc9e38aaeb02154362bdc51fcac53fd83cbb64
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=fa6ed88d3608536050de0fb56136ae9b920a4c55
-ASSET_VERSION=aset-1bd92d88e20a
+FEATURE_SHA=this document commit (feature branch HEAD; push 후 `git ls-remote origin refs/heads/feature/calendar-lunar-compact-01`로 확인)
+CODE_SHA=70cc615e046f884569f49d7fb8ec55d7378b20c2
+AUTHORITATIVE_MAIN_AT_READY=9e39edd06446b3e93ec68170de49df9f702e0d07
+MAIN_MERGE_SHA=70cc615e046f884569f49d7fb8ec55d7378b20c2
+ASSET_VERSION=aset-f203b381ab91
 FAILED_RELEASE_SHA=ba32dc93
+FAILED_T38_GATE=20261009T025710Z-1106810-1895320717
 
-## Linux gate 실패와 원인
+## 수정 원인과 범위
 
-- 기존 trusted Linux gate `20261008T143327Z-720494-1150016930`은 Chrome for Testing 154, 320px, 2027-12에서 음력 ON 52px / OFF 59px로 실패했다. `ba32dc93`은 main에 병합·배포되지 않았다.
-- 모바일 날짜 셀과 날짜 버튼은 `min-height: 52px`만 있었고, 음력 ON 상태에만 별도의 flex 축소 규칙이 적용됐다. 따라서 Windows와 Linux의 기본 글꼴 glyph·line-box·flex intrinsic size 계산 차이가 그리드 행 높이에 들어갈 수 있었고, ON/OFF 상태의 높이 경로가 달랐다.
-- 수정은 600px 이하에서 날짜 셀과 날짜 버튼 모두 `height/min-height/max-height: 52px`, 버튼 `flex: 0 0 52px`, `box-sizing: border-box`로 같은 geometry를 사용하게 했다. 음력 라벨은 내부에서만 줄바꿈하며 그리드 행 크기를 바꾸지 않는다.
-- 음력 라벨을 숨기지 않았고 기존 모바일 9px/데스크톱 10px 글꼴 크기를 유지했다. validator의 높이 허용 오차·겹침·잘림 조건도 완화하지 않았다.
+- trusted Linux gate는 360px/700px에서 두 자리 양력일의 일반 음력 라벨(`음23` 등)이 양력 숫자 오른쪽이 아니라 다음 줄로 떨어진 것을 보고했다. 반복 일정이 합쳐진 T38 트리에서 사용 가능한 inline 폭과 Linux 기본 fallback 글꼴의 glyph 폭이 결합되면, 기존 `.calendar-date-line { flex-wrap: wrap }`가 일반 라벨의 줄바꿈을 허용한 것이 직접 원인이다.
+- `site-calendar-manager.js`는 일반 음력일과 월초/윤달 월초를 `data-lunar-kind`로 구분한다. 일반 음력일은 `flex-wrap: nowrap`으로 고정하여 두 자리 날짜에서도 숫자 오른쪽 한 줄을 유지한다. 길 수 있는 월초/윤달 월초 라벨만 기존의 매우 좁은 칸 내부 줄바꿈 경로를 보존한다.
+- 음력 라벨을 숨기지 않았고 폰트 크기를 축소하지 않았다. 화면용 compact 표기와 접근성용 전체 음력 aria-label도 유지한다.
+- 기존 320px 높이 회귀 방지(ON/OFF 공통 52px 고정), 음력 ON/OFF 전환 시 행·전체 캘린더 높이 불변, 잘림·겹침 검사는 그대로다. validator의 허용 오차나 조건을 완화하지 않았다.
+- 레이아웃 validator에 일반 음력 라인의 computed `flex-wrap: nowrap` 단정을 추가했다. 수정 전에는 이 강화 단정이 RED였고, 수정 후에는 통과한다.
 
-## Linux 재현과 수정 검증
+## Linux 재현 및 수정 검증의 사실 기록
 
-- 과거 trusted gate의 52px/59px 실패는 RED 증거로 확인했다.
-- 2026-10-09 현재 GitHub `ubuntu-latest`에서 실패 release `ba32dc93`을 동일한 공식 Chrome for Testing 154.0.8037.92로 재실행했으나 기존 불일치는 재현되지 않고 정확한 음력 레이아웃 단계가 PASS했다. 따라서 현재 runner에서 원래 실패를 독립 재현했다고 보고하지 않는다. 과거 runner 이미지/글꼴 상태 차이 또는 간헐적 intrinsic layout 경로로 판단한다.
-- 수정 코드 SHA `35482582`를 같은 Linux Chrome for Testing 154.0.8037.92에서 실행한 정확한 단계는 PASS했다: run `37871053192`, step `Exact Chrome 154 lunar layout reproduction`.
-- 그 Chrome 154 고정 run의 후속 날씨 fixture는 음력 코드와 무관한 Chrome 프로세스 `ETIMEDOUT`(180초)로 종료됐다. 캘린더 전체 회귀는 수정 SHA를 기본 Linux Chrome으로 재실행해 run `37871462460` 전체 PASS했다.
-- 확장한 레이아웃 validator는 4주(2026-02), 6주(2026-05), 5주(2026-10/2027-12/2028-06)를 명시적으로 단정한다. 320/344/360/375/390/412/600/700/768/1024/1280px에서 음력 ON/OFF 모든 날짜 칸 높이 동일, 음력 라벨 겹침 0, 셀 밖 잘림 0을 검사한다.
-- 320px, 2027-12는 ON/OFF 모두 52px이다. 2027-12는 일요일 시작 기준 실제 5주 grid이며, 별도 6주 fixture인 2026-05도 모든 칸이 52px로 동일하다.
+- trusted gate의 T38 실패는 위 `FAILED_T38_GATE` 로그로 확인했다: 360px의 2026-02/05/10, 2027-12, 2028-06과 700px에서 일반 음력 라벨이 줄바꿈됐다.
+- 독립 GitHub `ubuntu-latest` + 공식 Chrome for Testing 154.0.8037.92에서 실패 T38 소스를 다시 돌렸을 때, 원래 줄바꿈 실패는 다시 만들어지지 않았다. 따라서 **독립 Linux 재현은 NOT REPRODUCED**이며 Linux에서 과거 실패를 재현했다고 주장하지 않는다. trusted gate의 실패 로그와 CSS의 줄바꿈 경로는 보존된 RED 근거다.
+- 최종 결합 코드 SHA `70cc615e`는 공식 Linux Chrome for Testing 154.0.8037.92에서 직접 검증했다. 임시 GitHub 진단 브랜치의 workflow-only 커밋 `c84b0edb`는 코드 SHA 위에 존재하며 제품 소스 변경은 없다.
+  - `SITE-UNIVERSAL-LIFE-CALENDAR-01` run `37883090470`: **PASS**, 38/38 단계.
+  - Chrome 154 전용 단계: 320/344/360/375/390/412/600/700/768/1024/1280px, 2026-02(4주)/2026-05(6주)/2026-10/2027-12/2028-06에서 ON/OFF 높이 동일, 일반 라벨 한 줄, 셀 밖 잘림 0, 라벨·날짜·날씨·일정·확인 필요 마커 겹침 0.
+  - 반복 일정 validator와 음력 model/settings/layout validator가 같은 run에서 PASS했다.
 
-## 기능 보존 범위
+## 기능 보존
 
-- 월간 날짜 배열, 음력 날짜·월초·윤달 표기와 전체 aria-label
-- 대한민국 공휴일과 휴일 색상
-- 일정 추가·수정·삭제 및 최신 main의 일정 기능
-- 모바일 세로형 주간 달력과 PC 주간 time-grid
-- 라이트·다크·시스템 테마
-- 가계부 월 합계는 월간 화면에서만 표시
-- 음력 OFF 기본값, 설정 저장, 월간/주간 음력 표시
-
-## 변경 파일
-
-- `site-calendar.css`: 모바일 날짜 셀/버튼 높이와 flex basis를 52px로 고정
-- `scripts/validate_calendar_lunar_compact_layout_01.mjs`: 4주·5주·6주 grid 단정 추가
-- `site-asset-version.json` 및 생성된 로컬 JS/CSS 참조: content hash token 재생성
-- 기존 음력 기능 파일과 workflow는 최초 READY 범위를 그대로 유지
+- 최신 `origin/main` `9e39edd0`을 rebase/reset/force push 없이 정상 merge했다. 유치원·인증 연속성 최신 기능과 반복 일정 기능을 유지했다.
+- 월간 날짜 배열, 음력 날짜·윤달·월초 표기, 대한민국 공휴일, 일정 추가·수정·삭제, 반복 일정, 모바일 세로형 주간/PC 주간 time-grid, 라이트·다크·시스템 테마를 보존했다.
+- 가계부 월 합계는 월간 화면에서만 표시되는 기존 동작을 보존했다.
 
 ## 검증 증거
 
-- Windows Chrome for Testing 154.0.8037.92:
+- Windows Chrome for Testing 154.0.8037.92, 최종 코드 SHA:
   - `validate_calendar_lunar_compact_layout_01.mjs` PASS
   - `validate_calendar_lunar_model_01.mjs` PASS
   - `validate_calendar_lunar_settings_ui_01.mjs` PASS
-  - `node --check site-calendar-manager.js site-calendar-lunar.js` 각각 PASS
-- Linux 기본 Chrome, 수정 SHA `35482582`: `SITE-UNIVERSAL-LIFE-CALENDAR-01` run `37871462460` PASS.
-  - 월간/연간 모델, 공휴일, 일정 editor, 반응형, 모바일/PC 주간, 가계부 합계, 테마, 음력 model/settings/layout 포함.
-- Linux Site 전체 Review Gate: 원본 129개 기능 단계 중 128개는 확장 run `37871779441`에서 PASS했다. 마지막 `Static serving smoke test`는 앞선 실브라우저 단계의 누적 실행 시간으로 30분 job 제한에 걸려 시작 중 취소됐고, 원본 workflow의 해당 명령 블록을 변경 없이 추출해 실행한 run `37874277884`에서 PASS했다. 두 run을 합쳐 원본 전체 검증 명령이 모두 PASS했다.
-- asset token: `node scripts/asset_cache_version.mjs` PASS, `aset-1bd92d88e20a`, targets=130, refs=156.
-- `git diff --check` PASS.
+  - `validate_calendar_recurring_events_01.mjs` PASS
+  - `validate_kindergarten_official_info_01.mjs` PASS
+  - `validate_auth_continuity_02.mjs` PASS
+- Linux 전체 Site 검증은 최종 코드 SHA 위의 workflow-only 커밋 `59d7ea87`에서 수행했다.
+  - `Public Site Review Gate` run `37883141806`: **PASS**, 134/134 단계(기능 검증 129개와 workflow 보조 단계 포함), 실패 0.
+- `node scripts/asset_cache_version.mjs --check` PASS: `aset-f203b381ab91`, targets=133, refs=160.
+- `node --check site-calendar-manager.js`, `node --check site-calendar-lunar.js`, `git diff --check` PASS.
 
 NEW_FAILURES=0
 ENV_CHANGE_REQUIRED=NO
 CORE_CHANGE_REQUIRED=NO
 DEPENDENCIES=NONE
 
-## 배포 주의
+## 배포 경계
 
-- Ncloud Git이 Source of Truth다. `origin/main`의 `fa6ed88d`를 정상 merge했으며 rebase/reset/force push를 사용하지 않았다.
-- main 직접 push, main 병합, Production 배포를 수행하지 않았다.
-- 이 문서 커밋이 feature branch 마지막 커밋이다.
+- Ncloud Git이 Source of Truth다.
+- main 직접 push, main 병합, Production 배포는 수행하지 않았다.
+- 이 문서의 커밋이 feature branch의 마지막 커밋이다.
