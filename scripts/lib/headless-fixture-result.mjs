@@ -22,7 +22,8 @@ export function browserPath() {
 const TYPES = {'.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2'};
 
 // `resultExpression` must evaluate to a string: empty while pending, JSON when done.
-export async function runFixturePage({root, fixturePath, fixtureHtml, resultExpression, viewport = null, timeoutMs = 300_000}) {
+// userAgent / touch: optional phone-browser emulation (e.g. Samsung Internet on Android).
+export async function runFixturePage({root, fixturePath, fixtureHtml, resultExpression, viewport = null, userAgent = null, touch = false, timeoutMs = 300_000}) {
   const server = http.createServer((request, response) => {
     const url = new URL(request.url, 'http://127.0.0.1');
     if (url.pathname === fixturePath) { response.writeHead(200, {'content-type': TYPES['.html']}); response.end(fixtureHtml); return; }
@@ -50,6 +51,8 @@ export async function runFixturePage({root, fixturePath, fixtureHtml, resultExpr
     socket.addEventListener('message', event => { const message = JSON.parse(event.data); if (message.id && pending.has(message.id)) { pending.get(message.id)(message); pending.delete(message.id); } });
     const send = (method, params = {}) => new Promise(resolve => { const id = ++messageId; pending.set(id, resolve); socket.send(JSON.stringify({id, method, params})); });
     if (viewport) await send('Emulation.setDeviceMetricsOverride', {deviceScaleFactor: 1, mobile: false, ...viewport});
+    if (userAgent) await send('Emulation.setUserAgentOverride', {userAgent});
+    if (touch) await send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
     await send('Page.navigate', {url: `http://127.0.0.1:${server.address().port}${fixturePath}`});
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {

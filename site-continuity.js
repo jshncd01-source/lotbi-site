@@ -1,5 +1,5 @@
-import {beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus} from './site-auth.js?v=aset-720f2663ecb5';
-import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-720f2663ecb5';
+import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-45d256f9b7bf';
+import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-45d256f9b7bf';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
@@ -7,6 +7,13 @@ export const AUTH_STATE_AUTHENTICATED = 'authenticated';
 export const AUTH_STATE_UNAUTHENTICATED = 'unauthenticated';
 export const AUTH_STATE_UNKNOWN = 'unknown';
 export const ACCOUNT_STATUS_RETRY_DELAYS_MS = Object.freeze([1000, 3000, 10000]);
+// AUTH-SESSION-CONTINUITY-P0-02 — the Site child session lives 30 minutes in
+// page memory. It is renewed in place this long before it runs out (and on
+// return from the background), so a person who keeps LOTBI open, or comes
+// back to it, is never sent through the login button or /auth/callback/.
+export const SITE_SESSION_RENEW_BEFORE_EXPIRY_MS = 5 * 60 * 1000;
+export const SITE_SESSION_RENEWAL_RETRY_MS = 30 * 1000;
+export const SITE_SESSION_RENEWAL_MIN_INTERVAL_MS = 20 * 1000;
 
 const LOGIN_URL = '/auth/start/';
 const SIGNUP_URL = 'https://account.lotbiai.com/signup';
@@ -18,6 +25,12 @@ let redirecting = false;
 let expiryTimer;
 let unknownRetryTimer;
 let unknownRetryAttempt = 0;
+let renewalInFlight;
+let lastRenewalStartedAt = 0;
+// The installation the page's Site session belongs to, kept across a lapse so
+// coming back to the same account after 30 minutes is a renewal, not a new
+// sign-in that would close open screens.
+let siteSessionInstallationId = '';
 let siteLogoutSuppressed = hasSiteLogoutSuppression();
 
 function performanceNow() {
@@ -396,23 +409,157 @@ function clearExpiryTimer() {
   }
 }
 
+// One timer serves the Site session: it fires shortly before the bearer runs
+// out to renew it in place, and again at the real expiry if renewal could not
+// finish. Running out never paints the login button first — Account decides.
+function armSessionTimer(delay) {
+  clearExpiryTimer();
+  expiryTimer = setTimeout(() => {
+    expiryTimer = undefined;
+    void handleSessionTimer();
+  }, Math.min(delay, 2_147_000_000));
+}
+
 function scheduleExpiry(expiresAt) {
   clearExpiryTimer();
   const milliseconds = Date.parse(expiresAt);
   if (!Number.isFinite(milliseconds)) return;
   siteSessionExpiresAt = milliseconds;
-  const delay = Math.max(0, milliseconds - Date.now());
-  expiryTimer = setTimeout(() => {
-    siteSessionActive = false;
-    siteSessionExpiresAt = 0;
-    markAnonymousAccountUi();
-    void synchronizeAccountContinuity();
-  }, Math.min(delay, 2_147_000_000));
+  const delay = Math.max(0, milliseconds - SITE_SESSION_RENEW_BEFORE_EXPIRY_MS - Date.now());
+  armSessionTimer(delay);
 }
 
 function hasLiveSiteSession() {
   return siteSessionActive
     && (siteSessionExpiresAt === 0 || siteSessionExpiresAt > Date.now());
+}
+
+function siteSessionNearExpiry() {
+  return siteSessionExpiresAt > 0 && siteSessionExpiresAt - Date.now() <= SITE_SESSION_RENEW_BEFORE_EXPIRY_MS;
+}
+
+function siteLogoutInEffect() {
+  return siteLogoutSuppressed || hasSiteLogoutSuppression();
+}
+
+// AUTH-SESSION-CONTINUITY-P0-02 — renew (or first restore) the Site session
+// without leaving the page. PKCE, state and one-time redeem are the same as the
+// redirect handoff (site-auth.js renewSiteSessionSilently). Outcomes:
+//   RESTORED   the conversation holds the new bearer
+//   SIGNED_OUT Account itself has no session — the only route to login UI
+//   FAILED     anything transient; callers keep the current state and retry,
+//              or fall back to the redirect handoff
+function restoreSiteSessionInPlace(reason) {
+  if (renewalInFlight) return renewalInFlight;
+  const renewingLiveSession = hasLiveSiteSession();
+  const previousInstallationId = siteSessionInstallationId;
+  const startedAt = performanceNow();
+  lastRenewalStartedAt = Date.now();
+  renewalInFlight = (async () => {
+    let outcome = 'FAILED';
+    let code = '';
+    try {
+      const result = await renewSiteSessionSilently();
+      if (result.status === 'SIGNED_OUT') {
+        outcome = 'SIGNED_OUT';
+      } else if (adoptSiteSession(result.session)) {
+        outcome = 'RESTORED';
+        const sameInstallation = Boolean(previousInstallationId)
+          && previousInstallationId === result.session.installationId;
+        if ((renewingLiveSession && hasLiveSiteSession()) || sameInstallation) {
+          // Same person, same page: only the bearer and its timer change, so
+          // nothing on screen closes or reloads.
+          siteSessionActive = true;
+          scheduleExpiry(result.session.expiresAt);
+          if (!renewingLiveSession) {
+            clearUnknownRetry({resetAttempt: true});
+            markAuthenticatedAccountUi();
+          }
+        } else {
+          window.dispatchEvent(new CustomEvent(SITE_SESSION_STATE_EVENT, {
+            detail: {
+              authenticated: true,
+              expiresAt: result.session.expiresAt,
+              installationId: result.session.installationId,
+            },
+          }));
+        }
+      } else {
+        code = 'SITE_SESSION_NOT_ADOPTED';
+      }
+    } catch (error) {
+      code = typeof error?.code === 'string' ? error.code : 'UNKNOWN';
+    } finally {
+      renewalInFlight = undefined;
+    }
+    recordTiming('site-session-renewal', {
+      reason,
+      outcome,
+      code,
+      durationMs: Math.round(Math.max(0, performanceNow() - startedAt)),
+    });
+    return outcome;
+  })();
+  return renewalInFlight;
+}
+
+function showAccountSignedOut() {
+  siteSessionInstallationId = '';
+  clearUnknownRetry({resetAttempt: true});
+  clearSiteLogoutSuppression();
+  siteLogoutSuppressed = false;
+  siteSessionActive = false;
+  siteSessionExpiresAt = 0;
+  clearExpiryTimer();
+  markAnonymousAccountUi();
+}
+
+async function renewLiveSiteSession(reason) {
+  if (!rootLocation() || redirecting || siteLogoutInEffect()) return;
+  // focus/visibility/pageshow can fire together on resume; one attempt per window.
+  if (reason === 'resume' && Date.now() - lastRenewalStartedAt < SITE_SESSION_RENEWAL_MIN_INTERVAL_MS) return;
+  const outcome = await restoreSiteSessionInPlace(reason);
+  if (outcome === 'RESTORED') return;
+  if (outcome === 'SIGNED_OUT') {
+    showAccountSignedOut();
+    return;
+  }
+  // The bearer this page holds is still good until it runs out; try again.
+  if (hasLiveSiteSession()) {
+    armSessionTimer(Math.max(1000, Math.min(SITE_SESSION_RENEWAL_RETRY_MS, siteSessionExpiresAt - Date.now())));
+  }
+}
+
+async function handleSessionTimer() {
+  if (!hasLiveSiteSession()) {
+    // It really ran out (renewal kept failing, or the tab slept through it).
+    // Neutral "checking" first; synchronizeAccountContinuity asks Account.
+    siteSessionActive = false;
+    siteSessionExpiresAt = 0;
+    void synchronizeAccountContinuity();
+    return;
+  }
+  if (document.visibilityState === 'hidden') {
+    // A hidden tab renews on its way back (visibilitychange); keep a timer
+    // for the real expiry only.
+    armSessionTimer(Math.max(0, siteSessionExpiresAt - Date.now()));
+    return;
+  }
+  await renewLiveSiteSession('timer');
+}
+
+// Core refused the Site bearer mid-use (site-conversation.js dropped it).
+async function renewAfterCoreRefusal() {
+  const outcome = await restoreSiteSessionInPlace('core-refused');
+  if (outcome === 'RESTORED') return;
+  if (outcome === 'SIGNED_OUT') {
+    showAccountSignedOut();
+    return;
+  }
+  siteSessionActive = false;
+  siteSessionExpiresAt = 0;
+  clearExpiryTimer();
+  void synchronizeAccountContinuity();
 }
 
 export async function synchronizeAccountContinuity({preserveUnknownUi = false} = {}) {
@@ -454,10 +601,22 @@ export async function synchronizeAccountContinuity({preserveUnknownUi = false} =
     if (hasLiveSiteSession()) {
       clearUnknownRetry({resetAttempt: true});
       markAuthenticatedAccountUi();
+      // Back from the background close to (or past) the renewal point.
+      if (siteSessionNearExpiry()) void renewLiveSiteSession('resume');
       return;
     }
 
     clearUnknownRetry({resetAttempt: true});
+    // AUTH-SESSION-CONTINUITY-P0-02 — refresh, tab restore, reopened browser
+    // or a 30-minute lapse: restore in place first. Only if that cannot finish
+    // (Account route unreachable, older Account deploy) does the page fall
+    // back to the redirect handoff below.
+    const restored = await restoreSiteSessionInPlace('restore');
+    if (restored === 'RESTORED') return;
+    if (restored === 'SIGNED_OUT') {
+      showAccountSignedOut();
+      return;
+    }
     redirecting = true;
     recordTiming('auth-start-transition', {elapsedMs: Math.round(performanceNow())});
     await beginSiteHandoff();
@@ -492,6 +651,7 @@ function handleSiteSessionState(event) {
     clearSiteLogoutSuppression();
     siteLogoutSuppressed = false;
     siteSessionActive = true;
+    if (typeof detail.installationId === 'string' && detail.installationId) siteSessionInstallationId = detail.installationId;
     markAuthenticatedAccountUi();
     if (typeof detail.expiresAt === 'string') scheduleExpiry(detail.expiresAt);
     return;
@@ -502,20 +662,49 @@ function handleSiteSessionState(event) {
   clearExpiryTimer();
   clearUnknownRetry({resetAttempt: true});
   if (detail.reason === 'site-logout') {
+    siteSessionInstallationId = '';
     markSiteLogoutSuppression();
     siteLogoutSuppressed = true;
     markAnonymousAccountUi();
     return;
   }
+  // AUTH-SESSION-CONTINUITY-P0-02 — Core refusing the Site bearer (401/403,
+  // site-core.js) is not proof of a logout: the 30-minute child ran out, or a
+  // background tab slept through it. On Home, Account decides — the neutral
+  // "checking" state is shown, never the login button first.
+  if (rootLocation()) {
+    void synchronizeAccountContinuity();
+    return;
+  }
   markAnonymousAccountUi();
-  if (rootLocation()) void synchronizeAccountContinuity();
 }
 
 window.addEventListener(SITE_SESSION_STATE_EVENT, handleSiteSessionState);
-window.addEventListener('pageshow', () => {
+window.addEventListener('pageshow', event => {
+  // AUTH-SESSION-CONTINUITY-P0-02 — a page restored from the back/forward
+  // cache comes back exactly as it left: mid-handoff, with the redirect guard
+  // still set, which used to block every later check on that page.
+  if (event?.persisted) {
+    redirecting = false;
+    checking = false;
+  }
   if (!rootLocation()) return;
   clearUnknownRetry({resetAttempt: true});
   void synchronizeAccountContinuity();
+});
+window.addEventListener('online', () => {
+  if (!rootLocation()) return;
+  clearUnknownRetry({resetAttempt: true});
+  void synchronizeAccountContinuity({preserveUnknownUi: true});
+});
+window.addEventListener(SITE_SESSION_RENEWAL_REQUEST_EVENT, () => {
+  if (!rootLocation() || redirecting || siteLogoutInEffect()) return;
+  const sinceLast = Date.now() - lastRenewalStartedAt;
+  if (sinceLast < SITE_SESSION_RENEWAL_MIN_INTERVAL_MS) {
+    if (hasLiveSiteSession()) armSessionTimer(SITE_SESSION_RENEWAL_MIN_INTERVAL_MS - sinceLast);
+    return;
+  }
+  void renewAfterCoreRefusal();
 });
 window.addEventListener('focus', () => {
   if (!rootLocation()) return;

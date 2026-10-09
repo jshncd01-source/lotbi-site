@@ -54,7 +54,7 @@ assert.match(client.personErrorMessage({code: 'PERSON_IDENTITY_PHOTO_CHECK_UNAVA
 const different = client.personErrorMessage({code: 'PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON'}, FALLBACK);
 const unclear = client.personErrorMessage({code: 'PERSON_IDENTITY_PHOTO_IDENTITY_UNCLEAR'}, FALLBACK);
 assert.match(different, /등록된 사람과 다른 사람으로 보이는 사진입니다/);
-assert.match(unclear, /얼굴을 충분히 확인하기 어렵습니다/);
+assert.match(unclear, /같은 사람인지 확인하기 어렵습니다/);
 assert.ok(!/다른 사람/.test(unclear), 'an inconclusive check must not say "different person"');
 
 // Framing reads per slot.

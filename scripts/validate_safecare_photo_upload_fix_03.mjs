@@ -149,7 +149,8 @@ for (const code of ['FACE_LEFT_45', 'FACE_RIGHT_45']) {
   assert.ok(slotByCode[code].hint.includes('반쯤만'), code);
 }
 for (const code of ['FACE_LEFT_PROFILE', 'FACE_RIGHT_PROFILE']) {
-  assert.ok(slotByCode[code].hint.includes('완전히 옆으로') && slotByCode[code].hint.includes('귀와 턱선'), code);
+  // PROFILE-SLOT-ACCEPTANCE-01: a strong side turn, not an exact 90 degrees.
+  assert.ok(slotByCode[code].hint.includes('옆으로 크게 돌려') && slotByCode[code].hint.includes('90도가 아니어도') && slotByCode[code].hint.includes('턱선'), code);
 }
 for (const code of ['FACE_LEFT_ALT', 'FACE_RIGHT_ALT']) assert.ok(slotByCode[code].hint.includes('다른 날·다른 장소'), code);
 // Every slot names what must show in the photo ("보여야 하는 부분").
@@ -157,7 +158,7 @@ for (const slot of PERSON_IDENTITY_SLOTS) assert.ok(typeof slot.visible === 'str
 for (const code of ['FACE_LEFT_45', 'FACE_RIGHT_45', 'FACE_LEFT_ALT', 'FACE_RIGHT_ALT']) assert.match(slotByCode[code].visible, /두 눈.*코.*입/, code);
 for (const code of ['FACE_LEFT_PROFILE', 'FACE_RIGHT_PROFILE']) {
   assert.match(slotByCode[code].visible, /한쪽 눈/, code);
-  assert.match(slotByCode[code].visible, /귀 전체/, code);
+  assert.match(slotByCode[code].visible, /귀나 귀 주변/, code);
   assert.match(slotByCode[code].visible, /턱선/, code);
 }
 assert.match(slotByCode.UPPER_BODY_FRONT.visible, /어깨/);
@@ -188,7 +189,7 @@ for (const code of ['FACE_FRONT', 'FACE_FRONT_ALT', 'UPPER_BODY_FRONT', 'FULL_BO
 assert.match(client.personErrorMessage(pose, fallback), /촬영 방향이 맞지 않습니다/);
 // NO_FACE in a turned slot says what to change (a profile turned past the side).
 const noFace = {code: 'PERSON_IDENTITY_PHOTO_NO_FACE', status: 422};
-assert.match(client.personIdentityPhotoErrorMessage(noFace, slotByCode.FACE_LEFT_PROFILE, fallback), /정확히 옆을 보고/);
+assert.match(client.personIdentityPhotoErrorMessage(noFace, slotByCode.FACE_LEFT_PROFILE, fallback), /한쪽 눈과 코끝이 보이게/);
 assert.match(client.personIdentityPhotoErrorMessage(noFace, slotByCode.FACE_RIGHT_45, fallback), /반쯤만 돌려/);
 assert.match(client.personIdentityPhotoErrorMessage(noFace, slotByCode.FACE_FRONT, fallback), /사람 얼굴을 확인할 수 없습니다/);
 const INTERNAL = [/score/i, /yaw/i, /confidence/i, /model/i, /\bAI\b/, /\d+(\.\d+)?\s*%/, /모델/, /점수/, /신뢰도/, /PERSON_/];

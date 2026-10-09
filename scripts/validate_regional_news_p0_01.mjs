@@ -5,7 +5,9 @@
 // Browser part: real touch/mouse input through the DevTools protocol on
 // 360x780, 375x812, 390x844, 412x915 and 1280x900, plus 390x844 dark. Core is
 // mocked; the mocked news answer has the shape Core's regional news route
-// returns. Viewport emulation only — not an iPhone Safari / Android device run.
+// returns, and with the Core news switch off (NAVER_NEWS_SEARCH_ENABLED=false)
+// the same question gets a general answer with no news_result and no card.
+// Viewport emulation only — not an iPhone Safari / Android device run.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -141,6 +143,8 @@ const CASES = [
   {label: 'mobile-390x844-dark', width: 390, height: 844, mobile: true, userAgent: IPHONE_UA, theme: 'dark'},
 ];
 
+const SWITCH_OFF_ANSWER = '전주 소식은 일반 대화로 답했어요(뉴스 검색 꺼짐).';
+
 function buildInner(theme) {
   let html = read('index.html');
   const runtime = html.match(/<script type="module" src="site-conversation\.js\?v=[^"]+"><\/script>/u);
@@ -175,10 +179,12 @@ try {
       let body = {};
       try { body = JSON.parse(String(init?.body || '{}')); } catch {}
       globalThis.__sent.push(body);
-      const news = /뉴스|소식/u.test(String(body.text || ''));
+      // NAVER_NEWS_SEARCH_ENABLED off: Core's run_regional_news returns None and
+      // the turn takes the general route — an answer without news_result.
+      const news = globalThis.__newsSwitch !== false && /뉴스|소식/u.test(String(body.text || ''));
       return json({
         contract_id:'CORE-WEB-CHAT-01',schema_version:1,status:'ANSWERED',
-        assistant_text: news ? '군산시 최신 뉴스 5건이에요. 같은 사건을 다룬 기사는 한 건으로 묶었어요.' : '확인했어요.',
+        assistant_text: news ? '군산시 최신 뉴스 5건이에요. 같은 사건을 다룬 기사는 한 건으로 묶었어요.' : globalThis.__newsSwitch === false ? ${JSON.stringify(SWITCH_OFF_ANSWER)} : '확인했어요.',
         response_mode: news ? 'NEWS_PROVIDER_READONLY' : 'DETERMINISTIC', correlation_id:'req_regionalnews01',
         intent: news ? {action:'REGIONAL_NEWS',domain:'NEWS'} : {action:'ANSWER',domain:'GENERAL'},
         follow_up:{required:false,action:'REGIONAL_NEWS',automatic_execution:false},
@@ -243,6 +249,7 @@ const PROBE = `(() => {
     composer: document.getElementById('lotbi-prompt')?.value ?? null,
     active: document.activeElement ? {tag: document.activeElement.tagName, id: document.activeElement.id || '', shortcut: document.activeElement.dataset?.lifeShortcut || ''} : null,
     results: results.length, cards, attribution: result?.querySelector('.lotbi-news-attribution')?.textContent || '',
+    assistantTexts: [...document.querySelectorAll('.chat-message-assistant:not(.chat-message-loading)')].map(node => (node.textContent || '').trim()),
     resultMedia: result ? result.querySelectorAll('img, picture, video').length : 0,
     pageBackground: getComputedStyle(document.body).backgroundColor, theme: document.body.dataset.siteTheme || '',
   };
@@ -494,6 +501,29 @@ async function runCase(browser, origin, dir, testCase) {
       const contrast = Math.abs(luminance(state.cards[0].titleColor) - luminance(state.pageBackground));
       assert.ok(contrast > 0.4, `${testCase.label}: card text readable on the dark page (${state.cards[0].titleColor} on ${state.pageBackground})`);
     }
+
+    // 3b. Core news switch off (NAVER_NEWS_SEARCH_ENABLED=false — the Production
+    // state until the owner approves): the same entry still sends the sentence,
+    // Core answers on the general route without news_result, and the Site shows
+    // that answer with no news card. Then the switch goes back on.
+    await evaluate('globalThis.__newsSwitch = false, true');
+    await openLife();
+    const offSent = await evaluate('globalThis.__sent.length');
+    const offResults = (await probe()).results;
+    await tap(await reveal('.consumer-workspace [data-life-shortcut="news"]'));
+    await waitFor(async () => (await probe()).detail?.id === 'news', `${testCase.label}: news form (switch off)`);
+    await tap(await reveal('[data-news-field="region"]'));
+    await page('Input.insertText', {text: '전주'});
+    await sleep(80);
+    await tap(await reveal('.consumer-life-detail form button[type=submit]'));
+    const off = await sentAfterEntry('전주 뉴스 알려 줘', offSent);
+    assert.equal(off.body.text, '전주 뉴스 알려 줘');
+    state = await waitFor(async () => { const value = await probe(); return value.assistantTexts.some(text => text.includes(SWITCH_OFF_ANSWER)) ? value : null; }, `${testCase.label}: general answer with the news switch off`);
+    assert.equal(state.results, offResults, `${testCase.label}: switch off → no news card block (${state.results} vs ${offResults})`);
+    assert.ok(!state.assistantTexts.at(-1).includes('원문 열기'), `${testCase.label}: switch off → the answer has no 원문 열기`);
+    assert.ok(state.pageOverflowX <= 0, `${testCase.label}: switch-off answer fits`);
+    await shot('03b-news-switch-off');
+    await evaluate('globalThis.__newsSwitch = true, true');
 
     // 4. Saved region: one tap asks for that region, the saved region rides along.
     await evaluate(`localStorage.setItem('lotbi.calendar.weather-region.v1', JSON.stringify({label: '전주시', latitude: 35.824, longitude: 127.148})), true`);

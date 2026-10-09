@@ -738,8 +738,11 @@ function surfaceCandidate(component,labels,smooth,light,edges,width,height,thres
   const shapeScore=documentShapeScore(corners);
   const metrics={areaRatio,fill,outside,coverage,straightness:straightness/fitted.tolerance,contrast,minimumContrast:Math.min(...contrasts),contrastToSurface:contrast/threshold,edgeSupport,shapeScore,rectangularity,angles:angles.map(value=>Math.round(value))};
   const fits=ordered.every(point=>point.x>=-width*.02&&point.y>=-height*.02&&point.x<=width*1.02&&point.y<=height*1.02);
+  // An ID or business card shot from arm's length fills only a few percent of a phone photo;
+  // such a small region counts only when it is card-shaped (1.45 to 1.8 : 1).
+  const aspect=Math.max(lengths[0]+lengths[2],lengths[1]+lengths[3])/Math.max(1e-6,Math.min(lengths[0]+lengths[2],lengths[1]+lengths[3]));
   const gates=[
-    [areaRatio>=.1&&areaRatio<=.93,'area'],
+    [(areaRatio>=.1||(areaRatio>=.04&&aspect>=1.45&&aspect<=1.8))&&areaRatio<=.93,'area'],
     [!nearSourceFrame(corners,width,height,areaRatio,{strict:true}),'source-frame'],
     [fits,'outside-image'],
     [Math.min(...lengths)>=Math.min(width,height)*.18,'short-side'],
@@ -883,7 +886,7 @@ function fullPageDocument(smooth,light,width,height){
   const x0=Math.max(sheetLeft,left-pad);const x1=Math.min(sheetRight,right+pad);const y0=Math.max(sheetTop,top-pad);const y1=Math.min(sheetBottom,bottom+pad);
   const area=(x1-x0+1)*(y1-y0+1);const areaRatio=area/(width*height);
   if(areaRatio<.35||total/area>.5)return null;
-  return {corners:{topLeft:{x:x0,y:y0},topRight:{x:x1,y:y0},bottomRight:{x:x1,y:y1},bottomLeft:{x:x0,y:y1}},confidence:.8,areaRatio,area,source:'full-page',metrics:{areaRatio,page:Number((total/area).toFixed(3)),cornerRadius:0}};
+  return {corners:{topLeft:{x:x0,y:y0},topRight:{x:x1,y:y0},bottomRight:{x:x1,y:y1},bottomLeft:{x:x0,y:y1}},confidence:.8,areaRatio,area,source:'full-page',sheet:{left:sheetLeft,top:sheetTop,right:sheetRight,bottom:sheetBottom},metrics:{areaRatio,page:Number((total/area).toFixed(3)),cornerRadius:0}};
 }
 
 // Strict surface model first; illumination adaptation only when it finds no document.
@@ -975,19 +978,38 @@ function surfaceConsistent(surface,corners,width,height){
 // Printed text: small dark marks of similar height standing side by side. A row of at least
 // five, at least six heights long, counts as a line of text. Cards carry a few such lines,
 // pages dozens; pets, faces and rooms produce scattered marks but hardly any rows.
-function textLines(working,smooth,light,corners){
+function printMarks(working,smooth,light){
   const {width,height}=working;const tone=(values,index)=>values[index*3]*.299+values[index*3+1]*.587+values[index*3+2]*.114;
   const ink=new Uint8Array(width*height);
   for(let index=0;index<ink.length;index+=1){
     const difference=(light[index*3]-smooth[index*3])**2+(light[index*3+1]-smooth[index*3+1])**2+(light[index*3+2]-smooth[index*3+2])**2;
     ink[index]=difference>18*18&&tone(light,index)<tone(smooth,index)-6?1:0;
   }
-  const {components}=labelComponents(ink,width,height,3);
-  const glyphs=components.filter(component=>{
-    const tall=component.maximumY-component.minimumY+1;const wide=component.maximumX-component.minimumX+1;
-    if(tall<3||tall>height*.05||wide>width*.15||component.minimumX<=1||component.minimumY<=1||component.maximumX>=width-2||component.maximumY>=height-2)return false;
-    return !corners||insideQuadrilateral(corners,{x:(component.minimumX+component.maximumX)/2,y:(component.minimumY+component.maximumY)/2});
-  }).map(component=>({left:component.minimumX,right:component.maximumX,middle:(component.minimumY+component.maximumY)/2,tall:component.maximumY-component.minimumY+1})).sort((first,second)=>first.middle-second.middle);
+  return labelComponents(ink,width,height,3).components;
+}
+
+// Rows running left to right, or top to bottom when `downward`; each row keeps where it
+// starts and ends along its own direction. Glyphs are at most `tallest` of the image height:
+// small in a whole photo, larger inside a cut-out item (card titles).
+// A row of identical, evenly spaced marks (the windows of a building, tiles, keys, blinds)
+// is a made pattern, not print: lettering varies in mark width and spacing (measured on
+// synthetic cards and pages: width variation >= .08; windows <= .02 with gaps <= .03).
+function madePattern(spans){
+  const ordered=[...spans].sort((first,second)=>first[0]-second[0]);
+  const variation=values=>{const mean=values.reduce((sum,value)=>sum+value,0)/values.length;return mean>0?Math.sqrt(values.reduce((sum,value)=>sum+(value-mean)**2,0)/values.length)/mean:0};
+  const widths=ordered.map(([left,right])=>right-left+1);const gaps=ordered.slice(1).map(([left],index)=>Math.max(1,left-ordered[index][1]));
+  return variation(widths)<.05&&variation(gaps)<.08;
+}
+
+function textRows(working,marks,corners,downward=false,tallest=.05){
+  const {width,height}=working;const across=downward?width:height;const along=downward?height:width;
+  const glyphs=marks.filter(mark=>{
+    const tall=downward?mark.maximumX-mark.minimumX+1:mark.maximumY-mark.minimumY+1;const wide=downward?mark.maximumY-mark.minimumY+1:mark.maximumX-mark.minimumX+1;
+    if(tall<3||tall>across*tallest||wide>along*.15||mark.minimumX<=1||mark.minimumY<=1||mark.maximumX>=width-2||mark.maximumY>=height-2)return false;
+    return !corners||insideQuadrilateral(corners,{x:(mark.minimumX+mark.maximumX)/2,y:(mark.minimumY+mark.maximumY)/2});
+  }).map(mark=>downward
+    ?{left:mark.minimumY,right:mark.maximumY,middle:(mark.minimumX+mark.maximumX)/2,tall:mark.maximumX-mark.minimumX+1}
+    :{left:mark.minimumX,right:mark.maximumX,middle:(mark.minimumY+mark.maximumY)/2,tall:mark.maximumY-mark.minimumY+1}).sort((first,second)=>first.middle-second.middle);
   const parent=glyphs.map((_,index)=>index);const root=index=>parent[index]===index?index:(parent[index]=root(parent[index]));
   for(let index=0;index<glyphs.length;index+=1){
     const glyph=glyphs[index];
@@ -997,17 +1019,47 @@ function textLines(working,smooth,light,corners){
     }
   }
   const rows=new Map();
-  glyphs.forEach((glyph,index)=>{const key=root(index);const row=rows.get(key)||{count:0,left:Infinity,right:-Infinity,heights:[]};row.count+=1;row.left=Math.min(row.left,glyph.left);row.right=Math.max(row.right,glyph.right);row.heights.push(glyph.tall);rows.set(key,row)});
-  let lines=0;
-  for(const row of rows.values()){row.heights.sort((first,second)=>first-second);if(row.count>=5&&row.right-row.left>=6*row.heights[Math.floor(row.heights.length/2)])lines+=1}
-  return lines;
+  glyphs.forEach((glyph,index)=>{const key=root(index);const row=rows.get(key)||{count:0,left:Infinity,right:-Infinity,heights:[],spans:[]};row.count+=1;row.left=Math.min(row.left,glyph.left);row.right=Math.max(row.right,glyph.right);row.heights.push(glyph.tall);row.spans.push([glyph.left,glyph.right]);rows.set(key,row)});
+  const lines=[...rows.values()].filter(row=>{row.heights.sort((first,second)=>first-second);return row.count>=5&&row.right-row.left>=6*row.heights[Math.floor(row.heights.length/2)]&&!madePattern(row.spans)});
+  return {lines:lines.length,starts:lines.map(row=>row.left),ends:lines.map(row=>row.right)};
+}
+
+function textLines(working,marks,corners){
+  return textRows(working,marks,corners).lines;
+}
+
+// Inside a found card, rows may run either way: a card photographed on its side still reads
+// as printed. (Dense pages stack glyphs into top-to-bottom chains too, so this two-way count
+// is only used inside card outlines.)
+function cardLines(working,marks,corners,tallest=.05){
+  return Math.max(textRows(working,marks,corners,false,tallest).lines,textRows(working,marks,corners,true,tallest).lines);
+}
+
+// Which way to turn a found card so it stands upright (degrees clockwise). Cards are landscape
+// by design, so a card cropped taller than wide lies on its side. Its print is left-aligned:
+// rows that start evenly at the top mean it lies turned clockwise, so it turns back 270
+// degrees; evenly at the bottom, 90. Undecided, 270; the scanner's 회전 button corrects it.
+// Only used when the print itself does not say which way it runs (uprightFromPrint); pages
+// are not turned by their shape: portrait and landscape pages both exist.
+function uprightRotation(working,marks,corners){
+  const ordered=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];const side=(start,end)=>Math.hypot(end.x-start.x,end.y-start.y);
+  const across=(side(ordered[0],ordered[1])+side(ordered[3],ordered[2]))/2;const down=(side(ordered[0],ordered[3])+side(ordered[1],ordered[2]))/2;
+  if(down<=across*1.2)return 0;
+  const rows=textRows(working,marks,corners,true);if(rows.lines<2)return 270;
+  const spread=values=>{const sorted=[...values].sort((first,second)=>first-second);return sorted[Math.floor(sorted.length*.75)]-sorted[Math.floor(sorted.length*.25)]};
+  const starts=spread(rows.starts);const ends=spread(rows.ends);
+  return ends<starts*.8?90:270;
 }
 
 // Long side over short side of a quadrilateral, averaging opposite sides.
-function quadAspect(corners){
+function quadSides(corners){
   const ordered=[corners.topLeft,corners.topRight,corners.bottomRight,corners.bottomLeft];const side=(start,end)=>Math.hypot(end.x-start.x,end.y-start.y);
   const across=(side(ordered[0],ordered[1])+side(ordered[3],ordered[2]))/2;const down=(side(ordered[0],ordered[3])+side(ordered[1],ordered[2]))/2;
-  return Math.max(across,down)/Math.max(1,Math.min(across,down));
+  return {long:Math.max(across,down),short:Math.min(across,down)};
+}
+function quadAspect(corners){
+  const {long,short}=quadSides(corners);
+  return long/Math.max(1,short);
 }
 
 // Pages are whitened like scans. A page is a full-page crop, or a large, mostly
@@ -1029,17 +1081,100 @@ function pageLike(working,corners){
 
 // Fewest printed rows a wallet item shows (real IDs show about ten; pets one or two).
 const MINIMUM_TEXT_LINES=3;
+const ITEM_EDGE=900;
+const ITEM_GLYPH=.12;
+
+// The found item cut out and squared up from the detection image, its long side ITEM_EDGE
+// pixels: print is judged on the item itself, deskewed and without the table, shadow and
+// margins around it, not on the small working copy of the whole photo (where an ID shot from
+// arm's length leaves its print only a few pixels tall).
+function warpItem(imageData,corners){
+  const ordered=orderDocumentCorners(Object.values(corners));
+  const across=(distance(ordered.topLeft,ordered.topRight)+distance(ordered.bottomLeft,ordered.bottomRight))/2;
+  const down=(distance(ordered.topLeft,ordered.bottomLeft)+distance(ordered.topRight,ordered.bottomRight))/2;
+  const scale=ITEM_EDGE/Math.max(1,across,down);const width=Math.max(8,Math.round(across*scale));const height=Math.max(8,Math.round(down*scale));
+  const transform=homography([{x:0,y:0},{x:width-1,y:0},{x:width-1,y:height-1},{x:0,y:height-1}],[ordered.topLeft,ordered.topRight,ordered.bottomRight,ordered.bottomLeft]);
+  const item=new ImageData(width,height);
+  for(let y=0;y<height;y+=1)for(let x=0;x<width;x+=1){
+    const denominator=transform[6]*x+transform[7]*y+1;const sourceX=(transform[0]*x+transform[1]*y+transform[2])/denominator;const sourceY=(transform[3]*x+transform[4]*y+transform[5])/denominator;
+    const offset=(y*width+x)*4;for(let channel=0;channel<3;channel+=1)item.data[offset+channel]=bilinearSample(imageData.data,imageData.width,imageData.height,sourceX,sourceY,channel);item.data[offset+3]=255;
+  }
+  return item;
+}
+
+function itemMarks(imageData,corners){
+  const working=workingGray(warpItem(imageData,corners),ITEM_EDGE);const {width,height}=working;
+  const smooth=smoothColor(working.color,width,height,2,2);const light=smoothColor(working.color,width,height,1,1);
+  return {working,marks:printMarks(working,smooth,light),whole:{topLeft:{x:0,y:0},topRight:{x:width-1,y:0},bottomRight:{x:width-1,y:height-1},bottomLeft:{x:0,y:height-1}}};
+}
+
+// Which way the print runs inside a found item, on the squared-up crop. Lines of print leave
+// empty bands between them across the reading direction; glyph gaps rarely line up over
+// several lines, so the other axis has few such bands. Dense pages, which also chain glyphs
+// top to bottom, still leave clean bands only between their lines. Large shapes (a photo,
+// ruled lines, stamps) are left out; a band is a run of positions nearly free of glyphs.
+function printBands(working,marks){
+  const {width,height}=working;const short=Math.min(width,height);
+  const glyphs=marks.filter(mark=>{
+    const wide=mark.maximumX-mark.minimumX+1;const tall=mark.maximumY-mark.minimumY+1;
+    return Math.min(wide,tall)>=2&&Math.max(wide,tall)<=short*.08&&mark.minimumX>1&&mark.minimumY>1&&mark.maximumX<width-2&&mark.maximumY<height-2;
+  });
+  if(glyphs.length<12)return {across:0,down:0,glyphs:glyphs.length};
+  const sizes=glyphs.map(mark=>Math.min(mark.maximumX-mark.minimumX+1,mark.maximumY-mark.minimumY+1)).sort((first,second)=>first-second);
+  const unit=sizes[Math.floor(sizes.length/2)];
+  const bands=(length,from,to)=>{
+    const occupied=new Uint16Array(length);for(const mark of glyphs)for(let index=from(mark);index<=to(mark);index+=1)occupied[index]+=1;
+    const filled=[...occupied].filter(Boolean).sort((first,second)=>first-second);if(!filled.length)return 0;
+    const quiet=Math.floor(filled[Math.floor(filled.length*.9)]*.04);
+    let first=0;while(first<length&&occupied[first]<=quiet)first+=1;let last=length-1;while(last>first&&occupied[last]<=quiet)last-=1;
+    let count=0;let run=0;const minimum=Math.max(1,unit*.25);
+    for(let index=first;index<=last;index+=1){if(occupied[index]<=quiet)run+=1;else{if(run>=minimum)count+=1;run=0}}
+    return count;
+  };
+  return {across:bands(height,mark=>mark.minimumY,mark=>mark.maximumY),down:bands(width,mark=>mark.minimumX,mark=>mark.maximumX),glyphs:glyphs.length};
+}
+
+// How evenly lines start (or end): for each line, the share of the other lines that start
+// within a few pixels of it. Left-aligned print scores high at its starts even in two columns
+// (two pages of a bankbook), where a plain spread of the positions would not.
+function lineAlignment(values,tolerance){
+  if(values.length<2)return 0;
+  let total=0;for(const value of values){let near=-1;for(const other of values)if(Math.abs(other-value)<=tolerance)near+=1;total+=near/(values.length-1)}
+  return total/values.length;
+}
+
+// Degrees clockwise that stand a found item's print upright, or null when the print does
+// not say clearly. Print running down the crop (photographed on its side) turns a quarter:
+// its lines are left-aligned, so lines starting evenly at the top lie turned clockwise (turn
+// back 270), evenly at the bottom 90. Print running across stays, unless its lines clearly
+// end evenly and start ragged — upside down, 180.
+function uprightFromPrint(working,marks){
+  const bands=printBands(working,marks);
+  // Only a clear answer counts (a page gives some 20 to 30 bands one way and 0 to 2 the other).
+  const clearly=(one,other)=>one>=6&&one>=other*3+1;
+  const direction=clearly(bands.down,bands.across)?'down':clearly(bands.across,bands.down)?'across':'';
+  if(!direction)return {turn:null,bands};
+  const rows=textRows(working,marks,null,direction==='down',ITEM_GLYPH);
+  const tolerance=Math.max(3,(direction==='down'?working.height:working.width)*.012);
+  const starts=lineAlignment(rows.starts,tolerance);const ends=lineAlignment(rows.ends,tolerance);
+  if(direction==='down')return {turn:rows.lines>=3&&ends>starts+.15?90:270,bands};
+  return {turn:rows.lines>=6&&ends>starts+.15?180:0,bands};
+}
 
 // Printed rows inside corners the user placed by hand: a manual crop is only saved when it
 // frames a printed item, so a pet cannot be saved by dragging the corners around it.
-export function framesPrintedItem(imageData,corners,{maximumEdge=720}={}){
-  const working=workingGray(imageData,maximumEdge);const {width,height}=working;
-  const smooth=smoothColor(working.color,width,height,2,2);const light=smoothColor(working.color,width,height,1,1);
-  const scaled=Object.fromEntries(Object.entries(corners).map(([name,point])=>[name,{x:point.x*working.scale,y:point.y*working.scale}]));
-  return textLines(working,smooth,light,scaled)>=MINIMUM_TEXT_LINES;
+// Judged on the squared-up crop like a found item, but rows across only: a pet's fur makes
+// short rows both ways.
+export function framesPrintedItem(imageData,corners){
+  const {working,marks}=itemMarks(imageData,corners);
+  return textRows(working,marks,null,false,ITEM_GLYPH).lines>=MINIMUM_TEXT_LINES;
 }
 
-export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
+// sourceScale: how far the caller shrank the original photo to build imageData (1 = original).
+// detail: that original photo (ImageData). A found card's print is then counted on a card
+// squared up from it, where thin lettering is still crisp; on the shrunken copy fine print of
+// a card that is small in a phone photo blurs below the ink threshold.
+export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale = 1, detail = null} = {}) {
   if (!imageData || !Number.isInteger(imageData.width) || !Number.isInteger(imageData.height) || !imageData.data) throw new TypeError('Valid image data is required.');
   const working = workingGray(imageData, maximumEdge);
   const blurred=boxBlur(working.gray,working.width,working.height);
@@ -1059,22 +1194,83 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720} = {}) {
   else if(surface.status==='multiple')reason='competing-documents';
   else if(surface.status==='nested'){chosen=legacy;if(!legacy)reason='competing-boundaries'}
   else if(surface.status==='none'&&legacy&&surfaceConsistent(surface,legacy.corners,working.width,working.height))chosen=legacy;
+  // A card filling only a few percent of the photo (shot from arm's length) is cropped only
+  // when the original photo still holds it at a legible size.
+  if(chosen&&chosen.source!=='full-page'&&(chosen.areaRatio??1)<.1&&quadSides(chosen.corners).short/working.scale/sourceScale<300){chosen=null;reason='automatic-detection-uncertain'}
   // Wallet items are IDs, licences, cards and documents: they carry printed rows of text. A
   // photo with hardly any (a pet, a person, a room) is not cropped, and the scanner refuses it.
-  const lines=textLines(working,surface.smooth,surface.light,null);
-  if(lines<MINIMUM_TEXT_LINES){chosen=null;reason='not-a-document'}
+  const marks=printMarks(working,surface.smooth,surface.light);
+  const lines=textLines(working,marks,null);
+  const itemSource=detail?.data&&sourceScale<1?detail:imageData;const itemScale=itemSource===detail?1/(working.scale*sourceScale):1/working.scale;
+  // Print rows: a page counts rows on the working image; a card counts them on a card squared
+  // up from the full photo.
+  const itemOf=candidate=>itemMarks(itemSource,Object.fromEntries(Object.entries(candidate.corners).map(([name,point])=>[name,{x:point.x*itemScale,y:point.y*itemScale}])));
+  const rowsOf=candidate=>{
+    if(!candidate)return 0;if(candidate.source==='full-page')return textLines(working,marks,candidate.corners);
+    const item=itemOf(candidate);
+    return cardLines(item.working,item.marks,null,ITEM_GLYPH);
+  };
+  let card=Boolean(chosen)&&chosen.source!=='full-page';
+  let chosenLines=rowsOf(chosen);
+  if(lines<MINIMUM_TEXT_LINES&&!(card&&chosenLines>=MINIMUM_TEXT_LINES)){chosen=null;reason='not-a-document'}
   // A whole-frame page must read like a page (documents show dozens of lines; fur, faces and
   // rooms a handful); a card needs a couple of lines of print inside its outline.
-  else if(chosen&&textLines(working,surface.smooth,surface.light,chosen.corners)<(chosen.source==='full-page'?12:2)){chosen=null;reason='automatic-detection-uncertain'}
+  else if(chosen&&chosenLines<(card?2:12)){chosen=null;reason='automatic-detection-uncertain'}
   // Receipts are long thin strips (about 2:1 and longer); cards are 1.59:1, A4 1.41:1, Letter
   // 1.29:1 and business cards 1.75:1. A receipt is not saved as a wallet item automatically.
   else if(chosen&&quadAspect(chosen.corners)>=1.85){chosen=null;reason='receipt-like'}
+  // Nothing found, but the picture may itself be the card: a business card or ID saved as an
+  // image file or a flat scan (its photo block or logo is no card of its own). Never for a
+  // photo already refused as not a document or as a receipt.
+  if(!chosen&&['automatic-detection-uncertain','competing-documents','competing-boundaries'].includes(reason)){
+    const frame=fullFrameCard(surface,working,marks);const rows=rowsOf(frame);
+    if(frame&&rows>=MINIMUM_TEXT_LINES){chosen=frame;card=true;chosenLines=rows;reason='document-quadrilateral'}
+  }
   const diagnostics=scanDiagnostics(working,surface,legacy,chosen);
   diagnostics.textLines=lines;
   if (!chosen) return {corners:defaultDocumentCorners(imageData.width,imageData.height),confidence:legacyConfidence,mode:'manual',reason,diagnostics};
+  // A full-frame card keeps its colours and the orientation it was saved in.
+  const flat=chosen.source==='full-frame-card';
+  const paper=!flat&&(chosen.source==='full-page'||((chosen.metrics?.cornerRadius||0)<.02&&pageLike(working,chosen.corners)));
   const scaleBack = 1 / working.scale;
   const scaled = Object.fromEntries(Object.entries(chosen.corners).map(([name,point]) => [name,{x:Math.round(point.x*scaleBack),y:Math.round(point.y*scaleBack)}]));
-  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),paper:chosen.source==='full-page'||((chosen.metrics?.cornerRadius||0)<.02&&pageLike(working,chosen.corners)),diagnostics};
+  // Stood upright by its print, so nobody has to press 회전: a square-cornered item (a page,
+  // a bankbook spread, a contract, a business card) with many lines says clearly which way it
+  // reads, in all four turns. A rounded card (ID-1) does not — a few lines beside a photo, and
+  // dense small print can line up both ways — so it keeps the shape rule (a card cropped
+  // taller than wide lies on its side); an upside-down card is left for 회전. A full-frame
+  // card picture keeps the orientation it was saved in.
+  let rotation=0;
+  if(!flat){
+    const square=chosen.source==='full-page'||(chosen.metrics?.cornerRadius||0)<.04;
+    let upright={turn:null,bands:{across:'-',down:'-'}};
+    if(square){const item=itemOf(chosen);upright=uprightFromPrint(item.working,item.marks)}
+    diagnostics.print=`${upright.bands.across}/${upright.bands.down}`;
+    rotation=upright.turn??(paper||!card?0:uprightRotation(working,marks,chosen.corners));
+  }
+  return {corners:scaled,confidence:Number(chosen.confidence.toFixed(3)),mode:'automatic',reason:'document-quadrilateral',cornerRadius:Number((chosen.metrics?.cornerRadius||0).toFixed(4)),paper,rotation,diagnostics};
+}
+
+// The whole picture as a card: its paper (light, nearly colourless) spans the frame, the frame
+// is card-shaped (1.45 to 1.85 : 1 either way; photos are 1.33 or 1.5, phone screens 2 and
+// longer), it holds fewer rows than a page, and it is flat: the paper is equally bright in all
+// four quarters, as in an image file or a scan, while a camera photo of a desk falls off
+// towards one side with the light.
+function fullFrameCard(surface,working,marks){
+  const {width,height}=working;const page=fullPageDocument(surface.smooth,surface.light,width,height);
+  if(!page?.sheet||textLines(working,marks,page.corners)>=12)return null;
+  const {left,top,right,bottom}=page.sheet;const across=right-left+1;const down=bottom-top+1;const ratio=Math.max(across,down)/Math.max(1,Math.min(across,down));
+  if(ratio<1.45||ratio>1.85||across<width*.9||down<height*.9)return null;
+  const sums=[0,0,0,0];const counts=[0,0,0,0];const smooth=surface.smooth;
+  for(let y=top;y<=bottom;y+=2)for(let x=left;x<=right;x+=2){
+    const index=y*width+x;const red=smooth[index*3];const green=smooth[index*3+1];const blue=smooth[index*3+2];const tone=red*.299+green*.587+blue*.114;
+    if(tone<150||Math.max(red,green,blue)-Math.min(red,green,blue)>40)continue;
+    const quarter=(y<(top+bottom)/2?0:2)+(x<(left+right)/2?0:1);sums[quarter]+=tone;counts[quarter]+=1;
+  }
+  if(counts.some(count=>count<20))return null;
+  const means=sums.map((sum,quarter)=>sum/counts[quarter]);
+  if(Math.max(...means)-Math.min(...means)>10)return null;
+  return {corners:{topLeft:{x:left,y:top},topRight:{x:right,y:top},bottomRight:{x:right,y:bottom},bottomLeft:{x:left,y:bottom}},confidence:.8,areaRatio:across*down/(width*height),area:across*down,source:'full-frame-card',metrics:{cornerRadius:0}};
 }
 
 // Edge-component and corner-patch candidates (the original pipeline).
@@ -1276,6 +1472,57 @@ export function assessDocumentQuality(imageData, {corners} = {}) {
   return warnings;
 }
 
+// Light reflected off a glossy card or its laminate blows part of it out to white and the
+// print under it is lost. Such a spot is a compact, colourless patch at the top of the range,
+// clearly brighter than the card beyond its halo (210 or darker there), empty of print while
+// the rows it lies on are printed beside it (the lettering runs into it and stops). A card
+// that is bright all over, or a bright blank area, is not glare: its print still shows or
+// nothing is there. Returns the share of the item (inside a 6% border) covered by such spots,
+// judged on the squared-up photo before any enhancement.
+export function coveringGlare(imageData){
+  const {data,width,height}=imageData;const step=Math.max(1,Math.ceil(Math.max(width,height)/600));
+  const left=Math.round(width*.06);const top=Math.round(height*.06);
+  const w=Math.max(1,Math.floor((width-2*left)/step));const h=Math.max(1,Math.floor((height-2*top)/step));
+  const tone=new Float32Array(w*h);const bright=new Uint8Array(w*h);
+  for(let y=0;y<h;y+=1)for(let x=0;x<w;x+=1){
+    const offset=((top+y*step)*width+left+x*step)*4;const red=data[offset];const green=data[offset+1];const blue=data[offset+2];
+    const value=red*.299+green*.587+blue*.114;tone[y*w+x]=value;bright[y*w+x]=value>=248&&Math.max(red,green,blue)-Math.min(red,green,blue)<=14?1:0;
+  }
+  // A card that is bright all over (median above 215: a white card in strong light, a white
+  // scan) leaves too little room above it to tell a reflection from its own blank areas.
+  const sorted=Float32Array.from(tone).sort();const median=sorted[Math.floor(sorted.length/2)];if(median>215)return 0;
+  const inkLevel=Math.min(150,median-30);let ink=0;for(let index=0;index<tone.length;index+=1)if(tone[index]<inkLevel)ink+=1;const printed=ink/(w*h);
+  if(printed<=0)return 0;
+  const {components}=labelComponents(bright,w,h,Math.max(4,Math.round(w*h*.001)));
+  // Mean tone and share of print in a band around the patch's box, and share of print inside it.
+  const around=(component,pad)=>{let sum=0;let count=0;let marks=0;
+    for(let y=Math.max(0,component.minimumY-pad);y<=Math.min(h-1,component.maximumY+pad);y+=1)for(let x=Math.max(0,component.minimumX-pad);x<=Math.min(w-1,component.maximumX+pad);x+=1){
+      if(x>=component.minimumX&&x<=component.maximumX&&y>=component.minimumY&&y<=component.maximumY)continue;
+      const value=tone[y*w+x];sum+=value;count+=1;if(value<inkLevel)marks+=1;
+    }
+    return count?{tone:sum/count,print:marks/count}:{tone:255,print:0};};
+  let covered=0;
+  for(const component of components){
+    const boxWidth=component.maximumX-component.minimumX+1;const boxHeight=component.maximumY-component.minimumY+1;
+    if(component.count/(boxWidth*boxHeight)<.4)continue;
+    let marks=0;for(let y=component.minimumY;y<=component.maximumY;y+=1)for(let x=component.minimumX;x<=component.maximumX;x+=1)if(tone[y*w+x]<inkLevel)marks+=1;
+    if(marks/(boxWidth*boxHeight)>printed*.3)continue;
+    // The card beyond the reflection's soft halo is darker than the patch, and the printed rows
+    // it lies on carry on at its left and right (lettering runs into it and stops).
+    if(around(component,Math.max(8,Math.round(Math.max(boxWidth,boxHeight)*.8))).tone>210)continue;
+    const span=Math.max(8,boxWidth);let sidePrint=0;
+    for(const [from,to] of [[component.minimumX-span,component.minimumX-1],[component.maximumX+1,component.maximumX+span]]){
+      let marks=0;let count=0;
+      for(let y=component.minimumY;y<=component.maximumY;y+=1)for(let x=Math.max(0,from);x<=Math.min(w-1,to);x+=1){count+=1;if(tone[y*w+x]<inkLevel)marks+=1}
+      if(count)sidePrint=Math.max(sidePrint,marks/count);
+    }
+    if(sidePrint<.05)continue;
+    covered+=component.count;
+  }
+  return covered/(w*h);
+}
+const GLARE_COVERS_PRINT=.003;
+
 // Pixels outside a rounded card corner are surface, not card: give them the colour of the
 // card just inside the corner arc so the corrected card carries no background wedges.
 function fillRoundedCorners(imageData,relativeRadius){
@@ -1298,15 +1545,21 @@ function fillRoundedCorners(imageData,relativeRadius){
   }
 }
 
-export async function rectifyDocument(source, corners, {enhance=true, cornerRadius=0, paper=false} = {}) {
+// gloss: check for light reflected over the print (a camera photo of a card); off for pages,
+// PDF pages and pictures that are the card itself.
+export async function rectifyDocument(source, corners, {enhance=true, cornerRadius=0, paper=false, rotation=0, gloss=true} = {}) {
   const sourcePixels=sourceImageData(source); const ordered=orderDocumentCorners(Object.values(corners));
-  const estimatedWidth=(distance(ordered.topLeft,ordered.topRight)+distance(ordered.bottomLeft,ordered.bottomRight))/2;
-  const estimatedHeight=(distance(ordered.topLeft,ordered.bottomLeft)+distance(ordered.topRight,ordered.bottomRight))/2;
+  // Turning the output clockwise by quarter turns: the output's top-left comes from the corner
+  // a quarter turn back. Quality checks keep the corners as found.
+  const turns=((Math.round(rotation/90)%4)+4)%4; const around=[ordered.topLeft,ordered.topRight,ordered.bottomRight,ordered.bottomLeft].map((_,index,list)=>list[(index-turns+4)%4]);
+  const oriented={topLeft:around[0],topRight:around[1],bottomRight:around[2],bottomLeft:around[3]};
+  const estimatedWidth=(distance(oriented.topLeft,oriented.topRight)+distance(oriented.bottomLeft,oriented.bottomRight))/2;
+  const estimatedHeight=(distance(oriented.topLeft,oriented.bottomLeft)+distance(oriented.topRight,oriented.bottomRight))/2;
   const sourceMaximum=Math.max(sourcePixels.width,sourcePixels.height);
   const scale=Math.min(1,2048/Math.max(estimatedWidth,estimatedHeight),sourceMaximum/Math.max(estimatedWidth,estimatedHeight));
   const width=Math.max(2,Math.round(estimatedWidth*scale)); const height=Math.max(2,Math.round(estimatedHeight*scale));
   const destination=[{x:0,y:0},{x:width-1,y:0},{x:width-1,y:height-1},{x:0,y:height-1}];
-  const sourceCorners=[ordered.topLeft,ordered.topRight,ordered.bottomRight,ordered.bottomLeft];
+  const sourceCorners=[oriented.topLeft,oriented.topRight,oriented.bottomRight,oriented.bottomLeft];
   const transform=homography(destination,sourceCorners); const corrected=new ImageData(width,height);
   for (let y=0;y<height;y+=1) for (let x=0;x<width;x+=1) {
     const denominator=transform[6]*x+transform[7]*y+1;
@@ -1323,5 +1576,7 @@ export async function rectifyDocument(source, corners, {enhance=true, cornerRadi
   // glossy card, and a page's blank margins drag the whole-image sharpness measure down even
   // when the print is crisp: pages are checked for resolution only.
   const warnings=[...new Set([...assessDocumentQuality(output),...assessDocumentQuality(sourcePixels,{corners:paper?null:ordered})])].filter(code=>!paper||code==='low-resolution');
+  // A reflection over the print hides part of the item: it cannot be kept as it is.
+  if(gloss&&!paper&&coveringGlare(corrected)>=GLARE_COVERS_PRINT)warnings.push('glare-covers-print');
   return {dataUrl:canvas.toDataURL('image/jpeg',0.92),width,height,warnings,enhanced:Boolean(enhance)};
 }

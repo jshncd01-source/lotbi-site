@@ -26,7 +26,7 @@ for (const input of hiddenInputs) {
 assert.match(publicCss, /\.skip-link\s*\{[^}]*position:\s*fixed;/su, 'skip link must be positioned against the viewport');
 assert.match(publicCss, /\.skip-link:focus\s*\{[^}]*transform:\s*translateY\(0\);/su, 'focused skip link must be fully returned into the viewport');
 assert.equal((index.match(/>저장한 항목<\/span>/gu) || []).length, 0, 'saved items belong inside 생활정보, not a duplicate primary menu');
-assert.match(read('site-consumer-sections.js'), /action\('저장한 정보 다시 보기', onSaved/);
+assert.doesNotMatch(read('site-consumer-sections.js'), /저장한 정보 다시 보기/, 'the life home is a category picker only');
 
 assert.doesNotMatch(about, /개발·검증 중/u, 'public About copy must not advertise an internal development state');
 assert.match(about, /소비자 중심 AI 생활 서비스/u);

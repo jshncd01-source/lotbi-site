@@ -35,6 +35,28 @@ export function isNoReliableMatchState(state) {
   return state === 'NO_RELIABLE_MATCH';
 }
 
+// SAFECARE-SIGHTING-RESULT-PRIVACY (person found reports only): telling the
+// reporter that a comparison candidate existed, or that nothing matched, would
+// tell them who is (not) missing. Person Core now sends the reporter only DRAFT /
+// QUEUED / INSUFFICIENT_QUALITY / CLOSED (with result_disclosed: false). An older
+// Core's ANALYZING / ADMIN_REVIEW read as QUEUED and NO_RELIABLE_MATCH as CLOSED.
+// The pet found report keeps REVIEW_STATE_COPY above (pet Core is unchanged).
+const PERSON_QUEUED_COPY = Object.freeze({label: '접수됨', tone: 'progress', detail: '제보가 접수되었습니다. 관리자가 확인하고 있으며, 비교 결과는 제보자에게 공개되지 않습니다.'});
+const PERSON_CLOSED_COPY = Object.freeze({label: '검토 종료', tone: 'neutral', detail: '제보 검토가 종료되었습니다. 비교 결과는 제보자에게 공개되지 않습니다.'});
+const PERSON_REVIEW_STATE_COPY = Object.freeze({
+  DRAFT: REVIEW_STATE_COPY.DRAFT,
+  QUEUED: PERSON_QUEUED_COPY,
+  ANALYZING: PERSON_QUEUED_COPY,
+  ADMIN_REVIEW: PERSON_QUEUED_COPY,
+  NO_RELIABLE_MATCH: PERSON_CLOSED_COPY,
+  INSUFFICIENT_QUALITY: REVIEW_STATE_COPY.INSUFFICIENT_QUALITY,
+  CLOSED: PERSON_CLOSED_COPY,
+});
+
+export function personFoundReviewStateCopy(state) {
+  return PERSON_REVIEW_STATE_COPY[state] || UNKNOWN_REVIEW_STATE;
+}
+
 // The found-report photo rule as the screen shows it: writing may start with
 // one photo, the final submit opens at five and adding stops at ten.
 export function foundPhotoProgress(count) {

@@ -55,6 +55,9 @@ jobs:
       - name: Validate iOS Social Auth return bridge
         run: python scripts/validate_ios_social_return_01.py
 
+      - name: Validate nginx script module MIME types
+        run: python scripts/validate_nginx_module_mime_01.py
+
       - name: Validate UI/UX Phase 1 contracts
         run: node scripts/validate_uiux_phase1_01.mjs
 
@@ -103,10 +106,18 @@ jobs:
       - name: Validate account-wide profile photo
         run: node scripts/validate_profile_photo_account_sync_01.mjs
 
-      # '자동모드' follows the clock (18시 다크 · 07시 라이트) and must never
+      # '자동모드' follows the clock (22시 다크 · 07시 라이트) and must never
       # leak 'auto' into the attribute the theme tokens style.
       - name: Validate 자동모드 theme schedule
         run: node scripts/validate_theme_auto_schedule_02.mjs
+
+      # 화면 모드는 Account 설정 전용이 아니라 LOTBI 소비자 웹 전체의 설정 —
+      # lotbiai.com 과 account.lotbiai.com 이 같은 공유 cookie 하나를 읽는다.
+      - name: Check every consumer page carries the same theme bootstrap
+        run: node scripts/sync_theme_bootstrap.mjs --check
+
+      - name: Validate one screen mode across Site and Account
+        run: node scripts/validate_consumer_theme_sync_01.mjs
 
       - name: Validate canonical email-first identity profile
         run: node scripts/validate_identity_profile_hotfix_02.mjs
@@ -171,6 +182,14 @@ jobs:
       - name: Validate container focus ring
         run: node scripts/validate_focus_ring_container_01.mjs
 
+      # 실사용: on a phone the keyboard stayed open after sending and covered
+      # the answer. An accepted send now lets go of the composer, nothing but
+      # the reader's tap brings the keyboard back, and desktop keeps its cursor.
+      # Real taps and Enter at 375x812, 390x844 (keyboard on visualViewport)
+      # and 412x915 (viewport resized), plus 1280x900.
+      - name: Validate mobile keyboard dismiss on send
+        run: node scripts/validate_chat_mobile_keyboard_dismiss_01.mjs
+
       # A long answer keeps growing after it is appended; the thread has to
       # follow it without dragging a reader who scrolled up.
       - name: Validate answer scroll and markdown
@@ -187,6 +206,45 @@ jobs:
       # time at 390x844, 375x667 and 1280x900.
       - name: Validate chat answer quality P0 (conversation tail, tables)
         run: node scripts/validate_chat_answer_quality_p0_01.mjs
+      # "크록스 클래식과 바야 사진으로 비교해줘" got a table and no picture.
+      # Core now returns each product's official page image; the answer shows
+      # them side by side with the official page link, a plain box when there
+      # is no verified image or it fails to load, and nothing for spec answers.
+      - name: Validate product photo comparison cards
+        run: node scripts/validate_product_photo_compare_01.mjs
+
+      # 실사용: a long answer carried the screen to its last line and the
+      # question just sent went off the top. The question now stays at the top
+      # with its answer starting under it; only the reader, ↓ 최신 답변 or the
+      # next question move it. Measured as on-screen item positions at 375x667,
+      # 390x844 and 1280x900, through streaming, completion and the keyboard.
+      - name: Validate long answer scroll anchor
+        run: node scripts/validate_chat_long_answer_scroll_anchor_01.mjs
+
+      # 실사용 (Samsung 계열 모바일): with the keyboard open the composer rose to
+      # just under the header, and the first characters typed sat behind the +
+      # button. Measured as bounding rects (glyphs, caret, +, send, composer)
+      # at 360-412px phones, 690/750px foldables and 1280 desktop, under three
+      # emulated keyboards (layout resize, visual viewport, panned viewport).
+      - name: Validate mobile composer keyboard layout
+        run: node scripts/validate_mobile_composer_keyboard_layout_01.mjs
+
+      # 실사용 (iPhone 카카오톡 내장 브라우저): the conversation would not scroll
+      # under a finger, and with the keyboard open the composer floated far
+      # above it with empty space under it. Real touch drags (from the
+      # conversation, the composer and its text) at 375/390/412 and 1280,
+      # under iOS-shaped late visualViewport values, an iOS 26 viewport left
+      # displaced after the keyboard, and Android Chrome.
+      - name: Validate iOS touch scroll and keyboard
+        run: node scripts/validate_chat_ios_touch_scroll_keyboard_01.mjs
+
+      # 실사용 (삼성 인터넷): the + covered the first characters, the composer
+      # rose above the keyboard leaving empty space, and the Home shook as the
+      # keyboard opened and closed. Samsung Internet UA on Galaxy S/S+/Ultra
+      # and Z Fold cover/inner viewports, keyboard in three steps, layout and
+      # visual models.
+      - name: Validate Samsung Internet composer and keyboard
+        run: node scripts/validate_samsung_composer_keyboard_01.mjs
 
       # 대표님: "스크롤해도 상단바가 따라오게 해". The bar has to ride the
       # conversation scroller AND cost the thread no height while doing it —
@@ -275,6 +333,9 @@ jobs:
           node scripts/validate_calendar_editor_field_height_01.mjs
           node scripts/validate_calendar_settings_expansion_01.mjs
           node scripts/validate_calendar_system_dark_01.mjs
+          node scripts/validate_calendar_editor_footer_contrast_01.mjs
+          node scripts/validate_calendar_week_mobile_vertical_01.mjs
+          node scripts/validate_calendar_mobile_week_ux_weather_01.mjs
           node scripts/validate_calendar_add_from_image_01.mjs
           node --check site-calendar-draft-write.js
           node scripts/validate_conversation_calendar_auto_suggest_01.mjs
@@ -286,6 +347,9 @@ jobs:
         run: |
           node --check site-life-school.js
           node scripts/validate_life_neis_school_01.mjs
+      - name: Validate NEIS school official links (homepage / meal source) on school cards
+        run: |
+          node scripts/validate_neis_school_official_links_01.mjs
 
       - name: Validate voice wake phrase matching
         run: |
@@ -296,16 +360,21 @@ jobs:
       - name: Validate public Site voice release exclusion
         run: node scripts/validate_voice_public_release_exclusion_01.mjs
 
-      # The isolated controller remains tested for possible reuse, while the
-      # chat integration gate locks the product decision to expose no 읽어주기.
-      - name: Validate read-aloud controller and chat exclusion
+      # CHAT-READ-ALOUD-RESTORE-P0: 읽어주기 is back under LOTBI answers, on
+      # on-device voices only (never a network voice, never /v2/live/tts), and
+      # only when pressed. Microphone, live voice and the wake word stay
+      # excluded by the step above.
+      - name: Validate read-aloud controller and chat read-aloud button
         run: |
           node --check site-voice-tts.js
           node --check site-read-aloud-speech.js
           node --check site-read-aloud-controller.js
+          node --check site-message-read-aloud.js
           node --check site-conversation.js
           node scripts/validate_voice_tts_quality_01.mjs
           node scripts/validate_read_aloud_controller_01.mjs
+          node scripts/validate_chat_read_aloud_restore_01.mjs
+          node scripts/validate_chat_read_aloud_restore_browser_01.mjs
 
       - name: Validate Universal Rich Product Cards
         run: |
@@ -350,6 +419,13 @@ jobs:
       - name: Validate Place Card carousel never drifts
         run: node scripts/validate_place_card_carousel_no_drift_01.mjs
 
+      # 장소·의료 카드 최종 정리: 휴대폰은 화살표 없이 밀어서 돌리고 카드 한 장이
+      # 온전히 보인다. 사진이 없으면 사진 칸이 없고, 1/3 위치와 세 곳 다음의
+      # "다른 병원 보기", 같은 기관 한 장, 설정 지도앱·네이버 검색 유지를 실제
+      # 터치/마우스로 잰다(버튼 바로 위 본문 탭이 전화로 넘어가지 않는지 포함).
+      - name: Validate Place / medical card final UX
+        run: node scripts/validate_place_medical_card_ux_final_01.mjs
+
       - name: Validate LOTBI Box navigation and saved surface
         run: node scripts/validate_lotbi_box_nav_01.mjs
 
@@ -379,6 +455,7 @@ jobs:
         run: |
           node scripts/validate_festival_location_manual_region_01.mjs
           node scripts/validate_festival_region_scope_01.mjs
+          node scripts/validate_festival_region_search_consistency_01.mjs
 
       # 공통 위치 권한/현재위치 획득 기반 (GLOBAL-LOCATION-15). 기능별로 권한 확인과
       # GPS 읽기를 다시 개발하지 않는다는 계약을 한곳에서 지킨다: 권한 상태 판정,
@@ -448,6 +525,17 @@ jobs:
           node scripts/validate_safecare_capture_art_01.mjs
           node scripts/validate_safecare_web_ui_redesign_01.mjs
 
+      # SAFECARE-PHOTO-BULK-UPLOAD-01: up to ten identity photos at once —
+      # classify hint only, never outside the suggested slots, fronts first
+      # (1,8,2,3,9,10,6,4,5,7), successes kept, per-photo replacement; the
+      # person SOS copy says "not a police report" and found reports never
+      # disclose a comparison result. 360/390/412/1440.
+      - name: Validate SafeCare bulk identity photos and SOS intake copy
+        run: |
+          node --check site-person.js
+          node --check site-person-bulk-photos.js
+          node scripts/validate_safecare_photo_bulk_upload_01.mjs
+
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
@@ -468,6 +556,12 @@ jobs:
 
       - name: Validate auth UNKNOWN recovery in browser
         run: node scripts/validate_auth_unknown_recovery_browser_01.mjs
+
+      - name: Validate Site session restore and renewal in place
+        run: node scripts/validate_auth_session_continuity_p0_02.mjs
+
+      - name: Validate HTML document cache policy
+        run: python scripts/validate_document_cache_policy_01.py
 
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
@@ -578,10 +672,29 @@ jobs:
 
       # 생활정보 병원·의원/약국 카드는 진입 UI만 더한다. 상세 화면이 만든 문장을
       # 기존 대화 입력창으로 넘겨 Core 의료 조회가 답하는지(문장 규칙), 카드·칩이
-      # 375·390x844·데스크톱에서 잘리지 않고 탭되는지, 기존 축제·지역·공과금
-      # 바로가기가 그대로인지 실제 탭/클릭으로 확인한다.
+      # 360·375·390x844·412·데스크톱에서 잘리지 않고 탭되는지, 공과금 메뉴·상단 질문
+      # 입력바·하단 저장/안내 줄 없이 설명 바로 아래 카테고리 목록만 빈 칸 없이
+      # 보이는지 실제 탭/클릭으로 확인한다.
       - name: Validate life medical category entry
         run: node scripts/validate_life_medical_category_entry_01.mjs
+
+      # KINDERGARTEN-OFFICIAL-INFO-01: 생활정보 → 유치원·학교 → 유치원. 유치원알리미
+      # 시도·시군구 → 목록 → 설립유형·주소·연락처·운영시간·학급·정원·원아·홈페이지·
+      # 공시 기준 + 상세 공시 8개, 내 유치원(학교 저장값과 분리), Core 꺼짐 안내,
+      # 360·375·390·412·데스크톱 light/dark 실제 Chrome 확인.
+      - name: Validate kindergarten official info
+        run: node scripts/validate_kindergarten_official_info_01.mjs
+
+      # 생활정보 정리 최종: 공과금 메뉴·상단 질문바·하단 보조 row·롯비함 진입/저장 버튼 없음,
+      # 요금 안내에 공과금 문구 없음, 저장된 롯비함 데이터는 그대로. 360·375·390·412·1280.
+      - name: Validate life info cleanup final
+        run: node scripts/validate_life_info_cleanup_final_01.mjs
+
+      # ONNURI-MERCHANT-01: 생활정보 온누리상품권 가맹점 찾기 — 지역/현재 위치,
+      # Top 3 + 더 보기, 필터, 0건·준비 중 안내, 검증된 좌표 없이는 거리 없음,
+      # 승인 전 공식 로고 미사용을 375·390·1280에서 실제 탭으로 확인한다.
+      - name: Validate Onnuri merchant search
+        run: node scripts/validate_onnuri_merchant_search_01.mjs
 
       - name: Validate 진위확인 production connection
         run: |
@@ -598,6 +711,31 @@ jobs:
       # 390·412·데스크톱·다크에서 실제 탭/클릭으로 확인한다. Core는 mock.
       - name: Validate regional news (지역정보 · 지역뉴스)
         run: node scripts/validate_regional_news_p0_01.mjs
+
+      # 진위확인 사진·스크린샷 선택은 카메라를 강제하지 않고(capture 없음),
+      # 카메라로 촬영만 capture="environment"를 쓴다. 실제 Chrome 탭으로 각
+      # 버튼이 자기 입력의 파일 선택 창을 여는지, 확인하기 전에는 전송되지
+      # 않는지, 세로·가로·정사각형 사진과 긴 파일명 미리보기가 화면 안에
+      # 들어오는지 375·390x844(라이트·다크)·412·데스크톱에서 확인하고,
+      # 결론 배너 5단계의 글자 대비(WCAG AA)를 라이트·다크에서 잰다(실기기 아님).
+      - name: Validate 진위확인 photo library, camera, preview and result banner
+        run: |
+          node scripts/validate_scam_shield_photo_picker_01.mjs
+          node scripts/validate_scam_shield_result_banner_contrast_01.mjs
+
+      # 로그인하지 않은 진위확인 로그인 안내의 로그인하고 확인하기·취소·× 글자와
+      # 테두리 대비를 360/375/390/412/1280, 라이트·다크·시스템(전환 포함)에서
+      # 보통·hover·눌림·포커스·비활성 상태로 재고, 취소·×·뒤로가기·로그인 동작과
+      # 모바일 헤더 로그인 대비를 확인한다(실기기 아님).
+      - name: Validate 진위확인 login gate buttons in light and dark
+        run: node scripts/validate_scam_shield_login_gate_contrast_01.mjs
+
+      # 다크·시스템다크 입력창 안 흰 사각형(텍스트칸 포커스 링) 0건과 둥근 입력창
+      # 포커스 표시, 헤더 로그인·회원가입 대비·크기·겹침·이동, 답변 공유 메뉴의
+      # 카카오톡 공유하기(첫 줄·보내는 내용 안내·탭 안 SDK 호출·실패 안내)와
+      # 링크 복사를 320~412·Fold·1280, 라이트·다크·시스템에서 확인한다(실기기 아님).
+      - name: Validate chat composer Dark, header auth buttons and KakaoTalk Share
+        run: node scripts/validate_chat_dark_login_kakao_share_01.mjs
 
       - name: Validate Production Core CORS contract
         shell: bash
@@ -704,8 +842,23 @@ jobs:
 
           curl --fail --silent --show-error --head 'http://127.0.0.1:4173/.well-known/apple-app-site-association' \
             | tr -d '\r' | grep --ignore-case --quiet '^Content-Type: application/json'
+          for path in /avatar-runtime/runtime/controller.mjs '/avatar-runtime/runtime/faithful-binding.mjs?v=smoke' /avatar-runtime/runtime/refinement.mjs /site-avatar.js; do
+            curl --fail --silent --show-error --head "http://127.0.0.1:4173${path}" \
+              | tr -d '\r' | grep --ignore-case --quiet --extended-regexp '^Content-Type: (application|text)/javascript' \
+              || { echo "module script ${path} must be served as JavaScript" >&2; exit 1; }
+          done
           unknown_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' 'http://127.0.0.1:4173/not-a-real-static-path')"
           [[ "$unknown_status" == '404' ]] || { echo "unrelated static path must remain 404, got $unknown_status" >&2; exit 1; }
 
           callback_url="$(curl --silent --show-error --location --output /dev/null --write-out '%{url_effective}' 'http://127.0.0.1:4173/auth/callback?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss')"
           [[ "$callback_url" == *'/auth/callback/?code='*'&state='* ]] || { echo "callback redirect did not preserve code/state query: $callback_url" >&2; exit 1; }
+
+          # AUTH-SESSION-CONTINUITY-P0-02 — documents revalidate, login callback/start are never stored, assets unchanged.
+          cache_control() { curl --silent --show-error --head "http://127.0.0.1:4173$1" | tr -d '\r' | awk 'tolower($1)=="cache-control:"{print $2}'; }
+          for path in '/auth/callback/' '/auth/callback/?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss' '/auth/start/'; do
+            [[ "$(cache_control "$path")" == 'no-store' ]] || { echo "${path} must be Cache-Control: no-store" >&2; exit 1; }
+          done
+          for path in '/' '/index.html' '/terms' '/site-asset-version.json'; do
+            [[ "$(cache_control "$path")" == 'no-cache' ]] || { echo "${path} must be Cache-Control: no-cache" >&2; exit 1; }
+          done
+          [[ -z "$(cache_control '/site-auth.js')" ]] || { echo "versioned scripts keep their caching" >&2; exit 1; }
