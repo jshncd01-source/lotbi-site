@@ -1,44 +1,49 @@
 READY_FOR_DEPLOY=YES
+SUPERSEDES=320b9dfc
+USER_DECISION_NEEDED=NONE
 
-# 유치원 공식정보 (유치원알리미) — 생활정보 → 유치원·학교 (Site)
+# 유치원 공식정보 (유치원알리미) — 생활정보 → 유치원·학교 (Site) — main fa6ed88d 재병합
 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/kindergarten-official-info-01-site
 FEATURE_SHA=이 문서 커밋(branch HEAD). 문서에는 자기 SHA를 넣을 수 없으므로 `git ls-remote`로 확인한다.
-CODE_SHA=2b66fc26 (최신 main c311be85 정상 merge 커밋; 토큰 외 충돌 index.html·auth/callback/index.html 스타일 목록 = main 목록 + site-life-education.css 한 줄, site-conversation.js = main 그대로)
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=c311be85f2bc1359f20323a1435bde5b9342ee9a (SITE-T30; 개발 시작 82a8874e, push 직전 ls-remote 재확인)
-ASSET_VERSION=aset-525861fa37b7 (scripts/asset_cache_version.mjs --check PASS)
-TEST_STATUS=새 검증 scripts/validate_kindergarten_official_info_01.mjs 32 checks PASS(실제 Chrome 360/375/390/412/1280, 라이트·다크, 44px·가로넘침·대비, Core 꺼짐 상태 양식) / site-review.yml 145개 실행(main 82a8874e merge 트리): 첫 실행 128 PASS, 실패 17개는 feature·baseline(main 82a8874e) 단독 재실행으로 비교 / main c311be85 merge 뒤 재확인 PASS: kindergarten·life_medical_category_entry·life_info_cleanup_final·site_refresh_route_restore(Chrome), consumer_sections_02·auth_continuity_02·festival_nav_wiring·life_detail_design·life_neis_school, validate_site·home_chat·hardening·accessibility·clean_urls, asset check
-NEW_FAILURES=0 — 찾은 신규 실패 2개는 이 branch에서 고쳤다(validate_life_medical_category_entry_01의 카드 4개 가정, validate_auth_continuity_02의 콜백 스타일시트 목록). 남은 실패는 baseline main에서도 같은 Windows 로컬 기존 RED: validate_profile_menu_personal_theme_01, validate_sticky_topbar_01, validate_mobile_footer_legal_sheet_01, validate_site_avatar_fallback_runtime, validate_calendar_system_dark_01, validate_place_card_compact_01, validate_auth_unknown_recovery_browser_01, validate_image_attachment_thumbnail_01, validate_composer_auto_grow. 실행마다 결과가 바뀐 부하성: validate_conversation_message_ux_final_01·validate_message_calendar_footer_editor_01(baseline 실패·feature PASS), validate_sidebar_viewports_04(부하 시 양쪽 spawnSync ETIMEDOUT, 첫 실행 feature PASS).
+CODE_SHA=1f84889f (main fa6ed88d 정상 merge 커밋)
+SUPERSEDES_REASON=배포총괄방 재병합 요청(2026-10-09 08:52): 320b9dfc를 main fa6ed88d(온누리 Site·SafeCare 다크·등록 취소·모바일 주간 달력·다크 입력창·카카오 공유 포함)에 합치면 생활정보 카드 줄과 validator 3개가 실제로 충돌했다.
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=fa6ed88d3608536050de0fb56136ae9b920a4c55 (SITE-T36; 정상 merge 1f84889f, rebase·force push 없음; push 직전 ls-remote 재확인)
+ASSET_VERSION=aset-e954a2fabbb1 (scripts/asset_cache_version.mjs --check PASS)
+CORE_PAIR=lotbi-core feature/kindergarten-official-info-01-core bc737011 — 이미 Production 반영(KINDERGARTEN_OPENAPI_ENABLED=false, 기능 꺼짐)
+TEST_STATUS=scripts/validate_* 전체 238개(재병합 트리 1f84889f, 실제 Chrome 포함) 233 PASS·5 FAIL / 핵심 단독 PASS: validate_onnuri_merchant_search_01, validate_kindergarten_official_info_01(32 checks, 360/375/390/412/1280 라이트·다크), validate_life_info_cleanup_final_01(카드 6개), validate_life_medical_category_entry_01(카드 6개 빈 칸 없음), validate_consumer_sections_02, validate_auth_continuity_02, validate_festival_nav_wiring_01, validate_life_detail_design_01 / asset check PASS
+NEW_FAILURES=0 — 실패 5개 중 4개(validate_calendar_touch_monthnav_daysheet_01, validate_image_attachment_thumbnail_01, validate_mobile_footer_legal_sheet_01, validate_site_avatar_fallback_runtime)는 baseline main fa6ed88d에서도 같은 실패(Windows 로컬 기존 RED). validate_calendar_weather_attribution_01은 순차 실행 중 1회 모듈 로드 실패, 단독 재실행 2회 PASS(부하성).
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 NEW_SECRET_CREATED=NO
-DEPENDENCIES=Core feature/kindergarten-official-info-01-core(새 GET /v2/life/kindergartens{,/regions,/detail} + Site CORS)
-DEPLOY_ORDER=CORE → SITE (Site 먼저면 유치원 탭이 "불러오지 못했어요"를 보인다)
+DEPLOY_ORDER=SITE 단독 (짝 Core는 이미 Production)
 PRODUCTION_FLAG_EFFECT=Core KINDERGARTEN_OPENAPI_ENABLED=false인 동안 유치원 탭은 "유치원 공식정보 연결을 준비하고 있어요" 안내 + 지역·유치원 이름 양식 → 입력창에 "<지역> <이름>유치원 알려줘"(기존 기관 기본정보 답, 공시 자료 아님 표시). 학교 탭은 바로 동작한다. ENABLED=true가 되면 Site 재배포 없이 공시 화면으로 바뀐다.
-USER_DECISION_NEEDED=NONE (Core 쪽 인증키 교체·ENABLED 승인은 Core READY 문서 참조)
+USER_DECISION_NOTE=유치원알리미 인증키 교체·Render KINDERGARTEN_OPENAPI_KEY·ENABLED 공개 여부는 Core 활성화 결정이고 이 Site 배포와는 별개다.
 
-## 변경 요약
+## 재병합 해결 내용 (main fa6ed88d)
 
-- 생활정보 다섯 번째 카드 "유치원·학교"(맨 끝). 홀수 개 마지막 카드는 한 줄 전체를 쓴다(빈 칸 없음). 새 route 없음, site-conversation.js 변경 없음.
-- 학교 탭: 학교 이름 + [학교 기본정보 / 오늘 급식 / 이번 주 급식 / 학사일정] → 대화 입력창에 질문만 넣는다(기존 NEIS 답변). 이름 없이 급식·학사일정은 대화의 저장 학교를 쓰고, 이름 없는 기본정보는 이름을 요청한다. 저장 학교 키(life-school)는 읽지도 바꾸지도 않는다.
-- 유치원 탭(유치원알리미 공시)
-  - 지역: 유치원알리미 시도·시군구 코드표(16 시도, 261 시군구). 기본값 = 내 유치원 → 마지막 선택 지역 → 캘린더에 저장한 지역. 다른 지역도 고를 수 있다.
-  - 이름(일부)·설립유형(전체/공립/사립/국립)으로 목록 → 카드: 이름, 설립유형, 주소, 운영시간·정원·원아.
-  - 상세 첫 화면: 설립유형, 주소, 연락처(tel:), 운영시간, 학급·정원·원아, 홈페이지(http/https만, 새 창 noopener), 공시 기준(공시차수 · 교육부 유치원알리미).
-  - 상세 공시(펼침): 통학차량, 급식운영, 방과후 과정, 교직원, 수업일수, 안전·환경위생, 건물·교실, 보험·공제회 — 각 공시차수. 공시 없음 / 권한 없음 / 지금 조회 실패를 구분해 쓰고 채워 넣지 않는다.
-  - 출처 + 조회일, "어린이집은 유치원알리미 공시 대상이 아니에요", 학비는 Open API에 없어 말하지 않는다는 안내.
-  - 내 유치원: 계정별 별도 키 `lotbi.site.ux.v1.life-kindergarten.<계정|guest>`(kinderCode·sggCode·이름·지역만). 상세에서 설정/해제, 목록 위에 카드.
-- Core 요청은 GET, credentials omit, Accept JSON만. innerHTML 없음.
+- `site-consumer-sections.js`: 온누리 쪽 아이콘 줄(`item.brandSlot ? brandSlot(...) : icon(...)`)과 `item.id === 'onnuri' ? onOnnuri?.()`를 그대로 두고 `item.id === 'education' ? openEducation(item)`를 더했다. LIFE_SHORTCUTS는 자동 병합으로 hospital, pharmacy, festivals, onnuri, local, education (카드 6개).
+- `index.html`, `auth/callback/index.html`: main 스타일시트 목록(site-person-bulk.css, site-life-onnuri.css 포함) + site-life-education.css 한 줄.
+- validator 3개: 두 쪽 검사를 모두 유지, 완화·삭제 없음.
+  - `validate_consumer_sections_02`: 라벨 6개, id 6개, prompt 예외 = festivals·onnuri·education.
+  - `validate_life_info_cleanup_final_01`: id 목록 6개, 상세 순회 제외는 main 그대로(festivals·onnuri; education 상세는 순회되어 돌아오기 확인).
+  - `validate_life_medical_category_entry_01`: 라벨 6개(2곳), 온누리의 brandSlot·gridColumn spansRow probe와 아이콘 검사 유지, 같은 폭 검사는 "여러 열일 때만 줄 전체 카드 제외"(더 엄격한 쪽), 생활정보 홈 대기 조건을 카드 6개로.
+- 이 branch가 토큰만 바꿨던 `site-conversation.js`, `site-person-ui.js`, `site-read-aloud-controller.js`는 main 내용 그대로.
+- asset 토큰 재계산.
+
+## 변경 요약 (기능)
+
+- 생활정보 카드 "유치원·학교"(맨 끝). 홀수 개일 때 마지막 카드가 한 줄을 쓰는 규칙은 site-life-onnuri.css와 site-life-education.css에 같이 있다(지금 6개라 적용 안 됨). 새 route 없음.
+- 학교 탭: 학교 이름 + [학교 기본정보 / 오늘 급식 / 이번 주 급식 / 학사일정] → 대화 입력창에 질문만 넣는다(기존 NEIS 답변). 저장 학교 키(life-school)는 읽지도 바꾸지도 않는다.
+- 유치원 탭(유치원알리미 공시): 시도·시군구 코드표 → 이름·설립유형 → 목록 → 상세(설립유형·주소·연락처·운영시간·학급·정원·원아·홈페이지·공시 기준 + 상세 공시 8개, 공시차수, 출처·조회일). 학비는 말하지 않는다. 내 유치원은 계정별 별도 키.
+- Core 요청은 GET, credentials omit. innerHTML 없음.
 
 ## MERGE_NOTES
 
-- 온누리상품권 개발방(feature/onnuri-merchant-search-01-site, 아직 push 전)이 같은 LIFE_SHORTCUTS·클릭 줄·검사기 3개를 고친다. 합의한 합친 모양:
-  - LIFE_SHORTCUTS: hospital, pharmacy, festivals, onnuri, local, education
-  - 클릭: `item.id === 'festivals' ? onFestival() : item.id === 'onnuri' ? onOnnuri?.() : item.id === 'education' ? openEducation(item) : openLifeDetail(item)`; 아이콘 줄은 온누리의 brandSlot 줄을 쓴다.
-  - 검사기 라벨/id 목록 끝에 '유치원·학교'/'education', 개수 6. validate_life_medical_category_entry_01의 spansRow는 둘 중 한 구현만 남긴다(폭 비교 / gridColumnStart·End, 결과 같음). 홀수 카드 CSS 규칙은 두 CSS 파일에 중복돼도 무해.
+- 의료 자동검색 카드(b1dfbece, CMD_SITE_LIFE_MEDICAL_AUTO_SEARCH_CARD_REMERGE_02)도 같은 칸·같은 validator를 바꾼다. 나중에 들어가는 쪽이 새 main에 한 번 더 병합한다.
 - asset 토큰 충돌은 `node scripts/asset_cache_version.mjs --write`로 다시 만든다.
 
 ## POST_DEPLOY_SMOKE
 
-lotbiai.com → 생활정보 → 유치원·학교. Core ENABLED=false: 유치원 탭 "준비 중" 안내, 학교 탭 [이번 주 급식] → 입력창 "OO초 이번 주 급식 알려줘". Core ENABLED=true 이후: 전북특별자치도 → 전주시 덕진구 → "예일" → 예일유치원 상세(정원 253·원아 208 등은 공시차수에 따라 바뀜), 상세 공시 8개, 내 유치원 설정/해제. 모바일 실기기(iPhone Safari·Android Chrome) 확인은 아직 하지 않았다(뷰포트 에뮬레이션만).
+lotbiai.com → 생활정보: 카드 6개(온누리상품권·유치원·학교 포함). 온누리상품권 카드 → 온누리 화면. 유치원·학교 → 유치원 탭 "준비 중" 안내 + 양식(Core ENABLED=false), 학교 탭 [이번 주 급식] → 입력창 "OO초 이번 주 급식 알려줘". 모바일 실기기(iPhone Safari·Android Chrome) 확인은 하지 않았다(뷰포트 에뮬레이션만).
