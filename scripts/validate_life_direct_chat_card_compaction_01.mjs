@@ -20,6 +20,8 @@
 //   I/J phone action unchanged; the map action follows the map app chosen in
 //     settings (cookie read by the existing helper), default unchanged.
 //   K tapping the composer focuses it - only then.
+//   L dark (다크 in settings): the same one-tap ask; the form button, its
+//     note and the photo-less cards' text keep readable contrast.
 // This is a browser emulation, not an iPhone or Android device.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -126,12 +128,16 @@ setTimeout(() => { if (out.textContent === 'pending') fail('watchdog'); }, 80000
 const params = new URLSearchParams(location.search);
 const PHASE = params.get('phase') || 'hospital';
 const MAP = params.get('map') || '';
+const DARK = params.get('dark') === '1';
 const log = JSON.parse(sessionStorage.getItem('ld-log') || '[]');
 const remember = entry => { log.push(entry); sessionStorage.setItem('ld-log', JSON.stringify(log)); };
 try {
   if (PHASE !== 'reload') { localStorage.clear(); sessionStorage.removeItem('ld-log'); log.length = 0; }
   document.cookie = 'lotbi_default_map_provider_v1=; Path=/; Max-Age=0';
   if (MAP) document.cookie = 'lotbi_default_map_provider_v1=' + MAP + '; Path=/';
+  // Dark: the person chose 다크 in settings (the shared theme cookie).
+  document.cookie = 'lotbi_theme_preference_v1=; Path=/; Max-Age=0';
+  if (DARK) document.cookie = 'lotbi_theme_preference_v1=dark; Path=/';
   // Location use is on by default; the browser grants a position in 전주.
   Object.defineProperty(navigator, 'permissions', {configurable: true, value: {query: async () => ({state: 'granted', onchange: null, addEventListener() {}, removeEventListener() {}})}});
   Object.defineProperty(navigator, 'geolocation', {configurable: true, value: {
@@ -203,6 +209,11 @@ try {
     throw new Error('timeout ' + label);
   };
   const box = node => { if (!node) return null; const r = node.getBoundingClientRect(); return {x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), right: Math.round(r.right), bottom: Math.round(r.bottom)}; };
+  // Text contrast against the first opaque background behind it (WCAG).
+  const rgb = value => (String(value).match(/[\\d.]+/g) || []).map(Number);
+  const lum = ([r, g, b]) => { const f = c => { c /= 255; return c <= .03928 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4); }; return .2126 * f(r) + .7152 * f(g) + .0722 * f(b); };
+  const bgOf = node => { for (let el = node; el; el = el.parentElement) { const c = rgb(getComputedStyle(el).backgroundColor); if (c.length === 3 || (c.length === 4 && c[3] > .5)) return c.slice(0, 3); } return [255, 255, 255]; };
+  const contrast = node => { if (!node) return null; const [a, b] = [lum(rgb(getComputedStyle(node).color).slice(0, 3)), lum(bgOf(node))].sort((x, y) => y - x); return Math.round((a + .05) / (b + .05) * 100) / 100; };
   const assistants = () => [...document.querySelectorAll('.chat-message-assistant:not(.chat-message-loading)')];
   const users = () => [...document.querySelectorAll('.chat-message-user .chat-message-body')].map(n => n.innerText.trim());
   const mine = () => log.filter(item => item.phase === PHASE);
@@ -233,6 +244,11 @@ try {
     const item = PHASE === 'pharmacy' ? 'pharmacy' : PHASE === 'local' ? 'local' : 'hospital';
     const form = await openLife(item);
     result.buttonLabel = submitButton(form).textContent;
+    result.theme = document.body.dataset.siteTheme || '';
+    result.formContrast = {
+      button: contrast(submitButton(form)),
+      note: contrast(form.closest('.consumer-life-detail')?.querySelector('.consumer-feature-note')),
+    };
     if (item === 'local') {
       const [where, what] = form.querySelectorAll('input');
       typeInto(where, '전주시 덕진구'); typeInto(what, '쓰레기 배출일');
@@ -274,6 +290,12 @@ try {
           ...measureCard(center), rail: box(rail),
           arrowOverText: arrows.some(a => texts.some(t => overlaps(a, t))),
           arrowOverIcon: arrows.some(a => icons.some(i => overlaps(a, i))),
+          contrast: {
+            title: contrast(center.querySelector('.lotbi-rich-card-title')),
+            source: contrast(center.querySelector('.lotbi-rich-card-source')),
+            address: contrast(center.querySelector('.lotbi-rich-card-price')),
+            medical: contrast(center.querySelector('.lotbi-place-medical-line')),
+          },
         });
         rail.querySelector('.lotbi-place-orbit-control-next')?.click();
       }
@@ -509,6 +531,22 @@ try {
         assert.ok(noPhoto.cards.every(card => !card.hasMedia), `${label}: no media box on any card`);
         assert.ok(noPhoto.rail.h <= Math.round(hospital.rail.h * 0.7), `${label}: no-photo list is compact (${noPhoto.rail.h} vs ${hospital.rail.h})`);
         if (!map) summary.push(`${label}: photo rail ${hospital.rail.h}px → no-photo rail ${noPhoto.rail.h}px, no-photo card ${noPhotoCard.card.h}px vs photo card ${photoCard.card.h}px`);
+      }
+
+      // Dark (다크 chosen in settings): the same one-tap ask, and the form and
+      // the cards without a photo stay readable.
+      const dark = await runPhase(devtools, page('phase=nophoto&dark=1'), `${label}/nophoto/dark`);
+      console.log(`LIFE_DIRECT_CHAT ${label} dark`, JSON.stringify({theme: dark.theme, form: dark.formContrast, cards: dark.cards.map(card => card.contrast), lightForm: hospital.formContrast, lightCards: hospital.cards.map(card => card.contrast)}));
+      assert.equal(dark.theme, 'dark', `${label}: dark theme applied`);
+      assertOneDirectAsk(dark, `${label}/dark`, '전주 효자동에서 지금 진료하는 병원 알려줘');
+      assertCards(dark, `${label}/dark`, testCase, {photo: false});
+      assert.ok(dark.formContrast.button >= 4.5, `${label}: dark 바로 찾기 contrast ${dark.formContrast.button}`);
+      assert.ok(dark.formContrast.note >= 4.5, `${label}: dark form note contrast ${dark.formContrast.note}`);
+      for (const [index, card] of dark.cards.entries()) {
+        for (const key of ['title', 'address', 'medical']) {
+          if (card.contrast[key] !== null) assert.ok(card.contrast[key] >= 4.5, `${label}: dark card ${index} ${key} contrast ${card.contrast[key]}`);
+        }
+        assert.ok(card.contrast.source >= 3, `${label}: dark card ${index} category contrast ${card.contrast.source}`);
       }
 
       if (label === '390') {
