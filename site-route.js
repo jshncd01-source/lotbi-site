@@ -14,7 +14,7 @@
 // This table is the only list of routes: the parser, the URL builder, the
 // login return allowlist (site-auth.js) and the conversation's openers
 // (site-conversation.js) all read it.
-import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-64e669944e50';
+import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-9e8e7b1bf0e5';
 
 export const SITE_ROUTES = Object.freeze([
   'calendar',
@@ -24,6 +24,10 @@ export const SITE_ROUTES = Object.freeze([
   'pets',
   'life',
   'festival',
+  // REAL-ESTATE-REGION-FAVORITES-P0: 지역정보 → 부동산 실거래가 (back → life) and
+  // one apartment's contracts inside it (back → real-estate).
+  'real-estate',
+  'real-estate-apartment',
   ...(LOTBI_BOX_UI_ENABLED ? ['lotbi-box'] : []),
 ]);
 

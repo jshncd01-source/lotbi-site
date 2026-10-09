@@ -1,0 +1,98 @@
+/* REAL-ESTATE-REGION-FAVORITES-P0 — 지역정보 → 부동산 실거래가 (site-life-real-estate.js).
+   Theme tokens only, so light/dark/system follow the site theme. A compact
+   list (one row per complex, never one big card per screen), touch targets
+   ≥ 44px, no sideways scroll down to 360px. */
+.lotbi-re { display: grid; gap: 14px; min-width: 0; }
+.lotbi-re[hidden], .lotbi-re [hidden] { display: none !important; }
+.lotbi-re-title { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
+.lotbi-re-title:focus, .lotbi-re-detail-title:focus { outline: none; }
+.lotbi-re-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--lotbi-border-default); border-radius: 12px; overflow: hidden; }
+.lotbi-re-tab { min-height: 46px; padding: 0 12px; border: 0; background: transparent; color: var(--lotbi-text-secondary); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+.lotbi-re-tab + .lotbi-re-tab { border-left: 1px solid var(--lotbi-border-default); }
+.lotbi-re-tab[aria-selected="true"] { background: var(--lotbi-selected-bg); color: var(--lotbi-selected-text); }
+.lotbi-re-panel { display: grid; gap: 12px; min-width: 0; }
+.lotbi-re-region { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 14px; border: 1px solid var(--lotbi-border-default); border-radius: 12px; }
+.lotbi-re-legend { padding: 0 4px; font-size: 15px; font-weight: 700; }
+.lotbi-re-selects { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; min-width: 0; }
+.lotbi-re-field { display: grid; gap: 4px; min-width: 0; }
+.lotbi-re-field-label { color: var(--lotbi-text-secondary); font-size: 13px; }
+.lotbi-re select,
+.lotbi-re input[type="search"] { box-sizing: border-box; width: 100%; min-width: 0; min-height: 46px; padding: 10px 12px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font: inherit; font-size: 16px; }
+.lotbi-re select:disabled { color: var(--lotbi-text-disabled); }
+.lotbi-re-region-status { margin: 0; color: var(--lotbi-text-secondary); font-size: 14px; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+.lotbi-re-region-status:empty { display: none; }
+.lotbi-re-location { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.lotbi-re-location:has(> :not([hidden])) { min-height: 44px; }
+.lotbi-re-locate { min-height: 44px; }
+.lotbi-re-settings, .lotbi-re-login { color: var(--lotbi-link-primary); font-size: 14px; }
+.lotbi-re-region-search { display: grid; gap: 6px; }
+.lotbi-re-region-results { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.lotbi-re-region-results:empty { display: none; }
+.lotbi-re-region-hit { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-subtle); color: var(--lotbi-text-primary); font: inherit; font-size: 15px; text-align: left; cursor: pointer; word-break: keep-all; overflow-wrap: anywhere; }
+.lotbi-re-region-empty { color: var(--lotbi-text-secondary); font-size: 14px; }
+.lotbi-re-filters { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.lotbi-re-deals { display: flex; flex-wrap: wrap; gap: 8px; }
+.lotbi-re-deal { min-height: 44px; min-width: 64px; padding: 0 16px; border: 1px solid var(--lotbi-border-default); border-radius: 999px; background: transparent; color: var(--lotbi-text-primary); font: inherit; font-size: 15px; cursor: pointer; }
+.lotbi-re-deal[aria-pressed="true"] { border-color: var(--lotbi-text-primary); background: var(--lotbi-text-primary); color: var(--lotbi-surface-primary); font-weight: 600; }
+.lotbi-re-period { width: auto; }
+.lotbi-re-name { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.lotbi-re-name-submit { min-height: 46px; }
+.lotbi-re-basis { margin: 0; color: var(--lotbi-text-secondary); font-size: 14px; word-break: keep-all; overflow-wrap: anywhere; }
+.lotbi-re-basis:empty { display: none; }
+.lotbi-re-list { margin: 0; padding: 0; list-style: none; }
+.lotbi-re-list:empty { display: none; }
+.lotbi-re-row { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--lotbi-border-default); }
+.lotbi-re-row:last-child { border-bottom: 1px solid var(--lotbi-border-default); }
+.lotbi-re-row-main { display: flex; flex: 1 1 auto; min-width: 0; min-height: 64px; padding: 12px 2px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.lotbi-re-row-main:hover { background: var(--lotbi-surface-hover); }
+.lotbi-re-row-copy { display: grid; gap: 3px; min-width: 0; }
+.lotbi-re-row-name { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 16px; font-weight: 600; line-height: 1.4; word-break: keep-all; overflow-wrap: anywhere; }
+.lotbi-re-row-address { color: var(--lotbi-text-secondary); font-size: 13px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lotbi-re-row-deal { color: var(--lotbi-text-primary); font-size: 14px; line-height: 1.45; word-break: keep-all; overflow-wrap: anywhere; }
+.lotbi-re-row-deal:empty { display: none; }
+.lotbi-re-heart { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--lotbi-error-text); font-size: 22px; line-height: 1; cursor: pointer; }
+.lotbi-re-heart[aria-pressed="false"] { color: var(--lotbi-text-secondary); }
+.lotbi-re-heart:hover { background: var(--lotbi-surface-hover); }
+.lotbi-re-heart:disabled { opacity: .6; cursor: progress; }
+.lotbi-re-remove { flex: 0 0 auto; min-height: 44px; padding: 0 12px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: transparent; color: var(--lotbi-text-primary); font: inherit; font-size: 14px; cursor: pointer; }
+.lotbi-re-more, .lotbi-re-retry { justify-self: start; min-height: 44px; }
+.lotbi-re-status { margin: 0; color: var(--lotbi-text-secondary); font-size: 14px; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+.lotbi-re-status:empty { display: none; }
+.lotbi-re-notice { margin: 0; color: var(--lotbi-text-muted); font-size: 12px; line-height: 1.5; }
+.lotbi-re-notice:empty { display: none; }
+.lotbi-re-fav-note { margin: 0; color: var(--lotbi-text-secondary); font-size: 14px; line-height: 1.5; }
+.lotbi-re-migrate { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--lotbi-border-default); border-radius: 12px; background: var(--lotbi-surface-subtle); }
+.lotbi-re-migrate p { margin: 0; font-size: 14px; line-height: 1.5; }
+.lotbi-re-migrate-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lotbi-re-migrate-actions button { min-height: 44px; }
+.lotbi-re-detail { display: grid; gap: 10px; min-width: 0; }
+.lotbi-re-detail-back { justify-self: start; min-height: 44px; }
+.lotbi-re-detail-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lotbi-re-detail-title { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 20px; font-weight: 700; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
+.lotbi-re-detail-address, .lotbi-re-detail-meta { margin: 0; color: var(--lotbi-text-secondary); font-size: 14px; word-break: keep-all; overflow-wrap: anywhere; }
+.lotbi-re-detail-meta:empty { display: none; }
+.lotbi-re-map { display: grid; gap: 4px; }
+.lotbi-re-map:empty { display: none; }
+.lotbi-re-map-link { display: inline-flex; align-items: center; gap: 8px; justify-self: start; min-height: 44px; padding: 0 14px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; color: var(--lotbi-text-primary); font-size: 15px; text-decoration: none; }
+.lotbi-re-map-icon { width: 24px; height: 24px; border-radius: 6px; }
+.lotbi-re-map-note { margin: 0; color: var(--lotbi-text-muted); font-size: 12px; }
+.lotbi-re-deal-section { display: grid; gap: 6px; }
+.lotbi-re-deal-title { margin: 8px 0 0; font-size: 16px; font-weight: 700; }
+.lotbi-re-deal-list { margin: 0; padding: 0; list-style: none; }
+.lotbi-re-deal-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 10px 2px; border-top: 1px solid var(--lotbi-border-default); }
+.lotbi-re-deal-row:last-child { border-bottom: 1px solid var(--lotbi-border-default); }
+.lotbi-re-deal-row[data-re-cancelled="true"] .lotbi-re-deal-price { color: var(--lotbi-text-muted); text-decoration: line-through; }
+.lotbi-re-deal-price { font-size: 16px; font-weight: 700; }
+.lotbi-re-deal-meta { color: var(--lotbi-text-secondary); font-size: 13px; word-break: keep-all; overflow-wrap: anywhere; }
+.lotbi-re-deal-empty { padding: 10px 2px; color: var(--lotbi-text-secondary); font-size: 14px; }
+.lotbi-re-badge { padding: 2px 8px; border: 1px solid var(--lotbi-warning-text); border-radius: 999px; color: var(--lotbi-warning-text); font-size: 12px; font-weight: 600; }
+.lotbi-re button:focus-visible,
+.lotbi-re a:focus-visible,
+.lotbi-re select:focus-visible,
+.lotbi-re input:focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 2px; }
+@media (max-width: 600px) {
+  .lotbi-re-region { padding: 12px; }
+  .lotbi-re-filters { grid-template-columns: minmax(0, 1fr); }
+  .lotbi-re-period { width: 100%; }
+  .lotbi-re-deal { flex: 1 1 0; min-width: 0; padding: 0 8px; }
+}

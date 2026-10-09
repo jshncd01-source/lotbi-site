@@ -772,6 +772,12 @@ jobs:
       - name: Validate regional news (지역정보 · 지역뉴스)
         run: node scripts/validate_regional_news_p0_01.mjs
 
+      # 지역정보 → 부동산 실거래가: 현재 위치 → 법정동(확인된 단계까지), 시·도/시·군·구/읍·면·동
+      # 수동 선택 유지, 매매·전세·월세, 이름 검색, 빈 결과·장애 안내, 상세·기본 지도앱(핀 없음),
+      # ♡/♥ 관심 아파트(기기·계정, 계정 격리), 뒤로가기(시스템·←·Escape). Core는 mock.
+      - name: Validate real-estate prices and favorites (지역정보 · 부동산 실거래가)
+        run: node scripts/validate_real_estate_region_favorites_p0.mjs
+
       # 진위확인 사진·스크린샷 선택은 카메라를 강제하지 않고(capture 없음),
       # 카메라로 촬영만 capture="environment"를 쓴다. 실제 Chrome 탭으로 각
       # 버튼이 자기 입력의 파일 선택 창을 여는지, 확인하기 전에는 전송되지
