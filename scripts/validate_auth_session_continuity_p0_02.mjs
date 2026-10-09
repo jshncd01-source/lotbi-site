@@ -162,7 +162,10 @@ const showSignedOut = continuity.slice(continuity.indexOf('function showAccountS
 assert.match(showSignedOut, /markAnonymousAccountUi\(\);/u);
 assert.doesNotMatch(continuity, /sessionStorage|localStorage/u, 'continuity never stores a session');
 assert.match(conversation, /registerSiteSessionAdopter\(session => \{/u);
-assert.equal((conversation.match(/sessionToken = undefined;/g) || []).length, 2, 'only dropSessionToken() and explicit logout clear the Site bearer');
+assert.equal((conversation.match(/sessionToken = undefined;/g) || []).length, 4, 'dropSessionToken(), explicit logout and the two send-path catches clear the Site bearer');
+assert.equal((conversation.match(/dropSessionToken\(\);/g) || []).length, 5, 'every other Core refusal asks for an in-place renewal');
+// The send path keeps its original contract; its Core 401/403 is announced by site-core.js and restored in place.
+assert.match(read('site-core.js'), /function announceInvalidSiteSession\(error\) \{\s*if \(!\(error instanceof SiteCoreError\) \|\| \(error.status !== 401 && error.status !== 403\)\) return;/u);
 assert.match(conversation, /const dropSessionToken = \(\) => \{\s*if \(!sessionToken\) return;\s*sessionToken = undefined;\s*window\.dispatchEvent\(new CustomEvent\(SITE_SESSION_RENEWAL_REQUEST_EVENT\)\);/u);
 assert.doesNotMatch(conversation, /SESSION_STATE_EVENT, \{detail: \{[^}]*sessionToken/u, 'the bearer never travels on a window event');
 assert.match(callback, /showCallbackError\(callbackErrorMessage\(error\), callbackDiagnosticText\(error\)\)/u);
