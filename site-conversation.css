@@ -875,6 +875,16 @@
   color: #9b2441;
 }
 
+/* AUTH-SESSION-CONTINUITY-P0-02 — one quiet line a screenshot can carry:
+   error code, how many code/state parameters arrived, running asset version. */
+.auth-callback-shell .auth-callback-diagnostic {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  opacity: 0.72;
+  overflow-wrap: anywhere;
+}
+
 .auth-callback-retry {
   margin-top: 20px;
   display: inline-flex;
