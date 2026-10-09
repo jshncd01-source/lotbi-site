@@ -66,16 +66,17 @@ try {
   const holiday = (date, name) => ({date, name, country: 'KR', holiday_type: 'NATIONAL', is_substitute: false, source: 'KASI', source_date: '2026-09-01', verified_at: '2026-09-01T00:00:00Z'});
   const HOLIDAYS = [holiday(month + '03', '공휴일'), holiday(month + '09', '공휴일')];
   const id = (prefix, n) => prefix + String(n).padStart(32, '0');
-  const event = (n, date) => ({
+  const event = (n, date, {recurring = false} = {}) => ({
     projection_id: 'p' + n, activity_id: id('activity_', n), occurrence_id: id('occurrence_', n), title: '기록 ' + n,
     activity_revision: 1, occurrence_revision: 1, local_date: date, local_datetime: null, temporal_kind: 'DATE_ONLY',
     temporal_semantics: 'USER_PLANNED_TIME', busy: 'UNKNOWN', confirmation_level: 'USER_ATTESTED', provider_verified: false,
     reminder_configured: false, source_kind: 'USER_INPUT', allowed_actions: ['UPDATE', 'REMOVE'],
     entry: {amount_minor: null, currency: 'KRW', expense_category: null, memo: null, place: null, merchant: null},
+    ...(recurring ? {occurrence_key: date, series_start: date, recurrence: {frequency: 'WEEKLY', interval: 1, weekdays: [1], until: null}} : {}),
   });
   // Three-plus records on weather days (the widest dot row next to a glyph),
   // on today, and on the leap-month start when there is one.
-  const EVENTS = [1, 2, 3, 4].map(n => event(n, month + '10')).concat([5, 6, 7].map(n => event(n, nowIso.slice(0, 10))), [8, 9, 10].map(n => event(n, month + '23')), [event(11, month + '28')]);
+  const EVENTS = [1, 2, 3, 4].map(n => event(n, month + '10', {recurring: n === 1})).concat([5, 6, 7].map(n => event(n, nowIso.slice(0, 10), {recurring: n === 5})), [8, 9, 10].map(n => event(n, month + '23')), [event(11, month + '28', {recurring: true})]);
   const attention = (n, date) => ({projection_id: 'a' + n, activity_id: id('activity_', 90 + n), occurrence_id: id('occurrence_', 90 + n), title: '기한', due_date: date, state: 'UPCOMING', days_until_due: 2, confirmation_level: 'USER_ATTESTED', provider_verified: false, source_kind: 'USER_INPUT', allowed_actions: ['UPDATE', 'REMOVE']});
   const ATTENTION = [attention(1, month + '10'), attention(2, nowIso.slice(0, 10)), attention(3, month + '23')];
   const j = body => Promise.resolve(new Response(JSON.stringify(body), {status: 200, headers: {'Content-Type': 'application/json'}}));
@@ -129,6 +130,8 @@ try {
     result.lunarCells += 1;
     result.labels[date] = lunarNode.textContent;
     const lunar = rect(lunarNode);
+    const line = lunarNode.parentElement;
+    if (innerWidth >= 360 && !/\.1$/.test(lunarNode.textContent) && getComputedStyle(line).flexWrap !== 'nowrap') result.problems.push(date + ' ordinary lunar line permits wrapping');
     if (!inside(lunar)) result.problems.push(date + ' lunar ' + lunarNode.textContent + ' leaves its cell');
     if (hit(lunar, number)) result.problems.push(date + ' lunar over the number');
     for (const [name, list] of Object.entries(others)) for (const other of list) if (hit(lunar, other)) result.problems.push(date + ' lunar over ' + name);
