@@ -16,11 +16,11 @@
 // link (buildDefaultMapHref) and the approved icon image in
 // /assets/place-actions — the icon always shows the app that actually opens.
 // There is no phone button on a charger card.
-import {CORE_ORIGIN} from './site-core.js?v=aset-0589f64c0dcd';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-0589f64c0dcd';
-import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-0589f64c0dcd';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-0589f64c0dcd';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-0589f64c0dcd';
+import {CORE_ORIGIN} from './site-core.js?v=aset-5a86cfbe26e1';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-5a86cfbe26e1';
+import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-5a86cfbe26e1';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-5a86cfbe26e1';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-5a86cfbe26e1';
 
 export const EV_MENU_LABEL = '전기차 충전소';
 export const EV_SCREEN_TITLE = '내 주변 전기차 충전소';
@@ -265,7 +265,7 @@ export function evMapLink(station, provider, {documentRef = document, userAgent 
   link.title = `${label}에서 길찾기`;
   const image = el('img', 'ev-map-icon', '', documentRef);
   image.src = `${EV_MAP_ICON_BASE}${icon}.png?v=${EV_MAP_ICON_VERSION}`;
-  image.alt = ''; image.width = 32; image.height = 32; image.decoding = 'async'; image.loading = 'lazy';
+  image.alt = ''; image.width = 32; image.height = 32; image.decoding = 'async';
   const fallback = el('span', 'ev-map-fallback', label.split('(')[0], documentRef);
   fallback.hidden = true;
   image.addEventListener('error', () => { image.hidden = true; fallback.hidden = false; }, {once: true});

@@ -323,6 +323,7 @@ const SNAPSHOT = `(() => {
       icon: link?.dataset.mapIcon || '',
       img: image?.getAttribute('src') || '',
       imgLoaded: Boolean(image && image.complete && image.naturalWidth > 0),
+      imgFailed: Boolean(image && image.complete && image.naturalWidth === 0),
       aria: link?.getAttribute('aria-label') || '',
       right: rect.right, width: rect.width,
       linkBox: linkRect ? {w: linkRect.width, h: linkRect.height} : null,
@@ -439,9 +440,12 @@ async function runCase(browser, origin, workDir, testCase) {
       }
       return waitFor(async () => { const s = await snapshot(); return s.lifeVisible && s.hash === '#life' ? s : {ok: false, s}; }, `${label}: 지역정보`);
     };
+    // The map icons are one small cached image; a busy machine may still be
+    // decoding it, so a list is settled once every icon has finished loading.
     const listed = (count, extra = () => true) => waitFor(async () => {
       const s = await snapshot();
-      return s.open && s.hash === '#ev-chargers' && s.items.length === count && !/찾는 중/u.test(s.status) && extra(s) ? s : {ok: false, s: {...s, items: s.items.map(i => i.name)}};
+      const images = s.items.every(item => item.imgLoaded || item.imgFailed);
+      return s.open && s.hash === '#ev-chargers' && s.items.length === count && !/찾는 중/u.test(s.status) && images && extra(s) ? s : {ok: false, s: {...s, items: s.items.map(i => i.name)}};
     }, `${label}: ${count} stations`);
     const settledScreen = predicate => waitFor(async () => { const s = await snapshot(); return s.open && predicate(s) ? s : {ok: false, s: {...s, items: s.items.length}}; }, `${label}: screen state`, 20000);
     const setScenario = value => evaluate(`(() => { localStorage.setItem('__evScenario', ${JSON.stringify(value)}); return true; })()`);
@@ -610,7 +614,7 @@ async function runCase(browser, origin, workDir, testCase) {
       // 6. Location refused: region picker, distances from the place's center.
       await permission('denied');
       await reopenFromUrl();
-      s = await settledScreen(st => st.regionVisible && /위치 권한이 허용되지 않아/u.test(st.locationNote));
+      s = await settledScreen(st => st.regionVisible && /위치 권한이 허용되지 않아/u.test(st.locationNote) && st.log.regions > 0 && !/찾는 중/u.test(st.status));
       await evaluate(`(() => {
         const surface = document.querySelector('[data-site-route="ev-chargers"]');
         const province = surface.querySelector('[data-ev-region="province"]');
@@ -631,7 +635,7 @@ async function runCase(browser, origin, workDir, testCase) {
       // 7. A reload never asks: permission not decided → button + picker, no read.
       await cdp.send('Browser.resetPermissions');
       await reopenFromUrl();
-      s = await settledScreen(st => st.regionVisible && /현재 위치로 찾으려면/u.test(st.locationNote));
+      s = await settledScreen(st => st.regionVisible && /현재 위치로 찾으려면/u.test(st.locationNote) && /시·도와 시·군을 고르면/u.test(st.status));
       await check(`${label}: /#ev-chargers reload with an undecided permission asks nothing`, () => {
         assert.equal(s.log.geo, 0);
         assert.equal(s.log.nearby.length, 0, 'no search until a place is chosen');
@@ -642,7 +646,7 @@ async function runCase(browser, origin, workDir, testCase) {
       await permission('granted');
       await setCookie('lotbi_location_usage_v1', 'off');
       await reopenFromUrl();
-      s = await settledScreen(st => /위치 사용이 꺼져 있어/u.test(st.locationNote));
+      s = await settledScreen(st => /위치 사용이 꺼져 있어/u.test(st.locationNote) && st.regionVisible && st.status !== '');
       await check(`${label}: location use off → settings link, picker, no position read`, () => {
         assert.equal(s.settingsLink, 'https://account.lotbiai.com/account#privacy');
         assert.ok(s.regionVisible);

@@ -9,10 +9,10 @@
 // [위치 허용] shows only while location use is on but not yet allowed. A title
 // opens the article itself; a failed read says so and offers 다시 시도 —
 // nothing old or made up is shown in its place.
-import {CORE_ORIGIN} from './site-core.js?v=aset-0589f64c0dcd';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-0589f64c0dcd';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-0589f64c0dcd';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-0589f64c0dcd';
+import {CORE_ORIGIN} from './site-core.js?v=aset-5a86cfbe26e1';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-5a86cfbe26e1';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-5a86cfbe26e1';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-5a86cfbe26e1';
 
 export const NEWS_PROVINCES = Object.freeze([
   '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시', '세종특별자치시',
