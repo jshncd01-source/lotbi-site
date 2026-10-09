@@ -223,15 +223,24 @@ try {
   // Every call: bearer of its own account, no cookies.
   results.bearerOnly = calls.every(c => ['A', 'B', 'C'].includes(c.me) && c.credentials === 'omit');
 
-  // The wallet screen says when anything goes through the server.
+  // The wallet screen says when anything goes through the server — only while the relay is on.
   const account = 'transfer-wallet-screen';
   const vault = new wallet.LifeWalletVault(new wallet.IndexedDbWalletRepository());
   if (!(await vault.hasVault(account))) await vault.create(account, '0123'); else await vault.unlock(account, '0123');
-  const root = document.createElement('div'); host.replaceChildren(root);
-  const mounted = wallet.mountLifeWallet({root, authenticated: true, accountId: account, sessionExpiresAt: new Date(Date.now() + 3600000).toISOString(), sessionToken: 'tokA', subscription: {plan: 'PLUS'}});
-  await wait(() => root.querySelector('.wallet-storage-share-note'), 'wallet relay note');
-  results.walletScreenNote = root.querySelector('.wallet-storage-share-note').textContent === '공유를 수락한 상대에게 암호화해 전달할 때만 서버를 거칩니다.' && root.textContent.includes('안전하게 이 기기에만 저장됩니다.');
-  mounted.dispose();
+  const mountScreen = async () => {
+    const root = document.createElement('div'); host.replaceChildren(root);
+    const mounted = wallet.mountLifeWallet({root, authenticated: true, accountId: account, sessionExpiresAt: new Date(Date.now() + 3600000).toISOString(), sessionToken: 'tokA', subscription: {plan: 'PLUS'}});
+    const note = await wait(() => { const found = root.querySelector('.wallet-storage-share-note'); return found && found.dataset.walletShareRelay !== 'pending' ? found : null; }, 'wallet relay note');
+    return {root, mounted, note};
+  };
+  transferOn = false;
+  let screenOff = await mountScreen();
+  results.walletScreenNoteOff = screenOff.note.hidden && screenOff.note.dataset.walletShareRelay === 'off' && screenOff.root.textContent.includes('안전하게 이 기기에만 저장됩니다.');
+  screenOff.mounted.dispose();
+  transferOn = true;
+  const screenOn = await mountScreen();
+  results.walletScreenNote = !screenOn.note.hidden && screenOn.note.textContent === '공유를 수락한 상대에게 암호화해 전달할 때만 서버를 거칩니다.' && screenOn.root.textContent.includes('안전하게 이 기기에만 저장됩니다.');
+  screenOn.mounted.dispose();
   window.__result = JSON.stringify({ok: true, results});
 } catch (error) { window.__result = JSON.stringify({ok: false, error: String(error?.stack || error)}); }
 </script></body></html>`;
@@ -242,7 +251,7 @@ const r = result.results;
 for (const key of ['coreVectorOpens', 'coreVectorBindingChecked', 'keyRegisteredOnAccept', 'recipientSafetyCode', 'recipientWaits', 'privateKeySealedInVault',
   'sameSafetyCode', 'reconfirm', 'checkboxEnables', 'uploadShape', 'ciphertextOnly', 'sentState', 'otherKeyCannotOpen', 'viewer', 'freeLimitHolds',
   'keptInOwnWallet', 'receivedCalled', 'receivedState', 'unopenableTakeOver', 'keyMissingMessage', 'revokeDropsCiphertext', 'revokedHasNoOpen',
-  'offSender', 'offRecipient', 'offNoRelayCalls', 'offShareScreenNote', 'onShareScreenNote', 'bearerOnly', 'walletScreenNote']) {
+  'offSender', 'offRecipient', 'offNoRelayCalls', 'offShareScreenNote', 'onShareScreenNote', 'bearerOnly', 'walletScreenNoteOff', 'walletScreenNote']) {
   assert.equal(r[key], true, `${key}: ${JSON.stringify(r)}`);
 }
 console.log('LIFE_WALLET_SHARE_TRANSFER_01 PASS — Core vector opens, key registered on accept (public only, private sealed in vault), re-confirm with matching 보안 확인 번호, ciphertext-only upload, third key cannot open, recipient opens and keeps it (Free limit), saved drops ciphertext, other-device take-over, key missing, revoke drops ciphertext, switch off shows no transfer, wallet screen relay note');

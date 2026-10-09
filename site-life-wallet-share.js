@@ -16,10 +16,10 @@
 // ciphertext only, hands it only to the recipient, and deletes it when the share is revoked,
 // when the recipient has saved it, or after 30 days. Without the switch every screen says the
 // original is not sent.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-ade2514f1dd3';
-import {loadKakaoShareConfig, shareWithKakaoTalk} from './site-kakao-share.js?v=aset-ade2514f1dd3';
-import {captureWalletShareIntent, hasWalletShareIntent, takeWalletShareIntent} from './site-route.js?v=aset-ade2514f1dd3';
-import {sealWalletShareItem, shareSafetyCode} from './site-life-wallet-share-crypto.js?v=aset-ade2514f1dd3';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-bfbcbc7508d2';
+import {loadKakaoShareConfig, shareWithKakaoTalk} from './site-kakao-share.js?v=aset-bfbcbc7508d2';
+import {captureWalletShareIntent, hasWalletShareIntent, takeWalletShareIntent} from './site-route.js?v=aset-bfbcbc7508d2';
+import {sealWalletShareItem, shareSafetyCode} from './site-life-wallet-share-crypto.js?v=aset-bfbcbc7508d2';
 
 const BASE = '/v2/life-wallet/share';
 const QR_VALUE_RE = /^https:\/\/lotbiai\.com\/#wallet-share=qr\.([A-Za-z0-9_-]{24,64})$/u;
@@ -513,5 +513,5 @@ export function createWalletShare({root, sessionToken, wallet = null, onBack, on
     } catch { return 0; }
   }
 
-  return Object.freeze({openHub, openShareItem, handleIntent, pendingCount, dispose: cleanup});
+  return Object.freeze({openHub, openShareItem, handleIntent, pendingCount, transferAvailable: () => transferReady(), dispose: cleanup});
 }

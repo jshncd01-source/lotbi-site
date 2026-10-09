@@ -23,6 +23,7 @@
 .wallet-storage-reassurance { display: grid; gap: 3px; max-width: 680px; }
 .wallet-toolbar .wallet-storage-reassurance strong { font-size: 13px; line-height: 1.5; }
 .wallet-storage-reassurance span { line-height: 1.55; }
+.wallet-storage-share-note[hidden] { display: none; }
 .wallet-settings { position: relative; display: block !important; flex: 0 0 auto !important; }
 .wallet-settings-menu { position: absolute; z-index: 5; top: calc(100% + 8px); right: 0; width: min(280px, calc(100vw - 32px)); display: grid; gap: 6px; padding: 10px; border: 1px solid var(--lotbi-border-default); border-radius: 14px; background: var(--lotbi-surface-primary); box-shadow: 0 14px 36px rgba(25, 31, 43, 0.14); }
 .wallet-settings-menu[hidden] { display: none; }

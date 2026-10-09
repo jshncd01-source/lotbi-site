@@ -1,6 +1,6 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-ade2514f1dd3';
-import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-ade2514f1dd3';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-ade2514f1dd3';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-bfbcbc7508d2';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-bfbcbc7508d2';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-bfbcbc7508d2';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -1151,7 +1151,9 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         element('strong', '', '안전하게 이 기기에만 저장됩니다.'),
         element('span', '', 'LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다.'),
       );
-      if (share) reassurance.append(element('span', 'wallet-storage-share-note', '공유를 수락한 상대에게 암호화해 전달할 때만 서버를 거칩니다.'));
+      // Said only once Core answers that the relay is on (it stays off until the owner turns it on).
+      const shareNote = share ? element('span', 'wallet-storage-share-note', '공유를 수락한 상대에게 암호화해 전달할 때만 서버를 거칩니다.') : null;
+      if (shareNote) { shareNote.hidden = true; shareNote.dataset.walletShareRelay = 'pending'; reassurance.append(shareNote); }
       copy.append(element('strong', 'wallet-storage-count', `저장 자료 ${cards.length}개`), reassurance);
       const settings = element('div', 'wallet-settings');
       const settingsMenu = element('div', 'wallet-settings-menu');
@@ -1179,7 +1181,10 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       if (share) {
         const shareAction = button('공유', () => void share.openHub(), true); shareAction.dataset.walletShareOpen = '';
         toolbar.append(shareAction);
-        void share.pendingCount().then(count => { if (count && shareAction.isConnected) shareAction.textContent = `공유 ${count}`; });
+        void share.pendingCount().then(count => {
+          if (count && shareAction.isConnected) shareAction.textContent = `공유 ${count}`;
+          if (shareNote) { const on = share.transferAvailable(); shareNote.hidden = !on; shareNote.dataset.walletShareRelay = on ? 'on' : 'off'; }
+        });
       }
       toolbar.append(button('잠그기', () => void lockAndRender(), true), settings);
       shell.append(toolbar);
