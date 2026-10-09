@@ -181,3 +181,13 @@
 .wallet-share-qr-expired { opacity: .25; }
 .wallet-share-camera { width: 100%; max-height: 60vh; border-radius: 14px; background: #000; object-fit: cover; }
 .wallet-share-recipient { margin: 0; font-size: 18px; font-weight: 700; overflow-wrap: anywhere; }
+/* 원본 전달: per-item state, the 보안 확인 번호, the re-confirmation before sending. */
+.wallet-share-originals { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.wallet-share-original { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid color-mix(in srgb, var(--lotbi-border-default) 55%, transparent); }
+.wallet-share-original-title { font-weight: 600; overflow-wrap: anywhere; }
+.wallet-share-safety { display: grid; gap: 2px; margin: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--lotbi-border-default) 75%, transparent); font-size: 13px; line-height: 1.55; }
+.wallet-share-safety strong { font-size: 15px; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.wallet-share-safety span { color: var(--consumer-muted); }
+.wallet-share-warning { margin: 0; font-size: 14px; line-height: 1.6; font-weight: 600; }
+.wallet-share-confirm { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 1.5; min-height: 44px; }
+.wallet-share-confirm input { width: 20px; height: 20px; margin: 2px 0 0; flex: none; }

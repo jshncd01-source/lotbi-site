@@ -1,5 +1,6 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-489a95f5dcf2';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-489a95f5dcf2';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-25c3dfa21856';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-25c3dfa21856';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-25c3dfa21856';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -132,6 +133,7 @@ function pinAad(scope) { return `lotbi-wallet-pin:v2:${scope}`; }
 function deviceAad(scope) { return `lotbi-wallet-device:v2:${scope}`; }
 function sessionAad(scope, expiresAt) { return `lotbi-wallet-session:v1:${scope}:${expiresAt}`; }
 function cardAad(scope, id) { return `lotbi-wallet-card:v1:${scope}:${id}`; }
+function shareKeyAad(scope) { return `lotbi-wallet-share-key:v1:${scope}`; }
 function storageKey(scope, id) { return `${scope}:${id}`; }
 
 function availableSessionStorage() {
@@ -495,6 +497,42 @@ export class LifeWalletVault {
       imported += 1;
     }
     return imported;
+  }
+
+  // LIFE-WALLET-SHARE-01: this device's key for receiving shared items. The private key is
+  // kept in the vault record, encrypted with the wallet's master key; only the public key
+  // leaves the device (registered with Core so a sharer can seal an item for it).
+  async ensureShareKey(accountId) {
+    const unlocked = await this.requireUnlocked(accountId);
+    const vault = await this.repository.getVault(unlocked.scope);
+    if (!vault) throw new Error('Life Wallet 설정을 찾지 못했습니다.');
+    if (vault.shareKey?.publicKey && vault.shareKey?.envelope) return Object.freeze({publicKey: vault.shareKey.publicKey, keyId: vault.shareKey.keyId || ''});
+    const {publicKey, privateKeyPkcs8} = await generateShareKeyPair();
+    let envelope;
+    try { envelope = await seal(unlocked.key, bytesToBase64(privateKeyPkcs8), shareKeyAad(unlocked.scope)); }
+    finally { privateKeyPkcs8.fill(0); }
+    const latest = await this.repository.getVault(unlocked.scope);
+    await this.repository.putVault({...latest, shareKey: {publicKey, envelope, keyId: ''}});
+    return Object.freeze({publicKey, keyId: ''});
+  }
+
+  async rememberShareKeyId(accountId, publicKey, keyId) {
+    const unlocked = await this.requireUnlocked(accountId);
+    const vault = await this.repository.getVault(unlocked.scope);
+    if (!vault?.shareKey || vault.shareKey.publicKey !== publicKey || typeof keyId !== 'string') return;
+    await this.repository.putVault({...vault, shareKey: {...vault.shareKey, keyId}});
+  }
+
+  // Opens an item sealed for this device's key (Core GET …/payload) and returns the item.
+  async openSharedItem(accountId, sealed) {
+    const unlocked = await this.requireUnlocked(accountId);
+    const vault = await this.repository.getVault(unlocked.scope);
+    if (!vault?.shareKey?.envelope) throw Object.assign(new Error('이 기기에서 열 수 없는 자료입니다.'), {code: 'SHARE_ITEM_UNOPENABLE'});
+    const pkcs8 = base64ToBytes(await openEnvelope(unlocked.key, vault.shareKey.envelope, shareKeyAad(unlocked.scope)));
+    let privateKey;
+    try { privateKey = await importSharePrivateKey(pkcs8); }
+    finally { pkcs8.fill(0); }
+    return openWalletShareItem(privateKey, sealed);
   }
 
   async requireUnlocked(accountId) {
@@ -907,8 +945,18 @@ export function walletAddBlocked(subscription, count) {
 
 export function mountLifeWallet({root, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
   const vault = new LifeWalletVault(new IndexedDbWalletRepository());
-  // Sharing needs the signed-in session (share requests live on LOTBI Core; documents do not).
-  const share = sessionToken ? createWalletShare({root, sessionToken, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
+  // Sharing needs the signed-in session (share requests live on LOTBI Core). An original
+  // leaves this device only sealed for the accepted recipient's key (site-life-wallet-share-crypto.js).
+  const shareWallet = Object.freeze({
+    ensureKey: () => vault.ensureShareKey(accountId),
+    rememberKeyId: (publicKey, keyId) => vault.rememberShareKeyId(accountId, publicKey, keyId),
+    open: sealed => vault.openSharedItem(accountId, sealed),
+    list: () => vault.list(accountId),
+    save: card => vault.save(accountId, card),
+    addBlocked: count => walletAddBlocked(subscription, count),
+    newId: () => randomId(),
+  });
+  const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   let disposed = false;
   let unlocked = false;
   let sessionAuthenticated = authenticated;
@@ -1095,6 +1143,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         element('strong', '', '안전하게 이 기기에만 저장됩니다.'),
         element('span', '', 'LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다.'),
       );
+      if (share) reassurance.append(element('span', 'wallet-storage-share-note', '공유를 수락한 상대에게 암호화해 전달할 때만 서버를 거칩니다.'));
       copy.append(element('strong', 'wallet-storage-count', `저장 자료 ${cards.length}개`), reassurance);
       const settings = element('div', 'wallet-settings');
       const settingsMenu = element('div', 'wallet-settings-menu');
