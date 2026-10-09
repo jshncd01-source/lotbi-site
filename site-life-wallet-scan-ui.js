@@ -1,5 +1,5 @@
-import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-5dd14ba47afc';
-import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-5dd14ba47afc';
+import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-1e6995800cf3';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-1e6995800cf3';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -162,7 +162,8 @@ function detectionPixels(source) {
 }
 
 // kind: what the file's bytes are (sniffWalletFile); read here when the caller did not.
-export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCancel=()=>{},onReplace=()=>{}}={}) {
+// onReplace: a 다시 선택 button only when given (the wallet's own 파일 변경 changes the file instead).
+export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCancel=()=>{},onReplace=null}={}) {
   const shell=node('section','wallet-scan-editor'); shell.dataset.scanState='analysing'; shell.dataset.scanEnhanced='true'; shell.dataset.scanAdjusting='false';
   const heading=node('h3',''); heading.hidden=true;
   const status=node('p','wallet-scan-status','확인하고 있습니다'); status.setAttribute('role','status'); status.setAttribute('aria-live','polite');
@@ -178,7 +179,7 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
   const rotate=node('button','consumer-action wallet-scan-rotate','회전'); rotate.type='button'; rotate.dataset.walletScanRotate=''; rotate.setAttribute('aria-label','오른쪽으로 90도 회전');
   choices.append(rotate,adjust);
   const actions=node('div','wallet-scan-actions');
-  const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,replace,confirm);
+  const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,...(typeof onReplace==='function'?[replace]:[]),confirm);
   shell.append(heading,status,workspace,warnings,choices,actions);
 
   const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let paperPage=false; let pdfDocument=null; let pdfSource=false; let notDocument=false; let detectionImage=null; let detectionScale=1; let detailImage=null; let flatPicture=false; let glareCovers=false; let manualFramesItem=false; let rotation=0; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
@@ -297,7 +298,7 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
   adjust.addEventListener('click',()=>shell.dataset.scanAdjusting==='true'?closeAdjustment():openAdjustment());
   rotate.addEventListener('click',()=>{if(!source||destroyed)return;rotation=(rotation+90)%360;void renderPreview()});
   confirm.addEventListener('click',()=>{if(!latest||destroyed||notDocument)return;if(!manualFramesItem||glareCovers){confirm.disabled=true;return}onConfirm(latest)});
-  cancel.addEventListener('click',()=>{if(!destroyed)onCancel();destroy()}); replace.addEventListener('click',()=>{if(!destroyed)onReplace();destroy()});
+  cancel.addEventListener('click',()=>{if(!destroyed)onCancel();destroy()}); replace.addEventListener('click',()=>{if(!destroyed)onReplace?.();destroy()});
 
   function destroy(){if(destroyed)return;destroyed=true;renderVersion+=1;releaseResources();shell.replaceChildren()}
   void initialize();
