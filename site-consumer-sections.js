@@ -1,9 +1,11 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-88a78c3b2865';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-2a3821eddf63';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
 // onAsk(text) hands a finished question to the conversation, which sends it
 // right away: one tap asks LOTBI, with nothing to confirm or send again.
+// The 유치원·학교 screen (KINDERGARTEN-OFFICIAL-INFO-01) alone keeps the draft
+// handoff: its question goes into the composer to check before sending.
 //
 // LIFE-MEDICAL-AUTO-SEARCH-01 — 병원·약국·응급실 have no form. The tap sends a
 // fixed question the existing Core medical route (국립중앙의료원 data) reads as
@@ -25,6 +27,9 @@ export const LIFE_SHORTCUTS = Object.freeze([
   // official logo is not used before approval; brandSlot reserves its place.
   {id: 'onnuri', label: '온누리상품권', brandSlot: 'onnuri'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
+  // KINDERGARTEN-OFFICIAL-INFO-01: 학교(NEIS, 대화) / 유치원(유치원알리미 공시).
+  // Last: an odd last card spans its row (site-life-education.css).
+  {id: 'education', label: '유치원·학교', icon: 'school'},
 ]);
 
 // Each existing request form should show examples that belong to that service,
@@ -52,6 +57,7 @@ const ICON_PATHS = {
   hospital: ['M4 3h16v18H4V3Z', 'M12 7v8M8 11h8'],
   pharmacy: ['M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7l7-7Z', 'm7 10 7 7'],
   emergency: ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z', 'M12 8v8M8 12h8'],
+  school: ['m2 9 10-5 10 5-10 5L2 9Z', 'M6 11v5c3 2.5 9 2.5 12 0v-5', 'M22 9v6'],
 };
 
 function node(tag, className = '', text = '') {
@@ -87,7 +93,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onAsk, onDraft, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -95,6 +101,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
   let releasePeople;
   let releasePets;
   let releaseWallet;
+  let releaseEducation;
 
   if (section === 'life') {
     // The life home only picks a category: free questions belong to the main
@@ -128,6 +135,28 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
       root.replaceChildren(detail); title.focus();
     }
+    // KINDERGARTEN-OFFICIAL-INFO-01: the 유치원·학교 screen is its own module,
+    // loaded on first use; it owns its reads and its "내 유치원" key.
+    function openEducation(item) {
+      const current = ++generation;
+      const back = action('생활정보로 돌아가기', () => {
+        releaseEducation?.(); releaseEducation = undefined; generation += 1;
+        root.replaceChildren(heading, grid);
+        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
+      }, {secondary: true});
+      const detail = node('section', 'consumer-life-detail');
+      detail.dataset.lifeDetail = item.id;
+      const title = node('h3', '', item.label); title.tabIndex = -1;
+      const host = node('div', 'consumer-life-education');
+      detail.append(back, title, host);
+      root.replaceChildren(detail); title.focus();
+      import('./site-life-education.js?v=aset-2a3821eddf63').then(({mountEducation}) => {
+        if (disposed || current !== generation) return;
+        releaseEducation = mountEducation({root: host, onDraft, accountId}).dispose;
+      }).catch(() => {
+        if (!disposed && current === generation) host.replaceChildren(node('p', 'consumer-error', '유치원·학교 정보를 열지 못했습니다. 잠시 후 다시 열어 주세요.'));
+      });
+    }
     for (const item of LIFE_SHORTCUTS) {
       const button = node('button', 'consumer-shortcut'); button.type = 'button'; button.dataset.lifeShortcut = item.id;
       button.append(item.brandSlot ? brandSlot(item.brandSlot) : icon(item.icon), node('span', '', item.label));
@@ -136,6 +165,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         if (item.ask) onAsk(item.ask);
         else if (item.id === 'festivals') onFestival();
         else if (item.id === 'onnuri') onOnnuri?.();
+        else if (item.id === 'education') openEducation(item);
         else openLifeDetail(item);
       });
       grid.append(button);
@@ -218,5 +248,5 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     for (const label of ['지역몰', '공공몰', '생활서비스', '쇼핑']) groups.append(node('span', 'consumer-category-label', label));
     root.append(state, groups, node('p', 'consumer-feature-note', '업체별 실제 연결 가능 여부와 권한은 연결 서비스에서 확인합니다. 소셜 로그인 계정과 제휴처 이용 권한은 다릅니다. 주문·배송 및 자동 주문은 연결만으로 활성화되지 않으며, 실제 결제는 진행하지 않습니다.'));
   }
-  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); }};
+  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); releaseEducation?.(); }};
 }

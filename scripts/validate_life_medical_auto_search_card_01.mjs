@@ -30,16 +30,34 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Static contract ─────────────────────────────────────────────────────
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보']);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보', '유치원·학교']);
 assert.deepEqual(LIFE_MEDICAL_QUESTIONS, {hospital: '근처 병원 찾아줘', pharmacy: '근처 약국 찾아줘', emergency: '근처 응급실 찾아줘'});
 for (const question of Object.values(LIFE_MEDICAL_QUESTIONS)) {
   assert.equal(lifeLocationIntent(question), true, `${question} reaches the life-location contract`);
 }
-const sections = read('site-consumer-sections.js');
+// KINDERGARTEN-OFFICIAL-INFO-01: 유치원·학교 is the one life screen that still
+// drafts its question. Its two exact onDraft uses are taken out first; the same
+// "no draft handoff" check then runs on everything else.
+const sectionsSource = read('site-consumer-sections.js');
+let sections = sectionsSource;
+for (const [use, without] of [
+  ['{section, root, onAsk, onDraft, onFestival,', '{section, root, onAsk, onFestival,'],
+  ['mountEducation({root: host, onDraft, accountId})', 'mountEducation({root: host, accountId})'],
+]) {
+  assert.equal(sections.split(use).length, 2, `education draft handoff appears exactly once: ${use}`);
+  sections = sections.replace(use, without);
+}
 assert.doesNotMatch(sections, /질문 준비하기|onDraft|openMedicalDetail|data-medical-field|LIFE_MEDICAL_FORMS/u, 'no medical form or draft handoff left');
-assert.doesNotMatch(sections, /\bfetch\(|geolocation|getCurrentPosition/u, 'the menu does not search or ask for a location itself');
+assert.doesNotMatch(sectionsSource, /\bfetch\(|geolocation|getCurrentPosition/u, 'the menu does not search or ask for a location itself');
 const conversation = read('site-conversation.js');
-assert.doesNotMatch(conversation, /요청을 입력창에 넣었어요\. 내용을 확인한 뒤 전송하세요/u, 'the old draft-then-send path is gone');
+// The old draft-then-send path is gone for the life cards: the one draft helper
+// left is called only from the 유치원·학교 onDraft handoff, and onAsk sends.
+assert.equal(conversation.split('요청을 입력창에 넣었어요. 내용을 확인한 뒤 전송하세요.').length, 2, 'one draft helper');
+assert.equal(conversation.split('draft(text)').length, 2, 'the draft helper has one caller');
+assert.match(conversation, /onDraft: text => \{ closeSurface\(\); draft\(text\); \}/u, 'that caller is the 유치원·학교 handoff');
+const onAskHandler = conversation.match(/onAsk: text => \{[\s\S]*?\n {6}\},/u)?.[0] || '';
+assert.match(onAskHandler, /askWithoutKeyboard\(text\);/u, 'the life cards ask at once');
+assert.doesNotMatch(onAskHandler, /draft\(|입력창에 넣었어요/u, 'the life cards never draft');
 assert.match(conversation, /requestAssistant\(question, true, '', 0, \{keepComposerClosed: true\}\)/u);
 
 // The browser asks for permission at most once per page.
@@ -393,7 +411,7 @@ async function runCase(browser, origin, dir, testCase) {
     const openLife = async () => {
       // The 생활정보 entry sits in the (closed) phone drawer; opening it is not under test.
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 6"), `${label}: life menu`);
+      await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 7"), `${label}: life menu`);
       await sleep(200);
     };
     // Marks the newest answer so selectors reach its cards, not an older one's.

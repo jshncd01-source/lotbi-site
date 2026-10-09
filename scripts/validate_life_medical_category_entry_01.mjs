@@ -7,7 +7,12 @@
 // sends at once.
 //
 // LIFE-UTILITY-BILL-MENU-REMOVE-01: 공과금 확인 stays hidden. The life home is a
-// category picker only: no free-question bar and no saved-items/help row.
+// category picker only: no free-question bar and no saved-items/help row. It
+// has seven cards (응급실, 온누리상품권, 유치원·학교 included); an odd last card
+// takes its whole row, so there is no empty grid cell.
+// KINDERGARTEN-OFFICIAL-INFO-01: 유치원·학교 is the one life screen that still
+// drafts its question (onDraft); that handoff is pinned below and any other
+// draft handoff in the life cards fails.
 //
 // Browser part: real touch/mouse input through the DevTools protocol on
 // 360x780, 375x812, 390x844, 412x915 and 1280x900. Viewport emulation only —
@@ -24,11 +29,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Shortcut list ───────────────────────────────────────────────────────
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보']);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보', '유치원·학교']);
 assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => [item.id, item.ask]), [
   ['hospital', '근처 병원 찾아줘'], ['pharmacy', '근처 약국 찾아줘'], ['emergency', '근처 응급실 찾아줘'],
 ]);
-for (const id of ['festivals', 'local']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
+for (const id of ['festivals', 'local', 'onnuri', 'education']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills' || /공과금/u.test(item.label)), false, '공과금 확인 stays hidden');
 assert.ok(Object.isFrozen(LIFE_SHORTCUTS) && Object.isFrozen(LIFE_MEDICAL_QUESTIONS));
 // Each question carries "근처", so Core takes it to the 국립중앙의료원 lookup
@@ -42,7 +47,18 @@ for (const question of Object.values(LIFE_MEDICAL_QUESTIONS)) {
 // ── Source contract ─────────────────────────────────────────────────────
 const source = read('site-consumer-sections.js');
 assert.match(source, /if \(item\.ask\) onAsk\(item\.ask\);/u, 'a medical card asks at once');
-assert.doesNotMatch(source, /openMedicalDetail|data-medical-field|질문 준비하기|onDraft/u, 'no region/condition form, no draft handoff');
+// The 유치원·학교 draft handoff (KINDERGARTEN-OFFICIAL-INFO-01) is the only
+// onDraft allowed: its two exact uses are taken out, then the same check runs.
+const EDUCATION_DRAFT_USES = [
+  ['{section, root, onAsk, onDraft, onFestival,', '{section, root, onAsk, onFestival,'],
+  ['mountEducation({root: host, onDraft, accountId})', 'mountEducation({root: host, accountId})'],
+];
+let lifeCardsSource = source;
+for (const [use, without] of EDUCATION_DRAFT_USES) {
+  assert.equal(lifeCardsSource.split(use).length, 2, `education draft handoff appears exactly once: ${use}`);
+  lifeCardsSource = lifeCardsSource.replace(use, without);
+}
+assert.doesNotMatch(lifeCardsSource, /openMedicalDetail|data-medical-field|질문 준비하기|onDraft/u, 'no region/condition form, no draft handoff');
 assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|geolocation|getCurrentPosition/u, 'no own search engine, storage or location request');
 const conversation = read('site-conversation.js');
 assert.match(conversation, /onAsk: text => \{[\s\S]{0,400}?surfaceRestoreFocus = undefined;\s*closeSurface\(\);\s*askWithoutKeyboard\(text\);/u,
@@ -130,6 +146,8 @@ const PROBE = `(() => {
   const shortcuts = [...(workspace?.querySelectorAll('.consumer-shortcut') || [])].map(button => {
     const label = button.querySelector('span');
     const hit = (() => { const b = box(button); const el = document.elementFromPoint(b.cx, Math.min(Math.max(b.cy, 0), innerHeight - 1)); return el?.closest?.('.consumer-shortcut') === button; })();
+    // KINDERGARTEN-OFFICIAL-INFO-01: an odd last card may take its whole row.
+    const spansRow = button.getBoundingClientRect().width >= button.parentElement.getBoundingClientRect().width - 2;
     return {id: button.dataset.lifeShortcut, label: label?.textContent || '', box: box(button), labelBox: box(label), lines: label ? lines(label) : 0,
       labelClipped: label ? label.scrollWidth > label.parentElement.clientWidth : true, hit, icon: Boolean(button.querySelector('svg path')), brandSlot: button.querySelector('[data-brand-logo-slot]')?.dataset.brandLogoSlot || '',
       spansRow: getComputedStyle(button).gridColumnStart === '1' && getComputedStyle(button).gridColumnEnd === '-1'};
@@ -295,7 +313,7 @@ async function runCase(browser, origin, dir, testCase) {
     };
     const openLife = async () => {
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(async () => (await probe()).shortcuts.length === 6, `${testCase.label}: life shortcuts`);
+      await waitFor(async () => (await probe()).shortcuts.length === 7, `${testCase.label}: life shortcuts`);
       await sleep(250);
     };
     const tapShortcut = async id => {
@@ -306,20 +324,22 @@ async function runCase(browser, origin, dir, testCase) {
       await tap(center);
     };
 
-    // 1. Life main: six cards (응급실 and 온누리상품권 added, 공과금 확인 hidden), every row full.
+    // 1. Life main: seven cards (응급실, 온누리상품권 and 유치원·학교 added, 공과금 확인
+    // hidden), full rows, no empty cell — an odd last card takes its whole row.
     await openLife();
     const main = await probe();
     assert.equal(main.title, '생활정보');
-    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보']);
+    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보', '유치원·학교']);
     assert.equal(main.billsVisible, false, `${testCase.label}: 공과금 확인 is not shown anywhere on the life surface`);
-    // ONNURI-MERCHANT-01: with an odd number of cards the last one spans the
-    // row (site-life-onnuri.css), so a spanning card fills every column.
+    // ONNURI-MERCHANT-01 / KINDERGARTEN-OFFICIAL-INFO-01: with an odd number of cards the
+    // last one spans the row (site-life-onnuri.css, site-life-education.css), so a
+    // spanning card fills every column.
     const cells = main.shortcuts.reduce((sum, card) => sum + (card.spansRow ? main.gridColumns : 1), 0);
     assert.ok(main.gridColumns >= 1 && cells % main.gridColumns === 0, `${testCase.label}: ${main.shortcuts.length} cards fill ${main.gridColumns} columns without an empty cell`);
     const rows = new Map();
     for (const card of main.shortcuts) { const top = Math.round(card.box.y); rows.set(top, (rows.get(top) || 0) + (card.spansRow ? main.gridColumns : 1)); }
     assert.deepEqual([...rows.values()], Array(cells / main.gridColumns).fill(main.gridColumns), `${testCase.label}: every row is full ${JSON.stringify([...rows])}`);
-    assert.equal(new Set(main.shortcuts.filter(item => !item.spansRow).map(item => Math.round(item.box.w))).size, 1, `${testCase.label}: all cards share one width`);
+    assert.equal(new Set(main.shortcuts.filter(item => !item.spansRow || main.gridColumns === 1).map(item => Math.round(item.box.w))).size, 1, `${testCase.label}: all cards share one width`);
     // Category list right under the description; nothing above or below it.
     assert.equal(main.search, false, `${testCase.label}: no free-question bar on the life home`);
     assert.equal(main.freeQuery, false, `${testCase.label}: no 어떤 생활정보가 필요하세요 / 롯비에게 물어보기`);
@@ -409,4 +429,4 @@ try {
   }
 }
 
-console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국/응급실 send one nearby question at once (no form, nothing left in the composer, composer not focused); 공과금 확인 hidden, six life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');
+console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국/응급실 send one nearby question at once (no form, nothing left in the composer, composer not focused); 공과금 확인 hidden, seven life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');
