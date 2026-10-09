@@ -31,47 +31,75 @@
   let viewportSyncFrame = 0;
   let resizePrompt = () => {};
 
-  const syncMobileViewport = () => {
-    cancelAnimationFrame(viewportSyncFrame);
-    viewportSyncFrame = requestAnimationFrame(() => {
-      const viewport = window.visualViewport;
-      const visibleHeight = currentVisibleHeight();
-      const visibleWidth = currentVisibleWidth();
-      const offsetTop = Math.max(0, Math.round(viewport?.offsetTop || 0));
-      const layoutHeight = currentLayoutHeight();
+  // CHAT-IOS-TOUCH-SCROLL-KEYBOARD-01 — iOS 26 Safari and WKWebView (the
+  // KakaoTalk in-app browser) can leave the visual viewport displaced after
+  // the keyboard has closed: offsetTop stays above 0 and the visible height
+  // short (WebKit bug 297779). The page then sits off the screen - the top
+  // bar cut, room under the composer - until the viewport comes back. While
+  // it is displaced, with nothing being typed, the shell covers what is
+  // actually visible, as it does with the keyboard open. A displacement has to
+  // outlast a few frames: closing the keyboard passes through it briefly.
+  const DISPLACED_FRAMES = 8;
+  let displacedFrames = 0;
+  const editingOutsideComposer = () => {
+    const active = document.activeElement;
+    return active instanceof HTMLElement && active !== prompt
+      && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName));
+  };
 
-      document.documentElement.style.setProperty('--lotbi-mobile-viewport-height', `${visibleHeight}px`);
-      document.documentElement.style.setProperty('--lotbi-visible-viewport-height', `${visibleHeight}px`);
-      document.documentElement.style.setProperty('--lotbi-visible-viewport-width', `${visibleWidth}px`);
-      document.documentElement.style.setProperty('--lotbi-visible-viewport-offset-top', `${offsetTop}px`);
+  let appliedViewport = '';
+  const applyMobileViewport = () => {
+    const viewport = window.visualViewport;
+    const visibleHeight = currentVisibleHeight();
+    const visibleWidth = currentVisibleWidth();
+    const offsetTop = Math.max(0, Math.round(viewport?.offsetTop || 0));
+    const layoutHeight = currentLayoutHeight();
+    const sample = `${visibleHeight}x${visibleWidth}+${offsetTop}/${layoutHeight}/${Math.round(window.scrollY || 0)}`;
 
-      const widthChanged = Math.abs(visibleWidth - mobileViewportWidth) > 72;
-      if (widthChanged) {
-        mobileViewportWidth = visibleWidth;
-        mobileViewportBaseline = layoutHeight;
-      }
+    const widthChanged = Math.abs(visibleWidth - mobileViewportWidth) > 72;
+    if (widthChanged) {
+      mobileViewportWidth = visibleWidth;
+      mobileViewportBaseline = layoutHeight;
+    }
 
-      const promptFocused = prompt instanceof HTMLTextAreaElement && document.activeElement === prompt;
-      if (!promptFocused || !softwareKeyboardCapable()) {
-        mobileViewportBaseline = Math.max(visibleHeight, layoutHeight);
-        document.documentElement.style.setProperty('--lotbi-keyboard-inset', '0px');
-        document.body.classList.remove('mobile-keyboard-open', 'mobile-keyboard-tight');
-        resizePrompt();
-        return;
-      }
-
+    const promptFocused = prompt instanceof HTMLTextAreaElement && document.activeElement === prompt;
+    let keyboardOpen = false;
+    let keyboardTight = false;
+    let keyboardInset = 0;
+    let displaced = false;
+    if (!promptFocused || !softwareKeyboardCapable()) {
+      mobileViewportBaseline = Math.max(visibleHeight, layoutHeight);
+      const zoomed = Math.abs((viewport?.scale || 1) - 1) > 0.01;
+      const displacedNow = Boolean(viewport) && !promptFocused && softwareKeyboardCapable() && !zoomed && !editingOutsideComposer()
+        && (offsetTop > 1 || visibleHeight < Math.round(window.innerHeight || 0) - 2 || (window.scrollY || 0) > 1);
+      displacedFrames = displacedNow ? displacedFrames + 1 : 0;
+      displaced = displacedFrames >= DISPLACED_FRAMES;
+    } else {
+      displacedFrames = 0;
       mobileViewportBaseline = Math.max(mobileViewportBaseline, layoutHeight, visibleHeight);
-      const keyboardInset = Math.max(0, mobileViewportBaseline - visibleHeight);
+      keyboardInset = Math.max(0, mobileViewportBaseline - visibleHeight);
       const keyboardRatio = visibleHeight / Math.max(1, mobileViewportBaseline);
       const openThreshold = Math.max(96, Math.round(mobileViewportBaseline * 0.16));
-      const keyboardOpen = keyboardInset >= openThreshold && keyboardRatio <= 0.84;
-      const keyboardTight = keyboardOpen && (keyboardRatio <= 0.62 || visibleHeight <= 460);
+      keyboardOpen = keyboardInset >= openThreshold && keyboardRatio <= 0.84;
+      keyboardTight = keyboardOpen && (keyboardRatio <= 0.62 || visibleHeight <= 460);
+    }
 
-      document.documentElement.style.setProperty('--lotbi-keyboard-inset', `${Math.round(keyboardInset)}px`);
-      document.body.classList.toggle('mobile-keyboard-open', keyboardOpen);
-      document.body.classList.toggle('mobile-keyboard-tight', keyboardTight);
-      resizePrompt();
+    // Writes only when something changed: this runs every frame while the
+    // viewport is being followed.
+    const applied = `${sample}|${promptFocused}|${keyboardOpen}|${keyboardTight}|${displaced}|${Math.round(keyboardInset)}`;
+    if (applied === appliedViewport) return sample;
+    appliedViewport = applied;
+    document.documentElement.style.setProperty('--lotbi-mobile-viewport-height', `${visibleHeight}px`);
+    document.documentElement.style.setProperty('--lotbi-visible-viewport-height', `${visibleHeight}px`);
+    document.documentElement.style.setProperty('--lotbi-visible-viewport-width', `${visibleWidth}px`);
+    document.documentElement.style.setProperty('--lotbi-visible-viewport-offset-top', `${offsetTop}px`);
+    document.documentElement.style.setProperty('--lotbi-keyboard-inset', `${Math.round(keyboardInset)}px`);
+    document.body.classList.toggle('mobile-keyboard-open', keyboardOpen);
+    document.body.classList.toggle('mobile-keyboard-tight', keyboardTight);
+    document.body.classList.toggle('mobile-viewport-displaced', displaced);
+    resizePrompt();
 
+    if (promptFocused && softwareKeyboardCapable()) {
       window.dispatchEvent(new CustomEvent('lotbi:keyboard-viewport', {
         detail: Object.freeze({
           open: keyboardOpen,
@@ -82,8 +110,51 @@
           keyboardInset: Math.round(keyboardInset),
         }),
       }));
-    });
+    }
+    return sample;
   };
+
+  // CHAT-IOS-TOUCH-SCROLL-KEYBOARD-01 — WebKit hands out visualViewport values
+  // late: the resize that announces the keyboard still carries the old
+  // offsetTop, and the pan lands a few frames later with no event of its own
+  // (WebKit bug 237851); while a finger pans the page it sends nothing until
+  // the pan ends. One read per event left the shell where the viewport used to
+  // be - on an iPhone the composer floated a keyboard's height above the
+  // keyboard with empty space under it, and the conversation had a strip of
+  // 48px. So every trigger follows the viewport frame by frame until it has
+  // held still for VIEWPORT_STILL_FRAMES; nothing is guessed, no timer.
+  const VIEWPORT_STILL_FRAMES = 12;
+  const VIEWPORT_FOLLOW_FRAMES = 90;
+  let viewportFramesLeft = 0;
+  let viewportStillFrames = 0;
+  let lastViewportSample = '';
+  const syncMobileViewport = () => {
+    viewportFramesLeft = VIEWPORT_FOLLOW_FRAMES;
+    viewportStillFrames = 0;
+    if (viewportSyncFrame) return;
+    const followViewport = () => {
+      viewportSyncFrame = 0;
+      const sample = applyMobileViewport();
+      viewportStillFrames = sample === lastViewportSample ? viewportStillFrames + 1 : 0;
+      lastViewportSample = sample;
+      viewportFramesLeft -= 1;
+      if (viewportFramesLeft > 0 && viewportStillFrames < VIEWPORT_STILL_FRAMES) {
+        viewportSyncFrame = requestAnimationFrame(followViewport);
+      }
+    };
+    viewportSyncFrame = requestAnimationFrame(followViewport);
+  };
+  // A finger on the page while the keyboard is open (or the viewport is
+  // displaced) may be panning the visual viewport, which iOS only reports
+  // when the pan is over: follow it while the finger moves.
+  const followWhileTouching = () => {
+    if (document.body.classList.contains('mobile-keyboard-open') || document.body.classList.contains('mobile-viewport-displaced')) {
+      syncMobileViewport();
+    }
+  };
+  for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) {
+    document.addEventListener(type, followWhileTouching, {passive: true, capture: true});
+  }
 
   if (drawer && backdrop && openButtons.length > 0 && closeButton) {
     let lastFocused = null;
@@ -150,6 +221,10 @@
       const nextHeight = Math.min(Math.max(prompt.scrollHeight, minHeight), maxHeight);
       prompt.style.height = `${nextHeight}px`;
       prompt.style.overflowY = prompt.scrollHeight > maxHeight ? 'auto' : 'hidden';
+      // CHAT-IOS-TOUCH-SCROLL-KEYBOARD-01 — containment is for a draft long
+      // enough to scroll itself. On a draft that fits, `contain` stopped every
+      // drag that started on the text: the conversation never moved.
+      prompt.style.overscrollBehavior = prompt.scrollHeight > maxHeight ? 'contain' : 'auto';
     };
 
     prompt.addEventListener('input', resizePrompt);
@@ -177,7 +252,9 @@
   window.addEventListener('orientationchange', () => {
     mobileViewportBaseline = currentLayoutHeight();
     mobileViewportWidth = currentVisibleWidth();
-    document.body.classList.remove('mobile-keyboard-open', 'mobile-keyboard-tight');
+    document.body.classList.remove('mobile-keyboard-open', 'mobile-keyboard-tight', 'mobile-viewport-displaced');
+    appliedViewport = '';
+    displacedFrames = 0;
     syncMobileViewport();
   }, {passive: true});
   syncMobileViewport();

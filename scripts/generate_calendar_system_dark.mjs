@@ -14,6 +14,7 @@
 // It is generated rather than hand-written so the copy cannot drift from the
 // original: validate_calendar_system_dark_01.mjs regenerates and compares.
 import fs from 'node:fs';
+import {pathToFileURL} from 'node:url';
 
 export const BEGIN = '/* BEGIN GENERATED: system-dark mirror -- scripts/generate_calendar_system_dark.mjs */';
 export const END = '/* END GENERATED: system-dark mirror */';
@@ -82,12 +83,19 @@ export function generate(css) {
   ].join('\n');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// pathToFileURL, not `file://${argv[1]}`: on Windows argv[1] is `C:\...` while
+// import.meta.url is `file:///C:/...`, so the template never matched and a
+// direct run silently wrote nothing.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const path = 'site-calendar.css';
-  const css = fs.readFileSync(path, 'utf8');
+  const raw = fs.readFileSync(path, 'utf8');
+  // A checkout with core.autocrlf=true has CRLF on disk. Work in LF, then write
+  // back with the file's own line ending so a no-op run leaves no diff.
+  const eol = raw.includes('\r\n') ? '\r\n' : '\n';
+  const css = raw.replace(/\r\n/g, '\n');
   const block = generate(css);
   const start = css.indexOf(BEGIN);
   const base = start === -1 ? css.trimEnd() + '\n' : css.slice(0, start).trimEnd() + '\n';
-  fs.writeFileSync(path, `${base}\n${block}`, 'utf8');
+  fs.writeFileSync(path, `${base}\n${block}`.replace(/\n/g, eol), 'utf8');
   console.log(`system-dark mirror written: ${block.split('\n').length} lines`);
 }

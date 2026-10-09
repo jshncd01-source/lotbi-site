@@ -48,11 +48,13 @@ for (const token of [
   'scroll-padding-bottom',
 ]) assert.ok(css.includes(token), `missing compact mobile layout contract: ${token}`);
 
+// CHAT-LONG-ANSWER-SCROLL-ANCHOR-01: sending anchors the question at the top
+// (anchorTurn) instead of forcing the tail (forceScroll).
 for (const token of [
   'const isThreadNearBottom = () =>',
-  'forceScroll = false',
+  'anchorTurn = false',
   'suppressScroll = false',
-  "{forceScroll: true}",
+  "{anchorTurn: true}",
   "window.addEventListener('lotbi:keyboard-viewport'",
 ]) assert.ok(conversation.includes(token), `missing conversation scroll contract: ${token}`);
 

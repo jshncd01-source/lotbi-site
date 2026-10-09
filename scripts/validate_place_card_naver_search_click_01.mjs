@@ -533,12 +533,16 @@ async function runCase(browser, origin, dir, testCase) {
     assert.deepEqual(phoneResult.clicks.map(c => [c.kind, c.href]), [['phone', 'tel:0630000000']], `${testCase.label}: tel only`);
     assert.deepEqual(phoneResult.tabs, [], `${testCase.label}: phone opens no tab`);
 
-    // 5. Carousel controls → carousel only.
-    const nextResult = await step('tap-next', b => tap(b.next.cx, b.next.cy));
+    // 5. Carousel controls → carousel only. Phones have no ‹ › any more
+    // (PLACE-MEDICAL-CARD-UX-FINAL-01): a swipe on the card turns it there.
+    const goNext = b => (testCase.mobile ? swipe(b.title.cx + 60, b.title.cx - 60, b.title.cy) : tap(b.next.cx, b.next.cy));
+    const goPrev = b => (testCase.mobile ? swipe(b.title.cx - 60, b.title.cx + 60, b.title.cy) : tap(b.prev.cx, b.prev.cy));
+    if (testCase.mobile) assert.ok(initial.next.w === 0 && initial.prev.w === 0, `${testCase.label}: no arrows on a phone`);
+    const nextResult = await step('tap-next', goNext);
     expectNoExternal(nextResult, `${testCase.label}: next`);
     assert.equal(nextResult.after.activeIndex, 1, `${testCase.label}: next moves the carousel`);
     assert.deepEqual(nextResult.tabs, []);
-    const prevResult = await step('tap-prev', b => tap(b.prev.cx, b.prev.cy));
+    const prevResult = await step('tap-prev', goPrev);
     expectNoExternal(prevResult, `${testCase.label}: prev`);
     assert.equal(prevResult.after.activeIndex, 0, `${testCase.label}: prev moves the carousel`);
     assert.deepEqual(prevResult.tabs, []);
@@ -561,16 +565,15 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(swipeResult.after.activeIndex, expectedIndex, `${testCase.label}: swipe on the title still rotates`);
     assert.deepEqual(swipeResult.tabs, []);
     if (expectedIndex !== 2) {
-      const nextAgain = await step('tap-next-to-third', b => tap(b.next.cx, b.next.cy));
+      const nextAgain = await step('tap-next-to-third', goNext);
       expectNoExternal(nextAgain, `${testCase.label}: next`);
       assert.equal(nextAgain.after.activeIndex, 2);
     }
 
-    // The new center card searches for itself (address-derived region). It
-    // has no photo, so no photo box (LIFE-DIRECT-CHAT-CARD-COMPACTION-01):
-    // the tap lands on its body text.
-    expectSearch(await step('tap-third-card', b => { assert.equal(b.media, null, 'a card without a photo has no photo box'); return tap(b.address.cx, b.address.cy); }), 2, `${testCase.label}: third card`);
-    const back = await step('back-to-first', b => tap(b.next.cx, b.next.cy));
+    // The new center card searches for itself (address-derived region).
+    // The third place has no photo, so it has no photo box (PLACE-MEDICAL-CARD-UX-FINAL-01): its title is the body.
+    expectSearch(await step('tap-third-card', b => tap((b.media || b.title).cx, (b.media || b.title).cy)), 2, `${testCase.label}: third card`);
+    const back = await step('back-to-first', goNext);
     assert.equal(back.after.activeIndex, 0);
 
     // Keyboard: Enter on the focused card, and Enter on its search link.

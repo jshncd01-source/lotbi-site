@@ -1,0 +1,264 @@
+/* SAFECARE-PHOTO-BULK-UPLOAD-01 — up to ten identity photos at once
+   (site-person-bulk-photos.js). Theme colours come from site-theme-tokens.css. */
+.person-bulk {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 14px;
+  background: var(--lotbi-surface-primary, #fff);
+  color: var(--lotbi-text-primary, #202634);
+}
+
+.person-bulk-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 900;
+  word-break: keep-all;
+}
+
+.person-bulk-warning {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  color: var(--lotbi-warning-text, #8a4b16);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.55;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.person-bulk-angles,
+.person-bulk-note {
+  margin: 0;
+  color: var(--lotbi-text-muted, #5d6675);
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.person-bulk-pick {
+  justify-self: start;
+  min-height: 44px;
+}
+
+.person-bulk-pick[aria-disabled="true"] {
+  opacity: .6;
+}
+
+.person-bulk-status {
+  margin: 0;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+/* After a run the status line still speaks to screen readers but is not drawn twice. */
+.person-bulk-status-quiet {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.person-bulk-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--lotbi-surface-hover, #f1f3f8);
+}
+
+.person-bulk-bar-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand-violet, #7b62bb);
+  transition: width .2s ease;
+}
+
+.person-bulk-alert,
+.person-bulk-notice,
+.person-bulk-anchor-hint {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.person-bulk-alert { color: var(--lotbi-error-text, #a02645); }
+.person-bulk-notice { color: var(--lotbi-warning-text, #8a4b16); }
+
+.person-bulk-anchor-hint {
+  padding: 10px 12px;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  color: var(--lotbi-error-text, #a02645);
+}
+
+.person-bulk-notices,
+.person-bulk-result {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.person-bulk-notices:empty,
+.person-bulk-result:empty {
+  display: none;
+}
+
+.person-bulk-summary {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 900;
+  word-break: keep-all;
+}
+
+.person-bulk-actions,
+.person-bulk-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
+}
+
+.person-bulk-actions .site-button,
+.person-bulk-item-actions .site-button,
+.person-bulk-result > .site-button {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.person-bulk-result > .site-button {
+  justify-self: start;
+}
+
+.person-bulk-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.person-bulk-item {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 12px;
+}
+
+.person-bulk-item[data-person-bulk-state="STORED"] { border-color: var(--lotbi-success-text, #247647); }
+.person-bulk-item[data-person-bulk-state="NEEDS_CHOICE"],
+.person-bulk-item[data-person-bulk-state="HELD"] { border-color: var(--lotbi-warning-text, #8a4b16); }
+.person-bulk-item[data-person-bulk-state="PREPARE_FAILED"],
+.person-bulk-item[data-person-bulk-state="CLASSIFY_FAILED"],
+.person-bulk-item[data-person-bulk-state="REJECTED"],
+.person-bulk-item[data-person-bulk-state="PUT_FAILED"] { border-color: var(--lotbi-error-text, #a02645); }
+
+.person-bulk-thumb {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--lotbi-surface-hover, #f1f3f8);
+  color: var(--lotbi-text-muted, #5d6675);
+  font-size: 12px;
+}
+
+.person-bulk-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.person-bulk-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.person-bulk-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.person-bulk-item-slot,
+.person-bulk-item-message,
+.person-bulk-item-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.person-bulk-item-slot { font-weight: 700; }
+.person-bulk-item-message { color: var(--lotbi-text-secondary, #3d4653); }
+.person-bulk-item-message.is-error { color: var(--lotbi-error-text, #a02645); }
+.person-bulk-item-note {
+  color: var(--lotbi-warning-text, #8a4b16);
+  font-weight: 700;
+}
+
+/* While a batch runs, the single-slot tiles answer "다른 사진을 확인하는 중…". */
+[data-person-bulk-running] [data-person-slot-grid] {
+  opacity: .55;
+}
+
+.person-bulk [hidden] {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  .person-bulk {
+    padding: 12px;
+  }
+
+  .person-bulk-pick {
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .person-bulk-item {
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .person-bulk-thumb {
+    width: 52px;
+    height: 52px;
+  }
+
+  .person-bulk-item-actions .site-button {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}

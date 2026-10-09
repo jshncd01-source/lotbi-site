@@ -33,7 +33,8 @@ assert all("LOTBI Free" not in card for card in cards), "Free must not be an upg
 assert sum("recommended-badge" in card for card in cards) == 1, "exactly one plan must be recommended"
 assert "LOTBI Plus" in next(card for card in cards if "recommended-badge" in card)
 
-for forbidden in ("제휴몰 개수", "제휴 서비스 개수", "쇼핑·예약 실행 횟수", "미래 모든 기능"):
+# 공과금 확인 is not offered (LIFE INFO CLEANUP, 2026-10-08): the plans must not list it.
+for forbidden in ("제휴몰 개수", "제휴 서비스 개수", "쇼핑·예약 실행 횟수", "미래 모든 기능", "공과금", "고지서"):
     assert forbidden not in SUBSCRIBE, f"unavailable feature advertised: {forbidden}"
 
 assert "로그인 및 계정 연결은 유료 사용량으로 차감하지 않습니다." in TERMS

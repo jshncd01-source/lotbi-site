@@ -1,22 +1,38 @@
 import {
   callbackPathWithoutQuery,
   clearSiteHandoffRecovery,
+  describeSiteHandoffCallbackQuery,
+  isConsumedSiteHandoffCallback,
   parseSiteHandoffCallback,
   readAndClearSiteHandoffContext,
-  recoverMissingSiteHandoffContext,
+  recoverStaleSiteHandoff,
   siteHandoffReturnPath,
   SiteHandoffClientError,
-} from './site-auth.js?v=aset-8970f6cb0e70';
-import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-8970f6cb0e70';
-import {parseSiteRouteHash} from './site-route.js?v=aset-8970f6cb0e70';
-import {mountConversation} from './site-conversation.js?v=aset-8970f6cb0e70';
-import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-8970f6cb0e70';
+} from './site-auth.js?v=aset-0cd3eebcc436';
+import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-0cd3eebcc436';
+import {parseSiteRouteHash} from './site-route.js?v=aset-0cd3eebcc436';
+import {mountConversation} from './site-conversation.js?v=aset-0cd3eebcc436';
+import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-0cd3eebcc436';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
 const statusNode = document.getElementById('auth-callback-status');
 const retryLink = document.getElementById('auth-callback-retry');
 const callbackBootStartedAt = globalThis.performance?.now?.() ?? 0;
+let callbackRecoveryContext;
+// AUTH-SESSION-CONTINUITY-P0-02 — how this callback was entered, counted
+// before the query is stripped: numbers of code/state/other parameters only,
+// never a value. With the asset version this page is actually running, the
+// error page line tells a screenshot apart: a stale cached page, a callback
+// revisited without its query, or a fresh one with a missing parameter.
+const callbackEntryShape = describeSiteHandoffCallbackQuery(new URL(window.location.href));
+const CALLBACK_ASSET_VERSION = (() => {
+  try {
+    return new URL(import.meta.url).searchParams.get('v') || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+})();
 
 function performanceNow() {
   return globalThis.performance?.now?.() ?? 0;
@@ -32,7 +48,12 @@ function recordTiming(name, detail = {}) {
 
 recordTiming('callback-boot', {elapsedMs: Math.round(callbackBootStartedAt)});
 
-function showCallbackError(message) {
+function callbackDiagnosticText(error) {
+  const code = typeof error?.code === 'string' && /^[A-Z0-9_]{1,64}$/.test(error.code) ? error.code : 'UNKNOWN';
+  return `진단 ${code} · code ${callbackEntryShape.code} · state ${callbackEntryShape.state} · 기타 ${callbackEntryShape.other} · ${CALLBACK_ASSET_VERSION}`;
+}
+
+function showCallbackError(message, diagnostic = '') {
   document.body.classList.add('auth-callback-error-page');
   document.title = 'LOTBI | 로그인 연결 오류';
   if (callbackShell) callbackShell.hidden = false;
@@ -42,6 +63,16 @@ function showCallbackError(message) {
     statusNode.classList.add('auth-callback-error');
   }
   if (retryLink) retryLink.hidden = false;
+  if (diagnostic) {
+    document.body.dataset.authCallbackDiagnostic = diagnostic;
+    if (statusNode && !document.getElementById('auth-callback-diagnostic')) {
+      const line = document.createElement('p');
+      line.id = 'auth-callback-diagnostic';
+      line.className = 'auth-callback-diagnostic';
+      line.textContent = diagnostic;
+      statusNode.after(line);
+    }
+  }
 }
 
 function callbackErrorMessage(error) {
@@ -54,6 +85,9 @@ function callbackErrorMessage(error) {
     }
     if (error.code === 'SITE_HANDOFF_SOURCE_SESSION_INVALID') {
       return '계정 로그인 상태가 더 이상 유효하지 않습니다. 홈에서 다시 연결해 주세요.';
+    }
+    if (error.code === 'RATE_LIMITED') {
+      return '로그인 요청이 잠시 많습니다. 잠시 후 홈에서 다시 시도해 주세요.';
     }
   }
   if (error instanceof SiteHandoffClientError || error instanceof Error) return error.message;
@@ -107,11 +141,19 @@ async function hydrateHomeShell() {
   document.body.replaceWith(nextBody);
   window.dispatchEvent(new CustomEvent('lotbi:home-shell-hydrated'));
   document.title = parsed.title || 'LOTBI | 무엇을 도와드릴까요?';
-  await loadClassicScript('/home-shell.js?v=aset-8970f6cb0e70');
-  await loadClassicScript('/mobile-entry.js?v=aset-8970f6cb0e70');
+  await loadClassicScript('/home-shell.js?v=aset-0cd3eebcc436');
+  await loadClassicScript('/mobile-entry.js?v=aset-0cd3eebcc436');
 }
 
 async function completeSiteHandoff() {
+  // Nothing left to redeem here: go Home, where Account continuity decides
+  // whether this person is signed in and restarts the handoff if so.
+  if (isConsumedSiteHandoffCallback(new URL(window.location.href))) {
+    recordTiming('callback-consumed-revisit');
+    window.location.replace('/');
+    return;
+  }
+
   let callback;
   try {
     callback = parseSiteHandoffCallback(new URL(window.location.href));
@@ -122,6 +164,7 @@ async function completeSiteHandoff() {
 
   history.replaceState(null, '', callbackPathWithoutQuery());
   const context = readAndClearSiteHandoffContext(callback.state);
+  callbackRecoveryContext = context;
   recordTiming('account-handoff-return', {
     durationMs: Math.max(0, Date.now() - context.startedAt),
   });
@@ -171,6 +214,7 @@ async function completeSiteHandoff() {
     if (chatStatus) chatStatus.textContent = '로그인은 완료됐지만 이전 대화를 가져오지 못했습니다.';
   }
   clearSiteHandoffRecovery();
+  callbackRecoveryContext = undefined;
 
   window.dispatchEvent(new CustomEvent('lotbi:site-session-state', {
     detail: {
@@ -191,12 +235,13 @@ void completeSiteHandoff().catch(async error => {
   recordTiming('callback-error', {
     durationMs: Math.round(Math.max(0, performanceNow() - callbackBootStartedAt)),
   });
-  if (error instanceof SiteHandoffClientError && error.code === 'SITE_HANDOFF_CONTEXT_MISSING') {
-    try {
-      if (await recoverMissingSiteHandoffContext(error)) return;
-    } catch (recoveryError) {
-      error = recoveryError;
-    }
+  try {
+    if (await recoverStaleSiteHandoff(error, {
+      pendingText: callbackRecoveryContext?.pendingText ?? '',
+      returnHash: callbackRecoveryContext?.returnHash ?? '',
+    })) return;
+  } catch (recoveryError) {
+    error = recoveryError;
   }
-  showCallbackError(callbackErrorMessage(error));
+  showCallbackError(callbackErrorMessage(error), callbackDiagnosticText(error));
 });

@@ -123,13 +123,26 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # document CSS and heading-navigation script; policy text/links are unchanged.
 # Clean URL canonical/head links and the approved privacy table containment
 # are preserved from main. styles.css also keeps the reviewed neutral palette.
+# LOTBI-CONSUMER-THEME-SYNC-01 — privacy/terms/account-deletion/contact 의 잠금
+# 값이 다시 움직였다. 바뀐 것은 <head> 안 테마 bootstrap <script> 하나뿐이다:
+# Account 설정에서 고른 화면 모드(공유 cookie lotbi_theme_preference_v1)를 먼저
+# 읽고, 없을 때만 예전 localStorage 키를 읽는다. 읽기만 하고 아무것도 쓰지 않는다.
+# NO LEGAL TEXT CHANGED. 확인 방법: scripts/sync_theme_bootstrap.mjs 의
+# locateThemeBootstrap 으로 두 revision 에서 그 <script> 를 들어내면 네 파일 모두
+# 나머지가 바이트까지 같다. 이 블록은 sync_theme_bootstrap.mjs --check 가 모든
+# 소비자 페이지에서 동일하게 유지한다.
+# LOTBI-THEME-AUTO-DARK-22H-01 — 같은 네 파일의 잠금 값이 다시 움직였다. 대표가
+# '자동모드' 다크 시작을 18시에서 22시로 옮겨, 테마 bootstrap <script> 안의 시각 두
+# 줄(lotbiHour >= 22, setHours(... 22))과 그 주석 한 줄만 바뀌었다. NO LEGAL TEXT
+# CHANGED — 위와 같은 방법으로 bootstrap 을 들어내면 16개 소비자 페이지 모두
+# origin/main 과 바이트까지 같다.
 # Hashes
 # remain exact after Git's LF/CRLF checkout normalization, not content stripping.
 LOCKED_SHA256 = {
-    'privacy.html': '99b0eb892bd215a88d73276cf6ee7cc7c9ad10fe2bbe770e4acb30fd66ccaf25',
-    'terms.html': '53891a54ccd41077217a9eeb42bad29b0163fdc49e948ba12a73cb935f011a19',
-    'account-deletion.html': '4975d2eff55f370753afa9e9c0acbb22e94caf465065b12f18836fd297f02676',
-    'contact.html': '4ea3c572e9de7b81d9e125bcc55f7e61dc7ea8923ab0eb1fdb02fba18532075f',
+    'privacy.html': 'c1a0be94cf8165c9c0b26d5b1c31fc3f91516ef30abb0bfcf6c2a6b8c0098545',
+    'terms.html': '4614bccf9ad1b842f0a45598211c2923504a7c1b1bd1f8041a4ec955e66392b4',
+    'account-deletion.html': 'ae770a20ce93249613a77d0c63872726f0935516e8444cf51be86444c83866ed',
+    'contact.html': '396e62b7a857dd3f6a9b27f54a25be032f2629648aac672af524d3bad2a2fa5a',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': '32eedab514f6e237f762a35ac18b1ae0ce643bc04023547ee9be60d135a43c66',
@@ -310,9 +323,17 @@ def main() -> int:
         if "lotbi.site.theme.bootstrap.v1" not in theme_bootstrap:
             errors.append("the pre-paint theme bootstrap must touch only the theme key")
         for token in ("fetch(", "xmlhttprequest", "websocket", "eventsource", "sendbeacon",
-                      "indexeddb", "document.cookie", "sessionstorage"):
+                      "indexeddb", "sessionstorage"):
             if token in theme_bootstrap.lower():
                 errors.append(f"the pre-paint theme bootstrap must not reach for {token}")
+        # LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode chosen in Account is the
+        # shared lotbi_theme_preference_v1 cookie, so the bootstrap reads
+        # document.cookie. Reading only: an assignment would let the first paint
+        # change what the user chose.
+        if re.search(r"document\.cookie\s*=(?!=)", theme_bootstrap):
+            errors.append("the pre-paint theme bootstrap must only read document.cookie, never write it")
+        if "lotbi_theme_preference_v1" not in theme_bootstrap:
+            errors.append("the pre-paint theme bootstrap must read the shared screen-mode cookie")
         if "try" not in theme_bootstrap or "catch" not in theme_bootstrap:
             errors.append("the pre-paint theme bootstrap must not let a storage failure stop the render")
 

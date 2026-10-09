@@ -174,7 +174,8 @@ try {
     sideMediaPlaceholder:side.querySelectorAll('.lotbi-rich-card-media, .lotbi-rich-card-placeholder, .lotbi-rich-card-media-empty').length,
     railPhotoClass:rail.classList.contains('has-place-photo'),
     sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
-    sideActionsVisible:[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
+    // Phones lay the side card out whole but fully transparent and untappable (PLACE-MEDICAL-CARD-UX-FINAL-01).
+    sideActionsVisible:Number.parseFloat(getComputedStyle(side).opacity)>0&&[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
     sideActionTabIndexes:[...side.querySelectorAll('.lotbi-rich-card-action')].map(n=>n.tabIndex),
     consumerText:rail.textContent||'',
     noPhoneActions:side.querySelectorAll('[data-action="phone"]').length,
@@ -263,7 +264,10 @@ try {
     assert.equal(reading.sideMediaPlaceholder,0,`${testCase.label}: no empty placeholder on a card without a photo`);
     assert.equal(reading.railPhotoClass,true,`${testCase.label}: the rail keeps the photo height while a card shows a photo`);
     assert.ok(reading.card.h<=reading.rail.h+1,`${testCase.label}: card ${reading.card.h} > rail ${reading.rail.h}`);
-    assert.ok(reading.card.w<=Math.min(testCase.width*.82,286)+2,`${testCase.label}: card width ${reading.card.w}`);
+    // Phones show one whole card inside the rail; wider screens keep the orbit card size.
+    const maxCardWidth=testCase.mobile?Math.min(reading.rail.w-16,400):286;
+    assert.ok(reading.card.w<=maxCardWidth+2,`${testCase.label}: card width ${reading.card.w} (max ${maxCardWidth})`);
+    assert.ok(reading.card.x>=reading.rail.x-1&&reading.card.x+reading.card.w<=reading.rail.x+reading.rail.w+1,`${testCase.label}: card cut by the rail`);
     assert.ok(reading.sideOpacity<=.2,`${testCase.label}: side opacity ${reading.sideOpacity}`);
     assert.equal(reading.sideActionsVisible,false,`${testCase.label}: side actions visible`);
     assert.ok(reading.sideActionTabIndexes.every(x=>x===-1),`${testCase.label}: side focusable`);

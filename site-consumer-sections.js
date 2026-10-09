@@ -1,5 +1,5 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-8970f6cb0e70';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-8970f6cb0e70';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-0cd3eebcc436';
+import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-0cd3eebcc436';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -11,8 +11,13 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'hospital', label: '병원·의원', icon: 'hospital', medical: true},
   {id: 'pharmacy', label: '약국', icon: 'pharmacy', medical: true},
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
+  // ONNURI-MERCHANT-01: its own search surface (site-life-onnuri.js). The
+  // official logo is not used before approval; brandSlot reserves its place.
+  {id: 'onnuri', label: '온누리상품권', brandSlot: 'onnuri'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
-  {id: 'bills', label: '공과금 확인', icon: 'document', prompt: '공과금 고지서를 확인하고 납부기한을 캘린더에 등록할지 알려 줘'},
+  // KINDERGARTEN-OFFICIAL-INFO-01: 학교(NEIS, 대화) / 유치원(유치원알리미 공시).
+  // Last: an odd last card spans its row (site-life-education.css).
+  {id: 'education', label: '유치원·학교', icon: 'school'},
 ]);
 
 // Each existing request form should show examples that belong to that service,
@@ -24,7 +29,6 @@ const LIFE_DETAIL_FIELDS = Object.freeze({
   facilities: [['지역 또는 장소', '예: 전주시 덕진구'], ['찾고 싶은 시설', '예: 주차 가능한 카페, 야간 약국']],
   local: [['지역 또는 장소', '예: 전주시 덕진구'], ['궁금한 생활정보', '예: 쓰레기 배출일, 주민센터 운영시간']],
   support: [['지역 또는 장소', '예: 전주시'], ['찾고 싶은 지원', '예: 청년 주거 지원, 자녀 돌봄 지원']],
-  bills: [['고지서 내용', '기관 · 금액 · 납부기한을 입력하세요']],
 });
 
 // LIFE-MEDICAL-CATEGORY-ENTRY-01 — entry forms for the Core medical lookup.
@@ -111,6 +115,7 @@ const ICON_PATHS = {
   link: ['M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2', 'M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2'],
   hospital: ['M4 3h16v18H4V3Z', 'M12 7v8M8 11h8'],
   pharmacy: ['M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7l7-7Z', 'm7 10 7 7'],
+  school: ['m2 9 10-5 10 5-10 5L2 9Z', 'M6 11v5c3 2.5 9 2.5 12 0v-5', 'M22 9v6'],
 };
 
 function node(tag, className = '', text = '') {
@@ -127,6 +132,13 @@ function icon(name) {
   }
   return svg;
 }
+// Reserved place for an approved partner logo. Renders nothing until then.
+function brandSlot(name) {
+  const slot = node('i', `${name}-logo-slot`);   // not a <span>: the label stays the tile's first span
+  slot.dataset.brandLogoSlot = name; slot.dataset.logoState = 'PENDING_APPROVAL';
+  slot.setAttribute('aria-hidden', 'true');
+  return slot;
+}
 function action(label, run, {secondary = false, disabled = false} = {}) {
   const button = node('button', `consumer-action${secondary ? ' consumer-action-secondary' : ''}`, label);
   button.type = 'button'; button.disabled = disabled;
@@ -139,7 +151,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onDraft, onFestival, onSaved, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onDraft, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -147,14 +159,11 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
   let releasePeople;
   let releasePets;
   let releaseWallet;
+  let releaseEducation;
 
   if (section === 'life') {
-    const form = node('form', 'consumer-search');
-    const input = node('input'); input.type = 'search'; input.maxLength = 1000;
-    input.placeholder = '어떤 생활정보가 필요하세요?'; input.setAttribute('aria-label', input.placeholder);
-    const submit = action('롯비에게 물어보기'); submit.type = 'submit';
-    form.append(input, submit);
-    form.addEventListener('submit', event => { event.preventDefault(); if (input.value.trim()) onDraft(input.value.trim()); else input.focus(); });
+    // The life home only picks a category: free questions belong to the main
+    // chat, and saved items are not duplicated here.
     const grid = node('div', 'consumer-shortcuts');
     function openMedicalDetail(item, back, detail, title) {
       const spec = LIFE_MEDICAL_FORMS[item.id];
@@ -200,7 +209,10 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
       root.replaceChildren(detail); title.focus();
     }
     function openLifeDetail(item) {
-      const back = action('생활정보로 돌아가기', () => { root.replaceChildren(form, heading, grid, footer); input.focus(); }, {secondary: true});
+      const back = action('생활정보로 돌아가기', () => {
+        root.replaceChildren(heading, grid);
+        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
+      }, {secondary: true});
       const detail = node('section', 'consumer-life-detail');
       const title = node('h3', '', item.label); title.tabIndex = -1;
       if (item.medical) { openMedicalDetail(item, back, detail, title); return; }
@@ -209,8 +221,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
       const fields = LIFE_DETAIL_FIELDS[item.id];
       for (const [labelText, placeholder] of fields) {
         const label = node('label', 'consumer-life-field', labelText);
-        const field = node(item.id === 'bills' ? 'textarea' : 'input');
-        if (item.id !== 'bills') field.type = 'text';
+        const field = node('input'); field.type = 'text';
         field.placeholder = placeholder; field.maxLength = 1000; field.required = true;
         field.setAttribute('aria-label', labelText); label.append(field); controls.push([labelText, field]); queryForm.append(label);
       }
@@ -222,23 +233,41 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
         if (missing) { missing[1].focus(); return; }
         onDraft([item.prompt, ...controls.map(([label, field]) => `${label}: ${field.value.trim()}`)].join('\n'));
       });
-      const note = item.id === 'bills'
-        ? '누르면 바로 롯비에게 물어봐요. 사진·PDF는 대화창에 첨부할 수 있어요. 납기일 등록과 납부는 확인 없이 진행하지 않습니다.'
-        : '누르면 바로 롯비에게 물어봐요. 현재 위치는 자동으로 수집하지 않습니다.';
+      const note = '누르면 바로 롯비에게 물어봐요. 현재 위치는 자동으로 수집하지 않습니다.';
       detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
       root.replaceChildren(detail); title.focus();
     }
+    // KINDERGARTEN-OFFICIAL-INFO-01: the 유치원·학교 screen is its own module,
+    // loaded on first use; it owns its reads and its "내 유치원" key.
+    function openEducation(item) {
+      const current = ++generation;
+      const back = action('생활정보로 돌아가기', () => {
+        releaseEducation?.(); releaseEducation = undefined; generation += 1;
+        root.replaceChildren(heading, grid);
+        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
+      }, {secondary: true});
+      const detail = node('section', 'consumer-life-detail');
+      detail.dataset.lifeDetail = item.id;
+      const title = node('h3', '', item.label); title.tabIndex = -1;
+      const host = node('div', 'consumer-life-education');
+      detail.append(back, title, host);
+      root.replaceChildren(detail); title.focus();
+      import('./site-life-education.js?v=aset-0cd3eebcc436').then(({mountEducation}) => {
+        if (disposed || current !== generation) return;
+        releaseEducation = mountEducation({root: host, onDraft, accountId}).dispose;
+      }).catch(() => {
+        if (!disposed && current === generation) host.replaceChildren(node('p', 'consumer-error', '유치원·학교 정보를 열지 못했습니다. 잠시 후 다시 열어 주세요.'));
+      });
+    }
     for (const item of LIFE_SHORTCUTS) {
       const button = node('button', 'consumer-shortcut'); button.type = 'button'; button.dataset.lifeShortcut = item.id;
-      button.append(icon(item.icon), node('span', '', item.label));
-      button.addEventListener('click', () => item.id === 'festivals' ? onFestival() : openLifeDetail(item));
+      button.append(item.brandSlot ? brandSlot(item.brandSlot) : icon(item.icon), node('span', '', item.label));
+      button.addEventListener('click', () => item.id === 'festivals' ? onFestival()
+        : item.id === 'onnuri' ? onOnnuri?.() : item.id === 'education' ? openEducation(item) : openLifeDetail(item));
       grid.append(button);
     }
-    const saved = action('저장한 정보 다시 보기', onSaved, {secondary: true});
     const heading = node('h3', 'consumer-section-label', '생활에 필요한 정보');
-    const footer = node('div', 'consumer-section-footer');
-    footer.append(saved, node('p', 'consumer-feature-note', '원하는 정보를 선택하고 조건을 입력하세요. 공과금 납기는 확인 후 일정 등록을 제안합니다.'));
-    root.append(form, heading, grid, footer);
+    root.append(heading, grid);
   } else if (section === 'wallet') {
     releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt});
   } else if (section === 'care') {
@@ -315,5 +344,5 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onSave
     for (const label of ['지역몰', '공공몰', '생활서비스', '쇼핑']) groups.append(node('span', 'consumer-category-label', label));
     root.append(state, groups, node('p', 'consumer-feature-note', '업체별 실제 연결 가능 여부와 권한은 연결 서비스에서 확인합니다. 소셜 로그인 계정과 제휴처 이용 권한은 다릅니다. 주문·배송 및 자동 주문은 연결만으로 활성화되지 않으며, 실제 결제는 진행하지 않습니다.'));
   }
-  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); }};
+  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); releaseEducation?.(); }};
 }
