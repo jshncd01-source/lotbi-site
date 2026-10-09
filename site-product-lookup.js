@@ -102,7 +102,7 @@ function ensureStyles(doc) {
   if (!doc?.head || doc.querySelector('link[data-site-product-lookup-styles]')) return;
   const link = doc.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-product-lookup.css?v=aset-9e8e7b1bf0e5';
+  link.href = '/site-product-lookup.css?v=aset-934415c7da50';
   link.dataset.siteProductLookupStyles = 'true';
   doc.head.appendChild(link);
 }
