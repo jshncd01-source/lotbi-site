@@ -1,0 +1,110 @@
+/* MY-CHILD-SCHOOL-01 — 생활정보 → 내 아이 학교·유치원 (site-life-my-child.js).
+   Theme tokens only (site-theme-tokens.css), so light/dark/system follow the
+   site theme without overrides. Touch targets ≥ 44px; one column ≤ 600px. */
+.lotbi-mychild { display: grid; gap: 14px; min-width: 0; }
+.lotbi-mychild-view { display: grid; gap: 14px; min-width: 0; }
+.lotbi-mychild-status { margin: 0; min-height: 1.4em; color: var(--lotbi-text-secondary); font-size: 14px; line-height: 1.5; }
+.lotbi-mychild-status:empty { min-height: 0; }
+.lotbi-mychild-intro { margin: 0; color: var(--lotbi-text-secondary); font-size: 14px; line-height: 1.55; }
+.lotbi-mychild-hint { margin: 0; color: var(--lotbi-text-secondary); font-size: 13px; line-height: 1.5; }
+.lotbi-mychild-title { margin: 0; font-size: 18px; color: var(--lotbi-text-primary); overflow-wrap: anywhere; }
+.lotbi-mychild-subtitle { margin: -8px 0 0; color: var(--lotbi-text-secondary); font-size: 14px; overflow-wrap: anywhere; }
+.lotbi-mychild-list, .lotbi-mychild-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.lotbi-mychild-card {
+  display: grid; gap: 4px; width: 100%; min-height: 44px; padding: 14px 16px; text-align: left; cursor: pointer;
+  border: 1px solid var(--lotbi-border-default); border-radius: 14px; background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary); font: inherit;
+}
+.lotbi-mychild-card:hover { background: var(--lotbi-surface-hover); }
+.lotbi-mychild-card:focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 2px; }
+.lotbi-mychild-card-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.lotbi-mychild-card-top strong { font-size: 16px; overflow-wrap: anywhere; }
+.lotbi-mychild-card-line { color: var(--lotbi-text-secondary); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.lotbi-mychild-badge {
+  display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--lotbi-border-default); color: var(--lotbi-text-secondary); background: var(--lotbi-surface-elevated);
+  white-space: nowrap;
+}
+.lotbi-mychild-empty, .lotbi-mychild-login, .lotbi-mychild-state, .lotbi-mychild-gap {
+  display: grid; gap: 8px; margin: 0; padding: 16px; border: 1px solid var(--lotbi-border-default); border-radius: 14px;
+  background: var(--lotbi-surface-elevated); color: var(--lotbi-text-primary); line-height: 1.55;
+}
+.lotbi-mychild-empty h4, .lotbi-mychild-login h4 { margin: 0; font-size: 16px; }
+.lotbi-mychild-empty p, .lotbi-mychild-login p { margin: 0; color: var(--lotbi-text-secondary); font-size: 14px; }
+.lotbi-mychild-login .consumer-action { justify-self: start; }
+.lotbi-mychild-footer { display: grid; gap: 10px; justify-items: start; }
+.lotbi-mychild-actions, .lotbi-mychild-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.lotbi-mychild-actions .consumer-action, .lotbi-mychild-links .consumer-action { min-height: 44px; }
+.lotbi-mychild-tabs .lotbi-edu-tab { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 52px; }
+.lotbi-mychild-panel { display: grid; gap: 12px; min-width: 0; }
+.lotbi-mychild-region { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lotbi-mychild-search select {
+  width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid var(--lotbi-border-default); border-radius: 10px;
+  background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font: inherit; font-size: 16px;
+}
+.lotbi-mychild-search select:focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 2px; }
+.lotbi-mychild-found { display: grid; gap: 10px; min-width: 0; }
+.lotbi-mychild-source { margin: 0; color: var(--lotbi-text-muted); font-size: 12px; line-height: 1.5; }
+.lotbi-mychild-chosen {
+  display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--lotbi-border-default); border-radius: 12px;
+  background: var(--lotbi-surface-elevated);
+}
+.lotbi-mychild-chosen strong { font-size: 16px; color: var(--lotbi-text-primary); overflow-wrap: anywhere; }
+.lotbi-mychild-allergens { margin: 0; padding: 0; border: 0; display: grid; gap: 8px; min-width: 0; }
+.lotbi-mychild-allergens legend { padding: 0; font-weight: 600; color: var(--lotbi-text-primary); }
+.lotbi-mychild-allergen-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 6px; }
+.lotbi-mychild-allergen {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; cursor: pointer;
+  border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary); font-size: 14px;
+}
+.lotbi-mychild-allergen:has(input:checked) { border-color: var(--lotbi-border-strong); background: var(--lotbi-selected-bg); color: var(--lotbi-selected-text); }
+.lotbi-mychild-allergen input { width: 18px; height: 18px; margin: 0; accent-color: var(--lotbi-link-primary); }
+.lotbi-mychild-consent {
+  padding: 12px 14px; border: 1px solid var(--lotbi-border-strong); border-radius: 12px; background: var(--lotbi-surface-elevated);
+}
+.lotbi-mychild-consent-check { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; cursor: pointer; color: var(--lotbi-text-primary); font-size: 14px; line-height: 1.55; }
+.lotbi-mychild-consent-check input { flex: 0 0 auto; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--lotbi-link-primary); }
+.lotbi-mychild-section { display: grid; gap: 10px; min-width: 0; }
+.lotbi-mychild-section h5, .lotbi-mychild-gap h5 { margin: 0; font-size: 15px; color: var(--lotbi-text-primary); }
+.lotbi-mychild-meal {
+  display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--lotbi-border-default); border-radius: 12px;
+  background: var(--lotbi-surface-primary); min-width: 0;
+}
+.lotbi-mychild-meal-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; color: var(--lotbi-text-primary); }
+.lotbi-mychild-meal-meta { color: var(--lotbi-text-secondary); font-size: 13px; }
+.lotbi-mychild-dishes { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lotbi-mychild-dish {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 4px 8px; border-radius: 8px;
+  border-left: 3px solid transparent; color: var(--lotbi-text-primary); font-size: 15px; line-height: 1.5; overflow-wrap: anywhere;
+}
+.lotbi-mychild-dish.is-allergen { border-left-color: var(--lotbi-warning-text); background: var(--lotbi-surface-elevated); font-weight: 600; }
+.lotbi-mychild-dish-marks { color: var(--lotbi-text-secondary); font-size: 12px; font-weight: 400; }
+.lotbi-mychild-contains { color: var(--lotbi-warning-text); font-size: 13px; font-weight: 700; }
+.lotbi-mychild-empty-line { margin: 0; color: var(--lotbi-text-secondary); font-size: 14px; }
+.lotbi-mychild-week { border: 1px solid var(--lotbi-border-default); border-radius: 12px; background: var(--lotbi-surface-primary); }
+.lotbi-mychild-week > summary {
+  display: flex; align-items: center; min-height: 44px; padding: 0 14px; cursor: pointer; color: var(--lotbi-text-primary); font-weight: 600;
+}
+.lotbi-mychild-week > summary:focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 2px; }
+.lotbi-mychild-day { display: grid; gap: 8px; padding: 0 14px 14px; }
+.lotbi-mychild-day h6 { margin: 6px 0 0; font-size: 14px; color: var(--lotbi-text-secondary); }
+.lotbi-mychild-schedule { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.lotbi-mychild-schedule li {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 10px 12px; border: 1px solid var(--lotbi-border-default);
+  border-radius: 12px; background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary);
+}
+.lotbi-mychild-schedule-when { color: var(--lotbi-text-secondary); font-size: 14px; }
+.lotbi-mychild-gap-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.lotbi-mychild-gap-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: var(--lotbi-text-primary); }
+.lotbi-mychild-gap-list .consumer-action { min-height: 44px; }
+.lotbi-mychild-facts { margin: 0; display: grid; gap: 8px; }
+.lotbi-mychild-fact { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; font-size: 14px; line-height: 1.5; }
+.lotbi-mychild-fact dt { color: var(--lotbi-text-secondary); }
+.lotbi-mychild-fact dd { margin: 0; color: var(--lotbi-text-primary); overflow-wrap: anywhere; }
+.lotbi-mychild-fact a { color: var(--lotbi-link-primary); }
+@media (max-width: 600px) {
+  .lotbi-mychild-region { grid-template-columns: 1fr; }
+  .lotbi-mychild-allergen-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lotbi-mychild-fact { grid-template-columns: 80px minmax(0, 1fr); }
+}

@@ -52,6 +52,9 @@ jobs:
       - name: Validate clean public URLs
         run: python scripts/validate_clean_urls.py
 
+      - name: Validate plan trusted device limits and notice
+        run: python scripts/validate_trusted_device_plan_limits_01.py
+
       - name: Validate iOS Social Auth return bridge
         run: python scripts/validate_ios_social_return_01.py
 
@@ -66,6 +69,9 @@ jobs:
 
       - name: Validate Subscribe to Account checkout handoff
         run: node scripts/validate_subscribe_account_checkout_handoff_01.mjs
+
+      - name: Validate subscription prices and plan-change policy copy
+        run: python scripts/validate_subscription_price_proration_01.py
 
       # 새로고침하면 보던 화면 그대로 — 캘린더 · Life Wallet · 진위확인 · 안심케어 ·
       # 반려동물 · 생활정보 · 축제·행사 · 롯비함이 URL fragment(/#calendar …)로
@@ -126,6 +132,9 @@ jobs:
 
       - name: Validate canonical email-first identity profile
         run: node scripts/validate_identity_profile_hotfix_02.mjs
+
+      - name: Validate new social signup profile summary
+        run: node scripts/validate_social_signup_profile_ux_01.mjs
 
       # Run the feature-owned profile regression before unrelated Site gates so
       # active logo/main work cannot hide whether this branch is executable.
@@ -340,6 +349,7 @@ jobs:
           node scripts/validate_calendar_system_dark_01.mjs
           node scripts/validate_calendar_editor_footer_contrast_01.mjs
           node scripts/validate_calendar_week_mobile_vertical_01.mjs
+          node scripts/validate_calendar_mobile_week_ux_weather_01.mjs
           node scripts/validate_calendar_add_from_image_01.mjs
           node --check site-calendar-draft-write.js
           node scripts/validate_conversation_calendar_auto_suggest_01.mjs
@@ -417,14 +427,20 @@ jobs:
       - name: Validate Place Card body opens NAVER search
         run: node scripts/validate_place_card_naver_search_click_01.mjs
 
+      # 생활정보 모든 질문(병원·약국·응급실, 지역생활정보, 유치원·학교): 한 번 탭으로 바로
+      # 전송되고(입력창 재전송 없음) 키보드는 사용자가 입력창을 탭할 때만 열린다. 사진 없는
+      # 장소 카드는 사진 칸 없이 짧고, 지도는 설정에서 고른 앱. 320·360·390·412·1280, 다크.
+      - name: Validate life info direct chat and photo-less place cards
+        run: node scripts/validate_life_direct_chat_card_compaction_01.mjs
+
       # 장소 카드 캐러셀은 transform 으로만 돌고 스크롤하지 않는다. 상품 카드
       # 레일의 scroll snap 을 물려받아 회전할 때마다 레일이 153~252px 밀리던
       # 결함 — 이전/다음·스와이프·방향키 뒤에도 가운데 카드가 제자리인지 잰다.
       - name: Validate Place Card carousel never drifts
         run: node scripts/validate_place_card_carousel_no_drift_01.mjs
 
-      # 장소·의료 카드 최종 정리: 휴대폰은 화살표 없이 밀어서 돌리고 카드 한 장이
-      # 온전히 보인다. 사진이 없으면 사진 칸이 없고, 1/3 위치와 세 곳 다음의
+      # 장소·의료 카드 최종 정리: 휴대폰은 화살표 없이 밀어서 돌리고 가운데 카드가
+      # 온전히 보이며 양옆 카드 끝이 보인다(LIFE-MEDICAL-AUTO-SEARCH-CARD-01). 사진이 없으면 사진 칸이 없고, 1/3 위치와 세 곳 다음의
       # "다른 병원 보기", 같은 기관 한 장, 설정 지도앱·네이버 검색 유지를 실제
       # 터치/마우스로 잰다(버튼 바로 위 본문 탭이 전화로 넘어가지 않는지 포함).
       - name: Validate Place / medical card final UX
@@ -561,6 +577,12 @@ jobs:
       - name: Validate auth UNKNOWN recovery in browser
         run: node scripts/validate_auth_unknown_recovery_browser_01.mjs
 
+      - name: Validate Site session restore and renewal in place
+        run: node scripts/validate_auth_session_continuity_p0_02.mjs
+
+      - name: Validate HTML document cache policy
+        run: python scripts/validate_document_cache_policy_01.py
+
       - name: Validate composer send and voice interaction
         run: node scripts/validate_composer_interaction.mjs
 
@@ -668,20 +690,33 @@ jobs:
           node scripts/validate_consumer_sections_02.mjs
           node scripts/validate_surface_drag_dismiss_guard_01.mjs
 
-      # 생활정보 병원·의원/약국 카드는 진입 UI만 더한다. 상세 화면이 만든 문장을
-      # 기존 대화 입력창으로 넘겨 Core 의료 조회가 답하는지(문장 규칙), 카드·칩이
+      # 생활정보 병원·의원/약국/응급실 카드는 입력 화면 없이 누르면 "근처 …"
+      # 질문을 바로 보낸다(입력창에 남기지 않고 포커스도 주지 않음). 카드가
       # 360·375·390x844·412·데스크톱에서 잘리지 않고 탭되는지, 공과금 메뉴·상단 질문
-      # 입력바·하단 저장/안내 줄 없이 설명 바로 아래 카테고리 목록만 빈 칸 없이
-      # 보이는지 실제 탭/클릭으로 확인한다.
+      # 입력바·하단 저장/안내 줄 없이 설명 바로 아래 카테고리 목록만 보이는지
+      # 실제 탭/클릭으로 확인한다.
       - name: Validate life medical category entry
         run: node scripts/validate_life_medical_category_entry_01.mjs
 
+      # 생활정보 → 병원·약국·응급실 자동 검색: 질문 1건·키보드 0·입력창 비움,
+      # 위치(허용 시 현재 위치 / 저장 지역 / 둘 다 없으면 미전송, 권한은 한 번만),
+      # 한 문장 답변, 회전형 카드(가운데 크게·양옆 끝 노출·스와이프·1/3·한 장이면 표시 없음),
+      # 원형 전화·지도 아이콘, 카드 안 운영 확인 한 줄, 일반 응급실 검색 119 박스 없음,
+      # 응급 증상만 작은 119 버튼, 약국 보조 조건, 뒤로/새로고침 재전송 없음, 다크모드.
+      # 320·360·375·390·412·1280 실제 터치/마우스.
+      - name: Validate life medical auto search and turning cards
+        run: node scripts/validate_life_medical_auto_search_card_01.mjs
       # KINDERGARTEN-OFFICIAL-INFO-01: 생활정보 → 유치원·학교 → 유치원. 유치원알리미
       # 시도·시군구 → 목록 → 설립유형·주소·연락처·운영시간·학급·정원·원아·홈페이지·
       # 공시 기준 + 상세 공시 8개, 내 유치원(학교 저장값과 분리), Core 꺼짐 안내,
       # 360·375·390·412·데스크톱 light/dark 실제 Chrome 확인.
       - name: Validate kindergarten official info
         run: node scripts/validate_kindergarten_official_info_01.mjs
+
+      # 내 아이 학교·유치원: 아홉째(마지막) 생활정보 카드, 로그인 안내, NEIS 검색·저장·이름/알레르기 변경·삭제·모두 삭제,
+      # 첫 저장 동의, 급식 알레르기 강조(급식표 표기 기준), 학사일정, 보완 요청, 320·360·412·1280, 라이트·다크.
+      - name: Validate my child school
+        run: node scripts/validate_my_child_school_01.mjs
 
       # 생활정보 정리 최종: 공과금 메뉴·상단 질문바·하단 보조 row·롯비함 진입/저장 버튼 없음,
       # 요금 안내에 공과금 문구 없음, 저장된 롯비함 데이터는 그대로. 360·375·390·412·1280.
@@ -694,6 +729,11 @@ jobs:
       - name: Validate Onnuri merchant search
         run: node scripts/validate_onnuri_merchant_search_01.mjs
 
+      # ONNURI-IMPORT-QUALITY-FIX-02: 2026 공식 파일은 소재지가 시·도뿐이라 가맹점은
+      # 소속 시장 위치(MARKET)로 놓인다 — 카드는 '시장까지' 거리·시장 주소·시장 길찾기만.
+      - name: Validate Onnuri market location
+        run: node scripts/validate_onnuri_market_location_02.mjs
+
       - name: Validate 진위확인 production connection
         run: |
           node --check site-scam-shield.js
@@ -702,6 +742,13 @@ jobs:
           node scripts/validate_scam_shield_mvp_01.mjs
           node scripts/validate_scam_shield_connection_01.mjs
           node scripts/validate_verification_dialog_design_01.mjs
+
+      # 지역정보(구 생활정보) 화면 문구와 지역뉴스 진입·답변 카드. 저장 지역은 한 번에,
+      # 지역 입력·내 주변은 짧은 양식으로 Core에 한 문장을 넘기고, 답변 카드는 이미지
+      # 칸 없이 제목·언론사·시각·요약·원문 열기·관련 보도 N건만 보여 주는지 360·375·
+      # 390·412·데스크톱·다크에서 실제 탭/클릭으로 확인한다. Core는 mock.
+      - name: Validate regional news (지역정보 · 지역뉴스)
+        run: node scripts/validate_regional_news_p0_01.mjs
 
       # 진위확인 사진·스크린샷 선택은 카메라를 강제하지 않고(capture 없음),
       # 카메라로 촬영만 capture="environment"를 쓴다. 실제 Chrome 탭으로 각
@@ -843,3 +890,13 @@ jobs:
 
           callback_url="$(curl --silent --show-error --location --output /dev/null --write-out '%{url_effective}' 'http://127.0.0.1:4173/auth/callback?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss')"
           [[ "$callback_url" == *'/auth/callback/?code='*'&state='* ]] || { echo "callback redirect did not preserve code/state query: $callback_url" >&2; exit 1; }
+
+          # AUTH-SESSION-CONTINUITY-P0-02 — documents revalidate, login callback/start are never stored, assets unchanged.
+          cache_control() { curl --silent --show-error --head "http://127.0.0.1:4173$1" | tr -d '\r' | awk 'tolower($1)=="cache-control:"{print $2}'; }
+          for path in '/auth/callback/' '/auth/callback/?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss' '/auth/start/'; do
+            [[ "$(cache_control "$path")" == 'no-store' ]] || { echo "${path} must be Cache-Control: no-store" >&2; exit 1; }
+          done
+          for path in '/' '/index.html' '/terms' '/site-asset-version.json'; do
+            [[ "$(cache_control "$path")" == 'no-cache' ]] || { echo "${path} must be Cache-Control: no-cache" >&2; exit 1; }
+          done
+          [[ -z "$(cache_control '/site-auth.js')" ]] || { echo "versioned scripts keep their caching" >&2; exit 1; }

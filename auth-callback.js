@@ -1,17 +1,18 @@
 import {
   callbackPathWithoutQuery,
   clearSiteHandoffRecovery,
+  describeSiteHandoffCallbackQuery,
   isConsumedSiteHandoffCallback,
   parseSiteHandoffCallback,
   readAndClearSiteHandoffContext,
   recoverStaleSiteHandoff,
   siteHandoffReturnPath,
   SiteHandoffClientError,
-} from './site-auth.js?v=aset-ade0e342fd9c';
-import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-ade0e342fd9c';
-import {parseSiteRouteHash} from './site-route.js?v=aset-ade0e342fd9c';
-import {mountConversation} from './site-conversation.js?v=aset-ade0e342fd9c';
-import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-ade0e342fd9c';
+} from './site-auth.js?v=aset-70f733afa919';
+import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-70f733afa919';
+import {parseSiteRouteHash} from './site-route.js?v=aset-70f733afa919';
+import {mountConversation} from './site-conversation.js?v=aset-70f733afa919';
+import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-70f733afa919';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
@@ -19,6 +20,19 @@ const statusNode = document.getElementById('auth-callback-status');
 const retryLink = document.getElementById('auth-callback-retry');
 const callbackBootStartedAt = globalThis.performance?.now?.() ?? 0;
 let callbackRecoveryContext;
+// AUTH-SESSION-CONTINUITY-P0-02 — how this callback was entered, counted
+// before the query is stripped: numbers of code/state/other parameters only,
+// never a value. With the asset version this page is actually running, the
+// error page line tells a screenshot apart: a stale cached page, a callback
+// revisited without its query, or a fresh one with a missing parameter.
+const callbackEntryShape = describeSiteHandoffCallbackQuery(new URL(window.location.href));
+const CALLBACK_ASSET_VERSION = (() => {
+  try {
+    return new URL(import.meta.url).searchParams.get('v') || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+})();
 
 function performanceNow() {
   return globalThis.performance?.now?.() ?? 0;
@@ -34,7 +48,12 @@ function recordTiming(name, detail = {}) {
 
 recordTiming('callback-boot', {elapsedMs: Math.round(callbackBootStartedAt)});
 
-function showCallbackError(message) {
+function callbackDiagnosticText(error) {
+  const code = typeof error?.code === 'string' && /^[A-Z0-9_]{1,64}$/.test(error.code) ? error.code : 'UNKNOWN';
+  return `진단 ${code} · code ${callbackEntryShape.code} · state ${callbackEntryShape.state} · 기타 ${callbackEntryShape.other} · ${CALLBACK_ASSET_VERSION}`;
+}
+
+function showCallbackError(message, diagnostic = '') {
   document.body.classList.add('auth-callback-error-page');
   document.title = 'LOTBI | 로그인 연결 오류';
   if (callbackShell) callbackShell.hidden = false;
@@ -44,6 +63,16 @@ function showCallbackError(message) {
     statusNode.classList.add('auth-callback-error');
   }
   if (retryLink) retryLink.hidden = false;
+  if (diagnostic) {
+    document.body.dataset.authCallbackDiagnostic = diagnostic;
+    if (statusNode && !document.getElementById('auth-callback-diagnostic')) {
+      const line = document.createElement('p');
+      line.id = 'auth-callback-diagnostic';
+      line.className = 'auth-callback-diagnostic';
+      line.textContent = diagnostic;
+      statusNode.after(line);
+    }
+  }
 }
 
 function callbackErrorMessage(error) {
@@ -112,8 +141,8 @@ async function hydrateHomeShell() {
   document.body.replaceWith(nextBody);
   window.dispatchEvent(new CustomEvent('lotbi:home-shell-hydrated'));
   document.title = parsed.title || 'LOTBI | 무엇을 도와드릴까요?';
-  await loadClassicScript('/home-shell.js?v=aset-ade0e342fd9c');
-  await loadClassicScript('/mobile-entry.js?v=aset-ade0e342fd9c');
+  await loadClassicScript('/home-shell.js?v=aset-70f733afa919');
+  await loadClassicScript('/mobile-entry.js?v=aset-70f733afa919');
 }
 
 async function completeSiteHandoff() {
@@ -214,5 +243,5 @@ void completeSiteHandoff().catch(async error => {
   } catch (recoveryError) {
     error = recoveryError;
   }
-  showCallbackError(callbackErrorMessage(error));
+  showCallbackError(callbackErrorMessage(error), callbackDiagnosticText(error));
 });
