@@ -2754,16 +2754,28 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   .calendar-event-stack { display: none; }
   .calendar-mobile-event-count { display: none !important; }
   .calendar-holiday-label { display: none; }
-  .calendar-date-cell { min-height: 52px; gap: 0; padding: 0; }
+  /* Keep the mobile row geometry independent of OS font metrics. Lunar text
+     may wrap inside the target, but neither state may resize the grid row. */
+  .calendar-date-cell {
+    height: 52px;
+    min-height: 52px;
+    max-height: 52px;
+    gap: 0;
+    padding: 0;
+  }
   .calendar-date-header {
     position: relative;
     min-height: 0;
     display: block;
   }
   .calendar-date-trigger {
+    box-sizing: border-box;
     width: 100%;
     min-width: 0;
+    height: 52px;
     min-height: 52px;
+    max-height: 52px;
+    flex: 0 0 52px;
     display: grid;
     grid-template-rows: auto auto;
     justify-items: start;
