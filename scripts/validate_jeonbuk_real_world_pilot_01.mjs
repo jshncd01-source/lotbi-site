@@ -186,8 +186,9 @@ await check('registry-only medical card says there are no hours and never "진�
 });
 
 await check('the 전북 맛집·음식 entry builds the sentence Core reads; location only for 내 주변', async () => {
-  // Right after 지역생활정보, before 유치원·학교 and 내 아이 학교·유치원 (main's order).
-  assert.deepEqual(LIFE_SHORTCUTS.slice(-4).map(item => item.label), ['지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
+  // Right after 지역생활정보, before 내 아이 학교·유치원 (REGIONAL-INFO-APPROVED-UX-RESTORE-P0:
+  // 유치원·학교 now opens from inside 내 아이 학교·유치원).
+  assert.deepEqual(LIFE_SHORTCUTS.slice(-3).map(item => item.label), ['지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
   assert.equal(regional.buildJeonbukFoodPrompt({}), '전북 맛집 알려줘');
   assert.equal(regional.buildJeonbukFoodPrompt({region: '전주', food: '비빔밥'}), '전북 전주 비빔밥 맛집 알려줘');
   assert.equal(regional.buildJeonbukFoodPrompt({region: '완산구에서'}), '전북 완산구 맛집 알려줘');
@@ -307,10 +308,11 @@ try {
   reading.food.darkColor = getComputedStyle(food).color;
   document.body.dataset.siteTheme = 'light';
 
-  // 생활정보 home: ten shortcuts, no empty cell in any row (and still none
-  // with main's nine, i.e. if the 전북 card were ever taken out).
+  // 지역정보 home (REGIONAL-INFO-APPROVED-UX-RESTORE-P0 menu + 전북): eight
+  // shortcuts, no empty cell in any row (and still none with seven, i.e. if
+  // the 전북 card were ever taken out).
   document.querySelector('[data-consumer-section="life"]').click();
-  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 10 ? g : null; }, 'life grid');
+  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 8 ? g : null; }, 'life grid');
   await sleep(300);
   const rows = () => {
     const g = box(grid), byRow = new Map();
@@ -322,7 +324,7 @@ try {
   foodShortcut.remove();
   await sleep(100);
   reading.life.withoutFood = rows();
-  grid.insertBefore(foodShortcut, grid.querySelector('[data-life-shortcut="education"]'));
+  grid.insertBefore(foodShortcut, grid.querySelector('[data-life-shortcut="my-child"]'));
   // 전북 맛집·음식 detail: chips inside the panel; 전주 + 비빔밥 asks the right sentence.
   grid.querySelector('[data-life-shortcut="jeonbuk-food"]').click();
   const detail = await wait(() => document.querySelector('.consumer-life-detail[data-life-detail="jeonbuk-food"]'), 'food detail');
@@ -439,9 +441,9 @@ try {
       assert.deepEqual(r.medical.lines.map(line => line.state), ['REGISTRY', 'REGISTRY_NO_HOURS']);
       assert.ok(r.medical.lines.every(line => !/진료 중/u.test(line.text)));
       // 생활정보 home grid.
-      assert.deepEqual(r.life.labels, ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
-      assertRowsFilled(`${where} ten`, r.life.withFood);
-      assertRowsFilled(`${where} nine without 전북`, r.life.withoutFood);
+      assert.deepEqual(r.life.labels, ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
+      assertRowsFilled(`${where} eight`, r.life.withFood);
+      assertRowsFilled(`${where} seven without 전북`, r.life.withoutFood);
       // 전북 맛집·음식 detail.
       assert.equal(r.detail.title, '전북 맛집·음식');
       assert.ok(r.detail.panelScroll <= 0, `${where}: the panel scrolls sideways`);
