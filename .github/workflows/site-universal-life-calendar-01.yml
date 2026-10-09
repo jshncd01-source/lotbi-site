@@ -112,9 +112,8 @@ jobs:
         run: |
           curl --fail --silent --show-error --location --output /tmp/chrome.zip https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/linux64/chrome-linux64.zip
           unzip -q /tmp/chrome.zip -d "$RUNNER_TEMP/chrome-154"
-          echo "CHROME_BIN=$RUNNER_TEMP/chrome-154/chrome-linux64/chrome" >> "$GITHUB_ENV"
       - name: Exact Chrome 154 lunar layout verification
-        run: node scripts/validate_calendar_lunar_compact_layout_01.mjs
+        run: CHROME_BIN="$RUNNER_TEMP/chrome-154/chrome-linux64/chrome" node scripts/validate_calendar_lunar_compact_layout_01.mjs
       - name: Public Site static validation
         run: python scripts/validate_site.py
       - name: Existing Site auth continuity
