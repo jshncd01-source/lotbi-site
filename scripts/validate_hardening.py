@@ -145,7 +145,9 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # refund.html 제6조(#plan-change)에 적었다. 약관 본문 바이트가 바뀌었으므로 Social
 # Signup 동의 증빙용 LOTBI_SOCIAL_TERMS_VERSION(LOTBI_TERMS_2026-10-08_R1 로 올림)과
 # LOTBI_SOCIAL_TERMS_SHA256 은 emit_social_signup_legal_manifest.py 출력값으로 배포와
-# 함께 갱신해야 실제 게시본을 가리킨다.
+# 함께 갱신해야 실제 게시본을 가리킨다. 그 해시는 이 파일의 잠금과 같은 정규화
+# (asset 토큰 제거)로 계산하므로 위 잠금 값과 같고, Site 배포로 토큰이 바뀌어도
+# 변하지 않는다(validate_social_legal_manifest_01.py).
 # Hashes
 # remain exact after Git's LF/CRLF checkout normalization, not content stripping.
 LOCKED_SHA256 = {
