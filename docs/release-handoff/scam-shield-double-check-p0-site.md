@@ -1,13 +1,15 @@
 READY_FOR_DEPLOY=YES
 
+SUPERSEDES=54387431b6d6f72575d45d934f5f7f14f8dbe522 (main b6dc768d 재병합, 배포총괄방 07:03 요청)
+
 # LOTBI_SCAM_SHIELD_DOUBLE_CHECK_P0 — Site
 
 - TASK_ID: LOTBI_SCAM_SHIELD_DOUBLE_CHECK_P0
 - REPO: lotbi-site (Ncloud)
 - FEATURE_BRANCH: feature/scam-shield-double-check-p0-site
-- BASE: Ncloud main 576ec346에서 시작 → 56c26095959e3a537d69658a9307b356d4e34080 정상 merge(asset 토큰·import 줄만 충돌, rc_token_resolve 후 토큰 재생성)
-- CODE_SHA: de1b9b52ae0868862295045816b7128877868e3d
-- ASSET_VERSION: aset-86bac3dbf6c2
+- BASE: Ncloud main 576ec346 시작 → 56c26095 병합 → b6dc768def1b47ff8ab9a9d365eb9d3688c738f0 정상 merge(토큰 충돌 + index.html·auth/callback/index.html은 main이 추가한 site-life-news.css 줄만 차이 → main 쪽 채택, 토큰 재생성)
+- CODE_SHA: 77957f2148f8de11636d0b7cd8af5f5f83073dfb
+- ASSET_VERSION: aset-691184698bff
 - PAIR: Core feature/scam-shield-double-check-p0-core (DEPLOY_ORDER=CORE 먼저 → SITE). 새 칸이 없는 옛 Core 응답도 그대로 그려서(검사기로 확인) 순서가 어긋나도 화면이 깨지지 않음.
 - MIGRATION: NONE / NEW_SECRET_CREATED=NO / NEW_PAID_RESOURCE_CREATED=NO / PRODUCTION_CHANGED=NO
 - USER_DECISION_NEEDED: NONE
@@ -26,7 +28,7 @@ READY_FOR_DEPLOY=YES
 
 ## 테스트
 
-- SITE_TESTS: 병합 후(HEAD de1b9b52ae0868862295045816b7128877868e3d, 로컬 Windows): validate_scam_shield_double_check_p0 PASS 16 renders, validate_scam_shield_mvp_01 PASS, validate_scam_shield_connection_01 PASS, asset coherence PASS. 병합 전 같은 변경: result_banner_contrast_01 PASS 30, photo_picker_01 PASS, login_gate_contrast_01 PASS 30, verification_dialog_design_01 PASS. NEW_FAILURES=0. 전체 Site validator 묶음은 로컬에서 돌리지 않음(gate가 실행).
+- SITE_TESTS: b6dc768d 병합 후(HEAD 77957f2148f8de11636d0b7cd8af5f5f83073dfb, 로컬 Windows): validate_scam_shield_double_check_p0 PASS 16 renders, validate_scam_shield_result_banner_contrast_01 PASS 30, validate_scam_shield_mvp_01 PASS, validate_scam_shield_connection_01 PASS, asset coherence PASS, node --check(site-core·site-scam-shield·site-conversation·site-consumer-sections) OK. 이전 병합에서 photo_picker_01·login_gate_contrast_01·verification_dialog_design_01 PASS. main 변경분에 진위확인 파일 없음. NEW_FAILURES=0. 전체 Site validator 묶음은 gate가 실행.
 - 실기기(iPhone Safari·Android·카카오톡 내 브라우저): NOT TESTED (viewport 에뮬레이션만)
 
 ## 롤백
