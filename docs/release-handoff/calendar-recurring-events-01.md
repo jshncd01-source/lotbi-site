@@ -1,14 +1,18 @@
 READY_FOR_DEPLOY=YES
+SUPERSEDES=9b9025990b088d3314cff16318413d0b312c9f1d
+ALEMBIC_HEADS=1 (paired Core p0_0107_calendar_recurring_reminders; Site migration 없음)
+APP_COMPAT=CORE_FIRST + EXPLICIT_SCOPE — Site는 반복 수정·삭제에 OCCURRENCE/SERIES를 명시하고, 구버전 App 읽기 호환은 Core READY에서 Ncloud App main 593715ce parser로 검증
+USER_DECISION_NEEDED=NONE
 
 # calendar-recurring-events-01 (Site) — release handoff
 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/calendar-recurring-events-01
 FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote origin refs/heads/feature/calendar-recurring-events-01`)
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=3d6a5eec14f3e64218ad17c87e1b6ae9cfafaef3 (개발 c9c19e4c → 33aa5d9a 위로 재커밋 → 3d6a5eec 정상 merge)
-CODE_SHA=a792b180f863cf48ca9ba96324922f515d763d0b (merge commit; 기능 커밋 3e92ad50)
-ASSET_VERSION=aset-486f76db5e27
-PAIRED_CORE_BRANCH=lotbi-core feature/calendar-recurring-events-01 (same name) — READY push 2a998eba9000f37625092731397f80c18ba96c80
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=fa6ed88d3608536050de0fb56136ae9b920a4c55 (2026-10-09 최종 Ncloud main, fd54a7f4에서 정상 merge)
+CODE_SHA=fd54a7f4abca1ca64c9d78d8ce910c1ce156721f (최신 main merge; 반복 전체 삭제 scope 보완 d114b753; 기능 원본 3e92ad50)
+ASSET_VERSION=aset-f0f202fb6c78
+PAIRED_CORE_BRANCH=lotbi-core feature/calendar-recurring-events-01 (same name) — p0_0107 + SCOPE_REQUIRED_409 READY를 먼저 배포
 DEPLOY_ORDER=CORE → SITE (필수). Core가 먼저 나가야 반복·알림 필드가 저장된다. Site만 먼저 나가면 반복을 골라도 Core가 무시해 한 번짜리 기록으로 저장된다.
 
 ## SCOPE (반복 일정 + 반복 알림, 기록 편집기)
@@ -44,24 +48,20 @@ DEPLOY_ORDER=CORE → SITE (필수). Core가 먼저 나가야 반복·알림 필
 - a792b180: main 3d6a5eec 정상 merge. main의 편집기 변경(제목이 있어야 저장, saveInFlight)과 이 branch의 저장 경로가 자동 병합됨 —
   이 날짜만/반복 전체 선택을 먼저 하고 그 다음 main 방식으로 saveInFlight를 켠다. 토큰만 다른 충돌은 main 쪽 선택 후 재계산.
   merge 결과의 main 대비 차이 = 이 branch 변경 파일 5개뿐(토큰 제외)임을 파일별로 확인.
+- d114b753: 반복 전체 삭제도 `scope: SERIES`를 명시하고 validator에 요청 본문 회귀 검사를 추가.
+- fd54a7f4: 최신 Ncloud main fa6ed88d 정상 merge. main에 포함된 음력·모바일 주간 달력·월간 가계부 및 다른 Site 기능을 보존.
 
 ## TEST_STATUS
 
-로컬 Windows + Chrome(CHROME_BIN):
-- validate_calendar_recurring_events_01(신규): Node 요청 본문 + 실제 편집기 390/1280px PASS — 회차 표시, 하루 목록 '↻ 매주', 이 날짜만 수정(scope OCCURRENCE),
-  반복 변경은 질문 없이 SERIES(시작일 유지), 삭제 창 두 버튼·이 날짜만 삭제, 사용자 지정 월·수·금 ~11/30 + 1일 전 알림 생성, 금액 충돌 시 요청 0건,
-  알림 권한 차단 안내, 새 칸 44px 이상, 게스트 칩 불변.
-- 실제 Core(이 branch와 짝인 Core branch를 로컬 uvicorn으로) 연결 E2E, 390px: 생성·이 날짜만 수정·이 날짜만 삭제·2주마다로 반복 전체 변경·사용자 지정 생성·
-  주간(월·수·금 3건)·목록(10건) 표시·반복 전체 삭제 — 요청 본문과 Core 결과 모두 기대대로.
-- 33aa5d9a 기준 트리 scripts/validate_* 전체 214개: 1차 194 PASS / 20 FAIL → 재시도 후 남은 것 = main에서도 FAIL인 기존 RED
-  (image_attachment_thumbnail_01 · mobile_footer_legal_sheet_01 · site_avatar_fallback_runtime), main에서도 같은 EPERM인 auth_unknown_recovery_browser_01,
-  당시 CRLF로 실패한 calendar_system_dark_01(LF로 맞추면 mirror 최신 — main 3d6a5eec의 validator 수정으로 이후 PASS),
-  place_card_compact_01(같은 시각 main 33aa5d9a에서도 3회 연속 같은 동적 로딩 실패 — 부하·고정 포트 4213 공유).
-- 최종 커밋(a792b180, main 3d6a5eec merge 후): 캘린더 validator 전체 + 대화·캘린더 연결·공통 검사 58개: 49 PASS 1차, 실패 9건(전부 동적 모듈 로딩 실패·결과 누락)은 재시도 PASS.
-  asset_cache_version --check PASS.
+로컬 Windows + Chrome 141, 최신 main merge CODE_SHA 기준(2026-10-09):
+- SITE-UNIVERSAL-LIFE-CALENDAR-01 Linux gate와 같은 정적·Node·브라우저 검사 목록을 직렬 실행: **전체 PASS**. `validate_site.py`, JS syntax 12개, auth/calendar client·UI·월/년·게스트·실제 편집기·날씨·공휴일·알림·모달·터치·월 geometry·월간 가계부·사진 등록·대화 연결·캐시·주간 timegrid·모바일 세로 주간·반복·음력·toolbar 포함.
+- `validate_calendar_recurring_events_01`: PASS — OCCURRENCE 수정·삭제, SERIES 수정·삭제(반복 전체 삭제 요청에 scope SERIES), 사용자 지정 반복, 알림, 금액 충돌, 게스트 불변.
+- `validate_calendar_expense_summary_01`: PASS, `validate_calendar_week_mobile_vertical_01`: 320/360/375/390/412px light/dark 및 desktop PASS, `validate_calendar_lunar_model_01`·`validate_calendar_lunar_settings_ui_01`: PASS.
+- `python scripts/validate_site.py`: PASS(공개 11페이지), `node scripts/asset_cache_version.mjs --check`: PASS(version aset-f0f202fb6c78, targets 130, refs 156).
+- 실제 Core 연결 E2E는 이전 READY에서 390px 생성·회차/전체 수정·삭제·주간·목록까지 PASS했으며 이번 최종 재검증은 mock/fixture 기반 Site gate와 Core 326-test gate로 수행. Production Core smoke는 배포총괄방 담당.
 
 NEW_FAILURES=0
-MAIN_AT_PUSH=ee8c1b6fef4ec11c0bf642f60b0e7ddead067b2e — 3d6a5eec 이후 main 변경은 site-conversation.js(화면 URL)와 validate_site_refresh_route_restore_01뿐으로 이 branch 변경 파일과 겹치지 않음(통합 시 asset token 충돌만 예상).
+MAIN_AT_PUSH=fa6ed88d3608536050de0fb56136ae9b920a4c55 — 최종 Ncloud main을 정상 merge한 상태.
 
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
@@ -71,5 +71,6 @@ DEPENDENCIES=Core 같은 이름 branch 먼저 배포. 같은 날 음력 표시 �
 
 - 실제 iPhone Safari·카카오톡 내장 브라우저(이 PC에는 WebKit·실기기 없음). 확인은 데스크톱 Chrome 엔진(390px 모바일 폭 에뮬레이션 포함)뿐.
 - 실제 푸시 수신(브라우저·앱).
+- Core Production 배포 후 반복 일정 smoke 및 Site Production 배포 — 배포총괄방 담당.
 
 USER_DECISION_NEEDED=NONE
