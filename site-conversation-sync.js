@@ -18,7 +18,7 @@
 //
 // Nothing in this module ever reads another namespace: a different account on
 // the same browser has a different namespace and its own engine state.
-import {CORE_ORIGIN} from './site-core.js?v=aset-505856ddacab';
+import {CORE_ORIGIN} from './site-core.js?v=aset-ade0e342fd9c';
 
 const API = '/v2/conversation-history';
 const STORAGE_PREFIX = 'lotbi.site.ux.v1';
@@ -272,6 +272,33 @@ export function createConversationSync(deps) {
     return changed;
   };
 
+  // A message written before the sync code loaded on this page has no id yet.
+  const assignMissingIds = () => {
+    let changed = false;
+    for (const record of deps.threads()) {
+      if (!threadIsAccount(record)) continue;
+      const seen = new Map();
+      for (const message of record.messages) {
+        if (typeof message.id === 'string' && CLIENT_ID.test(message.id)) continue;
+        message.id = legacyMessageId(message, seen);
+        changed = true;
+      }
+    }
+    return changed;
+  };
+  // Sync is off: whatever is not on the account yet stays on this device.
+  const keepUnsentOnDevice = () => {
+    let changed = false;
+    for (const record of deps.threads()) {
+      if (!record.sync && engine?.importDecision) { record.sync = {mode: 'local'}; changed = true; continue; }
+      if (!threadIsAccount(record)) continue;
+      for (const message of record.messages) {
+        if (!message.syncedAt && !message.localOnly) { message.localOnly = true; changed = true; }
+      }
+    }
+    return changed;
+  };
+
   // --- pull ------------------------------------------------------------------
   const mergeMessages = (record, incoming) => {
     const byId = new Map(record.messages.filter(item => typeof item.id === 'string').map(item => [item.id, item]));
@@ -474,6 +501,7 @@ export function createConversationSync(deps) {
       writeEngine();
     }
     if (!enabled) return;
+    if (assignMissingIds()) deps.commit({rerenderActive: false});
     const threads = deps.threads();
     const fresh = threads.filter(record => threadIsAccount(record) && !record.sync.remote && record.messages.some(syncable));
     if (fresh.length) await uploadDeviceThreads(fresh, myGeneration);
@@ -634,7 +662,10 @@ export function createConversationSync(deps) {
       return;
     }
     if (!available) { settle(); return; }
-    if (adoptUnclassified()) deps.commit({rerenderActive: false});
+    let classified = adoptUnclassified();
+    if (assignMissingIds()) classified = true;
+    if (!enabled && keepUnsentOnDevice()) classified = true;
+    if (classified) deps.commit({rerenderActive: false});
     if (enabled) {
       try { await pull(myGeneration); } catch { if (live(myGeneration)) setStatus('pending'); }
       if (!live(myGeneration)) return;
