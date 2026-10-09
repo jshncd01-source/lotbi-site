@@ -31,8 +31,11 @@ assert.match(conversation, /onClose: \(\) => mounted\?\.dispose\(\)/);
 assert.match(conversation, /mountPetFamilyManager\(\{sessionToken, root, subscription: serverSubscription/);
 assert.match(conversation, /mountPersonCareManager\(\{sessionToken, root, initialSurface/);
 assert.match(conversation, /onAsk: text => \{[\s\S]{0,400}?closeSurface\(\);\s*askWithoutKeyboard\(text\);/);
-// 유치원·학교 keeps the draft handoff (KINDERGARTEN-OFFICIAL-INFO-01).
-assert.match(conversation, /onDraft: text => \{ closeSurface\(\); draft\(text\); \}/);
+// LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk too, so no
+// draft handoff is left anywhere in 생활정보.
+assert.doesNotMatch(conversation, /onDraft|draft\(text\)|요청을 입력창에 넣었어요/);
+assert.doesNotMatch(source, /onDraft/);
+assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/);
 assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 assert.match(css, /min-height: 44px/);
 assert.match(css, /input:focus-visible/);

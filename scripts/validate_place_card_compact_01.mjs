@@ -171,8 +171,8 @@ try {
     mediaState:center.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
     photoSrc:center.querySelector('.lotbi-place-photo')?.src||'',
     sideMediaPresent:Boolean(side.querySelector('.lotbi-rich-card-place-media')),
-    sideMediaHidden:side.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
-    sideMediaState:side.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
+    sideMediaPlaceholder:side.querySelectorAll('.lotbi-rich-card-media, .lotbi-rich-card-placeholder, .lotbi-rich-card-media-empty').length,
+    railPhotoClass:rail.classList.contains('has-place-photo'),
     sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
     // A side card is shown dimmed (on phones only its edge, LIFE-MEDICAL-AUTO-SEARCH-CARD-01);
     // its phone / map links are never shown or pressable.
@@ -260,8 +260,10 @@ try {
     assert.equal(reading.mediaHidden,false,`${testCase.label}: verified photo banner remains visible`);
     assert.equal(reading.mediaState,'loaded',`${testCase.label}: verified photo media state`);
     assert.equal(reading.photoSrc,PLACE_RESULT.results[0].image_url,`${testCase.label}: verified photo src preserved`);
-    // A place without a photo has no photo box at all (PLACE-MEDICAL-CARD-UX-FINAL-01).
-    assert.equal(reading.sideMediaPresent,false,`${testCase.label}: no photo box on the card without a photo`);
+    // LIFE-DIRECT-CHAT-CARD-COMPACTION-01: no photo, no photo box at all.
+    assert.equal(reading.sideMediaPresent,false,`${testCase.label}: a card without a photo has no media box`);
+    assert.equal(reading.sideMediaPlaceholder,0,`${testCase.label}: no empty placeholder on a card without a photo`);
+    assert.equal(reading.railPhotoClass,true,`${testCase.label}: the rail keeps the photo height while a card shows a photo`);
     assert.ok(reading.card.h<=reading.rail.h+1,`${testCase.label}: card ${reading.card.h} > rail ${reading.rail.h}`);
     // Phones show one whole card inside the rail; wider screens keep the orbit card size.
     const maxCardWidth=testCase.mobile?Math.min(reading.rail.w-16,400):286;
