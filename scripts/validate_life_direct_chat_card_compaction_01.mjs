@@ -45,9 +45,14 @@ assert.ok(!/prompt\.focus\(|focusComposerInPlace\(/u.test(askBody), 'asking from
 const requestBody = conversation.slice(conversation.indexOf('const requestAssistant = async'), conversation.indexOf('const submitCurrentPrompt = async'));
 assert.ok(!/(?<!const refocusComposer[^\n]*)\bfocusComposerInPlace\(\);/u.test(requestBody.replace(/const refocusComposer = [\s\S]*?\n {4}\};/u, '')), 'no direct composer focus left in requestAssistant');
 assert.ok(!/\bprompt\.focus\(\)/u.test(requestBody.replace(/const refocusComposer = [\s\S]*?\n {4}\};/u, '')), 'no direct prompt.focus() left in requestAssistant');
+assert.ok(!/\breturnComposerFocusAfterTurn\(\)/u.test(requestBody.replace(/const refocusComposer = [\s\S]*?\n {4}\};/u, '')), 'no direct returnComposerFocusAfterTurn() left in requestAssistant');
 assert.ok(!sections.includes('질문 준비하기'), 'the button sends; it no longer only prepares');
 assert.ok(sections.includes("action('바로 찾기')") && sections.includes("action('롯비에게 물어보기')"));
 assert.ok(!sections.includes('다음 화면에서 질문을 확인한 뒤 보내세요'), 'no note promising a confirmation step');
+// 유치원·학교 → 학교 also asks through onDraft, so it sends right away too
+// (its browser run is scripts/validate_kindergarten_official_info_01.mjs).
+const education = read('site-life-education.js');
+assert.ok(!education.includes('질문 준비하기') && !education.includes('다음 화면에서 질문을 확인한 뒤 보내세요'), '학교 question form promises no confirmation step');
 assert.ok(!conversation.includes('preserveEmptyMedia') && !conversation.includes("rail.classList.add('has-place-banner')"), 'no empty photo box contract left');
 
 // ── Browser ─────────────────────────────────────────────────────────────

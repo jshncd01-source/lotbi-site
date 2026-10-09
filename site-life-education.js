@@ -212,7 +212,8 @@ export function mountEducation({
       chip.dataset.schoolAction = id; chip.setAttribute('aria-pressed', String(id === chosen));
       chips.append(chip);
     }
-    const send = node('button', 'consumer-action', '질문 준비하기'); send.type = 'submit';
+    // onDraft sends the question right away (LIFE-DIRECT-CHAT-CARD-COMPACTION-01).
+    const send = node('button', 'consumer-action', '롯비에게 물어보기'); send.type = 'submit';
     const status = node('p', 'lotbi-kinder-status'); status.setAttribute('role', 'status');
     form.append(label, chips, send, status);
     form.addEventListener('submit', event => {
@@ -224,7 +225,7 @@ export function mountEducation({
     });
     const intro = node('p', 'lotbi-edu-intro', '초·중·고 급식·학사일정·기본정보는 교육부 NEIS 공식 자료로 대화에서 알려 드려요.');
     const note = node('p', 'consumer-feature-note',
-      '다음 화면에서 질문을 확인한 뒤 보내세요. 학교를 고르면 대화에서 내 학교로 저장할 수 있고, 이 화면은 저장한 학교를 바꾸지 않아요.');
+      '누르면 바로 롯비에게 물어봐요. 학교를 고르면 대화에서 내 학교로 저장할 수 있고, 이 화면은 저장한 학교를 바꾸지 않아요.');
     panel.replaceChildren(intro, form, note);
   }
 
