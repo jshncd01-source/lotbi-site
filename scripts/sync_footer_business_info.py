@@ -48,6 +48,21 @@ PAGES = (
 
 SEPARATOR = '<span class="company-separator" aria-hidden="true">|</span>'
 
+# SITE-FOOTER-HOSTING-NCLOUD-01 — lotbiai.com 은 2026-10-09 NAVER Cloud 로 옮겨
+# 서빙된다(DNS A → Ncloud ALB). account.lotbiai.com 은 별도 앱이고 Vercel 이 서빙하며
+# 그 푸터는 lotbi-web 이 따로 적는다 — 여기 표시는 홈페이지 호스팅 제공자다.
+HOSTING_ROW = "<span>호스팅서비스 제공: 네이버클라우드 주식회사 (NAVER Cloud)</span>"
+
+# privacy.html·terms.html 의 바이트는 동의 증빙이다: emit_social_signup_legal_manifest.py
+# 가 푸터까지 포함한 파일 전체로 LOTBI_SOCIAL_{PRIVACY,TERMS}_SHA256 을 만들고, 그 값이
+# Core 운영 env 와 validate_hardening.py 잠금에 걸려 있다. 푸터 한 줄도 해시를 움직이므로
+# 이 두 페이지는 정책 본문 갱신(국외이전 표의 Render·GitHub 행)과 함께 다시 잠글 때까지
+# 이전 호스팅 줄을 그대로 둔다. 다시 잠그는 날 이 표에서 지우고 --write 를 돌린다.
+PENDING_RELOCK_HOSTING_ROW = {
+    "privacy.html": "<span>호스팅서비스 제공: GitHub, Inc.</span>",
+    "terms.html": "<span>호스팅서비스 제공: GitHub, Inc.</span>",
+}
+
 # Each row is a list of already-escaped HTML fragments joined by the separator.
 CANONICAL_ROWS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
@@ -73,7 +88,7 @@ CANONICAL_ROWS: tuple[tuple[str, tuple[str, ...]], ...] = (
         "",
         (
             "<span>LOTBI (롯비) © 2026 · AI Voice Commerce Agent</span>",
-            "<span>호스팅서비스 제공: GitHub, Inc.</span>",
+            HOSTING_ROW,
         ),
     ),
 )
@@ -82,8 +97,9 @@ CANONICAL_ROWS: tuple[tuple[str, tuple[str, ...]], ...] = (
 OPEN_RE = re.compile(r'^([ \t]*)<div class="company-legal" aria-label="LOTBI 사업자 정보">$')
 
 
-def render_block(indent: str) -> str:
+def render_block(indent: str, page: str) -> str:
     """Render the canonical block at the indentation the page already uses."""
+    hosting = PENDING_RELOCK_HOSTING_ROW.get(page, HOSTING_ROW)
     step = "  "
     lines = [f'{indent}<div class="company-legal" aria-label="LOTBI 사업자 정보">']
     for extra_class, items in CANONICAL_ROWS:
@@ -91,7 +107,7 @@ def render_block(indent: str) -> str:
         for position, item in enumerate(items):
             if position:
                 lines.append(f"{indent}{step}{step}{SEPARATOR}")
-            lines.append(f"{indent}{step}{step}{item}")
+            lines.append(f"{indent}{step}{step}{hosting if item == HOSTING_ROW else item}")
         lines.append(f"{indent}{step}</div>")
     lines.append(f"{indent}</div>")
     return "\n".join(lines)
@@ -130,7 +146,7 @@ def main() -> int:
         original = path.read_text(encoding="utf-8")
         lines = original.split("\n")
         start, end, indent = locate_block(lines, path)
-        expected = render_block(indent)
+        expected = render_block(indent, name)
         if "\n".join(lines[start:end]) == expected:
             continue
         if args.check:

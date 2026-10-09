@@ -1,6 +1,7 @@
 // LIFE-WALLET-MOBILE-P0-01
-// Phone feedback on Life Wallet: (1) the photo picker never offers a camcorder (one image
-// type per picker; PDFs have their own), (2) a camera shot takes the same path as a gallery
+// Phone feedback on Life Wallet: (1) the photo picker never offers a camcorder (카메라 is one
+// image type with capture; 내 파일 takes photos and PDFs, no video or audio type — since
+// LIFE-WALLET-PIN-ATTACHMENT-UX-P0), (2) a camera shot takes the same path as a gallery
 // file (EXIF orientation, large photos, header without a size, WebP; HEIC explained where the
 // browser cannot open it) and is recognised even when the card is small in the frame,
 // (3) the wallet card deck shows the front item whole at phone widths (LIFE-WALLET-CARD-DECK-01
@@ -54,12 +55,12 @@ try {
   const fresh = () => { const picker = wallet.createWalletPhotoPicker({}); host.replaceChildren(picker.element); return picker; };
   let picker = fresh();
   const inputs = [...picker.element.querySelectorAll('input[type=file]')].map(input => ({accept: input.accept, capture: input.getAttribute('capture')}));
-  const near = await open(picker, picker.input, await cameraJpeg(await portraitScene(.62, 51)));
-  picker = fresh(); const far = await open(picker, picker.input, await cameraJpeg(await portraitScene(.34, 52)));
+  const near = await open(picker, picker.cameraInput, await cameraJpeg(await portraitScene(.62, 51)));
+  picker = fresh(); const far = await open(picker, picker.cameraInput, await cameraJpeg(await portraitScene(.34, 52)));
   picker = fresh(); const webp = await open(picker, picker.input, new File([await (await portraitScene(.6, 53)).convertToBlob({type: 'image/webp', quality: .92})], 'shot.webp', {type: 'image/webp'}));
   picker = fresh(); const heic = await open(picker, picker.input, new File([new Uint8Array([0,0,0,24,102,116,121,112,104,101,105,99,0,0,0,0])], 'IMG_0001.HEIC', {type: 'image/heic'}));
   const pdfText = '%PDF-1.4\\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] >> endobj\\ntrailer << /Root 1 0 R >>\\n%%EOF\\n';
-  picker = fresh(); const pdf = await open(picker, picker.pdfInput, new File([new TextEncoder().encode(pdfText)], 'blank.pdf', {type: 'application/pdf'}));
+  picker = fresh(); const pdf = await open(picker, picker.filesInput, new File([new TextEncoder().encode(pdfText)], 'blank.pdf', {type: 'application/pdf'}));
   window.__result = JSON.stringify({ok: true, inputs, near, far, webp, heic, pdf});
 } catch (error) { window.__result = JSON.stringify({ok: false, error: String(error?.stack || error)}); }
 </script></body></html>`;
@@ -123,7 +124,7 @@ const picker = await run(pickerFixture, {width: 412, height: 900, mobile: true},
 assert.equal(picker.ok, true, picker.error);
 {
   const detail = JSON.stringify(picker);
-  assert.deepEqual(picker.inputs.map(input => input.accept), ['image/*', 'application/pdf'], `one type per picker so Android offers no camcorder: ${detail}`);
+  assert.deepEqual(picker.inputs.map(input => [input.accept, input.capture]), [['image/*', 'environment'], ['image/*,application/pdf', null]], `카메라 is a still-photo capture, 내 파일 photos and PDFs: ${detail}`);
   assert.ok(picker.inputs.every(input => !/video|audio|\*\/\*/u.test(input.accept)), 'no video or audio capture path');
   for (const [name, shot] of [['near camera shot', picker.near], ['far camera shot', picker.far]]) {
     assert.equal(shot.state, 'review', `${name}: ${detail}`);
@@ -135,7 +136,7 @@ assert.equal(picker.ok, true, picker.error);
   assert.equal(picker.webp.mode, 'automatic', `a WebP photo takes the same path: ${detail}`);
   assert.equal(picker.heic.state, 'error', `an HEIC the browser cannot open stops with an explanation: ${detail}`);
   assert.ok(picker.heic.status.includes('HEIC'), `HEIC message: ${picker.heic.status}`);
-  assert.ok(picker.pdf.pdfPages === '1' || picker.pdf.state === 'error', `the PDF picker opens PDFs: ${detail}`);
+  assert.ok(picker.pdf.pdfPages === '1' || picker.pdf.state === 'error', `내 파일 opens PDFs: ${detail}`);
 }
 const widths = [];
 for (const width of [360, 390, 412]) {
@@ -158,7 +159,9 @@ const pin = await run(pinFixture, {width: 390, height: 844, mobile: true}, 'pin'
 assert.equal(pin.ok, true, pin.error);
 assert.equal(pin.unlock.inputMode, 'none', `the PIN keypad screen must not raise the phone keyboard: ${JSON.stringify(pin.unlock)}`);
 assert.equal(pin.unlock.focused, false, 'no automatic focus on a touch screen');
-assert.equal(pin.unlock.type, 'password');
+// A masked text field, not type=password: browsers offer to save a password field as a login
+// (LIFE-WALLET-PIN-ATTACHMENT-UX-P0).
+assert.equal(pin.unlock.type, 'text');
 assert.equal(pin.unlock.ariaLabel, '월렛 PIN', 'the field stays labelled for screen readers and hardware keyboards');
 assert.equal(pin.unlock.typed, 4, 'keypad digits fill the PIN');
 assert.equal(pin.unlock.reopened, true, 'the keypad unlocks the wallet');

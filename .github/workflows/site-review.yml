@@ -89,6 +89,11 @@ jobs:
       - name: Validate PHASE 10 conversation management
         run: node scripts/validate_conversation_management_10.mjs
 
+      # CONVERSATION-ACCOUNT-SYNC-01: two devices, offline recovery, device
+      # upload yes/no, sync off, delete, shared device, phone widths and dark.
+      - name: Validate conversation account sync
+        run: node scripts/validate_conversation_account_sync_01.mjs
+
       - name: Validate same-page profile menu runtime
         run: node scripts/validate_profile_menu_improvement_01.mjs
 
@@ -422,6 +427,12 @@ jobs:
       - name: Validate Place Card body opens NAVER search
         run: node scripts/validate_place_card_naver_search_click_01.mjs
 
+      # 생활정보 모든 질문(병원·약국·응급실, 지역생활정보, 유치원·학교): 한 번 탭으로 바로
+      # 전송되고(입력창 재전송 없음) 키보드는 사용자가 입력창을 탭할 때만 열린다. 사진 없는
+      # 장소 카드는 사진 칸 없이 짧고, 지도는 설정에서 고른 앱. 320·360·390·412·1280, 다크.
+      - name: Validate life info direct chat and photo-less place cards
+        run: node scripts/validate_life_direct_chat_card_compaction_01.mjs
+
       # 장소 카드 캐러셀은 transform 으로만 돌고 스크롤하지 않는다. 상품 카드
       # 레일의 scroll snap 을 물려받아 회전할 때마다 레일이 153~252px 밀리던
       # 결함 — 이전/다음·스와이프·방향키 뒤에도 가운데 카드가 제자리인지 잰다.
@@ -673,9 +684,13 @@ jobs:
       - name: Validate company philosophy page
         run: python scripts/validate_about.py
 
+      # 월렛 PIN 칸은 type=password가 아닌 가린 숫자 칸(브라우저·삼성 패스가 로그인으로 저장
+      # 제안하지 않게), 자료 첨부는 한 곳에서 카메라 / 내 파일 두 가지, 카메라로 다녀와도
+      # 자료 추가 화면 유지(열쇠는 메모리에서 내림)를 실제 Chrome에서 확인한다.
       - name: Validate PC Web Life Wallet PIN lock
         run: |
           node scripts/validate_life_wallet_entry_lock_01.mjs
+          node scripts/validate_life_wallet_pin_attachment_ux_p0.mjs
           node scripts/validate_consumer_sections_02.mjs
           node scripts/validate_surface_drag_dismiss_guard_01.mjs
 
@@ -702,13 +717,18 @@ jobs:
       - name: Validate kindergarten official info
         run: node scripts/validate_kindergarten_official_info_01.mjs
 
+      # 내 아이 학교·유치원: 아홉째(마지막) 생활정보 카드, 로그인 안내, NEIS 검색·저장·이름/알레르기 변경·삭제·모두 삭제,
+      # 첫 저장 동의, 급식 알레르기 강조(급식표 표기 기준), 학사일정, 보완 요청, 320·360·412·1280, 라이트·다크.
+      - name: Validate my child school
+        run: node scripts/validate_my_child_school_01.mjs
+
       # 생활정보 정리 최종: 공과금 메뉴·상단 질문바·하단 보조 row·롯비함 진입/저장 버튼 없음,
       # 요금 안내에 공과금 문구 없음, 저장된 롯비함 데이터는 그대로. 360·375·390·412·1280.
       - name: Validate life info cleanup final
         run: node scripts/validate_life_info_cleanup_final_01.mjs
 
-      # ONNURI-MERCHANT-01: 생활정보 온누리상품권 가맹점 찾기 — 지역/현재 위치,
-      # Top 3 + 더 보기, 필터, 0건·준비 중 안내, 검증된 좌표 없이는 거리 없음,
+      # ONNURI-MERCHANT-01: 생활정보 온누리상품권 가맹점 찾기 — 지역/현재 위치(기본 5km),
+      # 한 번에 12곳, 필터, 0건·준비 중 안내, 검증된 좌표 없이는 거리 없음,
       # 승인 전 공식 로고 미사용을 375·390·1280에서 실제 탭으로 확인한다.
       - name: Validate Onnuri merchant search
         run: node scripts/validate_onnuri_merchant_search_01.mjs
@@ -718,6 +738,24 @@ jobs:
       - name: Validate Onnuri market location
         run: node scripts/validate_onnuri_market_location_02.mjs
 
+      # JEONBUK-PILOT-01 — 전북 맛집·음식 / 전북 행정기관 연락처 / 전북 의료기관
+      # 등록정보: 이미지 영역 없는 공식 기록 카드, 사용자 지도앱, 공개 번호만, 등록정보만
+      # 있는 병원 카드에 '진료 중' 없음, 생활정보 홈 마지막 줄 빈칸 없음을 360/375/390/412/데스크톱에서 잰다.
+      - name: Validate Jeonbuk real-world pilot cards and life entry
+        run: |
+          node --check site-life-regional.js
+          node scripts/validate_jeonbuk_real_world_pilot_01.mjs
+
+      # ONNURI-MERCHANT-LOCATION-UX-P0: 내 주변(1·3·5·10·25km)/지역 선택(시·도→시·군·구→읍·면·동,
+      # 시장·상점가), 12장 반응형 카드(1·2·3열), 위치 관계도, 선택한 지도앱 4종·기본값·충돌·복귀 시 반영,
+      # 검증된 전화만, 위치 허용/거부/실패, 0건 사유, Core 실패 재시도 — 360·375·390·412·768·1280, 라이트·다크.
+      - name: Validate Onnuri location UX P0
+        run: node scripts/validate_onnuri_location_ux_p0.mjs
+
+      # 기본 지도앱 쿠키 계약(Account 저장값 ↔ Site 읽기).
+      - name: Validate default map preference
+        run: node scripts/validate_default_map_preference_01.mjs
+
       - name: Validate 진위확인 production connection
         run: |
           node --check site-scam-shield.js
@@ -726,6 +764,13 @@ jobs:
           node scripts/validate_scam_shield_mvp_01.mjs
           node scripts/validate_scam_shield_connection_01.mjs
           node scripts/validate_verification_dialog_design_01.mjs
+
+      # 지역정보(구 생활정보) 화면 문구와 지역뉴스 진입·답변 카드. 저장 지역은 한 번에,
+      # 지역 입력·내 주변은 짧은 양식으로 Core에 한 문장을 넘기고, 답변 카드는 이미지
+      # 칸 없이 제목·언론사·시각·요약·원문 열기·관련 보도 N건만 보여 주는지 360·375·
+      # 390·412·데스크톱·다크에서 실제 탭/클릭으로 확인한다. Core는 mock.
+      - name: Validate regional news (지역정보 · 지역뉴스)
+        run: node scripts/validate_regional_news_p0_01.mjs
 
       # 진위확인 사진·스크린샷 선택은 카메라를 강제하지 않고(capture 없음),
       # 카메라로 촬영만 capture="environment"를 쓴다. 실제 Chrome 탭으로 각

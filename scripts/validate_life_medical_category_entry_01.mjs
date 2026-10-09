@@ -8,11 +8,10 @@
 //
 // LIFE-UTILITY-BILL-MENU-REMOVE-01: 공과금 확인 stays hidden. The life home is a
 // category picker only: no free-question bar and no saved-items/help row. It
-// has seven cards (응급실, 온누리상품권, 유치원·학교 included); an odd last card
-// takes its whole row, so there is no empty grid cell.
-// KINDERGARTEN-OFFICIAL-INFO-01: 유치원·학교 is the one life screen that still
-// drafts its question (onDraft); that handoff is pinned below and any other
-// draft handoff in the life cards fails.
+// has ten cards (응급실, 지역뉴스, 온누리상품권, 전북 맛집·음식, 유치원·학교, 내 아이 학교·유치원
+// included); an odd last card would take its whole row, so there is no empty grid cell.
+// LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk too, so
+// any draft handoff (onDraft) in the life cards fails.
 //
 // Browser part: real touch/mouse input through the DevTools protocol on
 // 360x780, 375x812, 390x844, 412x915 and 1280x900. Viewport emulation only —
@@ -29,11 +28,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Shortcut list ───────────────────────────────────────────────────────
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보', '유치원·학교']);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
 assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => [item.id, item.ask]), [
   ['hospital', '근처 병원 찾아줘'], ['pharmacy', '근처 약국 찾아줘'], ['emergency', '근처 응급실 찾아줘'],
 ]);
-for (const id of ['festivals', 'local', 'onnuri', 'education']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
+for (const id of ['festivals', 'news', 'local', 'onnuri', 'education', 'my-child']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills' || /공과금/u.test(item.label)), false, '공과금 확인 stays hidden');
 assert.ok(Object.isFrozen(LIFE_SHORTCUTS) && Object.isFrozen(LIFE_MEDICAL_QUESTIONS));
 // Each question carries "근처", so Core takes it to the 국립중앙의료원 lookup
@@ -47,18 +46,8 @@ for (const question of Object.values(LIFE_MEDICAL_QUESTIONS)) {
 // ── Source contract ─────────────────────────────────────────────────────
 const source = read('site-consumer-sections.js');
 assert.match(source, /if \(item\.ask\) onAsk\(item\.ask\);/u, 'a medical card asks at once');
-// The 유치원·학교 draft handoff (KINDERGARTEN-OFFICIAL-INFO-01) is the only
-// onDraft allowed: its two exact uses are taken out, then the same check runs.
-const EDUCATION_DRAFT_USES = [
-  ['{section, root, onAsk, onDraft, onFestival,', '{section, root, onAsk, onFestival,'],
-  ['mountEducation({root: host, onDraft, accountId})', 'mountEducation({root: host, accountId})'],
-];
-let lifeCardsSource = source;
-for (const [use, without] of EDUCATION_DRAFT_USES) {
-  assert.equal(lifeCardsSource.split(use).length, 2, `education draft handoff appears exactly once: ${use}`);
-  lifeCardsSource = lifeCardsSource.replace(use, without);
-}
-assert.doesNotMatch(lifeCardsSource, /openMedicalDetail|data-medical-field|질문 준비하기|onDraft/u, 'no region/condition form, no draft handoff');
+assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/u, '유치원·학교 asks through onAsk');
+assert.doesNotMatch(source, /openMedicalDetail|data-medical-field|질문 준비하기|onDraft/u, 'no region/condition form, no draft handoff');
 assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|geolocation|getCurrentPosition/u, 'no own search engine, storage or location request');
 const conversation = read('site-conversation.js');
 assert.match(conversation, /onAsk: text => \{[\s\S]{0,400}?surfaceRestoreFocus = undefined;\s*closeSurface\(\);\s*askWithoutKeyboard\(text\);/u,
@@ -170,11 +159,12 @@ const PROBE = `(() => {
     header: box(panel?.querySelector('.site-modal-header')), description: box(panel?.querySelector('.site-modal-description')), label: box(workspace?.querySelector('.consumer-section-label')),
     focusedShortcut: document.activeElement?.dataset?.lifeShortcut || '',
     shortcuts,
-    detail: detail ? {id: detail.dataset.lifeDetail || '', title: detail.querySelector('h3')?.textContent || '', box: box(detail), back: box([...detail.querySelectorAll('.consumer-action')].find(b => b.textContent === '생활정보로 돌아가기')),
+    detail: detail ? {id: detail.dataset.lifeDetail || '', title: detail.querySelector('h3')?.textContent || '', box: box(detail), back: box([...detail.querySelectorAll('.consumer-action')].find(b => b.textContent === '지역정보로 돌아가기')),
       submit: box(detail.querySelector('form button[type=submit]')), note: detail.querySelector('.consumer-feature-note')?.textContent || '',
       emergency: Boolean(detail.querySelector('.conversation-emergency-call')), emergencyText: detail.querySelector('.conversation-emergency-call')?.textContent || '',
       call: detail.querySelector('.conversation-emergency-call-link')?.getAttribute('href') || '', fields, chips} : null,
     composer: document.getElementById('lotbi-prompt')?.value ?? null,
+    composerFocused: document.activeElement === document.getElementById('lotbi-prompt'),
     festival: Boolean(document.querySelector('.festival-manager')),
     gridColumns: (() => { const grid = workspace?.querySelector('.consumer-shortcuts'); return grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length : 0; })(),
     billsVisible: Boolean(workspace?.querySelector('[data-life-shortcut="bills"]')) || /공과금|고지서/u.test(workspace?.textContent || ''),
@@ -313,7 +303,7 @@ async function runCase(browser, origin, dir, testCase) {
     };
     const openLife = async () => {
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(async () => (await probe()).shortcuts.length === 7, `${testCase.label}: life shortcuts`);
+      await waitFor(async () => (await probe()).shortcuts.length === 10, `${testCase.label}: life shortcuts`);
       await sleep(250);
     };
     const tapShortcut = async id => {
@@ -324,12 +314,12 @@ async function runCase(browser, origin, dir, testCase) {
       await tap(center);
     };
 
-    // 1. Life main: seven cards (응급실, 온누리상품권 and 유치원·학교 added, 공과금 확인
-    // hidden), full rows, no empty cell — an odd last card takes its whole row.
+    // 1. Life main: ten cards (응급실, 지역뉴스, 온누리상품권, 전북 맛집·음식, 유치원·학교 and 내 아이 학교·유치원 added,
+    // 공과금 확인 hidden), full rows, no empty cell — an odd last card would take its whole row.
     await openLife();
     const main = await probe();
-    assert.equal(main.title, '생활정보');
-    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '온누리상품권', '지역생활정보', '유치원·학교']);
+    assert.equal(main.title, '지역정보');
+    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
     assert.equal(main.billsVisible, false, `${testCase.label}: 공과금 확인 is not shown anywhere on the life surface`);
     // ONNURI-MERCHANT-01 / KINDERGARTEN-OFFICIAL-INFO-01: with an odd number of cards the
     // last one spans the row (site-life-onnuri.css, site-life-education.css), so a
@@ -402,6 +392,7 @@ async function runCase(browser, origin, dir, testCase) {
     sent = await waitFor(() => evaluate(`globalThis.__sent.length === ${sent.length + 1} ? globalThis.__sent.slice() : null`), `${testCase.label}: local sent at once`);
     assert.equal(sent.at(-1).text, '우리 지역 생활정보를 알려 줘\n지역 또는 장소: 전주시 덕진구\n궁금한 생활정보: 쓰레기 배출일');
     assert.equal(state.composer, '', `${testCase.label}: local: nothing left in the composer`);
+    assert.equal(state.composerFocused, false, `${testCase.label}: local: composer not focused`);
     await openLife();
     await tapShortcut('festivals');
     state = await waitFor(async () => { const value = await probe(); return value.festival ? value : null; }, `${testCase.label}: festival surface`);
@@ -429,4 +420,4 @@ try {
   }
 }
 
-console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국/응급실 send one nearby question at once (no form, nothing left in the composer, composer not focused); 공과금 확인 hidden, seven life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');
+console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국/응급실 send one nearby question at once (no form, nothing left in the composer, composer not focused); 공과금 확인 hidden, ten life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');

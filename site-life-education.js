@@ -1,8 +1,9 @@
 // KINDERGARTEN-OFFICIAL-INFO-01 — 생활정보 → 유치원·학교.
 //
 // 학교: the existing NEIS school answers in the chat (급식·학사일정·기본정보).
-//   This screen only prepares the question; the saved school (life-school
-//   key, site-life-school.js) is never read or changed here.
+//   This screen builds the question and asks it in one tap (onAsk); the
+//   saved school (life-school key, site-life-school.js) is never read or
+//   changed here.
 // 유치원: 교육부 유치원알리미 공시 through Core (site-kindergarten-client.js) —
 //   region (the provider's 시도·시군구 code table) → name / 설립유형 → list →
 //   one 유치원: six facts first, then 통학차량·급식·방과후 과정·교직원·수업일수·
@@ -17,8 +18,8 @@ import {
   safeKindergartenLink,
   searchKindergartens,
   telHref,
-} from './site-kindergarten-client.js?v=aset-bfbcbc7508d2';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-bfbcbc7508d2';
+} from './site-kindergarten-client.js?v=aset-ee2866bd56cd';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-ee2866bd56cd';
 
 const PREFERENCE_PREFIX = 'lotbi.site.ux.v1.life-kindergarten';
 const LAST_REGION_KEY = 'lotbi.site.ux.v1.life-kindergarten-region';
@@ -151,7 +152,7 @@ const CATEGORY_NOTE = Object.freeze({
 
 export function mountEducation({
   root,
-  onDraft,
+  onAsk,
   accountId = '',
   fetchImpl = globalThis.fetch,
   storage = safeStorage(),
@@ -212,7 +213,8 @@ export function mountEducation({
       chip.dataset.schoolAction = id; chip.setAttribute('aria-pressed', String(id === chosen));
       chips.append(chip);
     }
-    const send = node('button', 'consumer-action', '질문 준비하기'); send.type = 'submit';
+    // onAsk sends the question right away (LIFE-DIRECT-CHAT-CARD-COMPACTION-01).
+    const send = node('button', 'consumer-action', '롯비에게 물어보기'); send.type = 'submit';
     const status = node('p', 'lotbi-kinder-status'); status.setAttribute('role', 'status');
     form.append(label, chips, send, status);
     form.addEventListener('submit', event => {
@@ -220,11 +222,11 @@ export function mountEducation({
       if (disposed) return;
       const prompt = buildSchoolPrompt(chosen, input.value);
       if (!prompt) { status.textContent = '학교 기본정보는 학교 이름을 입력해 주세요.'; input.focus(); return; }
-      onDraft?.(prompt);
+      onAsk?.(prompt);
     });
     const intro = node('p', 'lotbi-edu-intro', '초·중·고 급식·학사일정·기본정보는 교육부 NEIS 공식 자료로 대화에서 알려 드려요.');
     const note = node('p', 'consumer-feature-note',
-      '다음 화면에서 질문을 확인한 뒤 보내세요. 학교를 고르면 대화에서 내 학교로 저장할 수 있고, 이 화면은 저장한 학교를 바꾸지 않아요.');
+      '누르면 바로 롯비에게 물어봐요. 학교를 고르면 대화에서 내 학교로 저장할 수 있고, 이 화면은 저장한 학교를 바꾸지 않아요.');
     panel.replaceChildren(intro, form, note);
   }
 
@@ -263,7 +265,7 @@ export function mountEducation({
       const [region, name] = fields.map(input => clean(input.value, 30).replace(/[^0-9A-Za-z가-힣 ]/gu, ''));
       if (!name) { status.textContent = '유치원 이름을 입력해 주세요.'; fields[1].focus(); return; }
       const full = /유치원$/u.test(name) ? name : `${name}유치원`;
-      onDraft?.(`${region ? `${region} ` : ''}${full} 알려줘`);
+      onAsk?.(`${region ? `${region} ` : ''}${full} 알려줘`);
     });
     box.append(form);
     return box;
@@ -445,7 +447,7 @@ export function mountEducation({
       syncMine();
     });
     syncMine();
-    actions.append(mineButton, button('대화로 물어보기', () => onDraft?.(buildKindergartenPrompt(kindergarten))));
+    actions.append(mineButton, button('대화로 물어보기', () => onAsk?.(buildKindergartenPrompt(kindergarten))));
     card.append(facts, actions);
     const sections = node('div', 'lotbi-kinder-sections');
     sections.append(node('h5', 'lotbi-kinder-sections-title', '상세 공시'));
