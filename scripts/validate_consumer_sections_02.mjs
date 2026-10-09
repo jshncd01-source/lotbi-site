@@ -5,7 +5,7 @@ const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'
 const source = read('site-consumer-sections.js');
 const conversation = read('site-conversation.js');
 const css = read('site-consumer-design.css');
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권·지역화폐', '지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
 assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 10);
 // Medical entries ask a fixed question at once (LIFE-MEDICAL-AUTO-SEARCH-01);
 // 지역뉴스 builds its sentence from the saved or typed region (REGIONAL-NEWS-P0).

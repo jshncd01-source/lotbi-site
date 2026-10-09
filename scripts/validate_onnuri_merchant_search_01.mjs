@@ -31,7 +31,9 @@ const ID = n => String(n).padStart(40, 'a').slice(-40).replace(/[^0-9a-f]/gu, 'b
 // ── Node: contract, URLs, chat location, guards ─────────────────────────
 {
   const onnuri = LIFE_SHORTCUTS.find(item => item.id === 'onnuri');
-  assert.equal(onnuri.label, '온누리상품권');
+  // LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: the card now opens 온누리상품권·지역화폐;
+  // the onnuri module itself (ONNURI_MENU_LABEL) is unchanged.
+  assert.equal(onnuri.label, '온누리상품권·지역화폐');
   assert.equal(ONNURI_MENU_LABEL, '온누리상품권');
   assert.equal(ONNURI_CARD_LABEL, '온누리 가맹점');
   assert.equal(onnuri.icon, undefined, 'no stand-in icon for the official logo');
@@ -383,13 +385,13 @@ async function runCase(browser, origin, dir, testCase) {
     // 1. No permission: region list, first page (12; all 8 test shops), no distance; shortcut shows text only.
     await load();
     let state = await probe();
-    assert.equal(state.shortcut.label, '온누리상품권');
+    assert.equal(state.shortcut.label, '온누리상품권·지역화폐');
     assert.equal(state.shortcut.slot, 'PENDING_APPROVAL');
     assert.equal(state.shortcut.img, false);
     assert.equal(state.shortcut.svg, false, 'no stand-in icon');
     assert.ok(state.shortcut.box.h >= 44);
     state = await openOnnuri();
-    assert.equal(state.title, '온누리상품권 가맹점');
+    assert.equal(state.title, '온누리상품권·지역화폐', 'LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: one screen, 온누리상품권 tab first');
     assert.match(state.disclaimer, /공식·제휴 서비스가 아니에요/u);
     assert.equal(state.brandImg, false);
     assert.equal(state.cards.length, 8, `${testCase.label}: one page of up to 12 (ONNURI-MERCHANT-LOCATION-UX-P0)`);

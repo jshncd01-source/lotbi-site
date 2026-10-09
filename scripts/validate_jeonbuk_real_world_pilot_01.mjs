@@ -439,7 +439,7 @@ try {
       assert.deepEqual(r.medical.lines.map(line => line.state), ['REGISTRY', 'REGISTRY_NO_HOURS']);
       assert.ok(r.medical.lines.every(line => !/진료 중/u.test(line.text)));
       // 생활정보 home grid.
-      assert.deepEqual(r.life.labels, ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
+      assert.deepEqual(r.life.labels, ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권·지역화폐', '지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
       assertRowsFilled(`${where} ten`, r.life.withFood);
       assertRowsFilled(`${where} nine without 전북`, r.life.withoutFood);
       // 전북 맛집·음식 detail.

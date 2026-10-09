@@ -28,7 +28,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Shortcut list ───────────────────────────────────────────────────────
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권·지역화폐', '지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
 assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => [item.id, item.ask]), [
   ['hospital', '근처 병원 찾아줘'], ['pharmacy', '근처 약국 찾아줘'], ['emergency', '근처 응급실 찾아줘'],
 ]);
@@ -319,7 +319,7 @@ async function runCase(browser, origin, dir, testCase) {
     await openLife();
     const main = await probe();
     assert.equal(main.title, '지역정보');
-    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
+    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권·지역화폐', '지역생활정보', '전북 맛집·음식', '유치원·학교', '내 아이 학교·유치원']);
     assert.equal(main.billsVisible, false, `${testCase.label}: 공과금 확인 is not shown anywhere on the life surface`);
     // ONNURI-MERCHANT-01 / KINDERGARTEN-OFFICIAL-INFO-01: with an odd number of cards the
     // last one spans the row (site-life-onnuri.css, site-life-education.css), so a
