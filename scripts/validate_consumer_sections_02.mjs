@@ -1,18 +1,25 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {LIFE_SHORTCUTS} from '../site-consumer-sections.js';
+import {LIFE_MEDICAL_QUESTIONS, LIFE_SHORTCUTS} from '../site-consumer-sections.js';
 const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 const source = read('site-consumer-sections.js');
 const conversation = read('site-conversation.js');
 const css = read('site-consumer-design.css');
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '유치원·학교', '내 아이 학교·유치원']);
-assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 9);
-// Medical entries ask a fixed question at once (LIFE-MEDICAL-AUTO-SEARCH-01);
-// 지역뉴스 builds its sentence from the saved or typed region (REGIONAL-NEWS-P0).
-assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => item.id), ['hospital', 'pharmacy', 'emergency']);
+// REGIONAL-INFO-APPROVED-UX-RESTORE-P0: the approved menu — one 병원·응급실 card,
+// 약국 on its own, no 유치원·학교 card (owner decision 2026-10-10), seven cards.
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '내 아이 학교·유치원']);
+assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 7);
+assert.equal(LIFE_SHORTCUTS.some(item => ['hospital', 'emergency', 'education'].includes(item.id)), false);
+// 병원·응급실 asks nothing by itself: it opens 병원·의원 찾기 / 응급실 찾기, each
+// the existing medical question (LIFE-MEDICAL-AUTO-SEARCH-01). 약국 asks at once.
+const medical = LIFE_SHORTCUTS.find(item => item.id === 'medical');
+assert.equal(medical.ask, undefined);
+assert.deepEqual(medical.choices.map(choice => [choice.id, choice.label]), [['hospital', '병원·의원 찾기'], ['emergency', '응급실 찾기']]);
+for (const choice of medical.choices) assert.equal(typeof LIFE_MEDICAL_QUESTIONS[choice.id], 'string');
+assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => item.id), ['pharmacy']);
 // 축제·행사 and 온누리상품권 open their own surfaces (ONNURI-MERCHANT-01);
-// 유치원·학교 opens its own screen (KINDERGARTEN-OFFICIAL-INFO-01).
-assert.ok(LIFE_SHORTCUTS.filter(item => !['festivals', 'news', 'onnuri', 'education', 'my-child'].includes(item.id) && !item.ask).every(item => typeof item.prompt === 'string'));
+// 지역뉴스 and 내 아이 학교·유치원 open their own screens.
+assert.ok(LIFE_SHORTCUTS.filter(item => !['medical', 'festivals', 'news', 'onnuri', 'my-child'].includes(item.id) && !item.ask).every(item => typeof item.prompt === 'string'));
 // 공과금 확인 is hidden until an official integration exists — no entry, form or copy.
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills'), false);
 assert.doesNotMatch(source, /공과금|고지서|납부기한/);
@@ -36,8 +43,16 @@ assert.match(conversation, /onAsk: text => \{[\s\S]{0,400}?closeSurface\(\);\s*a
 // draft handoff is left anywhere in 생활정보.
 assert.doesNotMatch(conversation, /onDraft|draft\(text\)|요청을 입력창에 넣었어요/);
 assert.doesNotMatch(source, /onDraft/);
+// The separate 유치원·학교 card is gone (owner decision 2026-10-10): 내 아이
+// 학교·유치원 opens 내 아이 정보 or 유치원·학교 찾기, and the public lookup still
+// asks through onAsk (LIFE-DIRECT-CHAT-CARD-COMPACTION-01).
+const child = LIFE_SHORTCUTS.find(item => item.id === 'my-child');
+assert.deepEqual(child.children.map(choice => [choice.id, choice.label]), [['my-child', '내 아이 정보'], ['education', '유치원·학교 찾기']]);
 assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/);
+assert.match(source, /if \(choice\.id === 'education'\) openEducation\(/);
 assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+// Phones keep two columns: the later layout sheet must not turn the menu into one.
+assert.doesNotMatch(read('site-consumer-layout.css'), /\.consumer-shortcuts \{ grid-template-columns: minmax\(0, 1fr\); \}/);
 assert.match(css, /min-height: 44px/);
 assert.match(css, /input:focus-visible/);
 assert.match(read('site-scam-shield.js'), /scamOutsideBound/);

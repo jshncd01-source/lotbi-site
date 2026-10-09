@@ -242,7 +242,9 @@ try {
 
   if (PHASE === 'ask') {
     document.querySelector('[data-consumer-section="life"]').click();
-    const shortcutId = ITEM === 'school' ? 'education' : ITEM;
+    // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: 병원·의원 / 응급실 sit behind the one
+    // 병원·응급실 card, 유치원·학교 behind 내 아이 학교·유치원.
+    const shortcutId = ITEM === 'school' ? 'my-child' : ['hospital', 'emergency'].includes(ITEM) ? 'medical' : ITEM;
     const shortcut = await wait(() => document.querySelector('[data-life-shortcut="' + shortcutId + '"]'), 'life shortcut ' + shortcutId);
     result.theme = document.body.dataset.siteTheme || '';
     let button;
@@ -255,6 +257,7 @@ try {
       result.formContrast = {button: contrast(button), note: contrast(form.closest('.consumer-life-detail')?.querySelector('.consumer-feature-note'))};
     } else if (ITEM === 'school') {
       shortcut.click();
+      (await wait(() => document.querySelector('[data-child-choice="education"]'), '유치원·학교 찾기')).click();
       const tab = await wait(() => document.querySelector('[data-edu-tab="school"]'), 'school tab');
       tab.click();
       const name = await wait(() => document.querySelector('[data-edu-school-name]'), 'school form');
@@ -263,8 +266,14 @@ try {
       const form = name.closest('form');
       button = form.querySelector('button[type="submit"]');
       result.formContrast = {button: contrast(button), note: contrast(form.parentElement.querySelector('.consumer-feature-note'))};
+    } else if (shortcutId === 'medical') {
+      // 병원·응급실 asks nothing by itself; the 병원·의원 찾기 / 응급실 찾기 pick asks.
+      shortcut.click();
+      button = await wait(() => document.querySelector('[data-medical-choice="' + ITEM + '"]'), 'medical choice ' + ITEM);
+      result.medicalChoices = [...document.querySelectorAll('[data-medical-choice]')].map(n => n.dataset.medicalChoice + ':' + n.textContent.trim());
+      result.requestsBeforePick = mine().length;
     } else {
-      // 병원·의원 / 약국 / 응급실 have no form: the card itself asks.
+      // 약국 has no form: the card itself asks.
       button = shortcut;
     }
     result.buttonLabel = button.textContent.trim();
@@ -524,6 +533,8 @@ try {
       // A, B, C, D, E: 병원·의원 with photo, no-photo and broken-photo cards.
       const hospital = await runPhase(devtools, page(`phase=ask&item=hospital&history=1${label === '390' ? '&tap=1' : ''}`), `${label}/hospital`);
       console.log(`LIFE_DIRECT_CHAT ${label} hospital`, JSON.stringify(hospital));
+      assert.deepEqual(hospital.medicalChoices, ['hospital:병원·의원 찾기', 'emergency:응급실 찾기'], `${label}: 병원·응급실 opens its two choices`);
+      assert.equal(hospital.requestsBeforePick, 0, `${label}: 병원·응급실 asks nothing until 병원·의원 or 응급실 is picked`);
       assertOneDirectAsk(hospital, `${label}/hospital`, EXPECTED.hospital);
       assertNearby(hospital, `${label}/hospital`);
       assertCards(hospital, `${label}/hospital`, testCase, {photo: true});

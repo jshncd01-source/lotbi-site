@@ -30,7 +30,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Static contract ─────────────────────────────────────────────────────
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·의원', '약국', '응급실', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '유치원·학교', '내 아이 학교·유치원']);
+// REGIONAL-INFO-APPROVED-UX-RESTORE-P0: one 병원·응급실 card (병원·의원 찾기 / 응급실
+// 찾기 ask the same questions), 약국 its own card, seven cards.
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '내 아이 학교·유치원']);
+assert.deepEqual(LIFE_SHORTCUTS.find(item => item.id === 'medical').choices.map(choice => choice.id), ['hospital', 'emergency']);
 assert.deepEqual(LIFE_MEDICAL_QUESTIONS, {hospital: '근처 병원 찾아줘', pharmacy: '근처 약국 찾아줘', emergency: '근처 응급실 찾아줘'});
 for (const question of Object.values(LIFE_MEDICAL_QUESTIONS)) {
   assert.equal(lifeLocationIntent(question), true, `${question} reaches the life-location contract`);
@@ -210,7 +213,8 @@ const PROBE = `(() => {
   const center = rail?.querySelector('[data-orbit-slot="CENTER"]');
   const actions = center ? [...center.querySelectorAll('.lotbi-rich-card-action')].map(action => ({
     action: action.dataset.action, href: action.getAttribute('href') || '', aria: action.getAttribute('aria-label') || '',
-    text: (action.textContent || '').trim(), box: box(action), icon: box(action.querySelector('svg.lotbi-place-action-icon')),
+    text: (action.textContent || '').trim(), box: box(action), icon: box(action.querySelector('.lotbi-place-action-icon')),
+    iconSrc: action.querySelector('.lotbi-place-action-icon-image')?.getAttribute('src') || '', lineIcon: Boolean(action.querySelector('svg')),
     radius: getComputedStyle(action).borderRadius, bg: getComputedStyle(action).backgroundColor, color: getComputedStyle(action).color,
   })) : [];
   const emergency = last ? [...last.querySelectorAll('.conversation-emergency-call')] : [];
@@ -403,7 +407,7 @@ async function runCase(browser, origin, dir, testCase) {
     const openLife = async () => {
       // The 생활정보 entry sits in the (closed) phone drawer; opening it is not under test.
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 9"), `${label}: life menu`);
+      await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 7"), `${label}: life menu`);
       await sleep(200);
     };
     // Marks the newest answer so selectors reach its cards, not an older one's.
@@ -413,7 +417,16 @@ async function runCase(browser, origin, dir, testCase) {
       const menu = await evaluate(`(() => ({forms: document.querySelectorAll('.consumer-workspace form, .consumer-workspace input').length,
         prepare: /질문 준비하기/u.test(document.querySelector('.consumer-workspace').textContent)}))()`);
       assert.deepEqual(menu, {forms: 0, prepare: false}, `${label}: the life menu has no region/condition form`);
-      await tap(await reveal(`.consumer-workspace [data-life-shortcut="${id}"]`));
+      if (id === 'hospital' || id === 'emergency') {
+        // 병원·응급실 asks nothing until 병원·의원 찾기 / 응급실 찾기 is picked.
+        const sentBefore = (await probe()).sent.length;
+        await tap(await reveal('.consumer-workspace [data-life-shortcut="medical"]'));
+        await waitFor(() => evaluate(`Boolean(document.querySelector('[data-medical-choice="${id}"]'))`), `${label}: ${id} choice`);
+        assert.equal((await probe()).sent.length, sentBefore, `${label}: 병원·응급실 alone sends nothing`);
+        await tap(await reveal(`[data-medical-choice="${id}"]`));
+      } else {
+        await tap(await reveal(`.consumer-workspace [data-life-shortcut="${id}"]`));
+      }
       const answered = await waitFor(async () => {
         const state = await probe();
         return state.sent.length === sentCount && state.answers.at(-1) === expectedAnswer && state.rail && state.cards.length ? state : null;
@@ -465,8 +478,11 @@ async function runCase(browser, origin, dir, testCase) {
       assert.deepEqual(state.actions.map(action => action.action), ['phone', 'naver-map'], `${label}: ${step}: phone + map`);
       for (const action of state.actions) {
         assert.ok(Math.abs(action.box.w - 44) <= 1 && Math.abs(action.box.h - 44) <= 1, `${label}: ${step}: ${action.action} target ${action.box.w}x${action.box.h}`);
-        assert.ok(action.icon && action.icon.w >= 20 && action.icon.w <= 24, `${label}: ${step}: ${action.action} icon ${action.icon?.w}px`);
-        assert.match(action.radius, /50%|22px|9999px|999px/u, `${label}: ${step}: ${action.action} round (${action.radius})`);
+        // The approved LOTBI icon images (phone, the chosen map app), 32px in a 44px target.
+        assert.equal(action.iconSrc, `/assets/place-actions/${action.action === 'phone' ? 'phone' : 'naver-map'}.png?v=place-icons-20260925`, `${label}: ${step}: ${action.action} LOTBI icon`);
+        assert.equal(action.lineIcon, false, `${label}: ${step}: ${action.action} no generic line icon`);
+        assert.ok(action.icon && Math.round(action.icon.w) === 32, `${label}: ${step}: ${action.action} icon ${action.icon?.w}px`);
+        assert.equal(action.radius, '10px', `${label}: ${step}: ${action.action} approved button shape (${action.radius})`);
         assert.equal(action.text, '', `${label}: ${step}: ${action.action} icon only`);
         assert.ok(action.box.w < center.box.w / 3, `${label}: ${step}: ${action.action} does not span the card`);
       }
@@ -495,12 +511,14 @@ async function runCase(browser, origin, dir, testCase) {
     else assert.equal(state.locations[0], null, `${label}: denied location and no saved region: nothing sent (Core asks)`);
     if (testCase.theme === 'dark') {
       assert.equal(state.theme, 'dark', `${label}: dark theme applied`);
+      // The approved LOTBI icon images carry their own colours on a transparent
+      // button, so they read the same on the dark page.
       for (const action of state.actions) {
-        assert.ok(luminance(action.bg) < 0.2 && luminance(action.color) > 0.5, `${label}: dark ${action.action} ${action.bg} / ${action.color}`);
+        assert.ok(/rgba\(0, 0, 0, 0\)|transparent/u.test(action.bg) && action.iconSrc && Math.round(action.icon.w) === 32, `${label}: dark ${action.action} ${action.bg} / ${action.iconSrc}`);
       }
       for (const filter of state.filters) assert.ok(luminance(filter.bg) < 0.2 && luminance(filter.color) > 0.5, `${label}: dark filter ${filter.label}`);
     } else {
-      for (const action of state.actions) assert.ok(luminance(action.bg) > 0.8 && luminance(action.color) < 0.2, `${label}: light ${action.action}`);
+      for (const action of state.actions) assert.ok(/rgba\(0, 0, 0, 0\)|transparent/u.test(action.bg) && action.iconSrc && Math.round(action.icon.w) === 32, `${label}: light ${action.action} ${action.bg} / ${action.iconSrc}`);
     }
     await shot('01-pharmacy');
 
@@ -568,7 +586,7 @@ async function runCase(browser, origin, dir, testCase) {
     await evaluate('history.back(), true');
     await sleep(900);
     await evaluate('history.forward(), true');
-    await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 9"), `${label}: forward restores 생활정보`);
+    await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 7"), `${label}: forward restores 생활정보`);
     await sleep(600);
     state = await probe();
     assert.equal(state.sent.length, 4, `${label}: back / forward sends nothing`);
