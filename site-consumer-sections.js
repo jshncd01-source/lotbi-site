@@ -1,5 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-5bab126881e5';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-5bab126881e5';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-f6bbcd019e31';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-f6bbcd019e31';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-f6bbcd019e31';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -29,11 +30,14 @@ export const LIFE_SHORTCUTS = Object.freeze([
   // official logo is not used before approval; brandSlot reserves its place.
   {id: 'onnuri', label: '온누리상품권', brandSlot: 'onnuri'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
+  // JEONBUK-PILOT-01: 전북특별자치도·전주시 공식 음식점 공공데이터 (Core regional_food).
+  {id: 'jeonbuk-food', label: '전북 맛집·음식', icon: 'food', regionalFood: true},
   // KINDERGARTEN-OFFICIAL-INFO-01: 학교(NEIS, 대화) / 유치원(유치원알리미 공시).
   {id: 'education', label: '유치원·학교', icon: 'school'},
   // MY-CHILD-SCHOOL-01: the signed-in reader's saved schools / 유치원
-  // (site-life-my-child.js). Last. With 9 cards the odd last card spans its
-  // row (site-life-education.css), so the grid has no empty cell.
+  // (site-life-my-child.js). Last. With 10 cards (전북 맛집·음식 included) every
+  // row of two is full; an odd count would let the last card span its row
+  // (site-life-education.css), so the grid has no empty cell.
   {id: 'my-child', label: '내 아이 학교·유치원', icon: 'backpack'},
 ]);
 
@@ -72,6 +76,7 @@ const ICON_PATHS = {
   pharmacy: ['M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7l7-7Z', 'm7 10 7 7'],
   emergency: ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z', 'M12 8v8M8 12h8'],
   news: ['M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V5Z', 'M17 9h3v10a2 2 0 0 1-2 2', 'M7 9h7M7 12h7M7 15h4'],
+  food: ['M6 2v7a2 2 0 0 0 4 0V2M8 2v20', 'M18 22V2c-2.2 1.4-3.5 4.2-3.5 7.5V14H18'],
   school: ['m2 9 10-5 10 5-10 5L2 9Z', 'M6 11v5c3 2.5 9 2.5 12 0v-5', 'M22 9v6'],
   backpack: ['M9 6V5a3 3 0 0 1 6 0v1', 'M6 9a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v12H6V9Z', 'M9 13h6v4H9v-4Z'],
 };
@@ -131,6 +136,15 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       }, {secondary: true});
       const detail = node('section', 'consumer-life-detail');
       const title = node('h3', '', item.label); title.tabIndex = -1;
+      if (item.regionalFood) {
+        // The question goes through the same life handoff (onAsk) as every
+        // other 생활정보 form; Core answers it from the official 전북 data.
+        const {form: foodForm, note} = createJeonbukFoodForm(document, {onSubmit: text => { if (!disposed) onAsk(text); }});
+        detail.dataset.lifeDetail = item.id;
+        detail.append(back, title, foodForm, node('p', 'consumer-feature-note', note));
+        root.replaceChildren(detail); title.focus();
+        return;
+      }
       const queryForm = node('form', 'consumer-life-form');
       const controls = [];
       const fields = LIFE_DETAIL_FIELDS[item.id];
@@ -199,7 +213,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-5bab126881e5').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-f6bbcd019e31').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {

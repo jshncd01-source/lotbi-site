@@ -40,8 +40,8 @@ const sections = await import('../site-consumer-sections.js');
 const screen = await import('../site-life-my-child.js');
 const client = await import('../site-my-child-client.js');
 
-await check('생활정보: eight existing cards kept in order, 내 아이 학교·유치원 ninth with its own screen', () => {
-  assert.deepEqual(sections.LIFE_SHORTCUTS.map(item => item.id), ['hospital', 'pharmacy', 'emergency', 'festivals', 'news', 'onnuri', 'local', 'education', 'my-child']);
+await check('생활정보: nine existing cards (전북 맛집·음식 included) kept in order, 내 아이 학교·유치원 last with its own screen', () => {
+  assert.deepEqual(sections.LIFE_SHORTCUTS.map(item => item.id), ['hospital', 'pharmacy', 'emergency', 'festivals', 'news', 'onnuri', 'local', 'jeonbuk-food', 'education', 'my-child']);
   const item = sections.LIFE_SHORTCUTS.at(-1);
   assert.equal(item.label, '내 아이 학교·유치원');
   assert.ok(!item.prompt && !item.medical);
@@ -558,8 +558,8 @@ try {
   for (const testCase of CASES) {
     const r = await runCase(browser, origin, dir, testCase, 'inner.html', true);
     const label = testCase.label;
-    await check(`${label}: ninth card opens the screen with 지역정보로 돌아가기; empty list explains storage`, () => {
-      assert.deepEqual(r.cards, ['hospital', 'pharmacy', 'emergency', 'festivals', 'news', 'onnuri', 'local', 'education', 'my-child']);
+    await check(`${label}: the last card opens the screen with 지역정보로 돌아가기; empty list explains storage`, () => {
+      assert.deepEqual(r.cards, ['hospital', 'pharmacy', 'emergency', 'festivals', 'news', 'onnuri', 'local', 'jeonbuk-food', 'education', 'my-child']);
       assert.equal(r.card.label, '내 아이 학교·유치원');
       assert.ok(r.card.box.h >= 44, JSON.stringify(r.card.box));
       assert.equal(r.back, '지역정보로 돌아가기');
