@@ -136,11 +136,23 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # 줄(lotbiHour >= 22, setHours(... 22))과 그 주석 한 줄만 바뀌었다. NO LEGAL TEXT
 # CHANGED — 위와 같은 방법으로 bootstrap 을 들어내면 16개 소비자 페이지 모두
 # origin/main 과 바이트까지 같다.
+# SUBSCRIPTION-PRICE-PRORATION-01 — terms.html 의 잠금 값이 움직였다. 대표 결정으로
+# LOTBI Plus 월 구독료가 19,900원에서 29,900원(VAT 포함)으로 바뀌어, 제8조의 세 등급
+# 금액 "9,900원·19,900원·39,900원" 중 가운데 값 하나만 "29,900원"으로 고쳤다.
+# 그 밖의 조항·링크·고지 문구는 한 글자도 바뀌지 않았다 —
+# `git diff --unified=0 origin/main -- terms.html` 이 제8조 한 줄만 보인다(asset 토큰 제외).
+# 플랜 변경(상위 즉시 차액 일할 결제 / 하위 다음 결제일) 기준은 잠금 대상이 아닌
+# refund.html 제6조(#plan-change)에 적었다. 약관 본문 바이트가 바뀌었으므로 Social
+# Signup 동의 증빙용 LOTBI_SOCIAL_TERMS_VERSION(LOTBI_TERMS_2026-10-08_R1 로 올림)과
+# LOTBI_SOCIAL_TERMS_SHA256 은 emit_social_signup_legal_manifest.py 출력값으로 배포와
+# 함께 갱신해야 실제 게시본을 가리킨다. 그 해시는 이 파일의 잠금과 같은 정규화
+# (asset 토큰 제거)로 계산하므로 위 잠금 값과 같고, Site 배포로 토큰이 바뀌어도
+# 변하지 않는다(validate_social_legal_manifest_01.py).
 # Hashes
 # remain exact after Git's LF/CRLF checkout normalization, not content stripping.
 LOCKED_SHA256 = {
     'privacy.html': 'c1a0be94cf8165c9c0b26d5b1c31fc3f91516ef30abb0bfcf6c2a6b8c0098545',
-    'terms.html': '4614bccf9ad1b842f0a45598211c2923504a7c1b1bd1f8041a4ec955e66392b4',
+    'terms.html': 'c3da41cf8bf81b0a3c6ac431a2f9de54fe573f04b573ce1f167b95add539e93f',
     'account-deletion.html': 'ae770a20ce93249613a77d0c63872726f0935516e8444cf51be86444c83866ed',
     'contact.html': '396e62b7a857dd3f6a9b27f54a25be032f2629648aac672af524d3bad2a2fa5a',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',

@@ -92,7 +92,7 @@ const unsafePhoto = normalizePlaceResult({
 assert.equal(unsafePhoto.results[0].imageUrl, '');
 
 const source = fs.readFileSync(new URL('../site-conversation.js', import.meta.url), 'utf8');
-const rendererStart = source.indexOf('const createPlaceCardRail = placeValue => {');
+const rendererStart = source.indexOf('const createPlaceCardRail = (placeValue, placeOptions = {}) => {');
 const rendererEnd = source.indexOf('const normalizeConversationCalendarResult = value => {', rendererStart);
 assert.ok(rendererStart >= 0 && rendererEnd > rendererStart);
 const renderer = source.slice(rendererStart, rendererEnd);

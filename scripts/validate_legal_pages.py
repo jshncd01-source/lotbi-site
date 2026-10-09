@@ -89,7 +89,7 @@ def main() -> int:
     # 늘거나 값이 하나 바뀔 때 조용히 지나가지 않도록 세 금액을 모두 건다.
     for needle in (
         "LOTBI Basic·LOTBI Plus·LOTBI Pro",
-        "9,900원·19,900원·39,900원",
+        "9,900원·29,900원·39,900원",
         "Toss Payments",
         "Apple App Store subscription",
         "Google Play subscription",

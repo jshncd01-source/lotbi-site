@@ -10,10 +10,10 @@
 // Brand: the official 온누리상품권 logo is NOT used until its use is approved.
 // The slot below is reserved for it and renders nothing; labels are plain text.
 // LOTBI is not presented as an official/partner service of the issuer.
-import {CORE_ORIGIN} from './site-core.js?v=aset-25c3dfa21856';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-25c3dfa21856';
-import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-25c3dfa21856';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-25c3dfa21856';
+import {CORE_ORIGIN} from './site-core.js?v=aset-4eb6d0d69d4a';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-4eb6d0d69d4a';
+import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-4eb6d0d69d4a';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-4eb6d0d69d4a';
 
 export const ONNURI_MENU_LABEL = '온누리상품권';
 export const ONNURI_CARD_LABEL = '온누리 가맹점';
@@ -49,18 +49,24 @@ export function normalizeOnnuriMerchant(value) {
   // becomes a coordinate or a "0m" distance.
   const latitude = typeof value.latitude === 'number' ? value.latitude : Number.NaN;
   const longitude = typeof value.longitude === 'number' ? value.longitude : Number.NaN;
-  const verified = value.geo_state === 'VERIFIED' && inKorea(latitude, longitude);
+  // ONNURI-IMPORT-QUALITY-FIX-02: the 2026 official file has no street address,
+  // so Core places most shops at their market (geo_state MARKET). That point is
+  // the market's, never presented as the shop's own building.
+  const basis = value.geo_state === 'VERIFIED' ? 'BUILDING' : value.geo_state === 'MARKET' ? 'MARKET' : '';
+  const verified = basis !== '' && inKorea(latitude, longitude);
   const distance = typeof value.distance_meters === 'number' ? value.distance_meters : Number.NaN;
   return Object.freeze({
     id,
     name,
     address,
     marketName: text(value.market_name),
+    marketAddress: text(value.market_address),
     items: text(value.items),
     paper: bool(value.paper),
     digital: bool(value.digital),
     latitude: verified ? latitude : null,
     longitude: verified ? longitude : null,
+    locationBasis: verified ? basis : '',
     // A distance only for a verified coordinate; never computed here.
     distanceMeters: verified && Number.isInteger(distance) && distance >= 0 && distance <= 300000 ? distance : null,
   });
@@ -165,7 +171,7 @@ export function createOnnuriLogoSlot(documentRef = document) {
   return slot;
 }
 
-function merchantCard(item, {mapProvider}) {
+export function onnuriMerchantCard(item, {mapProvider}) {
   const card = el('article', 'onnuri-card');
   card.dataset.onnuriMerchant = item.id;
   const head = el('div', 'onnuri-card-head');
@@ -173,16 +179,21 @@ function merchantCard(item, {mapProvider}) {
   label.prepend(createOnnuriLogoSlot());
   head.append(label);
   const distance = item.distanceMeters !== null ? formatDistanceMeters(item.distanceMeters) : '';
-  if (distance) head.append(el('span', 'onnuri-card-distance', distance));
+  const atMarket = item.locationBasis === 'MARKET';
+  if (distance) head.append(el('span', 'onnuri-card-distance', atMarket ? `시장까지 ${distance}` : distance));
   const title = el('h4', 'onnuri-card-title', item.name);
   const meta = el('p', 'onnuri-card-meta', [item.marketName, item.items].filter(Boolean).join(' · '));
-  const address = el('p', 'onnuri-card-address', item.address);
+  // The official 소재지 may be only "서울"; the market's address says where to go.
+  const address = el('p', 'onnuri-card-address', item.marketAddress ? `시장 주소 ${item.marketAddress}` : item.address);
   const accept = el('p', 'onnuri-card-accept', acceptanceLabel(item));
   card.append(head, title);
   if (meta.textContent) card.append(meta);
-  card.append(address, accept);
+  card.append(address);
+  if (atMarket) card.append(el('p', 'onnuri-card-basis', '위치·거리는 소속 시장 기준이에요. 가게 위치는 시장 안에서 확인해 주세요.'));
+  card.append(accept);
+  const target = atMarket && item.marketName ? item.marketName : item.name;
   const place = {
-    name: item.name, address: item.address, placeId: `onnuri:${item.id}`,
+    name: target, address: item.marketAddress || item.address, placeId: `onnuri:${item.id}`,
     latitude: item.latitude, longitude: item.longitude,
     coordinateSystem: item.latitude !== null ? 'WGS84' : '', coordinateAuthority: item.latitude !== null ? 'NAVER_MAPS_GEOCODING' : '',
     navigationCapable: item.latitude !== null,
@@ -190,9 +201,10 @@ function merchantCard(item, {mapProvider}) {
   try {
     const href = buildDefaultMapHref(mapProvider, place);
     const presentation = defaultMapProviderPresentation(mapProvider);
-    const link = el('a', 'consumer-action consumer-action-secondary onnuri-card-map', item.latitude !== null ? '길찾기' : '지도에서 찾기');
+    const action = item.latitude !== null ? (atMarket ? '시장 길찾기' : '길찾기') : '지도에서 찾기';
+    const link = el('a', 'consumer-action consumer-action-secondary onnuri-card-map', action);
     link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer';
-    link.setAttribute('aria-label', `${presentation?.label || '지도'}에서 ${item.name} ${item.latitude !== null ? '길찾기' : '찾기'}`);
+    link.setAttribute('aria-label', `${presentation?.label || '지도'}에서 ${target} ${item.latitude !== null ? '길찾기' : '찾기'}`);
     card.append(link);
   } catch {
     // No map link rather than a wrong one.
@@ -296,7 +308,7 @@ export async function mountOnnuriMerchants({root, fetchImpl = globalThis.fetch, 
     const known = new Set(state.items.map(item => item.id));
     const fresh = result.items.filter(item => !known.has(item.id));
     state.items.push(...fresh);
-    for (const item of fresh) list.append(merchantCard(item, {mapProvider}));
+    for (const item of fresh) list.append(onnuriMerchantCard(item, {mapProvider}));
     state.offset = result.nextOffset ?? state.offset + fresh.length;
     more.hidden = !result.hasMore;
     const scope = useLocation ? '현재 위치 근처' : ([state.sido, state.sigungu, state.dong].filter(Boolean).join(' ') || '전국');
