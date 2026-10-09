@@ -127,6 +127,14 @@
   color: var(--consumer-muted, var(--lotbi-text-primary));
 }
 
+/* ONNURI-IMPORT-QUALITY-FIX-02: the point is the market's, said in plain text. */
+.onnuri-card-basis {
+  margin: 0;
+  font-size: 13px;
+  color: var(--consumer-muted, var(--lotbi-text-primary));
+  overflow-wrap: anywhere;
+}
+
 .onnuri-card-map {
   justify-self: start;
   margin-top: 6px;

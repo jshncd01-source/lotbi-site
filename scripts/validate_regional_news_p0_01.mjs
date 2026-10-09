@@ -561,16 +561,20 @@ async function runCase(browser, origin, dir, testCase) {
       assert.ok(usage === 'off' ? asked === 0 : asked <= 1, `${testCase.label}: geolocation requests with location use ${usage}: ${asked}`);
     }
 
-    // 6. Desktop: an odd last category takes the whole row (no empty cell).
+    // 6. Desktop: eight categories (응급실 + 지역뉴스) fill every row of two —
+    // no empty cell, and the last card keeps the column width.
     if (!testCase.mobile) {
       await openLife();
       await evaluate(`document.querySelector('.consumer-workspace [data-life-shortcut="bills"]')?.remove(), true`);
       state = await probe();
       const first = state.shortcuts[0].box;
       const last = state.shortcuts.at(-1).box;
-      assert.equal(state.shortcuts.length % 2, 1);
-      assert.ok(last.w > first.w * 1.5, `${testCase.label}: odd last card spans the row (${Math.round(last.w)} vs ${Math.round(first.w)})`);
-      await shot('05-odd-row');
+      const beforeLast = state.shortcuts.at(-2).box;
+      assert.equal(state.shortcuts.length, 8);
+      assert.equal(state.shortcuts.at(-1).id, 'education');
+      assert.ok(Math.abs(last.w - first.w) <= 1, `${testCase.label}: last card keeps the column width (${Math.round(last.w)} vs ${Math.round(first.w)})`);
+      assert.ok(Math.abs(last.y - beforeLast.y) <= 1 && last.x > beforeLast.right - 1, `${testCase.label}: the last row holds two cards (no empty cell)`);
+      await shot('05-even-rows');
     }
     return {entry: typed.mode, cards: state.cards?.length ?? 0, firstCard: `${Math.round(state.cards?.[0]?.box.w || 0)}x${Math.round(state.cards?.[0]?.box.h || 0)}`};
   } finally {

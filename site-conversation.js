@@ -1,32 +1,32 @@
-import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-adf14658ba9e';
-import * as siteCore from './site-core.js?v=aset-adf14658ba9e';
-import './site-scam-shield.js?v=aset-adf14658ba9e';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-adf14658ba9e';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-adf14658ba9e';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-adf14658ba9e';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-adf14658ba9e';
-import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-adf14658ba9e';
-import * as siteAttachments from './site-attachments.js?v=aset-adf14658ba9e';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-adf14658ba9e';
-import {deterministicReply} from './site-deterministic.js?v=aset-adf14658ba9e';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-adf14658ba9e';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-adf14658ba9e';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-adf14658ba9e';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-adf14658ba9e';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-adf14658ba9e';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-adf14658ba9e';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-adf14658ba9e';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-adf14658ba9e';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-adf14658ba9e';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-adf14658ba9e';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-adf14658ba9e';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-adf14658ba9e';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-adf14658ba9e';
-import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-adf14658ba9e';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-adf14658ba9e';
-import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-adf14658ba9e';
-import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-adf14658ba9e';
-import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-adf14658ba9e';
+import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-21f52e749ca9';
+import * as siteCore from './site-core.js?v=aset-21f52e749ca9';
+import './site-scam-shield.js?v=aset-21f52e749ca9';
+import {mountConsumerSection} from './site-consumer-sections.js?v=aset-21f52e749ca9';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl} from './site-route.js?v=aset-21f52e749ca9';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-21f52e749ca9';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-21f52e749ca9';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-21f52e749ca9';
+import * as siteAttachments from './site-attachments.js?v=aset-21f52e749ca9';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-21f52e749ca9';
+import {deterministicReply} from './site-deterministic.js?v=aset-21f52e749ca9';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-21f52e749ca9';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-21f52e749ca9';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-21f52e749ca9';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-21f52e749ca9';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-21f52e749ca9';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-21f52e749ca9';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-21f52e749ca9';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-21f52e749ca9';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-21f52e749ca9';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-21f52e749ca9';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-21f52e749ca9';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-21f52e749ca9';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-21f52e749ca9';
+import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-21f52e749ca9';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-21f52e749ca9';
+import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-21f52e749ca9';
+import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-21f52e749ca9';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-21f52e749ca9';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -203,7 +203,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-adf14658ba9e';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-21f52e749ca9';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -296,7 +296,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-adf14658ba9e');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-21f52e749ca9');
   return shareWithKakaoTalk(options);
 }
 
@@ -305,7 +305,7 @@ async function shareMessageWithKakao(options) {
 // already has the SDK loaded, so choosing it shares within the same tap.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-adf14658ba9e');
+    const module = await import('./site-kakao-share.js?v=aset-21f52e749ca9');
     return Boolean(await module.prepareKakaoShare());
   } catch {
     return false;
@@ -1851,6 +1851,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           open_state: place.medicalStatus.openState,
           hours_label: place.medicalStatus.hoursLabel,
           target_label: place.medicalStatus.targetLabel,
+          ...(place.medicalStatus.holidayUnverified ? {holiday_basis: 'UNVERIFIED_YEAR'} : {}),
           basis: 'NMC_REGISTERED_HOURS',
         }} : {}),
         ...(place.emergencyStatus ? {emergency_status: {
@@ -1911,7 +1912,17 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!value || typeof value !== 'object') return null;
     return normalizePlaceResult(value, {capturedAt: Number(value.captured_at)});
   };
-  const createPlaceCardRail = placeValue => {
+  // LIFE-MEDICAL-AUTO-SEARCH-CARD-01 — 전화 / 길찾기 are one small round icon
+  // each: a 22px line drawing in a 44px target, side by side at the card's
+  // end. The map icon opens the map app chosen in settings (its name is in
+  // the label); the app-logo tiles filled half the card each.
+  const PLACE_ACTION_ICON_PATHS = Object.freeze({
+    phone: 'M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z',
+    route: 'M3 11 22 2l-9 19-2-8-8-2Z',
+  });
+  // Built like the menu icons' namespace: the runtime carries no plain-http URL literal.
+  const PLACE_ACTION_SVG_NS = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/');
+  const createPlaceCardRail = (placeValue, placeOptions = {}) => {
     const placeResult = normalizedPersistedPlaceResult(placeValue);
     if (!placeResult) return null;
     const fresh = isPlaceResultFresh(placeResult);
@@ -1934,7 +1945,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     let shownCount = Math.min(places.length, 3);
     const placeKinds = new Set(places.map(place => (place.animalHospitalVerification ? 'ANIMAL' : (place.medicalStatus?.kind || (place.emergencyStatus ? 'EMERGENCY' : '')))));
     const placeNoun = placeKinds.size === 1
-      ? ({HOSPITAL: '병원', EMERGENCY: '병원', PHARMACY: '약국', ANIMAL: '동물병원'}[[...placeKinds][0]] || '장소')
+      ? ({HOSPITAL: '병원', EMERGENCY: '응급실', PHARMACY: '약국', ANIMAL: '동물병원'}[[...placeKinds][0]] || '장소')
       : '장소';
     const rail = document.createElement('section');
     rail.className = 'lotbi-rich-card-rail lotbi-place-orbit has-orbit-footer';
@@ -2038,17 +2049,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       actions.className = 'lotbi-rich-card-actions lotbi-place-card-actions';
 
       const addActionIcon = (control, iconName) => {
-        const icon = document.createElement('span');
-        icon.className = 'lotbi-place-action-icon';
+        const icon = document.createElementNS(PLACE_ACTION_SVG_NS, 'svg');
+        icon.setAttribute('class', 'lotbi-place-action-icon');
+        icon.setAttribute('viewBox', '0 0 24 24');
         icon.setAttribute('aria-hidden', 'true');
-        const image = document.createElement('img');
-        image.className = 'lotbi-place-action-icon-image';
-        image.src = `/assets/place-actions/${iconName}.png?v=place-icons-20260925`;
-        image.alt = '';
-        image.width = 32;
-        image.height = 32;
-        image.decoding = 'async';
-        icon.appendChild(image);
+        icon.setAttribute('focusable', 'false');
+        const path = document.createElementNS(icon.namespaceURI, 'path');
+        path.setAttribute('d', PLACE_ACTION_ICON_PATHS[iconName]);
+        icon.appendChild(path);
         control.appendChild(icon);
       };
 
@@ -2060,8 +2068,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         phone.dataset.phoneState = 'VERIFIED';
         phone.href = phoneHref;
         phone.tabIndex = placeIndex === 0 ? 0 : -1;
-        phone.setAttribute('aria-label', `${place.name} 전화 걸기`);
-        phone.title = '전화 걸기';
+        phone.setAttribute('aria-label', `${place.name} 전화하기`);
+        phone.title = '전화하기';
         addActionIcon(phone, 'phone');
         phone.addEventListener('click', () => {
           phone.dataset.handoffState = 'CALL_HANDOFF_STARTED';
@@ -2075,12 +2083,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       mapAction.href = buildDefaultMapHref(defaultMapProvider, place);
       mapAction.target = '_blank';
       mapAction.rel = 'noopener noreferrer';
-      mapAction.setAttribute('aria-label', `${place.name} ${mapPresentation.label}에서 길찾기`);
-      mapAction.title = `${mapPresentation.label}에서 길찾기`;
+      mapAction.setAttribute('aria-label', `${place.name} 길찾기 (${mapPresentation.label})`);
+      mapAction.title = `길찾기 (${mapPresentation.label})`;
       mapAction.dataset.action = mapPresentation.action;
       mapAction.dataset.mapProvider = defaultMapProvider;
       mapAction.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionIcon(mapAction, mapPresentation.icon);
+      addActionIcon(mapAction, 'route');
       mapAction.addEventListener('click', event => {
         if (!isPlaceResultFresh(placeResult)) {
           event.preventDefault();
@@ -2091,7 +2099,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       });
       actions.appendChild(mapAction);
 
-      for (const line of medicalStatusLines(place)) {
+      for (const line of medicalStatusLines(place, {partial: placeOptions.medicalPartial === true})) {
         const status = document.createElement('span');
         status.className = 'lotbi-place-license-note lotbi-place-medical-line';
         status.dataset.medicalState = line.state;
@@ -2323,7 +2331,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         dragMoved = true;
         rail.classList.add('is-dragging');
       }
-      if (!dragMoved) return;
+      if (!dragMoved || shownCount < 2) return;
       event.preventDefault();
       const visualDelta = Math.max(-72, Math.min(72, delta * 0.45));
       rail.style.setProperty('--lotbi-orbit-drag-x', `${visualDelta}px`);
@@ -2391,6 +2399,41 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     applyOrbitState();
     return rail;
+  };
+
+  // LIFE-MEDICAL-AUTO-SEARCH-01 — conditions for pharmacies are picked on the
+  // results instead of being asked first. Each asks the same Core medical
+  // route again for the same area (근처, or the 시·군·구 these results were
+  // for), sent at once like the 생활정보 menu. The cards keep saying
+  // "등록 시간상"; no filter makes a pharmacy "open" for sure.
+  const PHARMACY_FILTERS = Object.freeze([
+    ['NOW', '지금 운영 중', area => `지금 문 연 ${area} 약국 찾아줘`],
+    ['NIGHT', '야간', area => `오늘 밤 문 여는 ${area} 약국 찾아줘`],
+    ['HOLIDAY', '휴일', area => `휴일에 문 여는 ${area} 약국 찾아줘`],
+    ['ALL_DAY', '24시간', area => `24시간 운영하는 ${area} 약국 찾아줘`],
+  ]);
+  const createPharmacyFilterRow = placeValue => {
+    const placeResult = normalizedPersistedPlaceResult(placeValue);
+    if (!placeResult || !placeResult.results.every(place => place.medicalStatus?.kind === 'PHARMACY')) return null;
+    // Core's query is "<basis> 약국": a current location or saved region is
+    // asked as 근처 again (the location contract decides which), a named
+    // 시·군·구 by its name.
+    const basis = placeResult.query.replace(/\s*약국$/u, '').trim();
+    const area = !basis || /^(?:현재 위치|저장된 지역)\(/u.test(basis) ? '근처' : basis;
+    const row = document.createElement('div');
+    row.className = 'lotbi-place-filter-row';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', '조건을 골라 약국 다시 찾기');
+    for (const [mode, label, question] of PHARMACY_FILTERS) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'lotbi-place-filter-chip';
+      chip.dataset.pharmacyFilter = mode;
+      chip.textContent = label;
+      chip.addEventListener('click', () => askWithoutKeyboard(question(area)));
+      row.appendChild(chip);
+    }
+    return row;
   };
 
   const normalizeConversationCalendarResult = value => {
@@ -3109,7 +3152,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       node.appendChild(createEmergencyCallNotice(document));
     }
     if (message.role === 'assistant' && place) {
-      const rail = createPlaceCardRail(message.meta?.placeResult); if (rail) node.appendChild(rail);
+      const rail = createPlaceCardRail(message.meta?.placeResult, {medicalPartial: message.meta?.medicalPartial === true});
+      if (rail) node.appendChild(rail);
+      const filters = rail ? createPharmacyFilterRow(message.meta?.placeResult) : null;
+      if (filters) node.appendChild(filters);
     }
     if (message.role === 'assistant' && Array.isArray(message.meta?.calendarItems)) {
       for (const rawItem of message.meta.calendarItems) {
@@ -3769,7 +3815,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-adf14658ba9e');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-21f52e749ca9');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3797,7 +3843,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-adf14658ba9e');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-21f52e749ca9');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3827,7 +3873,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseOnnuriSurface?.(); releaseOnnuriSurface = null; },
     });
     try {
-      const {mountOnnuriMerchants} = await import('./site-life-onnuri.js?v=aset-adf14658ba9e');
+      const {mountOnnuriMerchants} = await import('./site-life-onnuri.js?v=aset-21f52e749ca9');
       const mounted = await mountOnnuriMerchants({root: content});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseOnnuriSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -4064,6 +4110,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     const {backdrop, panel, content} = modalShell(...definition);
     panel.classList.add('consumer-section-panel');
+    // KINDERGARTEN-OFFICIAL-INFO-01: the 유치원·학교 screen drafts its question
+    // for the user to check; the medical and other life cards use onAsk.
     const draft = text => {
       prompt.value = text.slice(0, 1000); prompt.dispatchEvent(new Event('input', {bubbles: true})); prompt.focus();
       setStatus('요청을 입력창에 넣었어요. 내용을 확인한 뒤 전송하세요.');
@@ -4081,14 +4129,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       },
       accountId: serverIdentity?.userId || '',
       sessionExpiresAt: serverIdentity?.expiresAt || '',
+      onAsk: text => {
+        // Closing the surface must not hand focus back to the composer (the
+        // keyboard would open); the question is sent, not drafted.
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        surfaceRestoreFocus = undefined;
+        closeSurface();
+        askWithoutKeyboard(text);
+      },
       onDraft: text => { closeSurface(); draft(text); },
       onFestival: () => { closeSurface(); void openFestival(); },
       onOnnuri: () => { closeSurface(); void openOnnuri(); },
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-adf14658ba9e'),
-          import('./site-pet.js?v=aset-adf14658ba9e'),
+          import('./site-person.js?v=aset-21f52e749ca9'),
+          import('./site-pet.js?v=aset-21f52e749ca9'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -4097,11 +4153,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-adf14658ba9e');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-21f52e749ca9');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-adf14658ba9e');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-21f52e749ca9');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -4414,6 +4470,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
 
   let responseGradeOpen = false;
+  // A question asked by a tap while another answer is still coming; sent as
+  // soon as that turn ends (askWithoutKeyboard, updateSendState).
+  let pendingTapQuestion = '';
+  let lastTapQuestion = {text: '', at: 0};
   let selectedAttachments = [];
   let pendingAttachmentPreviews = [];
   let attachmentUploadsInFlight = 0;
@@ -4665,6 +4725,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     attachmentTrigger.disabled = inFlight || attachmentBusy || selectedAttachments.length >= 3;
     if (attachmentTrigger.disabled && attachmentMenuOpen) closeAttachmentMenu();
     for (const input of attachmentInputs) input.disabled = inFlight || attachmentBusy || selectedAttachments.length >= 3;
+    if (pendingTapQuestion && !inFlight && !attachmentBusy) {
+      const question = pendingTapQuestion;
+      pendingTapQuestion = '';
+      queueMicrotask(() => askWithoutKeyboard(question, {queued: true}));
+    }
   };
   const setListeningState = listening => {
     voiceListening = listening;
@@ -4887,8 +4952,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     appendNode(wrapper);
   };
-  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '', turnCreatedAt = 0, {recovering = false} = {}) => {
+  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '', turnCreatedAt = 0, {recovering = false, keepComposerClosed = false} = {}) => {
     const message = typeof text === 'string' ? text.trim() : '';
+    // A question asked by a tap (askWithoutKeyboard) is read without the
+    // keyboard on any device: the composer gets focus only when it is tapped.
+    const focusComposerAfterThisTurn = () => {
+      if (keepComposerClosed) return;
+      if (!composerUsesSoftwareKeyboard()) prompt.focus();
+    };
     const sourceTurnCreatedAt = Number.isFinite(Number(turnCreatedAt)) && Number(turnCreatedAt) > 0 ? Number(turnCreatedAt) : Date.now();
     const sourceTurnCreatedAtIso = new Date(sourceTurnCreatedAt).toISOString();
     const attachments = [...selectedAttachments];
@@ -4912,7 +4983,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           const timeoutError = new Error('응답 시간이 오래 걸려 중단했어요. 다시 시도해 주세요.');
           showError(timeoutError, message, true, logicalRequestId, sourceTurnCreatedAt);
           setStatus('LOTBI 응답 시간이 초과되었습니다.');
-          if (!composerUsesSoftwareKeyboard()) prompt.focus();
+          focusComposerAfterThisTurn();
         },
       });
       return handle;
@@ -4966,7 +5037,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       publishDiagnostics();
       recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: diagnostics.lastCoreRequestDelta, providerCalls: 0, externalAiCalls: diagnostics.lastExternalAiRequestDelta});
       console.info(`[LOTBI deterministic evidence] latencyMs=${diagnostics.lastVisibleAnswerMs} coreRequests=${diagnostics.lastCoreRequestDelta} providerRequests=0 externalAiRequests=${diagnostics.lastExternalAiRequestDelta}`);
-      setStatus('LOTBI의 즉시 응답이 도착했습니다.'); returnComposerFocusAfterTurn(); return;
+      setStatus('LOTBI의 즉시 응답이 도착했습니다.'); if (!keepComposerClosed) returnComposerFocusAfterTurn(); return;
     }
     if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message)) {
       const calendarRequestId = logicalRequestId || newId('calendar-guest-direct');
@@ -5031,7 +5102,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           thinking.stop('cancel');
           inFlight = false;
           updateSendState();
-          if (!composerUsesSoftwareKeyboard()) prompt.focus();
+          focusComposerAfterThisTurn();
         }
       }
       return;
@@ -5076,6 +5147,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
         if (suggestedPetAction) meta.petAction = suggestedPetAction;
         if (response.medicalNotice?.emergencyCall === true) meta.emergencyCall = true;
+        if (response.medicalNotice?.partial === true) meta.medicalPartial = true;
         if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
       if (response.reusableOutput) meta.reusableOutput = response.reusableOutput;
         if (response.reusableOutput) meta.reusableOutput = response.reusableOutput;
@@ -5124,7 +5196,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         showError(caught, message, true, guestRequestId, sourceTurnCreatedAt);
         setStatus('LOTBI 대화를 완료하지 못했습니다.');
       } finally {
-        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); returnComposerFocusAfterTurn(); }
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); if (!keepComposerClosed) returnComposerFocusAfterTurn(); }
       }
       return;
     }
@@ -5166,7 +5238,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
         showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
       } finally {
-        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); returnComposerFocusAfterTurn(); }
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); if (!keepComposerClosed) returnComposerFocusAfterTurn(); }
       }
       return;
     }
@@ -5210,6 +5282,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
       if (suggestedPetAction) meta.petAction = suggestedPetAction;
       if (response.medicalNotice?.emergencyCall === true) meta.emergencyCall = true;
+      if (response.medicalNotice?.partial === true) meta.medicalPartial = true;
       if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
       const calendarItems = conversationCalendarItemsFromResponse(response, 'AUTH');
       if (calendarItems.length) {
@@ -5257,8 +5330,35 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       forgetPendingTurn(authenticatedRequestId);
       showError(caught, message, true, authenticatedRequestId, sourceTurnCreatedAt); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally {
-      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); returnComposerFocusAfterTurn(); }
+      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); if (!keepComposerClosed) returnComposerFocusAfterTurn(); }
     }
+  };
+  // LIFE-MEDICAL-AUTO-SEARCH-01 — a question asked by a tap (생활정보 병원·약국·
+  // 응급실, a pharmacy filter under the results) is sent at once through the
+  // normal send path, so it is never left in the composer to be sent again by
+  // hand, and nothing focuses the composer. While another answer is still
+  // coming the tap waits and goes out when that turn ends. With attachments
+  // waiting in the composer it is put there instead, so they are not sent with
+  // a question they were not meant for. The same tap twice within a moment
+  // (a double tap) is one question.
+  const askWithoutKeyboard = (text, {queued = false} = {}) => {
+    const question = String(text || '').trim().slice(0, 1000);
+    if (!question) return;
+    const now = Date.now();
+    if (!queued && lastTapQuestion.text === question && now - lastTapQuestion.at < 2500) return;
+    lastTapQuestion = {text: question, at: now};
+    if (document.activeElement === prompt) prompt.blur();
+    if (selectedAttachments.length) {
+      prompt.value = question; prompt.dispatchEvent(new Event('input', {bubbles: true}));
+      setStatus('질문을 입력창에 넣었어요. 첨부와 함께 보내려면 전송을 눌러 주세요.');
+      return;
+    }
+    if (inFlight || attachmentUploadsInFlight) {
+      pendingTapQuestion = question;
+      setStatus('이전 답변이 끝나면 바로 물어볼게요.');
+      return;
+    }
+    void requestAssistant(question, true, '', 0, {keepComposerClosed: true});
   };
   // The keyboard has already shrunk the scroller by the time this fires, so
   // "near the bottom" is the wrong question; whether the reader was following

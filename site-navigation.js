@@ -109,6 +109,8 @@ export function normalizeMedicalStatus(value) {
     openState,
     hoursLabel: boundedText(value.hours_label, 60),
     targetLabel: boundedText(value.target_label, 40),
+    // Core could not read this year's public holidays: hours are by weekday.
+    holidayUnverified: value.holiday_basis === 'UNVERIFIED_YEAR',
   });
 }
 
