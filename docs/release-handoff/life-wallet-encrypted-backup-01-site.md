@@ -1,6 +1,7 @@
 READY_FOR_DEPLOY=YES
-MIGRATION=YES (Core p0_0111_life_wallet_backup; Site has none)
-DEPLOY_ORDER=CORE → SITE
+SUPERSEDES=7dd82196
+MIGRATION=YES (Core p0_0111_life_wallet_backup — already in Production: CORE-T33, core main 2d47035d, 2026-10-10 03:21; Site has none)
+DEPLOY_ORDER=CORE → SITE (Core part is live)
 USER_DECISION_NEEDED=개인정보처리방침 개정 시점 (초안 docs/LIFE-WALLET-ENCRYPTED-BACKUP-01-PRIVACY-DRAFT.md, privacy.html 미변경); 소셜(FEDERATED_LIMITED) 로그인에도 서버 백업을 열지; 서버 백업 보관 기간(지금은 최신 1개, 무기한)
 
 STATUS=IMPLEMENTED; Life Wallet validators + site checks PASS; real devices NOT VERIFIED.
@@ -10,13 +11,31 @@ STATUS=IMPLEMENTED; Life Wallet validators + site checks PASS; real devices NOT 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/life-wallet-encrypted-backup-01-site
 FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote ... refs/heads/feature/life-wallet-encrypted-backup-01-site`)
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=9e39edd06446 (Merge release/20261009-site-t38c-work); re-checked unchanged right before this commit
-CODE_SHA=89f19fe3
-CONTAINS=feature/life-wallet-upright-copy-01-site fdce6f1c (READY, in SITE-T39b, not in main yet). If T39b ships first this branch still merges (asset tokens only).
+AUTHORITATIVE_MAIN=80da26b7 (checked with git ls-remote right before this commit; contains release/20261010-site-t44c-work 721f38b0)
+AUTHORITATIVE_MAIN_AT_DEVELOPMENT=9e39edd06446 (first development)
+CODE_SHA=1d6d996c (re-merge; first development 89f19fe3)
+CONTAINS=nothing unshipped besides this feature (fdce6f1c upright/copy is in main).
 CODE_COMMITS (none in main yet): 04ea7b3e merge of main 9e39edd0 (tokens only), c4631bab server backup, 89f19fe3 document_save_01 real-time waits + privacy draft.
 NON_TOKEN_DIFF_VS_MAIN (this branch's own part): site-life-wallet-backup.js (new), site-life-wallet.js, site-life-wallet.css, site-consumer-sections.js (sessionToken to the wallet), site-conversation.js (sessionToken to consumer sections), scripts/validate_life_wallet_server_backup_01.mjs (new), scripts/validate_life_wallet_entry_lock_01.mjs (mount call), scripts/validate_life_wallet_document_save_01.mjs, scripts/lib/headless-fixture-result.mjs (cpuThrottlingRate option), docs/LIFE-WALLET-ENCRYPTED-BACKUP-01-PRIVACY-DRAFT.md — plus the upright/copy files of fdce6f1c. site-theme-tokens.css untouched.
 DEPENDENCY=Core feature/life-wallet-encrypted-backup-01-core (API /v2/life-wallet/backup, migration p0_0111_life_wallet_backup). Without that Core: the wallet works as before; 서버 백업 menu items answer with a plain error (Core 404) and no backup notice appears.
 ENV_CHANGE_REQUIRED=NO
+
+## 0. 재병합 (2026-10-10, Life Wallet 공유 방이 이어받음)
+
+- 기준: release/20261010-site-t44c-work 721f38b0 = site main 576ec346 + 전북 + 대화 기록 + 온누리 Site + Life Wallet PIN·첨부 P0 10d53f44. 그 뒤 main 80da26b7.
+- merge: cab7803e. 병합 기준점이 두 개(fdce6f1c, 9e39edd0)라 git의 가상 기준점에 token 충돌이 섞였다. 그래서 파일마다 이 branch의 출발점(04ea7b3e)을 기준으로 token을 정규화해 다시 3-way merge하고, `node scripts/asset_cache_version.mjs --write`로 token을 다시 만들었다(aset-ef4dd10097af). 5f92efa6은 release가 새로 들여온 파일 5개의 token.
+- 진짜 충돌 3곳:
+  - `mountConsumerSection`: main의 `onAsk`·`mountMyChild` 시그니처 + 이 branch의 `sessionToken`.
+  - 생활 화면 호출(site-conversation.js): main의 `onAsk` 블록 + `sessionToken`.
+  - `validate_life_wallet_document_save_01`: 이 branch의 실시간 `runFixturePage` 끝부분 + main(PIN·첨부 P0)의 `retakeButton` 판정 1줄.
+- PIN·첨부 P0가 바꾼 곳(pinInput, createWalletPhotoPicker, visibilityListener, 포커스, autocomplete, scan-ui onReplace, 첨부 CSS)은 main 그대로다. main 대비 월렛 코드에서 빠진 줄은 이 기능이 의도한 6줄뿐이다(백업 반복수, mount 시그니처, 새 기기 복원 흐름, 안내 문구).
+- 검사기 기대값 1건: `validate_consumer_sections_02`가 옛 `mountLifeWallet({root, authenticated, accountId, sessionExpiresAt})`을 고정하고 있어 `sessionToken` 포함 호출로 고쳤다(17bb387e). 판정 수는 그대로다.
+- 이번 검사: 17bb387e에서 하나씩 실행(1d6d996c는 main 80da26b7 merge만 더한 것으로 파일 내용이 같다):
+  - PASS: server_backup_01, entry_lock_01, pin_attachment_ux_p0, consumer_sections_02, document_save_01, validate_site.py, validate_hardening.py, validate_accessibility.py
+  - PASS: Life Wallet 검사 13개(camera_parity_01, card_deck_01, document_scan_01, document_scan_synthetic_02, document_scan_ui_01, document_scan_ui_02, full_frame_card_01, glare_block_01, mobile_p0_01, pdf_01, photo_picker_01, storage_persist_01, upright_print_01), 화면 검사 11개(anonymous_conversation_persistence_01, auth_continuity_02, chat_dark_login_kakao_share_01, consumer_design_shell_01, consumer_detail_system_01, consumer_documents_01, consumer_theme_sync_01, conversation_account_sync_01, conversation_calendar_actions_01, conversation_calendar_auto_suggest_01, my_child_school_01)
+  - site_refresh_route_restore_01: Core 회귀와 동시 실행 중 한 화면 크기에서 로그인 상태가 아직 checking이라 실패 → 단독 재실행 PASS(부하성)
+  - asset 검사 PASS, node --check(wallet, backup, consumer sections, conversation, scan-ui)
+- NEW_FAILURES=NONE. 전체 Linux gate는 배포총괄방.
 
 ## 1. 암호화 서버 백업 (소유자 결정 2026-10-09)
 
