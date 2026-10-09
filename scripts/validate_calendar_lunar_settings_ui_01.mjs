@@ -88,13 +88,23 @@ try {
   await wait(() => !root.querySelector('.calendar-settings-dialog'), 'settings closed');
 
   result.onCount = root.querySelectorAll('.calendar-date-lunar').length;
-  // A lunar day label only carries its month name on the day that month
-  // starts (validate_calendar_lunar_model_01.mjs is the source of truth for
-  // that formatting choice); an ordinary day, including 추석 itself, shows
-  // just the day number -- this only re-checks that the real DOM reflects
-  // the real conversion, not the formatting rule again.
+  // Month cells use the compact label right of the solar day: '음15', and
+  // the month only on the day a lunar month starts ('음9.1') --
+  // validate_calendar_lunar_model_01.mjs is the source of truth for that
+  // formatting rule; this re-checks that the real DOM reflects the real
+  // conversion, and that the cell's accessible name keeps the full form.
   result.chuseokLabel = lunarCellText('2025-10-06'); // 음력 8/15 (추석)
   result.oct7Label = lunarCellText('2025-10-07'); // 음력 8/16 -- must not repeat 15일
+  result.monthStartLabel = lunarCellText('2025-10-21'); // 음력 9/1 -- the lunar month turns
+  result.chuseokAria = root.querySelector('[data-calendar-date-trigger="2025-10-06"]')?.getAttribute('aria-label') || '';
+  {
+    // 음력은 양력 숫자 바로 오른쪽, 같은 줄이다(아래 줄이 아니다).
+    const cell = root.querySelector('[data-calendar-date="2025-10-06"]');
+    const number = cell.querySelector('.calendar-date-number').getBoundingClientRect();
+    const lunar = cell.querySelector('.calendar-date-lunar').getBoundingClientRect();
+    result.lunarRightOfNumber = lunar.left >= number.right - 0.5 && lunar.top < number.bottom && lunar.bottom > number.top;
+    result.lunarFontPx = parseFloat(getComputedStyle(cell.querySelector('.calendar-date-lunar')).fontSize);
+  }
   result.storedAfterToggle = JSON.parse(localStorage.getItem('lotbi.calendar.settings.v1') || '{}').showLunarDates;
 
   // 3. Week view carries the same setting and the same conversion. Select
@@ -171,8 +181,12 @@ try {
   if (!v.toggleFoundInSettings) throw new Error('음력 표시 toggle missing from Settings');
   if (!v.toggleUncheckedByDefault) throw new Error('음력 표시 toggle must start unchecked');
   if (v.onCount <= 0) throw new Error('turning the toggle on must render lunar text in the Month grid');
-  if (v.chuseokLabel !== '8월 15일') throw new Error(`2025-10-06 (음력 8/15, 추석) must read 8월 15일, got "${v.chuseokLabel}"`);
-  if (v.oct7Label !== '8월 16일') throw new Error(`2025-10-07 (음력 8/16) must read 8월 16일, not repeat 8월 15일 -- got "${v.oct7Label}"`);
+  if (v.chuseokLabel !== '음15') throw new Error(`2025-10-06 (음력 8/15, 추석) month cell must read 음15, got "${v.chuseokLabel}"`);
+  if (v.oct7Label !== '음16') throw new Error(`2025-10-07 (음력 8/16) month cell must read 음16, not repeat 음15 -- got "${v.oct7Label}"`);
+  if (v.monthStartLabel !== '음9.1') throw new Error(`2025-10-21 (음력 9/1) starts a lunar month and must read 음9.1, got "${v.monthStartLabel}"`);
+  if (!v.chuseokAria.includes('음력 8월 15일')) throw new Error(`the month cell's accessible name must keep the full lunar date, got "${v.chuseokAria}"`);
+  if (!v.lunarRightOfNumber) throw new Error('the lunar label must sit right of the solar day number on the same line');
+  if (!(v.lunarFontPx >= 9 && v.lunarFontPx <= 10)) throw new Error(`the month-cell lunar label must be 9-10px, got ${v.lunarFontPx}px`);
   if (v.storedAfterToggle !== true) throw new Error(`the setting must persist to localStorage, got ${v.storedAfterToggle}`);
   if (v.weekGridLunarLabel !== '8월 15일') throw new Error(`Week's date header must show the same conversion for 2025-10-06, got "${v.weekGridLunarLabel}"`);
   if (v.weekOffAfterToggle !== 0) throw new Error('turning the toggle back off must remove the Week lunar text, not just hide it');

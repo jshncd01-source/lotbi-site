@@ -18,7 +18,7 @@ import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFrom
 // unchanged here, so it keeps the version the Calendar already loads.
 import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-f0f202fb6c78';
 import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-f0f202fb6c78';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-f0f202fb6c78';
+import {lunarDateLabel, solarToLunar, lunarDateCompactLabel} from './site-calendar-lunar.js?v=aset-f0f202fb6c78';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -2131,17 +2131,23 @@ function renderMonth(state, actions, weatherCredit = null) {
     number.className = 'calendar-date-number';
     number.textContent = String(cell.day);
     date.textContent = '';
-    date.appendChild(number);
-    if (state.showLunarDates) {
-      const lunarLabel = lunarDateLabel(solarToLunar(cell.date));
-      if (lunarLabel) {
-        const lunar = document.createElement('span');
-        lunar.className = 'calendar-date-lunar';
-        lunar.textContent = lunarLabel;
-        lunar.setAttribute('aria-hidden', 'true');
-        date.appendChild(lunar);
-        date.setAttribute('aria-label', `${date.getAttribute('aria-label')}, 음력 ${lunarLabel}`);
-      }
+    const lunarDate = state.showLunarDates ? solarToLunar(cell.date) : null;
+    const lunarLabel = lunarDateLabel(lunarDate);
+    if (lunarLabel) {
+      // 음력은 양력 숫자 바로 오른쪽 한 줄 — 칸 높이는 음력을 끈 때와 같다.
+      // 화면에는 '음28'(월이 바뀌는 날만 '음8.1'), 읽어 주는 이름에는 전체 표기.
+      const line = document.createElement('span');
+      line.className = 'calendar-date-line';
+      const lunar = document.createElement('span');
+      lunar.className = 'calendar-date-lunar';
+      lunar.textContent = lunarDateCompactLabel(lunarDate);
+      lunar.setAttribute('aria-hidden', 'true');
+      line.append(number, lunar);
+      date.appendChild(line);
+      cellNode.dataset.lunar = 'true';
+      date.setAttribute('aria-label', `${date.getAttribute('aria-label')}, 음력 ${lunarLabel}`);
+    } else {
+      date.appendChild(number);
     }
     // On a phone the date button is the whole cell and these dots ride inside
     // it, so the cell is one target and nothing in it is a separate control.
@@ -2198,7 +2204,11 @@ function renderMonth(state, actions, weatherCredit = null) {
         precip.textContent = weatherPresentation.precipLabel;
         weatherSummary.appendChild(precip);
       }
-      if (weatherSummary.childElementCount) header.appendChild(weatherSummary);
+      if (weatherSummary.childElementCount) {
+        header.appendChild(weatherSummary);
+        // 음력 칸이 날씨 글리프 자리를 비워 둘 수 있게(site-calendar.css).
+        cellNode.dataset.weather = 'true';
+      }
     }
     if (hasAttention) {
       const marker = document.createElement('span');

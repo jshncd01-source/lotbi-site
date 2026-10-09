@@ -31,6 +31,10 @@
   /* The 11px helper lines under each setting. var(--lotbi-calendar-muted-ink) measured 4.11:1 on white,
      under the 4.5:1 floor the rest of the Calendar holds itself to. */
   --lotbi-calendar-muted-ink: #687180;
+  /* 월간 칸의 음력 글자(양력 숫자 오른쪽 '음28'). muted-ink와 같은 회색이지만
+     따로 둔다 — 소비자 화면(.consumer-workspace)은 muted-ink를 본문색으로
+     덮어써서, 그대로 쓰면 음력이 양력 숫자와 같은 검정으로 보인다. */
+  --lotbi-calendar-lunar-ink: #687180;
   /* The touch day sheet's own surface. It is a token because the pinned
      add-entry row has to repaint exactly that colour as the list scrolls under
      it, in all three theme states. */
@@ -58,6 +62,7 @@ body[data-site-theme="dark"] {
   --lotbi-calendar-grid-line: #465162;
   --lotbi-calendar-weekday-ink: #95a0b0;
   --lotbi-calendar-muted-ink: #a8b2c0;
+  --lotbi-calendar-lunar-ink: #a8b2c0;
   --lotbi-calendar-sheet-surface: #121720;
   --lotbi-calendar-week-selected-surface: #222b38;
   --lotbi-calendar-today-ring: #c7cdd6;
@@ -79,6 +84,7 @@ body[data-site-theme="dark"] {
     --lotbi-calendar-grid-line: #465162;
     --lotbi-calendar-weekday-ink: #95a0b0;
     --lotbi-calendar-muted-ink: #a8b2c0;
+    --lotbi-calendar-lunar-ink: #a8b2c0;
     --lotbi-calendar-sheet-surface: #121720;
     --lotbi-calendar-week-selected-surface: #222b38;
     --lotbi-calendar-today-ring: #c7cdd6;
@@ -719,8 +725,14 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-date-cell[data-current-month="true"][data-holiday="true"] .calendar-date-number { color: var(--lotbi-calendar-holiday-ink); }
 .calendar-date-number { font-size: 17px; font-weight: 850; font-variant-numeric: tabular-nums; }
 /* Only present when 음력 표시 is on (site-calendar-manager.js only appends
-   it then), so this never affects the geometry of the default cell. */
-.calendar-date-lunar { color: var(--lotbi-calendar-muted-ink); font-size: 9px; font-weight: 700; line-height: 1; white-space: nowrap; }
+   it then), so this never affects the geometry of the default cell.
+   음력은 양력 숫자 "아래"가 아니라 바로 "오른쪽" 한 줄(.calendar-date-line)에
+   붙는다. 좁은 칸의 긴 월 시작 표기는 머리줄 안에서 숫자 밑으로 접힌다. */
+.calendar-date-line { display: inline-flex; flex-wrap: wrap; align-items: baseline; column-gap: 2px; row-gap: 0; min-width: 0; max-width: 100%; white-space: nowrap; }
+.calendar-date-cell[data-lunar="true"][data-today="true"] .calendar-date-number { position: relative; }
+.calendar-date-cell[data-lunar="true"][data-today="true"] .calendar-date-number::after { position: absolute; top: 0; right: -5px; margin: 0; }
+.calendar-date-cell[data-lunar="true"] .calendar-date-trigger { flex-shrink: 1; }
+.calendar-date-lunar { color: var(--lotbi-calendar-lunar-ink, var(--lotbi-calendar-muted-ink)); font-size: 10px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; white-space: nowrap; }
 .calendar-mobile-event-count { display: none; color: var(--lotbi-text-primary, var(--text, #212121)); font-size: 11px; font-weight: 800; }
 .calendar-weather-icon {
   flex: 0 0 auto;
@@ -2704,9 +2716,11 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   .calendar-month-grid .calendar-date-trigger { min-width: 0; padding-inline: 4px; justify-items: start; }
   .calendar-month-grid .calendar-weather-summary { position: absolute; top: 6px; right: 5px; margin: 0; }
   .calendar-month-grid .calendar-weather-summary > .calendar-weather-icon { display: inline-flex; align-items: center; justify-content: center; }
+  .calendar-month-grid .calendar-date-cell[data-lunar="true"][data-weather="true"] .calendar-date-trigger { max-width: calc(100% - 29px); padding-right: 0; }
 }
 @container calendar-month (max-width: 519px) {
   .calendar-month-grid .calendar-weather-summary > .calendar-weather-icon { width: 18px; height: 18px; font-size: 18px; line-height: 18px; }
+  .calendar-month-grid .calendar-date-cell[data-lunar="true"][data-weather="true"] .calendar-date-trigger { max-width: calc(100% - 23px); }
 }
 
 /* Any cell wide enough for titles (tablet and desk, ~100px): the glyph keeps
@@ -2788,16 +2802,28 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   .calendar-event-stack { display: none; }
   .calendar-mobile-event-count { display: none !important; }
   .calendar-holiday-label { display: none; }
-  .calendar-date-cell { min-height: 52px; gap: 0; padding: 0; }
+  /* Keep the mobile row geometry independent of OS font metrics. Lunar text
+     may wrap inside the target, but neither state may resize the grid row. */
+  .calendar-date-cell {
+    height: 52px;
+    min-height: 52px;
+    max-height: 52px;
+    gap: 0;
+    padding: 0;
+  }
   .calendar-date-header {
     position: relative;
     min-height: 0;
     display: block;
   }
   .calendar-date-trigger {
+    box-sizing: border-box;
     width: 100%;
     min-width: 0;
+    height: 52px;
     min-height: 52px;
+    max-height: 52px;
+    flex: 0 0 52px;
     display: grid;
     grid-template-rows: auto auto;
     justify-items: start;
@@ -2808,7 +2834,11 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
     border-radius: 0;
   }
   .calendar-date-number { font-size: 15px; line-height: 1.2; }
-  .calendar-date-lunar { font-size: 8px; }
+  .calendar-date-lunar { font-size: 9px; }
+  .calendar-date-cell[data-lunar="true"] .calendar-date-trigger { padding-left: 4px; }
+  .calendar-date-cell[data-lunar="true"] .calendar-date-line { column-gap: 1px; }
+  .calendar-date-cell[data-lunar="true"] .calendar-weather-summary { top: 35px; bottom: auto; right: 3px; display: flex; line-height: 0; }
+  .calendar-date-cell[data-lunar="true"] .calendar-attention-marker { top: 3px; bottom: auto; right: 3px; }
   .calendar-record-dots { display: flex; gap: 3px; justify-content: flex-start; min-height: 5px; }
   .calendar-weather-summary {
     position: absolute;
@@ -2854,11 +2884,19 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   .calendar-toolbar { grid-template-columns: 44px minmax(0, 1fr) 44px auto; }
   .calendar-toolbar > .calendar-settings-button { grid-column: -2; grid-row: 2; }
   .calendar-toolbar > .calendar-mode-tabs { grid-column: 1 / -2; }
+  .calendar-date-cell[data-lunar="true"] .calendar-date-trigger { padding-left: 3px; }
+  .calendar-date-cell[data-lunar="true"] .calendar-date-lunar { letter-spacing: -0.04em; }
+  .calendar-date-cell[data-lunar="true"] .calendar-record-dots { gap: 2px; }
+  .calendar-date-cell[data-lunar="true"] .calendar-weather-summary { right: 2px; }
 }
 @media (max-width: 350px) {
   /* ~43px cells: the date and its dots first; the forecast stays in the day
      panel, where there is room for it. */
-  .calendar-weather-summary { display: none; }
+  .calendar-weather-summary,
+  .calendar-date-cell[data-lunar="true"] .calendar-weather-summary { display: none; }
+}
+@media (max-width: 357px) {
+  .calendar-date-cell[data-lunar="true"] .calendar-date-line { flex-direction: column; align-items: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) {
   .calendar-week-day-group { scroll-behavior: auto; }
