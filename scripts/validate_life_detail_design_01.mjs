@@ -6,7 +6,7 @@ const css = read('site-consumer-detail.css');
 for (const label of ['찾고 싶은 장소', '찾고 싶은 시설', '궁금한 생활정보', '찾고 싶은 지원', '출발지', '목적지']) assert.ok(source.includes(label), label);
 assert.doesNotMatch(source, /주차 가능한 카페, 청년 지원금/);
 assert.match(source, /const fields = LIFE_DETAIL_FIELDS\[item\.id\]/);
-assert.match(source, /onDraft\(\[item\.prompt/);
+assert.match(source, /onAsk\(\[item\.prompt/);
 assert.doesNotMatch(source, /고지서|공과금/);
 assert.doesNotMatch(source, /fetch\(|localStorage|sessionStorage/);
 assert.match(css, /:has\(\.consumer-life-detail\) > \.site-modal \{ max-width: 600px;/);

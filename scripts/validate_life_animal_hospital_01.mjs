@@ -106,7 +106,7 @@ await check('전화는 검증된 번호만, 길찾기는 기본 지도앱 좌표
 
 await check('카드는 기존 렌더러를 쓰고 액션은 두 개 그대로, 영업 문구는 없다', async () => {
   const source = read('site-conversation.js');
-  const start = source.indexOf('const createPlaceCardRail = placeValue => {');
+  const start = source.indexOf('const createPlaceCardRail = (placeValue, placeOptions = {}) => {');
   const end = source.indexOf('const normalizeConversationCalendarResult', start);
   const renderer = source.slice(start, end);
   assert.match(renderer, /const lifeBadges = placeLifeBadges\(place\);/);

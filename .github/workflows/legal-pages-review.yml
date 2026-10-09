@@ -22,6 +22,7 @@ on:
       - scripts/validate_legal_pages.py
       - scripts/validate_refund_subscription_policy_alignment_01.py
       - scripts/emit_social_signup_legal_manifest.py
+      - scripts/validate_social_legal_manifest_01.py
       - .github/workflows/legal-pages-review.yml
   workflow_dispatch:
 
@@ -67,6 +68,9 @@ jobs:
 
       - name: Validate accessibility contracts
         run: python scripts/validate_accessibility.py
+
+      - name: Validate Social Signup legal manifest digests are deployment-stable
+        run: python scripts/validate_social_legal_manifest_01.py
 
       - name: Emit reviewed Social Signup legal manifest values
         run: python scripts/emit_social_signup_legal_manifest.py
