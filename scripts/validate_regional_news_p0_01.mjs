@@ -698,8 +698,9 @@ async function runCase(browser, origin, dir, testCase) {
     }
 
 
-    // 7. Desktop: seven categories (병원·응급실 … 내 아이 학교·유치원) — the odd
-    //    last card takes its whole row and the rows before it are full.
+    // 7. Desktop: eight categories (병원·응급실 … 전북 맛집·음식, 내 아이 학교·유치원)
+    //    fill every row of two — no empty cell. With an odd count the last card
+    //    takes its whole row and the row before it is full.
     if (!testCase.mobile) {
       await openLife();
       state = await probe();
@@ -708,11 +709,16 @@ async function runCase(browser, origin, dir, testCase) {
       const beforeLast = state.shortcuts.at(-2).box;
       const pair = state.shortcuts.at(-3).box;
       const rowRight = Math.max(...state.shortcuts.slice(0, -1).map(item => item.box.right));
-      assert.equal(state.shortcuts.length, 7);
+      assert.equal(state.shortcuts.length, 8);
       assert.equal(state.shortcuts.at(-1).id, 'my-child');
-      assert.ok(Math.abs(last.x - first.x) <= 1 && Math.abs(last.right - rowRight) <= 1 && last.y > beforeLast.bottom - 1, `${testCase.label}: the odd last card takes its whole row`);
-      assert.ok(Math.abs(beforeLast.y - pair.y) <= 1 && beforeLast.x > pair.right - 1 && Math.abs(beforeLast.w - first.w) <= 1, `${testCase.label}: the row before it holds two column-wide cards (no empty cell)`);
-      await shot('07-odd-last-row');
+      if (state.shortcuts.length % 2 === 0) {
+        assert.ok(Math.abs(last.w - first.w) <= 1, `${testCase.label}: last card keeps the column width (${Math.round(last.w)} vs ${Math.round(first.w)})`);
+        assert.ok(Math.abs(last.y - beforeLast.y) <= 1 && last.x > beforeLast.right - 1, `${testCase.label}: the last row holds two cards (no empty cell)`);
+      } else {
+        assert.ok(Math.abs(last.x - first.x) <= 1 && Math.abs(last.right - rowRight) <= 1 && last.y > beforeLast.bottom - 1, `${testCase.label}: the odd last card takes its whole row (${Math.round(last.x)}..${Math.round(last.right)} vs ${Math.round(first.x)}..${Math.round(rowRight)})`);
+        assert.ok(Math.abs(beforeLast.y - pair.y) <= 1 && beforeLast.x > pair.right - 1 && Math.abs(beforeLast.w - first.w) <= 1, `${testCase.label}: the row before it holds two column-wide cards (no empty cell)`);
+      }
+      await shot('07-full-rows');
     }
     return {list: 'OK', cards: state.cards?.length ?? 0};
   } finally {

@@ -9,9 +9,9 @@
 // on screen is spoken on the device, and only when the person presses the
 // button. Microphone input, live voice and the "롯비야" wake word stay behind
 // PUBLIC_SITE_VOICE_RELEASE_ENABLED in site-conversation.js, untouched.
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-1229ff0bb60f';
-import {readVoicesSafe, speechAvailable} from './site-read-aloud-speech.js?v=aset-1229ff0bb60f';
-import {createIconButton} from './site-message-body.js?v=aset-1229ff0bb60f';
+import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-4ba1a3ab58c0';
+import {readVoicesSafe, speechAvailable} from './site-read-aloud-speech.js?v=aset-4ba1a3ab58c0';
+import {createIconButton} from './site-message-body.js?v=aset-4ba1a3ab58c0';
 
 // Chrome stops a long utterance partway through, so answers are read in
 // sentence-sized pieces played one after another.

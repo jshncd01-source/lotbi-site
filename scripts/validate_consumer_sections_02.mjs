@@ -6,9 +6,9 @@ const source = read('site-consumer-sections.js');
 const conversation = read('site-conversation.js');
 const css = read('site-consumer-design.css');
 // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: the approved menu — one 병원·응급실 card,
-// 약국 on its own, no 유치원·학교 card (owner decision 2026-10-10), seven cards.
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '내 아이 학교·유치원']);
-assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 7);
+// 약국 on its own, no 유치원·학교 card (owner decision 2026-10-10), eight cards with 전북 맛집·음식.
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
+assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 8);
 assert.equal(LIFE_SHORTCUTS.some(item => ['hospital', 'emergency', 'education'].includes(item.id)), false);
 // 병원·응급실 asks nothing by itself: it opens 병원·의원 찾기 / 응급실 찾기, each
 // the existing medical question (LIFE-MEDICAL-AUTO-SEARCH-01). 약국 asks at once.
@@ -18,8 +18,9 @@ assert.deepEqual(medical.choices.map(choice => [choice.id, choice.label]), [['ho
 for (const choice of medical.choices) assert.equal(typeof LIFE_MEDICAL_QUESTIONS[choice.id], 'string');
 assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => item.id), ['pharmacy']);
 // 축제·행사 and 온누리상품권 open their own surfaces (ONNURI-MERCHANT-01);
-// 지역뉴스 and 내 아이 학교·유치원 open their own screens.
-assert.ok(LIFE_SHORTCUTS.filter(item => !['medical', 'festivals', 'news', 'onnuri', 'my-child'].includes(item.id) && !item.ask).every(item => typeof item.prompt === 'string'));
+// 지역뉴스 and 내 아이 학교·유치원 open their own screens; 전북 맛집·음식 builds its
+// sentence from its own form (JEONBUK-PILOT-01).
+assert.ok(LIFE_SHORTCUTS.filter(item => !['medical', 'festivals', 'news', 'onnuri', 'my-child'].includes(item.id) && !item.ask && !item.regionalFood).every(item => typeof item.prompt === 'string'));
 // 공과금 확인 is hidden until an official integration exists — no entry, form or copy.
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills'), false);
 assert.doesNotMatch(source, /공과금|고지서|납부기한/);
