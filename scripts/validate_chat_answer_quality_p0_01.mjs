@@ -39,14 +39,19 @@ assert.ok(!/\(\?<[!=]/.test(messageBody), 'the message renderer must not use loo
 for (const sink of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'createContextualFragment']) {
   assert.ok(!messageBody.includes(sink), `the message renderer must not use ${sink}`);
 }
+// CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 changed three of these: the keyboard keeps
+// a held question as well as the tail, tapping the composer keeps the line
+// being read instead of forcing the tail, and being near the bottom no longer
+// counts as following.
 for (const needle of [
   'const scrollToConversationTail = ({force = false} = {}) =>',
   'const stickThreadToBottom = () => scrollToConversationTail({force: true});',
-  "if (!thread.hidden && followThreadBottom) scrollToConversationTail();",
-  "prompt.addEventListener('pointerdown', () => {",
-  'tailObserver.observe(mainScrollHost);',
-  '(followThreadBottom || isThreadNearBottom())',
+  "prompt.addEventListener('pointerdown', holdReadingLineForComposer, {passive: true});",
+  '.observe(mainScrollHost);',
+  'const shouldStick = !suppressScroll && !anchorTurn && followThreadBottom;',
 ]) assert.ok(conversation.includes(needle), `conversation tail contract missing: ${needle}`);
+assert.ok(/window\.addEventListener\('lotbi:keyboard-viewport', \(\) => \{\s*settleViewport\(700\);\s*if \(thread\.hidden\) return;\s*if \(followThreadBottom\) scrollToConversationTail\(\);\s*else if \(holdTurnAnchor\) scrollToTurnAnchor\(\);/.test(conversation),
+  'the keyboard keeps the tail for a reader following it and the question for a reader held on it');
 assert.ok(/const renderActiveThread = \(\) => \{[\s\S]*?stickThreadToBottom\(\);\s*\};/.test(conversation),
   'reopening a conversation must land on its newest message');
 assert.ok(/\.chat-table-scroll\s*\{[^}]*overflow-x:\s*auto/.test(css), 'a wide table scrolls inside its own box');
@@ -191,8 +196,14 @@ try {
   const distance = () => Math.round(main.scrollHeight - main.scrollTop - main.clientHeight);
   const assistants = () => [...document.querySelectorAll('.chat-message-assistant:not(.chat-message-loading)')];
   const lastAssistant = () => assistants().at(-1);
+  // CHAT-LONG-ANSWER-SCROLL-ANCHOR-01: after sending, the question sits at the
+  // top of the reading area with its answer starting under it.
+  const readingTop = () => Math.max(main.getBoundingClientRect().top, document.querySelector('.chat-topbar').getBoundingClientRect().bottom);
+  const lastQuestion = () => [...document.querySelectorAll('#conversation-thread .chat-message-user')].pop();
   const tail = () => {
     const message = lastAssistant();
+    const question = lastQuestion();
+    const answerTop = message ? message.getBoundingClientRect().top : null;
     const actions = message?.querySelector('.chat-message-actions');
     const sources = message?.querySelector('.chat-message-sources');
     const composerTop = composer.getBoundingClientRect().top;
@@ -207,6 +218,8 @@ try {
       visibleHeight: visibleHeight(),
       actionsVisible: Boolean(actionsRect) && actionsRect.bottom <= bottomEdge + 1 && actionsRect.top >= 0,
       ro: window.__roCalls,
+      question: question ? Math.round(question.getBoundingClientRect().top - readingTop()) : null,
+      answerStartOnScreen: answerTop !== null && answerTop >= readingTop() - 1 && answerTop + 24 <= bottomEdge + 1,
       focused: document.activeElement === prompt,
       keyboardClass: document.body.classList.contains('mobile-keyboard-open'),
     };
@@ -325,13 +338,13 @@ try {
       ...tail(),
     };
 
-    // 5. Late growth (an image or card finishing its layout) is followed.
+    // 5. Late growth (an image or card finishing its layout) keeps the question.
     const late = document.createElement('div'); late.style.height = '180px'; late.className = 'cq-late-growth';
     lastAssistant().appendChild(late);
     await sleep(400);
     result.lateGrowth = tail();
 
-    // 6. Keyboard closes: no jump away from the newest message.
+    // 6. Keyboard closes: the question stays at the top.
     window.__keyboard(window.innerHeight);
     prompt.blur();
     await sleep(600);
@@ -370,13 +383,20 @@ try {
     };
     window.__answerDelay = 0;
 
-    // 9. Tapping the composer to reply brings the newest message back.
+    // 9. Tapping the composer to reply keeps the line being read
+    //    (CHAT-LONG-ANSWER-SCROLL-ANCHOR-01); ↓ 최신 답변 is the way down.
+    const tapping = readingAnchor();
     prompt.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true}));
     window.focus();
     prompt.focus();
     window.__keyboard(window.innerHeight - ${testCase.keyboard || 0});
     await sleep(600);
-    result.composerTap = tail();
+    result.composerTap = {
+      ...tail(),
+      anchor: tapping ? tapping.kind : null,
+      anchorShift: tapping ? Math.round(tapping.node.getBoundingClientRect().top) - tapping.top : null,
+      jumpVisible: !document.querySelector('.conversation-jump-latest')?.hidden,
+    };
     window.__keyboard(window.innerHeight);
     prompt.blur();
     await sleep(300);
@@ -514,12 +534,19 @@ try {
     assert.ok(built.longConversation.actionsVisible, `${label}: newest action row visible after a long conversation`);
     assert.ok(built.longConversation.sourcesPresent, `${label}: sources rendered`);
 
-    assert.ok(built.keyboardOpen.distance <= AT_TAIL, `${label}: keyboard open tail ${built.keyboardOpen.distance}px`);
-    assert.ok(built.keyboardOpen.actionsVisible, `${label}: action row above the composer with the keyboard open`);
+    // CHAT-LONG-ANSWER-SCROLL-ANCHOR-01: the keyboard opening keeps the newest
+    // question at the top and its answer starting under it. On a short screen
+    // the action row can then sit just below the composer; the reader scrolls
+    // to it (or uses ↓ 최신 답변) rather than losing the question.
+    assert.ok(built.keyboardOpen.question >= 0 && built.keyboardOpen.question <= 40, `${label}: keyboard open keeps the question at the top (${built.keyboardOpen.question}px)`);
+    assert.ok(built.keyboardOpen.answerStartOnScreen, `${label}: keyboard open keeps the answer start on screen`);
     if (testCase.mobile) assert.equal(built.keyboardOpen.bodyKeyboardClass, true, `${label}: keyboard emulation engaged`);
 
-    assert.ok(built.comparisonWithKeyboard.distance <= AT_TAIL, `${label}: answer with keyboard open ${built.comparisonWithKeyboard.distance}px`);
-    assert.ok(built.comparisonWithKeyboard.actionsVisible, `${label}: comparison answer actions visible above the composer`);
+    // CHAT-LONG-ANSWER-SCROLL-ANCHOR-01: an answer that arrives with the
+    // keyboard open starts under its question at the top; it is not followed
+    // to its end.
+    assert.ok(built.comparisonWithKeyboard.question >= 0 && built.comparisonWithKeyboard.question <= 40, `${label}: question at the top with the keyboard open (${built.comparisonWithKeyboard.question}px)`);
+    assert.ok(built.comparisonWithKeyboard.answerStartOnScreen, `${label}: comparison answer starts on screen under its question`);
 
     const cmp = built.comparison;
     assert.ok(cmp.tablePresent && cmp.comparisonClass, `${label}: A vs B renders as a comparison table`);
@@ -535,8 +562,9 @@ try {
     assert.ok(built.wide.wideClass && built.wide.focusable, `${label}: 3+ options use the scrollable table box`);
     assert.ok(built.wide.overflow.page <= 0 && built.wide.overflow.main <= 0, `${label}: no page-level sideways scroll ${JSON.stringify(built.wide.overflow)}`);
 
-    assert.ok(built.lateGrowth.distance <= AT_TAIL, `${label}: late growth followed ${built.lateGrowth.distance}px`);
-    assert.ok(built.keyboardClosed.distance <= AT_TAIL, `${label}: keyboard close keeps the tail ${built.keyboardClosed.distance}px`);
+    // Late growth and the keyboard closing keep the held question where it was.
+    assert.ok(Math.abs(built.lateGrowth.question - built.wide.question) <= 2, `${label}: late growth kept the question (${built.wide.question} → ${built.lateGrowth.question}px)`);
+    assert.ok(built.keyboardClosed.question >= 0 && built.keyboardClosed.question <= 40, `${label}: keyboard close keeps the question at the top (${built.keyboardClosed.question}px)`);
 
     assert.equal(built.readerScrolledUp.after, built.readerScrolledUp.before, `${label}: a reader scrolled up is not pulled down by growth`);
     // No visible item means the reader's view could not be measured at all -
@@ -548,8 +576,10 @@ try {
     assert.ok(Math.abs(built.answerWhileReading.anchorShift) <= 2, `${label}: an answer arriving while reading does not move the message being read (${built.answerWhileReading.anchorShift}px)`);
     assert.ok(built.answerWhileReading.distance > 200, `${label}: an answer arriving while reading does not pull the reader to the bottom`);
 
-    assert.ok(built.composerTap.distance <= AT_TAIL, `${label}: tapping the composer returns to the newest message ${built.composerTap.distance}px`);
-    assert.ok(built.composerTap.actionsVisible, `${label}: newest action row visible after the composer tap`);
+    assert.ok(built.composerTap.anchor, `${label}: no item visible before the composer tap`);
+    assert.ok(Math.abs(built.composerTap.anchorShift) <= 2, `${label}: tapping the composer keeps the line being read (${built.composerTap.anchorShift}px)`);
+    assert.ok(built.composerTap.distance > 200, `${label}: tapping the composer does not drag the reader to the newest message`);
+    assert.ok(built.composerTap.jumpVisible, `${label}: ↓ 최신 답변 is offered instead`);
     assert.ok(built.overflow.page <= 0 && built.overflow.main <= 0, `${label}: no horizontal page scroll`);
 
     assert.ok(reopened.reopen.messages >= 20, `${label}: reopened conversation hydrated`);
@@ -565,4 +595,4 @@ try {
   }
 }
 
-console.log('SITE-CHAT-ANSWER-QUALITY-P0 OK — conversation tail follows answers, keyboard and reopen; comparison tables render without raw pipes or page overflow');
+console.log('SITE-CHAT-ANSWER-QUALITY-P0 OK — sent questions stay at the top through answers and the keyboard, readers are never pulled down, reopen lands on the newest message; comparison tables render without raw pipes or page overflow');

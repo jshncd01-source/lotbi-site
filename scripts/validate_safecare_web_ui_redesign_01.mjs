@@ -44,6 +44,21 @@ for (const state of ['DRAFT', 'QUEUED', 'ANALYZING', 'ADMIN_REVIEW', 'INSUFFICIE
   assert.equal(common.isNoReliableMatchState(state), false);
 }
 assert.equal(common.isNoReliableMatchState('NO_RELIABLE_MATCH'), true);
+// SAFECARE-SIGHTING-RESULT-PRIVACY (2026-10-08, person found reports only): the
+// reporter is never told whether a comparison candidate existed or whether
+// anything matched. Person Core sends DRAFT / QUEUED / INSUFFICIENT_QUALITY /
+// CLOSED; an older Core's ANALYZING / ADMIN_REVIEW read as QUEUED and
+// NO_RELIABLE_MATCH reads as CLOSED. The pet table above is unchanged.
+assert.deepEqual(common.personFoundReviewStateCopy('QUEUED'), {label: '접수됨', tone: 'progress', detail: '제보가 접수되었습니다. 관리자가 확인하고 있으며, 비교 결과는 제보자에게 공개되지 않습니다.'});
+assert.deepEqual(common.personFoundReviewStateCopy('CLOSED'), {label: '검토 종료', tone: 'neutral', detail: '제보 검토가 종료되었습니다. 비교 결과는 제보자에게 공개되지 않습니다.'});
+for (const state of ['ANALYZING', 'ADMIN_REVIEW']) assert.deepEqual(common.personFoundReviewStateCopy(state), common.personFoundReviewStateCopy('QUEUED'), `person ${state} must read like QUEUED`);
+assert.deepEqual(common.personFoundReviewStateCopy('NO_RELIABLE_MATCH'), common.personFoundReviewStateCopy('CLOSED'), 'person NO_RELIABLE_MATCH must read like CLOSED');
+for (const state of ['DRAFT', 'QUEUED', 'ANALYZING', 'ADMIN_REVIEW', 'NO_RELIABLE_MATCH', 'INSUFFICIENT_QUALITY', 'CLOSED', null, undefined, 'SOMETHING_NEW']) {
+  const copy = JSON.stringify(common.personFoundReviewStateCopy(state));
+  for (const phrase of ['일치 대상 없음', '일치 대상이 없', '비교 후보가 있어', '비교 후보', '일치 대상']) {
+    assert.ok(!copy.includes(phrase), `person review state ${state} must never disclose a comparison result ("${phrase}")`);
+  }
+}
 assert.equal(common.identityPhotoProgress(3).label, '등록 완료 3 / 10');
 assert.equal(common.identityPhotoProgress(3).remainingLabel, '남은 사진 7장');
 assert.equal(common.identityPhotoProgress(10).complete, true);
@@ -696,13 +711,16 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(cards['김하늘'].transition, false, `${label}: a person already missing must not offer the transition again`);
   for (const name of ['박영자', '이도윤', '최민준']) {
     assert.equal(cards[name].activeSos, false, `${label}: ${name} has no ACTIVE SOS and must show no missing state`);
-    assert.equal(cards[name].transition, true, `${label}: ${name} must offer 실종 상태로 전환`);
+    // An unfinished registration (박영자 3/10) offers 이어서 등록하기 instead of a blocked transition.
+    assert.equal(cards[name].transition, name !== '박영자', `${label}: ${name} 실종 상태로 전환`);
   }
-  assert.equal(cards['김하늘'].badge, '정상');
+  // SAFECARE-PERSON-DARK-CANCEL-01: 등록 완료 / 등록 중 / 사진 갱신 필요.
+  assert.equal(cards['김하늘'].badge, '등록 완료');
   assert.equal(cards['이도윤'].badge, '사진 갱신 필요');
   assert.equal(cards['최민준'].badge, '갱신 예정 · 7일 남음');
   assert.ok(cards['최민준'].text.includes('2026.10.12'), `${label}: Core's next renewal date must show`);
-  assert.equal(cards['박영자'].photoAction, '사진 등록 이어하기');
+  assert.equal(cards['박영자'].photoAction, '이어서 등록하기');
+  assert.equal(cards['박영자'].badge, '등록 중 · 사진 3/10');
   assert.equal(cards['김하늘'].photoAction, '사진 갱신·관리');
 
   // person photos: exactly ten labelled slots, progress, card-local artwork, web wording
@@ -772,8 +790,12 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.personFoundSubmit.submits, 1);
   assert.equal(r.personFoundSubmit.newState, 'QUEUED');
   assert.ok(!r.personFoundSubmit.newText.includes('확인 가능한 일치 대상 없음'), `${label}: just-submitted must not read as no match`);
-  assert.ok(r.personFoundSubmit.nrmText.includes('확인 가능한 일치 대상 없음'), `${label}: NO_RELIABLE_MATCH must read 확인 가능한 일치 대상 없음`);
-  assert.ok(!r.personFoundSubmit.analyzingText.includes('확인 가능한 일치 대상 없음'), `${label}: ANALYZING must not read as no match`);
+  // SAFECARE-SIGHTING-RESULT-PRIVACY: an older Core's NO_RELIABLE_MATCH reads as a closed review, never as a result.
+  assert.ok(r.personFoundSubmit.nrmText.includes('검토 종료') && r.personFoundSubmit.nrmText.includes('제보 검토가 종료되었습니다. 비교 결과는 제보자에게 공개되지 않습니다.'), `${label}: NO_RELIABLE_MATCH must read as 검토 종료`);
+  assert.ok(r.personFoundSubmit.newText.includes('접수됨') && r.personFoundSubmit.analyzingText.includes('접수됨'), `${label}: QUEUED / ANALYZING must read as 접수됨`);
+  for (const text of [r.personFoundSubmit.newText, r.personFoundSubmit.nrmText, r.personFoundSubmit.analyzingText]) {
+    assert.ok(!text.includes('일치 대상') && !text.includes('비교 후보'), `${label}: a found report must not disclose a comparison result`);
+  }
 
   // pet list and found report
   assert.equal(r.petList.menu, 0);

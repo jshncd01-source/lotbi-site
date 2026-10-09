@@ -1,5 +1,5 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-525861fa37b7';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-525861fa37b7';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-e954a2fabbb1';
+import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-e954a2fabbb1';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -9,6 +9,9 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'hospital', label: '병원·의원', icon: 'hospital', medical: true},
   {id: 'pharmacy', label: '약국', icon: 'pharmacy', medical: true},
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
+  // ONNURI-MERCHANT-01: its own search surface (site-life-onnuri.js). The
+  // official logo is not used before approval; brandSlot reserves its place.
+  {id: 'onnuri', label: '온누리상품권', brandSlot: 'onnuri'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
   // KINDERGARTEN-OFFICIAL-INFO-01: 학교(NEIS, 대화) / 유치원(유치원알리미 공시).
   // Last: an odd last card spans its row (site-life-education.css).
@@ -127,6 +130,13 @@ function icon(name) {
   }
   return svg;
 }
+// Reserved place for an approved partner logo. Renders nothing until then.
+function brandSlot(name) {
+  const slot = node('i', `${name}-logo-slot`);   // not a <span>: the label stays the tile's first span
+  slot.dataset.brandLogoSlot = name; slot.dataset.logoState = 'PENDING_APPROVAL';
+  slot.setAttribute('aria-hidden', 'true');
+  return slot;
+}
 function action(label, run, {secondary = false, disabled = false} = {}) {
   const button = node('button', `consumer-action${secondary ? ' consumer-action-secondary' : ''}`, label);
   button.type = 'button'; button.disabled = disabled;
@@ -139,7 +149,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onDraft, onFestival, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onDraft, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -240,7 +250,7 @@ export function mountConsumerSection({section, root, onDraft, onFestival, loadCa
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-525861fa37b7').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-e954a2fabbb1').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onDraft, accountId}).dispose;
       }).catch(() => {
@@ -249,9 +259,9 @@ export function mountConsumerSection({section, root, onDraft, onFestival, loadCa
     }
     for (const item of LIFE_SHORTCUTS) {
       const button = node('button', 'consumer-shortcut'); button.type = 'button'; button.dataset.lifeShortcut = item.id;
-      button.append(icon(item.icon), node('span', '', item.label));
+      button.append(item.brandSlot ? brandSlot(item.brandSlot) : icon(item.icon), node('span', '', item.label));
       button.addEventListener('click', () => item.id === 'festivals' ? onFestival()
-        : item.id === 'education' ? openEducation(item) : openLifeDetail(item));
+        : item.id === 'onnuri' ? onOnnuri?.() : item.id === 'education' ? openEducation(item) : openLifeDetail(item));
       grid.append(button);
     }
     const heading = node('h3', 'consumer-section-label', '생활에 필요한 정보');

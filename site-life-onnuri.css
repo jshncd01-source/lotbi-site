@@ -1,0 +1,167 @@
+/* ONNURI-MERCHANT-01 — 생활정보 온누리상품권 가맹점 찾기. Theme tokens only. */
+.onnuri-surface {
+  display: grid;
+  gap: 12px;
+}
+
+.onnuri-intro {
+  display: grid;
+  gap: 6px;
+}
+
+.onnuri-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lotbi-text-primary);
+}
+
+/* Reserved for the approved official logo. Until approval nothing is drawn. */
+.onnuri-logo-slot {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.onnuri-logo-slot[data-logo-state="PENDING_APPROVAL"] {
+  display: none;
+}
+
+.onnuri-logo-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.onnuri-region-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.onnuri-region-field select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  padding: 0 8px;
+}
+
+.onnuri-chip-row {
+  flex-wrap: wrap;
+}
+
+.onnuri-status {
+  margin: 0;
+  color: var(--lotbi-text-primary);
+}
+
+.onnuri-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--lotbi-error-text);
+}
+
+.onnuri-results {
+  display: grid;
+  gap: 10px;
+}
+
+.onnuri-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 14px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  min-width: 0;
+}
+
+.onnuri-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.onnuri-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--lotbi-border-strong);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.onnuri-card-distance {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.onnuri-card-title {
+  margin: 2px 0 0;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.onnuri-card-meta,
+.onnuri-card-address,
+.onnuri-card-accept {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.onnuri-card-meta,
+.onnuri-card-accept {
+  color: var(--consumer-muted, var(--lotbi-text-primary));
+}
+
+.onnuri-card-map {
+  justify-self: start;
+  margin-top: 6px;
+  text-decoration: none;
+}
+
+.onnuri-more {
+  justify-self: center;
+}
+
+.onnuri-source {
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .onnuri-region-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 생활정보 바로가기: keep the icon box so the label lines up; draw nothing. */
+.consumer-shortcut .onnuri-logo-slot[data-logo-state="PENDING_APPROVAL"] {
+  display: inline-flex;
+  visibility: hidden;
+  width: 24px;
+  height: 24px;
+}
+
+body.chat-home-page .consumer-workspace .consumer-shortcut .onnuri-logo-slot {
+  width: 20px;
+  height: 20px;
+}
+
+/* An odd number of 생활정보 cards: the last card takes the whole row so no
+   empty cell is left (same rule as the 유치원·학교 branch, merge-safe). */
+.consumer-shortcuts > .consumer-shortcut:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}

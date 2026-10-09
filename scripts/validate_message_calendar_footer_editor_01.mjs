@@ -334,9 +334,10 @@ try {
     if (!v.plain_editorOpened) throw new Error(`${label}: a plain answer's footer button must still open the editor, not the bare calendar view (calendarManagerView="${v.plain_calendarManagerView}")`);
     if (v.plain_heading !== '기록 추가') throw new Error(`${label}: a blank fallback must read "기록 추가", got "${v.plain_heading}"`);
     if (v.plain_title !== '') throw new Error(`${label}: a plain answer must not invent a title, got "${v.plain_title}"`);
-    assertList(v.messageActionLabels, ['복사하기', '공유하기', '캘린더에 추가'], `${label}: chat answer tools`);
+    assertList(v.messageActionLabels, ['복사하기', '공유하기', '캘린더에 추가', '답변 읽어주기'], `${label}: chat answer tools`);
     if (v.answerCopied.length !== 1 || !v.answerCopied[0].startsWith('오늘은 대체로 맑고')) throw new Error(`${label}: ordinary answer copy regressed, got ${JSON.stringify(v.answerCopied)}`);
-    assertList(v.shareMenuItems, kakao === 'configured' ? ['링크 복사', '카카오톡 공유하기'] : ['링크 복사'], `${label}: share menu`);
+    // LOTBI-KAKAO-SHARE-ACTUAL-01: KakaoTalk comes first once Share is ready.
+    assertList(v.shareMenuItems, kakao === 'configured' ? ['카카오톡 공유하기', '링크 복사'] : ['링크 복사'], `${label}: share menu`);
     if (v.calendarRole !== 'dialog' || v.calendarAriaModal !== 'true') throw new Error(`${label}: Calendar must be an accessible modal dialog`);
     if (v.calendarIsWorkspace || v.bodyWorkspaceOpen) throw new Error(`${label}: Calendar must not replace chat as a workspace`);
     if (!v.bodyOverlayOpen || !v.chatRemainsVisible || v.chatIsInert) throw new Error(`${label}: chat must remain mounted and visible behind Calendar`);
@@ -355,7 +356,7 @@ try {
       if (JSON.stringify(v.kakaoCopied) !== JSON.stringify(['https://lotbiai.com/'])) throw new Error(`${label}: only the canonical link must be copied, got ${JSON.stringify(v.kakaoCopied)}`);
       if (v.kakaoSend.length || v.kakaoInit.length) throw new Error(`${label}: Kakao must not be called while unconfigured`);
     } else {
-      if (v.kakaoFeedback !== '카카오톡 공유 화면을 열었습니다.') throw new Error(`${label}: configured KakaoTalk share must open, got "${v.kakaoFeedback}"`);
+      if (v.kakaoFeedback !== '카카오톡에서 보낼 친구나 채팅방을 선택해 주세요.') throw new Error(`${label}: configured KakaoTalk share must hand over without claiming a send, got "${v.kakaoFeedback}"`);
       if (v.kakaoCopied.length) throw new Error(`${label}: a configured share must not copy instead`);
       if (JSON.stringify(v.kakaoInit) !== JSON.stringify(['fixture-js-key'])) throw new Error(`${label}: Kakao must be initialised once with Core's key`);
       if (v.kakaoSend.length !== 1 || v.kakaoSend[0].objectType !== 'text' || v.kakaoSend[0].link?.webUrl !== 'https://lotbiai.com/') throw new Error(`${label}: one KakaoTalk text share with the LOTBI link, got ${JSON.stringify(v.kakaoSend)}`);

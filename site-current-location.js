@@ -1,4 +1,4 @@
-import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-525861fa37b7';
+import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-e954a2fabbb1';
 
 export const BROWSER_CURRENT_LOCATION_MAX_AGE_MS = 120_000;
 

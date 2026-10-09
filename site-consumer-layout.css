@@ -20,14 +20,32 @@ body.chat-home-page:not(.conversation-active) .chat-character-logo { width: 68px
 body.chat-home-page:not(.conversation-active) .consumer-brand-fallback { width: 68px; height: 68px; margin: 0 0 28px; }
 body.chat-home-page:not(.conversation-active) .home-value-proposition { width: 100%; margin: 0 0 30px; }
 body.chat-home-page:not(.conversation-active) .home-value-proposition h2 { font-size: clamp(25px, 2.3vw, 30px); font-weight: 500; letter-spacing: -.035em; margin: 0; line-height: 1.45; }
+/* SITE-MOBILE-COMPOSER-KEYBOARD-LAYOUT-HOTFIX — keyboard open on the empty Home. home-shell.js
+   already sizes the shell to the visual viewport; the centred Home hero above
+   (svh min-height, 64px bottom padding, centring) outranked the keyboard rules
+   and left the composer under the header with empty space above the keyboard.
+   The composer is now the last thing in the hero, at its bottom edge, with
+   the same room above the keyboard as in a conversation (safe area once). */
+body.chat-home-page.mobile-keyboard-open:not(.conversation-active) .chat-home-shell { padding-bottom: 0; }
+body.chat-home-page.mobile-keyboard-open:not(.conversation-active) .chat-hero { flex: 1 1 auto; min-height: 0; justify-content: flex-end; overflow: hidden; padding-bottom: 0; }
+body.chat-home-page.mobile-keyboard-open:not(.conversation-active) .chat-composer-stack { order: 5; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+body.chat-home-page.mobile-keyboard-open:not(.conversation-active) .chat-safety-copy { order: 0; margin: 0 0 6px; }
 body.chat-home-page .chat-composer-stack, body.chat-home-page:not(.conversation-active) .chat-composer-stack { width: min(var(--consumer-canvas-width), 100%); }
-body.chat-home-page .chat-composer { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 10px 8px 52px; border: 1px solid var(--lotbi-border-default); background: var(--lotbi-surface-primary); box-shadow: 0 3px 14px rgb(0 0 0 / 4%); border-radius: 30px; min-height: 64px; }
+/* SITE-MOBILE-COMPOSER-KEYBOARD-LAYOUT-HOTFIX — +, text, grade and send each own a grid
+   column ([+][text][grade][send]; on phones the text gets its own first row).
+   The + used to be absolutely placed in a 52px left padding, and the Home
+   skin's 13px padding (601-760px, Fold) put it over the first characters.
+   Spacing is margins, not column-gap, so a hidden grade leaves no gutter. */
+body.chat-home-page .chat-composer { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px 0; padding: 8px 10px 8px 7px; border: 1px solid var(--lotbi-border-default); background: var(--lotbi-surface-primary); box-shadow: 0 3px 14px rgb(0 0 0 / 4%); border-radius: 30px; min-height: 64px; }
 body.chat-home-page:not(.conversation-active) .chat-composer { min-height: 64px; border-radius: 30px; }
 body.chat-home-page .chat-composer:focus-within { border-color: var(--lotbi-text-secondary); box-shadow: 0 3px 14px rgb(0 0 0 / 4%); }
 body.chat-home-page .chat-input, body.chat-home-page:not(.conversation-active) .chat-input { min-height: 44px; height: 44px; max-height: 160px; padding: 10px 0; font-size: 16px; font-weight: 400; line-height: 24px; background: transparent; }
-body.chat-home-page .composer-actions { grid-column: 2; grid-row: 1; gap: 2px; padding: 0; }
-body.chat-home-page .chat-input { grid-column: 1; grid-row: 1; }
-body.chat-home-page .composer-actions .attachment-control { position: absolute; left: 7px; bottom: 9px; }
+body.chat-home-page .composer-actions { display: contents; }
+body.chat-home-page .chat-input { grid-column: 2; grid-row: 1; }
+body.chat-home-page .composer-actions .attachment-control { position: relative; grid-column: 1; grid-row: 1; align-self: end; margin-right: 8px; }
+body.chat-home-page .composer-actions .response-grade-control { grid-column: 3; grid-row: 1; margin-left: 8px; }
+body.chat-home-page .composer-actions .send-button { grid-column: 4; grid-row: 1; margin-left: 8px; }
+body.chat-home-page .composer-actions .response-grade-control:not([hidden]) + .send-button { margin-left: 2px; }
 body.chat-home-page .composer-button { width: 44px; height: 44px; border: 0; background: transparent; color: var(--lotbi-text-primary); box-shadow: none; }
 body.chat-home-page .composer-button:not(:disabled):hover { background: var(--lotbi-surface-hover); }
 body.chat-home-page .composer-button.send-button { background: var(--lotbi-text-primary); color: var(--lotbi-surface-primary); }
@@ -161,10 +179,13 @@ body.chat-home-page .scam-status { font-size: 13px; line-height: 1.7; }
   body.chat-home-page:not(.conversation-active) .home-value-proposition { margin-bottom: 24px; }
   body.chat-home-page:not(.conversation-active) .chat-character-wrap { width: 64px; height: 76px; margin-bottom: 12px; }
   body.chat-home-page:not(.conversation-active) .chat-character-logo { width: 64px; height: 64px; }
-  body.chat-home-page .chat-composer { grid-template-columns: minmax(0, 1fr); padding: 10px 12px; gap: 4px; border-radius: 22px; }
+  body.chat-home-page .chat-composer { padding: 10px 12px; gap: 4px 0; border-radius: 22px; }
   body.chat-home-page .chat-input, body.chat-home-page:not(.conversation-active) .chat-input { padding: 6px 2px; min-height: 38px; height: 38px; }
-  body.chat-home-page .composer-actions { grid-column: 1; grid-row: 2; justify-content: flex-end; }
-  body.chat-home-page .composer-actions .attachment-control { left: 8px; bottom: 10px; }
+  /* Phones keep the full width for the text; +, grade and send are the row under it. */
+  body.chat-home-page .chat-input { grid-column: 1 / -1; }
+  body.chat-home-page .composer-actions .attachment-control,
+  body.chat-home-page .composer-actions .response-grade-control,
+  body.chat-home-page .composer-actions .send-button { grid-row: 2; }
   body.chat-home-page .chat-safety-copy { max-width: 260px; align-self: center; }
   body.chat-home-page:not(.conversation-active) .home-example-prompts { gap: 4px 12px; margin-top: 18px; flex-wrap: wrap; }
   body.chat-home-page .home-example-prompts button { font-size: 11px; }
