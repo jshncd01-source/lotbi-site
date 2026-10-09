@@ -8,8 +8,26 @@
 
 const STYLE_ID = 'conversation-sync-styles';
 const STYLES = `
+/* The heading keeps "최근 대화" on one line. */
+.nav-section-title-icon:has(.conversation-sync-settings) > span:not(.conversation-sync-status) {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+/* The desktop sidebar column is too narrow for title, mark and button on one
+   line: there the mark takes its own line under the title. */
+#desktop-recent-title:has(.conversation-sync-settings) {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+#desktop-recent-title .conversation-sync-status {
+  order: 3;
+  flex: 1 0 100%;
+  margin: 0 0 0 25px;
+}
+#desktop-recent-title .conversation-sync-settings { margin-left: auto; }
 .nav-section-title-icon .conversation-sync-status {
   margin-left: auto;
+  min-width: 0;
   font-size: 12px;
   font-weight: 600;
   line-height: 1.2;

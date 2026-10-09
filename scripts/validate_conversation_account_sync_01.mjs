@@ -27,6 +27,8 @@ import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// Optional evidence: CONVERSATION_SYNC_SCREENSHOTS=<dir> saves PNGs of the key screens.
+const SHOT_DIR = process.env.CONVERSATION_SYNC_SCREENSHOTS || '';
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 function browserPath() {
@@ -332,6 +334,13 @@ async function openDevice(cdp, origin, {label, width = 1280, height = 900, mobil
       return before;
     },
     threadText: () => evaluate(`document.getElementById('conversation-thread')?.textContent || ''`),
+    async shot(name) {
+      if (!SHOT_DIR) return;
+      await sleep(250);
+      const {data} = await page('Page.captureScreenshot', {format: 'png'});
+      fs.mkdirSync(SHOT_DIR, {recursive: true});
+      fs.writeFileSync(path.join(SHOT_DIR, `${name}.png`), Buffer.from(data, 'base64'));
+    },
     recentTitles: () => evaluate(`[...document.querySelectorAll('.sidebar-history-section [data-recent-conversations] li, [data-pinned-conversations] li')].filter((node, index, all) => all.findIndex(other => other.dataset.threadId === node.dataset.threadId) === index).map(node => node.querySelector('[data-conversation-title]')?.textContent || '')`),
     async openThreadByTitle(title) {
       const id = await evaluate(`[...document.querySelectorAll('[data-recent-conversations] li, [data-pinned-conversations] li')].find(node => node.querySelector('[data-conversation-title]')?.textContent === ${JSON.stringify(title)})?.dataset.threadId || ''`);
@@ -388,6 +397,7 @@ async function main() {
     await a.open();
     const question = await waitFor(() => a.evaluate(`(() => { const panel = document.querySelector('[data-conversation-sync-upload]'); return panel ? {text: panel.textContent} : null; })()`), 'A upload question');
     assert.ok(question.text.includes('이 기기의 대화 2개를 계정에 올릴까요?'), question.text);
+    await a.shot('01-desktop-upload-question');
     await a.evaluate(`document.querySelector('[data-conversation-sync-upload-answer="yes"]').click(), true`);
     await waitFor(async () => account(U1).threads.size === 2 && serverTexts(U1).length === 4, 'A legacy upload reached the account');
     await a.syncSettled();
@@ -430,6 +440,20 @@ async function main() {
     await waitFor(() => a.evaluate(`document.body.dataset.conversationSync === 'pending' && [...document.querySelectorAll('[data-conversation-sync-status]')].some(node => !node.hidden && node.textContent === '동기화 대기')`), 'A shows 동기화 대기');
     assert.ok(!serverTexts(U1).includes('A 오프라인 질문'), 'nothing uploaded while offline');
     assert.ok((await a.threadText()).includes('답변: A 오프라인 질문'), 'device copy keeps the turn');
+    await a.shot('02-desktop-sync-pending');
+    // Desktop sidebar: "최근 대화" stays on one line beside the mark and the button.
+    const desktopHeading = await a.evaluate(`(() => {
+      const h2 = document.querySelector('.sidebar-history-section h2');
+      const title = [...h2.children].find(node => node.tagName === 'SPAN' && !node.matches('[data-conversation-sync-status]'));
+      const mark = h2.querySelector('[data-conversation-sync-status]');
+      const button = h2.querySelector('[data-conversation-sync-settings]');
+      const t = title.getBoundingClientRect(), m = mark.getBoundingClientRect(), b = button.getBoundingClientRect(), side = h2.closest('aside, nav, .chat-sidebar, .sidebar-history-shell')?.getBoundingClientRect() || h2.getBoundingClientRect();
+      const lineHeight = Number.parseFloat(getComputedStyle(title).lineHeight) || 20;
+      return {titleOneLine: t.height <= lineHeight * 1.5, titleWidth: t.width, buttonBesideTitle: Math.abs((t.top + t.bottom) / 2 - (b.top + b.bottom) / 2) < 16,
+        inside: b.right <= side.right + 1 && t.left >= side.left - 1 && m.right <= side.right + 1,
+        markWhole: mark.scrollWidth <= mark.clientWidth + 1 && m.width > 40, markText: mark.textContent};
+    })()`);
+    assert.ok(desktopHeading.titleOneLine && desktopHeading.buttonBesideTitle && desktopHeading.inside && desktopHeading.markWhole && desktopHeading.markText === '동기화 대기', `desktop heading ${JSON.stringify(desktopHeading)}`);
     await a.evaluate(`localStorage.removeItem('__syncOffline'), window.dispatchEvent(new Event('online')), true`);
     await waitFor(async () => serverTexts(U1).includes('답변: A 오프라인 질문'), 'A offline turn uploaded after reconnect');
     await a.syncSettled();
@@ -568,6 +592,7 @@ async function main() {
       assert.ok(heading.markContrast >= 4.5, `${label} mark contrast ${heading.markContrast}`);
       assert.ok(heading.iconContrast >= 3, `${label} settings icon contrast ${heading.iconContrast}`);
       assert.ok(heading.button.w >= 32 && heading.button.h >= 32, `${label} tap target`);
+      await phone.shot(`04-${label}-drawer`);
       await phone.evaluate(`[...document.querySelectorAll('[data-conversation-sync-settings]')].find(node => node.getClientRects().length).click(), true`);
       await waitFor(() => phone.evaluate(`Boolean(document.querySelector('[data-conversation-sync-settings-panel]'))`), `${label} settings`);
       const dialog = await phone.evaluate(`(() => {
@@ -584,6 +609,7 @@ async function main() {
       assert.ok(dialog.fits && !dialog.panelOverflow, `${label} dialog layout ${JSON.stringify(dialog)}`);
       assert.ok(dialog.labelContrast >= 4.5 && dialog.stateContrast >= 4.5 && dialog.removeContrast >= 4.5, `${label} dialog contrast ${JSON.stringify(dialog)}`);
       assert.ok(dialog.state.includes('동기화 대기'), `${label} state line ${dialog.state}`);
+      await phone.shot(`03-${label}-settings`);
       await phone.evaluate(`document.querySelector('[data-conversation-sync-settings-panel] .site-modal-close').click(), true`);
       // Back online: the one-time question, sized for the phone.
       await phone.evaluate(`localStorage.removeItem('__syncOffline'), true`);
