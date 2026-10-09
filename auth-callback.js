@@ -4,20 +4,21 @@ import {
   isConsumedSiteHandoffCallback,
   parseSiteHandoffCallback,
   readAndClearSiteHandoffContext,
-  recoverMissingSiteHandoffContext,
+  recoverStaleSiteHandoff,
   siteHandoffReturnPath,
   SiteHandoffClientError,
-} from './site-auth.js?v=aset-b6b9dcb291c1';
-import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-b6b9dcb291c1';
-import {parseSiteRouteHash} from './site-route.js?v=aset-b6b9dcb291c1';
-import {mountConversation} from './site-conversation.js?v=aset-b6b9dcb291c1';
-import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-b6b9dcb291c1';
+} from './site-auth.js?v=aset-f203b381ab91';
+import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-f203b381ab91';
+import {parseSiteRouteHash} from './site-route.js?v=aset-f203b381ab91';
+import {mountConversation} from './site-conversation.js?v=aset-f203b381ab91';
+import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-f203b381ab91';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
 const statusNode = document.getElementById('auth-callback-status');
 const retryLink = document.getElementById('auth-callback-retry');
 const callbackBootStartedAt = globalThis.performance?.now?.() ?? 0;
+let callbackRecoveryContext;
 
 function performanceNow() {
   return globalThis.performance?.now?.() ?? 0;
@@ -111,8 +112,8 @@ async function hydrateHomeShell() {
   document.body.replaceWith(nextBody);
   window.dispatchEvent(new CustomEvent('lotbi:home-shell-hydrated'));
   document.title = parsed.title || 'LOTBI | 무엇을 도와드릴까요?';
-  await loadClassicScript('/home-shell.js?v=aset-b6b9dcb291c1');
-  await loadClassicScript('/mobile-entry.js?v=aset-b6b9dcb291c1');
+  await loadClassicScript('/home-shell.js?v=aset-f203b381ab91');
+  await loadClassicScript('/mobile-entry.js?v=aset-f203b381ab91');
 }
 
 async function completeSiteHandoff() {
@@ -134,6 +135,7 @@ async function completeSiteHandoff() {
 
   history.replaceState(null, '', callbackPathWithoutQuery());
   const context = readAndClearSiteHandoffContext(callback.state);
+  callbackRecoveryContext = context;
   recordTiming('account-handoff-return', {
     durationMs: Math.max(0, Date.now() - context.startedAt),
   });
@@ -183,6 +185,7 @@ async function completeSiteHandoff() {
     if (chatStatus) chatStatus.textContent = '로그인은 완료됐지만 이전 대화를 가져오지 못했습니다.';
   }
   clearSiteHandoffRecovery();
+  callbackRecoveryContext = undefined;
 
   window.dispatchEvent(new CustomEvent('lotbi:site-session-state', {
     detail: {
@@ -203,12 +206,13 @@ void completeSiteHandoff().catch(async error => {
   recordTiming('callback-error', {
     durationMs: Math.round(Math.max(0, performanceNow() - callbackBootStartedAt)),
   });
-  if (error instanceof SiteHandoffClientError && error.code === 'SITE_HANDOFF_CONTEXT_MISSING') {
-    try {
-      if (await recoverMissingSiteHandoffContext(error)) return;
-    } catch (recoveryError) {
-      error = recoveryError;
-    }
+  try {
+    if (await recoverStaleSiteHandoff(error, {
+      pendingText: callbackRecoveryContext?.pendingText ?? '',
+      returnHash: callbackRecoveryContext?.returnHash ?? '',
+    })) return;
+  } catch (recoveryError) {
+    error = recoveryError;
   }
   showCallbackError(callbackErrorMessage(error));
 });
