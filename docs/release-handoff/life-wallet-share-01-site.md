@@ -1,52 +1,46 @@
 READY_FOR_DEPLOY=NO
+REASON=WAITS_FOR_CORE — Core feature/life-wallet-share-01-core is READY=NO only for MIGRATION_WAIT (p0_0112 must follow p0_0111 once p0_0109 → p0_0110 → p0_0111 are in main). This Site has nothing left but that dependency; it flips to YES together with Core (re-merge of the then-current main first).
+SUPERSEDES=77ec0f0f (old READY=NO) — earlier pushes 93c49eea, dc7eb4fc were READY=NO too
+MIGRATION=NO (Site); Core p0_0112_life_wallet_share
+DEPLOY_ORDER=CORE → SITE (this Site without that Core: 공유 opens to "공유 목록을 불러오지 못했습니다" and the wallet itself keeps working)
+ACTIVATION=LOTBI_LIFE_WALLET_SHARE_TRANSFER_ENABLED on Core (default false); the Site follows Core's inbox.document_transfer — nothing to switch on the Site
+USER_DECISION_NEEDED=NONE for deploying with the switch off
+LAUNCH_CHECK=개인정보 처리방침 문구(출시 전 점검)
+SENSITIVE_DOCUMENT_ORIGINAL_SHARING=HOLD (see Core handoff SECURITY: 2026-10-05 audit findings not addressed)
 
-STATUS=IMPLEMENTED (share request flow, no documents); DOCUMENT TRANSFER NOT IMPLEMENTED — owner approval required. Do not queue for deploy.
-
-# life-wallet-share-01-site — Life Wallet sharing (QR · LOTBI ID · KakaoTalk) — NOT READY
+# life-wallet-share-01-site — Life Wallet sharing (QR · LOTBI ID · KakaoTalk) + encrypted originals (off by default)
 
 REPO=lotbi-site
 FEATURE_BRANCH=feature/life-wallet-share-01-site
-FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote ... refs/heads/feature/life-wallet-share-01-site`)
-AUTHORITATIVE_MAIN_AT_DEVELOPMENT=c311be85f2bc (Merge release/20261008-site-t30-work via LOTBI Ncloud merge gate)
-CODE_SHA=9fefd562 (merge of feature/life-wallet-card-deck-01-site 768854e4, which contains main c311be85)
-CONTAINS=feature/life-wallet-card-deck-01-site 768854e4 (READY=YES) and feature/life-wallet-glare-block-01-site a90a246f (READY=YES). Those ship on their own; this branch must not be deployed to ship them.
-CODE_COMMITS (none in main yet): e349892e Life Wallet sharing, 5db76ab7 + 9fefd562 merges of the card deck branch (site-conversation.js taken from main with the four share hooks re-applied), plus the card deck / glare commits listed in their own handoffs.
-NON_TOKEN_DIFF_VS_MAIN (this branch's own part): site-life-wallet-share.js (new), site-life-wallet.js, site-life-wallet.css, site-route.js, site-conversation.js (4 hooks), site-consumer-sections.js, scripts/validate_life_wallet_share_01.mjs (new), scripts/validate_life_wallet_entry_lock_01.mjs (mount call regex) — the rest is the card deck / glare branches.
-ASSET_VERSION=aset-687d6fe79263
-DEPENDENCY=Core feature/life-wallet-share-01-core (API /v2/life-wallet/share, migration p0_0106_life_wallet_share). DEPLOY_ORDER=CORE → SITE. This Site without that Core: 공유 opens to "공유 목록을 불러오지 못했습니다." (Core 404) and the pending count stays hidden; the wallet itself keeps working.
-MIGRATION=NO (Site); Core has one.
-ENV_CHANGE_REQUIRED=NO
-USER_DECISION_NEEDED=YES — see DOCUMENT_TRANSFER below.
+FEATURE_SHA=this document's commit (branch HEAD; `git ls-remote ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git refs/heads/feature/life-wallet-share-01-site`)
+AUTHORITATIVE_MAIN=819ead3a (Merge release/20261009-site-t41-work)
+CODE_SHA=c42febf5
+ASSET_VERSION=aset-bfbcbc7508d2
+CODE_COMMITS=e349892e share requests, 93c49eea encrypted originals, dc7eb4fc merge of main 819ead3a, 4af9ecdc default label never carries the memo, dd389fe9 relay note only while the switch is on, c42febf5 consumer_sections_02 expects the new wallet mount
+NON_TOKEN_DIFF_VS_MAIN=site-life-wallet-share.js (new), site-life-wallet-share-crypto.js (new), site-life-wallet.js, site-life-wallet.css, site-route.js (share-link intent), site-conversation.js (intent capture + sessionToken/subscription to the wallet), site-consumer-sections.js (passes them), scripts/validate_life_wallet_share_01.mjs (new), scripts/validate_life_wallet_share_transfer_01.mjs (new), scripts/validate_life_wallet_entry_lock_01.mjs (mount call), scripts/validate_consumer_sections_02.mjs (mount call), docs/release-handoff/life-wallet-share-01-site.md
 
-## Result (the command's report format)
+## Fixed in this room
+1. Privacy: a share request's default label was the wallet memo's first line (walletCardTitle), which Core stores as plain text and the recipient sees before accepting. It now defaults to name · date (walletShareLabel); the label stays editable and a note says it is visible to the recipient and the LOTBI server (4af9ecdc).
+2. The wallet's "공유를 수락한 상대에게 암호화해 전달할 때만 서버를 거칩니다" showed for every signed-in wallet even with the relay off. It now appears only when Core answers document_transfer.available (dd389fe9).
 
-QR_SCAN=IMPLEMENTED, automated (headless, fake camera + BarcodeDetector stand-in): 내 QR shown, scanner reads QR → recipient confirmed → items chosen → request sent; camera denied / no camera / no BarcodeDetector → LOTBI ID entry with an explanation.
-LOTBI_ID_SHARE=IMPLEMENTED, automated: exact LOTBI ID → masked name confirm → items → send; wrong ID, own ID, blocked/unreachable → the same "찾을 수 없습니다" style answers from Core.
-KAKAO_SHARE=IMPLEMENTED (share sheet / link copy), automated: one-time invite link → phone share sheet (KakaoTalk is one of its targets) or copy; Kakao SDK direct share is not used because Core does not expose Kakao share readiness to this screen. Opening the link (#wallet-share=invite.…) stores the token in this tab only (30 min), asks for login, then the recipient claims it; the link alone shows nothing.
-SHARED_INBOX=IMPLEMENTED, automated: 받은 공유 (sharer masked name, item labels, date, 수락·거절·차단), 보낸 공유 (공유 취소), 만료됨 shown.
-ACCEPT_REJECT=IMPLEMENTED, automated (Site against a Core stand-in; Core rules in Core tests).
-REVOKE=IMPLEMENTED, automated: 공유 취소 → Core closes access at once (Core test_revoke_closes_access_at_once).
-SECURITY_TEST=PASS (Core pytest 19 share tests: QR single use + expiry, invite single use + expiry + nothing before claim, wrong/self recipient, duplicates refused, accept/reject only by recipient, revoke, pending expiry, block without revealing, inactive/deleting accounts unreachable, account deletion closes all, rate limits, audit without titles/IDs/tokens, bearer + strict JSON, session allowlists, CORS; Site: no request body carries an image or wallet data — labels only).
-REAL_DEVICE_TEST=NOT_VERIFIED (headless Chrome emulation only; no phone, no real KakaoTalk, no real camera).
-DOCUMENT_TRANSFER_APPROVAL_REQUIRED=YES
-READY_FOR_DEPLOY=NO
-BLOCKERS=(1) the document itself is not transferred: Life Wallet items live only on the owner's device (IndexedDB, AES-256-GCM, PIN-wrapped key) and the screen promises "이 기기에만 저장 … LOTBI 관리자도 원본을 볼 수 없으며". Sending a document needs the end-to-end encrypted relay designed in Core docs/LIFE-WALLET-SHARE-01.md §3 plus owner approval of the privacy-policy and screen-copy changes in §4. Every share screen says: "문서 원본은 아직 전송되지 않습니다 …". (2) real phone / KakaoTalk / camera test not done. (3) Site↔real Core end-to-end with a logged-in account not run on this PC (local login limit); Site was tested against a stand-in of the Core API.
+## Tests (this room, code c42febf5)
+SHARE_VALIDATORS=PASS — validate_life_wallet_share_01 (now also: default label = '저장 자료 · 2026.10.08', no request body carries the memo), validate_life_wallet_share_transfer_01 (now also: relay note hidden with the switch off, shown with it on), validate_life_wallet_entry_lock_01
+ENCRYPTED_ORIGINAL_TESTS=PASS (Site) — key registered on accept (public only, private sealed in the vault), re-confirm with the same 보안 확인 번호, ciphertext-only upload, a third key cannot open, recipient opens and keeps it (Free limit), saved drops ciphertext, other-device take-over, key missing, revoke drops ciphertext, switch off shows no transfer
+CROSS_CLIENT_CRYPTO_TESTS=PASS — this Site module ↔ Python cryptography both ways; the safety code of one key is identical in both
+SITE_CORE_RELAY_E2E=PASS 25/25 — real Core API (TestClient) + this Site crypto module in Node, requests shaped like site-life-wallet-share.js call(); every response carried the Site CORS header; see the Core handoff
+FEATURE_FLAG_OFF_TESTS=PASS — off: no 원본 보내기/원본 열기, no key registration, no relay calls (only /inbox), the 'not sent yet' note, the wallet's relay note hidden
+RECEIVED_ITEM_SAFETY=checked in code — a received item is shown with textContent and jpeg/png data-URL images only, and saved through the wallet's own validation
+ASSET_CHECK=PASS (node scripts/asset_cache_version.mjs: aset-bfbcbc7508d2, 135 targets)
+REGRESSION_SITE=NEW_FAILURES=0 — 252 validators in scripts/:
+  - this room (code dd389fe9, validator fix c42febf5), one at a time: the 165 the previous room never reached → 162 PASS, 3 FAIL; the previous room's 9 FAILs + 28 earlier PASSes that touch the changed files (chat/conversation/consumer/route/wallet/auth/composer/attachment) → 34 PASS, 3 FAIL; the 3 share validators → PASS
+  - FAIL that also fail on main 819ead3a (baseline worktree, same CRLF checkout): validate_image_attachment_thumbnail_01, validate_mobile_footer_legal_sheet_01, validate_site_avatar_fallback_runtime (known Windows-local RED)
+  - load-only, PASS alone: validate_chat_answer_quality_p0_01 (EBUSY on Chrome's DevToolsActivePort), validate_calendar_day_panel_two_buttons_01 (python http.server module fetch under load; PASS on branch and main alone)
+  - caused by this branch and fixed: validate_consumer_sections_02 pinned the old mountLifeWallet call → now pins the call with sessionToken and subscription (c42febf5)
+  - reused, not re-run: 47 validators the previous room passed on 93c49eea that touch none of the changed files (calendar/brand/avatar/bottom-sheet …)
+TRUSTED_LINUX_GATE=not run here (배포총괄방)
 
 ## Coverage
+Android Chrome / Samsung Internet, iPhone Safari, PC: headless Chrome emulation + WebCrypto only. LOTBI Android/iOS app WebView: NOT VERIFIED. Real phone / real KakaoTalk / real camera: NOT VERIFIED.
 
-- Android Chrome / Samsung Internet (mobile web): requests, inbox, camera QR scan (BarcodeDetector), share sheet incl. KakaoTalk — automated emulation only.
-- iPhone Safari (mobile web): no BarcodeDetector → LOTBI ID entry, or the iPhone camera app reads the QR and opens the link; share sheet — NOT VERIFIED on a device.
-- PC browser: webcam + BarcodeDetector if present, else LOTBI ID; link copy.
-- LOTBI Android / iOS app (WebView): the screens load if the app shows the site; WebView camera permission handling (App repo) not changed — NOT VERIFIED.
-
-## Subscription policy (as instructed)
-
-Free keeps at most 1 own item (adding is held back with a 구독 안내 link; existing items are never removed). Basic/Plus/Pro unchanged. Share requests do not touch AI usage. Copying a shared item into one's own wallet does not exist yet (no document transfer); when it is built it must check the same limit.
-
-## Tests on 9fefd562
-
-validate_life_wallet_share_01, validate_life_wallet_card_deck_01, validate_life_wallet_entry_lock_01, validate_life_wallet_mobile_p0_01, validate_life_wallet_document_save_01, validate_life_wallet_photo_picker_01, validate_site_refresh_route_restore_01, validate_site.py, validate_hardening.py, validate_accessibility.py, asset check, node --check (wallet, share, route, conversation, consumer sections) — PASS.
-NEW_FAILURES=NONE
-
-PRIVACY=no real photo used; share requests carry item labels only (owner-editable, ≤ 80 chars); tokens are never logged by Site.
-FORBIDDEN_HERE=main merge, merge gate, Production deploy, force push/rebase/reset, enabling document upload.
+PRIVACY=synthetic data only; no real ID, receipt or family photo used. Requests carry an owner-editable label (≤ 80 chars) and kind; originals leave the device only sealed for the accepted recipient's key and only when Core has the switch on.
+FORBIDDEN_HERE=main merge, gate, Production deploy, enabling the switch, force push/rebase/reset.
