@@ -422,6 +422,12 @@ jobs:
       - name: Validate Place Card body opens NAVER search
         run: node scripts/validate_place_card_naver_search_click_01.mjs
 
+      # 생활정보 모든 질문(병원·약국·응급실, 지역생활정보, 유치원·학교): 한 번 탭으로 바로
+      # 전송되고(입력창 재전송 없음) 키보드는 사용자가 입력창을 탭할 때만 열린다. 사진 없는
+      # 장소 카드는 사진 칸 없이 짧고, 지도는 설정에서 고른 앱. 320·360·390·412·1280, 다크.
+      - name: Validate life info direct chat and photo-less place cards
+        run: node scripts/validate_life_direct_chat_card_compaction_01.mjs
+
       # 장소 카드 캐러셀은 transform 으로만 돌고 스크롤하지 않는다. 상품 카드
       # 레일의 scroll snap 을 물려받아 회전할 때마다 레일이 153~252px 밀리던
       # 결함 — 이전/다음·스와이프·방향키 뒤에도 가운데 카드가 제자리인지 잰다.
@@ -726,6 +732,13 @@ jobs:
           node scripts/validate_scam_shield_mvp_01.mjs
           node scripts/validate_scam_shield_connection_01.mjs
           node scripts/validate_verification_dialog_design_01.mjs
+
+      # 지역정보(구 생활정보) 화면 문구와 지역뉴스 진입·답변 카드. 저장 지역은 한 번에,
+      # 지역 입력·내 주변은 짧은 양식으로 Core에 한 문장을 넘기고, 답변 카드는 이미지
+      # 칸 없이 제목·언론사·시각·요약·원문 열기·관련 보도 N건만 보여 주는지 360·375·
+      # 390·412·데스크톱·다크에서 실제 탭/클릭으로 확인한다. Core는 mock.
+      - name: Validate regional news (지역정보 · 지역뉴스)
+        run: node scripts/validate_regional_news_p0_01.mjs
 
       # 진위확인 사진·스크린샷 선택은 카메라를 강제하지 않고(capture 없음),
       # 카메라로 촬영만 capture="environment"를 쓴다. 실제 Chrome 탭으로 각
