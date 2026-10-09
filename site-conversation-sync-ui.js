@@ -276,9 +276,12 @@ function openDeleteAllConfirm({sync, modalShell, installSurfaceBehavior, closeSu
   const cancel = button(doc, '취소', 'site-button site-button-secondary', closeSurface);
   const confirm = button(doc, '모두 삭제', 'site-button conversation-delete-confirm', async () => {
     confirm.disabled = true; cancel.disabled = true;
-    let outcome = 'deleted';
-    try { outcome = await sync.deleteAll(); } catch { outcome = 'pending'; }
+    // The account delete is marked pending first (so nothing is pulled back),
+    // then this device's copy goes at once, then the account answers.
+    const deleting = sync.deleteAll();
     onDeleteAll?.();
+    let outcome = 'deleted';
+    try { outcome = await deleting; } catch { outcome = 'pending'; }
     closeSurface();
     setStatus?.(outcome === 'deleted'
       ? '모든 대화를 삭제했습니다.'

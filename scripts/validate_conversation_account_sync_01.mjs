@@ -535,7 +535,7 @@ async function main() {
     await waitFor(() => a.evaluate(`Boolean(document.querySelector('[data-conversation-sync-delete-all-confirm-button]'))`), 'delete-all confirm');
     await a.evaluate(`document.querySelector('[data-conversation-sync-delete-all-confirm-button]').click(), true`);
     await waitFor(async () => account(U1).threads.size === 0, 'delete all reached the account');
-    assert.deepEqual(await a.recentTitles(), [], 'device list cleared');
+    await waitFor(async () => (await a.recentTitles()).length === 0, 'device list cleared');
     assert.ok(account(U2).threads.size === 1, 'another account untouched');
     step('delete all: account and device emptied, other account untouched');
     await Promise.all([a.close(), b.close(), c.close()]);
