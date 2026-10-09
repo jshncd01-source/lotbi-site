@@ -52,6 +52,9 @@ jobs:
       - name: Validate clean public URLs
         run: python scripts/validate_clean_urls.py
 
+      - name: Validate plan trusted device limits and notice
+        run: python scripts/validate_trusted_device_plan_limits_01.py
+
       - name: Validate iOS Social Auth return bridge
         run: python scripts/validate_ios_social_return_01.py
 
