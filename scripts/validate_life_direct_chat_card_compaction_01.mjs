@@ -43,11 +43,16 @@ for (const needle of [
 ]) assert.ok(conversation.includes(needle), `direct ask contract missing: ${needle}`);
 const askBody = conversation.slice(conversation.indexOf('const askFromLife = text => {'), conversation.indexOf("onDraft: text => askFromLife(text),"));
 assert.ok(!/prompt\.focus\(|focusComposerInPlace\(/u.test(askBody), 'asking from 생활정보 never focuses the composer');
-// Every focus after an answer inside requestAssistant goes through refocusComposer.
+// Every place a turn ends and focuses the composer (main's
+// CHAT-MOBILE-KEYBOARD-DISMISS-01 helper and guard) is skipped for a
+// 생활정보 / recovering turn: the focus calls sit behind composerStaysClosed.
 const requestBody = conversation.slice(conversation.indexOf('const requestAssistant = async'), conversation.indexOf('const submitCurrentPrompt = async'));
-assert.ok(!/(?<!const refocusComposer[^\n]*)\bfocusComposerInPlace\(\);/u.test(requestBody.replace(/const refocusComposer = [\s\S]*?\n {4}\};/u, '')), 'no direct composer focus left in requestAssistant');
-assert.ok(!/\bprompt\.focus\(\)/u.test(requestBody.replace(/const refocusComposer = [\s\S]*?\n {4}\};/u, '')), 'no direct prompt.focus() left in requestAssistant');
-assert.ok(!/\breturnComposerFocusAfterTurn\(\)/u.test(requestBody.replace(/const refocusComposer = [\s\S]*?\n {4}\};/u, '')), 'no direct returnComposerFocusAfterTurn() left in requestAssistant');
+const GUARDED_RETURN = /if \(!composerStaysClosed\) returnComposerFocusAfterTurn\(\);/gu;
+const GUARDED_PROMPT = /if \(!composerStaysClosed\) \{\s*if \(!composerUsesSoftwareKeyboard\(\)\) prompt\.focus\(\);\s*\}/gu;
+assert.equal((requestBody.match(GUARDED_RETURN) || []).length, 4, 'local answer + three finally blocks skip the focus for a 생활정보 turn');
+assert.equal((requestBody.match(GUARDED_PROMPT) || []).length, 2, 'timeout + calendar cancel skip the focus for a 생활정보 turn');
+const unguarded = requestBody.replace(GUARDED_RETURN, '').replace(GUARDED_PROMPT, '');
+assert.ok(!/\bfocusComposerInPlace\(|\bprompt\.focus\(|\breturnComposerFocusAfterTurn\(/u.test(unguarded), 'no composer focus in requestAssistant outside the composerStaysClosed guard');
 assert.ok(!sections.includes('질문 준비하기'), 'the button sends; it no longer only prepares');
 assert.ok(sections.includes("action('바로 찾기')") && sections.includes("action('롯비에게 물어보기')"));
 assert.ok(!sections.includes('다음 화면에서 질문을 확인한 뒤 보내세요'), 'no note promising a confirmation step');

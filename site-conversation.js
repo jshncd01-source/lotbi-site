@@ -4903,14 +4903,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const message = typeof text === 'string' ? text.trim() : '';
     // A question asked from 생활정보, or one resumed after the reader came back,
     // is read without the keyboard on any device: the composer is focused only
-    // when tapped. Other turns keep CHAT-MOBILE-KEYBOARD-DISMISS-01 (a phone
-    // keeps its keyboard closed, a desktop gets its cursor back).
+    // when tapped, so every place this turn ends skips the focus below. Other
+    // turns keep CHAT-MOBILE-KEYBOARD-DISMISS-01 (a phone keeps its keyboard
+    // closed, a desktop gets its cursor back).
     const composerStaysClosed = keepKeyboardClosed || recovering;
-    const refocusComposer = ({inPlace = true} = {}) => {
-      if (composerStaysClosed) return;
-      if (inPlace) returnComposerFocusAfterTurn();
-      else if (!composerUsesSoftwareKeyboard()) prompt.focus();
-    };
     const sourceTurnCreatedAt = Number.isFinite(Number(turnCreatedAt)) && Number(turnCreatedAt) > 0 ? Number(turnCreatedAt) : Date.now();
     const sourceTurnCreatedAtIso = new Date(sourceTurnCreatedAt).toISOString();
     const attachments = [...selectedAttachments];
@@ -4934,7 +4930,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           const timeoutError = new Error('응답 시간이 오래 걸려 중단했어요. 다시 시도해 주세요.');
           showError(timeoutError, message, true, logicalRequestId, sourceTurnCreatedAt);
           setStatus('LOTBI 응답 시간이 초과되었습니다.');
-          refocusComposer({inPlace: false});
+          if (!composerStaysClosed) {
+            if (!composerUsesSoftwareKeyboard()) prompt.focus();
+          }
         },
       });
       return handle;
@@ -4988,7 +4986,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       publishDiagnostics();
       recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: diagnostics.lastCoreRequestDelta, providerCalls: 0, externalAiCalls: diagnostics.lastExternalAiRequestDelta});
       console.info(`[LOTBI deterministic evidence] latencyMs=${diagnostics.lastVisibleAnswerMs} coreRequests=${diagnostics.lastCoreRequestDelta} providerRequests=0 externalAiRequests=${diagnostics.lastExternalAiRequestDelta}`);
-      setStatus('LOTBI의 즉시 응답이 도착했습니다.'); refocusComposer(); return;
+      setStatus('LOTBI의 즉시 응답이 도착했습니다.'); if (!composerStaysClosed) returnComposerFocusAfterTurn(); return;
     }
     if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message)) {
       const calendarRequestId = logicalRequestId || newId('calendar-guest-direct');
@@ -5053,7 +5051,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           thinking.stop('cancel');
           inFlight = false;
           updateSendState();
-          refocusComposer({inPlace: false});
+          if (!composerStaysClosed) {
+            if (!composerUsesSoftwareKeyboard()) prompt.focus();
+          }
         }
       }
       return;
@@ -5144,7 +5144,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         showError(caught, message, true, guestRequestId, sourceTurnCreatedAt);
         setStatus('LOTBI 대화를 완료하지 못했습니다.');
       } finally {
-        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); refocusComposer(); }
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); if (!composerStaysClosed) returnComposerFocusAfterTurn(); }
       }
       return;
     }
@@ -5186,7 +5186,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
         showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
       } finally {
-        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); refocusComposer(); }
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); if (!composerStaysClosed) returnComposerFocusAfterTurn(); }
       }
       return;
     }
@@ -5275,7 +5275,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       forgetPendingTurn(authenticatedRequestId);
       showError(caught, message, true, authenticatedRequestId, sourceTurnCreatedAt); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally {
-      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); refocusComposer(); }
+      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); if (!composerStaysClosed) returnComposerFocusAfterTurn(); }
     }
   };
   // The keyboard has already shrunk the scroller by the time this fires, so
