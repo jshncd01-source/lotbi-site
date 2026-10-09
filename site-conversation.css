@@ -875,6 +875,16 @@
   color: #9b2441;
 }
 
+/* AUTH-SESSION-CONTINUITY-P0-02 — one quiet line a screenshot can carry:
+   error code, how many code/state parameters arrived, running asset version. */
+.auth-callback-shell .auth-callback-diagnostic {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  opacity: 0.72;
+  overflow-wrap: anywhere;
+}
+
 .auth-callback-retry {
   margin-top: 20px;
   display: inline-flex;
@@ -2459,21 +2469,13 @@ body[data-site-theme="dark"] .conversation-calendar-action-button {
 body[data-site-theme="dark"] .conversation-calendar-action-button:hover:not(:disabled),
 body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible { background: #262d38; }
 
-/* LIFE-PUBLIC-DATA-01: emergency answers always carry a one-tap 119 call. */
+/* LIFE-PUBLIC-DATA-01 / LIFE-MEDICAL-AUTO-SEARCH-01: a message describing an
+   emergency symptom gets a one-tap 119 call under the answer (whose first
+   sentence already says to call 119) — one small button, no box. A plain
+   응급실 search has none. */
 .conversation-emergency-call {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  margin-top: 10px;
-  padding: 10px 12px;
-  border: 1px solid rgba(190, 38, 38, .35);
-  border-radius: 14px;
-  background: rgba(190, 38, 38, .06);
-  color: var(--lotbi-text-primary, var(--text, #212121));
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.4;
+  margin-top: 8px;
 }
 
 .conversation-emergency-call-link {
@@ -2485,6 +2487,7 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
   border-radius: 999px;
   background: #be2626;
   color: #ffffff;
+  font-size: 13px;
   font-weight: 800;
   text-decoration: none;
 }
@@ -2492,11 +2495,6 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
 .conversation-emergency-call-link:focus-visible {
   outline: 2px solid rgba(190, 38, 38, .45);
   outline-offset: 2px;
-}
-
-body[data-site-theme="dark"] .conversation-emergency-call {
-  border-color: rgba(255, 128, 128, .45);
-  background: rgba(255, 128, 128, .08);
 }
 
 .conversation-pet-action-button {
@@ -3381,6 +3379,202 @@ body[data-site-theme="dark"] .lotbi-place-orbit-more:hover {
   }
 }
 
+/* LIFE-MEDICAL-AUTO-SEARCH-CARD-01 — 병원·약국·응급실(및 모든 장소) 회전형 카드.
+   - 휴대폰: 가운데 카드가 가장 크고, 양옆 카드의 끝(약 20px)이 보여 넘겨 볼
+     카드가 더 있다는 것을 숫자(1/3) 없이도 안다. 화살표는 계속 없고, 손가락으로
+     밀거나 옆 카드 끝을 누르면 돈다. 옆 카드 안의 전화·지도·검색 링크는 보이지도
+     눌리지도 않는다. 레일 밖은 잘려 가로 스크롤이 생기지 않는다.
+   - 다섯 곳을 다 펼치면 뒤쪽 카드(_BACK)는 앞쪽 카드 뒤에 숨는다.
+   - 넓은 화면: 같은 배치에 옆 카드를 흐리게만(블러 없이) 보여 준다.
+   - 전화·지도: 원형 44px 버튼에 22px 선 아이콘 두 개, 카드 오른쪽 끝.
+   - 카드 한 장이면 옆 카드도 1/3 도 없다(site-conversation.js). */
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"],
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+  opacity: .5;
+  filter: saturate(.85);
+}
+
+.lotbi-place-orbit-card {
+  transition:
+    transform 280ms cubic-bezier(.22, .8, .24, 1),
+    opacity 240ms ease,
+    filter 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.lotbi-place-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 2px 8px 8px;
+}
+
+.lotbi-place-card-actions .lotbi-rich-card-action {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 92%, transparent);
+  border-radius: 50%;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #202632);
+}
+
+.lotbi-place-card-actions .lotbi-place-action-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 0;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lotbi-place-card-actions .lotbi-rich-card-action:hover,
+.lotbi-place-card-actions .lotbi-rich-card-action:focus-visible {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+
+body[data-site-theme="dark"] .lotbi-place-card-actions .lotbi-rich-card-action {
+  border-color: #515b69;
+  background: rgba(23, 28, 37, .94);
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+
+body[data-site-theme="dark"] .lotbi-place-card-actions .lotbi-rich-card-action:hover,
+body[data-site-theme="dark"] .lotbi-place-card-actions .lotbi-rich-card-action:focus-visible {
+  background: #262d38;
+}
+
+/* "실제 운영 여부는 전화로 확인" — one muted line under the hours. */
+.lotbi-place-medical-line[data-medical-state="CONFIRM"] {
+  color: var(--lotbi-text-muted, #687180);
+  font-weight: 500;
+  word-break: keep-all;
+}
+
+/* 약국 결과 아래 조건 고르기: 지금 운영 중 · 야간 · 휴일 · 24시간. */
+.lotbi-place-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+  margin-top: 8px;
+}
+
+.lotbi-place-filter-chip {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 92%, transparent);
+  border-radius: 999px;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #202632);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lotbi-place-filter-chip:hover {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+
+.lotbi-place-filter-chip:focus-visible {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 2px;
+}
+
+body[data-site-theme="dark"] .lotbi-place-filter-chip {
+  border-color: #515b69;
+  background: rgba(23, 28, 37, .94);
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+
+body[data-site-theme="dark"] .lotbi-place-filter-chip:hover {
+  background: #262d38;
+}
+
+@media (max-width: 760px) {
+  .lotbi-place-orbit {
+    --lotbi-place-peek: 20px;
+    --lotbi-place-gap: 8px;
+  }
+
+  /* The answer text sits right of the 42px avatar column (+ 8px gap, + the
+     message's 4px padding: the mobile .chat-assistant-row rule above). The
+     cards sit below that text, so on a phone they also use the width under
+     the avatar: at 320px the center card is ~216px instead of ~162px. */
+  .chat-assistant-row .chat-message-assistant > .lotbi-place-orbit,
+  .chat-assistant-row .chat-message-assistant > .lotbi-place-filter-row {
+    width: calc(100% + 54px);
+    max-width: none;
+    margin-left: -54px;
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(calc(100% - 2 * (var(--lotbi-place-peek) + var(--lotbi-place-gap))), 380px);
+    min-width: 0;
+  }
+
+  /* Only one card: it uses the width the side cards would have shown in. */
+  .lotbi-place-orbit[data-card-count="1"] .lotbi-place-orbit-card {
+    width: min(calc(100% - 16px), 380px);
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) {
+    opacity: .5;
+    filter: saturate(.85);
+    pointer-events: auto;
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"],
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"] {
+    transform-origin: right center;
+    transform: translateX(calc(-100% - var(--lotbi-place-gap) + var(--lotbi-orbit-drag-x))) scale(.92);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"],
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+    transform-origin: left center;
+    transform: translateX(calc(100% + var(--lotbi-place-gap) + var(--lotbi-orbit-drag-x))) scale(.92);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot$="_BACK"] {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* A side card keeps its full content (so every card counts at its real
+     height) but nothing in it can be seen or pressed: a tap on its edge only
+     turns the cards. */
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions,
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-search-link {
+    visibility: hidden;
+  }
+
+  .lotbi-place-orbit.is-dragging .lotbi-place-orbit-card[data-orbit-slot$="_FRONT"] {
+    opacity: .85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-place-orbit-card {
+    transition: none;
+  }
+}
+
 
 /* LOTBI reusable text output card — completed text meant to be copied, shared,
    edited or reused. Ordinary assistant replies never use this surface. */
@@ -3670,3 +3864,71 @@ html[data-site-route-pending] #main-content::before {
 }
 @keyframes site-route-pending-release { to { opacity: 1; visibility: visible; } }
 @keyframes site-route-pending-label { to { visibility: hidden; } }
+
+/* JEONBUK-PILOT-01 — 전북 맛집·음식 / 행정기관 연락처: compact official-record
+   cards. No media area at all; one line per published field; 44px actions;
+   long Korean addresses wrap inside the card. */
+.lotbi-regional-card {
+  display: grid;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(116, 126, 145, .22);
+  border-radius: 16px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.lotbi-regional-card-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.lotbi-regional-card-title { margin: 0; font-size: 14px; font-weight: 800; }
+.lotbi-regional-card-basis,
+.lotbi-regional-meta,
+.lotbi-regional-fax,
+.lotbi-regional-source,
+.lotbi-regional-notice,
+.lotbi-regional-more { color: var(--lotbi-text-secondary, #4d535d); font-size: 12px; font-weight: 650; }
+.lotbi-regional-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lotbi-regional-item { display: grid; gap: 2px; min-width: 0; padding-top: 8px; border-top: 1px solid rgba(116, 126, 145, .16); }
+.lotbi-regional-item:first-child { padding-top: 0; border-top: 0; }
+.lotbi-regional-name { margin: 0; font-size: 14px; font-weight: 750; }
+.lotbi-regional-meta,
+.lotbi-regional-address,
+.lotbi-regional-detail,
+.lotbi-regional-source,
+.lotbi-regional-notice,
+.lotbi-regional-more { margin: 0; }
+.lotbi-regional-detail { font-size: 12.5px; }
+.lotbi-regional-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.lotbi-regional-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 6px 14px;
+  border: 1px solid rgba(116, 126, 145, .32);
+  border-radius: 999px;
+  color: inherit;
+  font-size: 12.5px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.lotbi-regional-source-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.lotbi-regional-card-footer { display: grid; gap: 2px; }
+.lotbi-regional-action:focus-visible,
+.lotbi-regional-source-link:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
+body[data-site-theme="dark"] .lotbi-regional-card { border-color: rgba(198, 207, 221, .24); }
+body[data-site-theme="dark"] .lotbi-regional-item { border-top-color: rgba(198, 207, 221, .16); }
+body[data-site-theme="dark"] .lotbi-regional-action { border-color: rgba(198, 207, 221, .32); }
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .lotbi-regional-card { border-color: rgba(198, 207, 221, .24); }
+  body[data-site-theme="system"] .lotbi-regional-item { border-top-color: rgba(198, 207, 221, .16); }
+  body[data-site-theme="system"] .lotbi-regional-action { border-color: rgba(198, 207, 221, .32); }
+}
+
+/* 전북 맛집·음식 entry form: a short label above each chip row. */
+.consumer-life-chip-label { margin: 4px 0 -4px; color: var(--lotbi-text-secondary, #4d535d); font-size: 13px; font-weight: 600; }

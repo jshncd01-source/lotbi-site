@@ -138,7 +138,7 @@ try {
       panel.querySelector('[data-life-shortcut="' + id + '"]').click();
       await sleep(150);
       result.details.push({id, text: panel.innerText});
-      [...panel.querySelectorAll('.consumer-action')].find(b => b.textContent === '생활정보로 돌아가기')?.click();
+      [...panel.querySelectorAll('.consumer-action')].find(b => b.textContent === '지역정보로 돌아가기')?.click();
       await wait(() => panel.querySelector('[data-life-shortcut]'), 'back to life');
     }
     document.querySelector('[data-site-surface-close], .site-modal-close, [aria-label="닫기"]')?.click();
@@ -277,7 +277,7 @@ try {
       const home = await runPhase(devtools, `${origin}/${innerRel}?phase=home`, `${label}/home`);
       console.log(`LIFE_INFO_CLEANUP ${label}`, JSON.stringify({shortcuts: home.life.shortcuts.map(s => s.label), topBar: home.life.topBar, footer: home.life.footer, products: home.products, hash: home.hashOpen.surface}));
       // 1 공과금 menu
-      assert.deepEqual(home.life.shortcuts.map(item => item.id), ['hospital', 'pharmacy', 'festivals', 'onnuri', 'local', 'education'], `${label}: 생활정보 menu without 공과금`);
+      assert.deepEqual(home.life.shortcuts.map(item => item.id), ['hospital', 'pharmacy', 'emergency', 'festivals', 'news', 'onnuri', 'local', 'jeonbuk-food', 'education', 'my-child'], `${label}: 생활정보 menu without 공과금 (응급실: LIFE-MEDICAL-AUTO-SEARCH-01, 지역뉴스: REGIONAL-NEWS-P0, 온누리상품권: ONNURI-MERCHANT-01, 전북 맛집·음식: JEONBUK-PILOT-01, 유치원·학교: KINDERGARTEN-OFFICIAL-INFO-01)`);
       assert.ok(home.life.shortcuts.every(item => item.visible), `${label}: every menu is visible`);
       for (const detail of home.details) assert.ok(!/공과금|고지서/u.test(detail.text), `${label}: ${detail.id} detail mentions no 공과금`);
       // 2 top question bar

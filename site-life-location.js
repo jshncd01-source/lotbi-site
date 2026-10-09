@@ -8,11 +8,12 @@
 //   3) 그것도 없으면 아무것도 보내지 않는다 — Core 가 지역을 되묻는다.
 // 좌표는 소수 셋째 자리(약 100m)로 반올림해 이 한 번의 요청에만 싣는다. 이 모듈은
 // 아무것도 저장하지 않는다.
-import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-61e987070df0';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-61e987070df0';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-61e987070df0';
+import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-ef4dd10097af';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-ef4dd10097af';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-ef4dd10097af';
 
-const LIFE_TARGET_RE = /(?:동물\s*병원|애견\s*병원|약국|병원|의원|응급실|응급\s*의료|소아\s*청소년과|소아과|내과|이비인후과|치과|피부과|정형외과|안과|산부인과|달빛\s*어린이)/u;
+// JEONBUK-PILOT-01: "근처 전북 맛집" (전북 맛집·음식) is a life public-data lookup too.
+const LIFE_TARGET_RE = /(?:동물\s*병원|애견\s*병원|약국|병원|의원|응급실|응급\s*의료|소아\s*청소년과|소아과|내과|이비인후과|치과|피부과|정형외과|안과|산부인과|달빛\s*어린이|전북[^.?!\n]{0,24}?(?:맛집|음식점|식당|막걸리집))/u;
 const LIFE_NEARBY_RE = /(?:근처|주변|부근|인근|가까운|가까이|내\s*위치|우리\s*동네|여기)/u;
 const LIFE_TIME_RE = /(?:지금|현재|당장|문\s*(?:연|열린|여는)|야간|심야|밤|새벽|일요일|토요일|주말|공휴일|휴일|연휴|24\s*시|응급실)/u;
 const LABEL_UNSAFE_RE = /[^0-9A-Za-z가-힣·.\- ]/gu;
@@ -49,6 +50,25 @@ export function lifeLocationIntent(text, recentContext = []) {
   return LIFE_NEARBY_RE.test(value) || LIFE_TIME_RE.test(value);
 }
 
+// REGIONAL-NEWS-P0 — 지역뉴스 turns carry the saved region (캘린더 날씨 지역)
+// so "우리 지역 소식" needs no question. The current position is used only
+// when the person asks for 근처/주변/여기 news, and only with location use on.
+// A region named in the question always wins in Core.
+const NEWS_RE = /(?:뉴스|소식|기사|속보)/u;
+const NOT_NEWS_RE = /(?:뉴스\s*(?:앱|레터|룸|구독)|(?:택시|대리|버스|화물|트럭)\s*기사|기사\s*님|소식지)/u;
+
+export function newsLocationIntent(text) {
+  const value = typeof text === 'string' ? text : '';
+  return Boolean(value) && NEWS_RE.test(value) && !NOT_NEWS_RE.test(value);
+}
+
+// The saved region's display label ("전주시 덕진구"), or '' when none is saved.
+export function savedLifeRegionLabel(readSavedRegion = readCalendarManualWeatherRegion) {
+  let saved = null;
+  try { saved = readSavedRegion(); } catch { saved = null; }
+  return savedRegionLabel(saved?.label);
+}
+
 function round3(value) {
   return Math.round(Number(value) * 1000) / 1000;
 }
@@ -71,6 +91,17 @@ function timeout(ms) {
   return new Promise(resolve => { setTimeout(() => resolve(null), ms); });
 }
 
+// LIFE-MEDICAL-AUTO-SEARCH-01: the browser is asked for permission at most
+// once per page. After a lookup that was allowed to ask got no position
+// (denied, dismissed, timed out), later lookups on this page — another menu,
+// a pharmacy filter — use what is already allowed, else the saved region,
+// without asking again. A permission already granted is still used.
+let permissionAskedWithoutLocation = false;
+
+export function resetLifeLocationPromptMemory() {
+  permissionAskedWithoutLocation = false;
+}
+
 export async function resolveLifeLocationContext(text, {
   resolveCurrent = resolveSharedBrowserCurrentLocation,
   readSavedRegion = readCalendarManualWeatherRegion,
@@ -78,14 +109,17 @@ export async function resolveLifeLocationContext(text, {
   timeoutMs = 8_000,
   recentContext = [],
 } = {}) {
-  if (!lifeLocationIntent(text, recentContext)) return null;
+  const lifeLookup = lifeLocationIntent(text, recentContext);
+  if (!lifeLookup && !newsLocationIntent(text)) return null;
   let usageEnabled = false;
   try { usageEnabled = locationUsageEnabled() === true; } catch { usageEnabled = false; }
-  if (usageEnabled) {
+  if (usageEnabled && (lifeLookup || LIFE_NEARBY_RE.test(text))) {
+    // The user just asked for something "nearby"/"now": that request is the
+    // explicit action that may show the browser's permission prompt — the
+    // first time on this page.
+    const allowPrompt = !permissionAskedWithoutLocation;
     try {
-      // The user just asked for something "nearby"/"now": that request is the
-      // explicit action that may show the browser's permission prompt.
-      const outcome = await Promise.race([resolveCurrent({allowPrompt: true}), timeout(timeoutMs)]);
+      const outcome = await Promise.race([resolveCurrent({allowPrompt}), timeout(timeoutMs)]);
       const location = outcome?.location;
       const latitude = Number(location?.latitude);
       const longitude = Number(location?.longitude);
@@ -99,6 +133,7 @@ export async function resolveLifeLocationContext(text, {
     } catch {
       // Fall through to the saved region.
     }
+    if (allowPrompt) permissionAskedWithoutLocation = true;
   }
   let saved = null;
   try { saved = readSavedRegion(); } catch { saved = null; }

@@ -21,9 +21,9 @@ try{
  const make=()=>{const picker=createWalletPhotoPicker({onError:message=>errors.push(message),onReady:value=>{if(value)ready+=1}});document.getElementById('host').append(picker.element);return picker};
  const select=picker=>{const transfer=new DataTransfer();transfer.items.add(new File([blob],'synthetic-wallet.png',{type:'image/png'}));picker.input.files=transfer.files;picker.input.dispatchEvent(new Event('change',{bubbles:true}))};
  const cancelled=make();select(cancelled);await wait(()=>cancelled.element.querySelector('[data-scan-state="review"]'),'cancel review');let blocked=false;try{await cancelled.readDataUrl()}catch{blocked=true}cancelled.element.querySelector('.wallet-scan-actions button').click();await sleep(50);const readyAfterCancel=ready;const scannerAfterCancel=Boolean(cancelled.element.querySelector('.wallet-scan-editor'));
- const replaced=make();select(replaced);await wait(()=>replaced.element.querySelector('[data-scan-state="review"]'),'replace review');const replaceButtons=[...replaced.element.querySelectorAll('.wallet-scan-actions button')];replaceButtons.find(button=>button.textContent==='다시 선택').click();await sleep(50);const readyAfterReplace=ready;const scannerAfterReplace=Boolean(replaced.element.querySelector('.wallet-scan-editor'));replaced.destroy();
+ const replaced=make();select(replaced);const oldScanner=await wait(()=>replaced.element.querySelector('[data-scan-state="review"]'),'replace review');const retakeButton=[...replaced.element.querySelectorAll('.wallet-scan-actions button')].some(button=>button.textContent==='다시 선택');select(replaced);await wait(()=>!oldScanner.isConnected&&replaced.element.querySelector('[data-scan-state="review"]'),'replacement review');const readyAfterReplace=ready;const scannerAfterReplace=oldScanner.isConnected||replaced.element.querySelectorAll('.wallet-scan-editor').length!==1;replaced.destroy();
  const confirmed=make();select(confirmed);const scanner=await wait(()=>confirmed.element.querySelector('[data-scan-state="review"]'),'confirm review');scanner.querySelector('[data-wallet-scan-confirm]').click();await wait(()=>ready===1,'ready callback');const saved=await confirmed.readDataUrl();const preview=confirmed.element.querySelector('.wallet-photo-preview');const scannerAfterConfirm=Boolean(confirmed.element.querySelector('.wallet-scan-editor'));confirmed.destroy();
- out.textContent=JSON.stringify({ok:true,blocked,readyAfterCancel,scannerAfterCancel,readyAfterReplace,scannerAfterReplace,savedJpeg:saved.startsWith('data:image/jpeg;base64,'),previewJpeg:preview.src.startsWith('data:image/jpeg;base64,'),scannerAfterConfirm,networkCalls,closed,privacyText:document.body.textContent.includes('LOTBI 서버로 전송되지 않습니다.'),errors});
+ out.textContent=JSON.stringify({ok:true,blocked,readyAfterCancel,scannerAfterCancel,retakeButton,readyAfterReplace,scannerAfterReplace,savedJpeg:saved.startsWith('data:image/jpeg;base64,'),previewJpeg:preview.src.startsWith('data:image/jpeg;base64,'),scannerAfterConfirm,networkCalls,closed,privacyText:document.body.textContent.includes('LOTBI 서버로 전송되지 않습니다.'),errors});
 }catch(error){out.textContent=JSON.stringify({ok:false,error:String(error?.stack||error)})}
 </script></body></html>`;
 
@@ -33,6 +33,7 @@ assert.equal(result.ok,true,result.error);
 assert.equal(result.blocked,true,'readDataUrl must reject before scan confirmation');
 assert.equal(result.readyAfterCancel,0,'cancel must not produce a storable image');
 assert.equal(result.scannerAfterCancel,false,'cancel must remove scanner resources');
+assert.equal(result.retakeButton,false,'the wallet scanner has no second 다시 선택 (the attach area changes the file)');
 assert.equal(result.readyAfterReplace,0,'replace must not produce a storable image');
 assert.equal(result.scannerAfterReplace,false,'replace must remove old scanner resources');
 assert.equal(result.savedJpeg,true,'only corrected JPEG may enter save flow');

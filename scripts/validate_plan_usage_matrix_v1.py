@@ -13,7 +13,7 @@ for value in (
     "LOTBI Plus",
     "LOTBI Pro",
     "9,900원",
-    "19,900원",
+    "29,900원",
     "39,900원",
     "Basic 시작하기",
     "Plus 시작하기",
@@ -38,9 +38,9 @@ for forbidden in ("제휴몰 개수", "제휴 서비스 개수", "쇼핑·예약
     assert forbidden not in SUBSCRIBE, f"unavailable feature advertised: {forbidden}"
 
 assert "로그인 및 계정 연결은 유료 사용량으로 차감하지 않습니다." in TERMS
-assert "9,900원·19,900원·39,900원" in TERMS
-assert "29,900" not in SUBSCRIBE
-assert "29,900" not in TERMS
+assert "9,900원·29,900원·39,900원" in TERMS
+assert "19,900" not in SUBSCRIBE
+assert "19,900" not in TERMS
 assert re.search(r"\.plan-picker\s*\{[^}]*min-width:\s*0;[^}]*width:\s*100%;", STYLES, re.S), (
     "fieldset min-content sizing must not overflow mobile review screens"
 )

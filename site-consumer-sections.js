@@ -1,21 +1,44 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-61e987070df0';
-import {createEmergencyCallNotice} from './site-life-medical.js?v=aset-61e987070df0';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-ef4dd10097af';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-ef4dd10097af';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-ef4dd10097af';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
-// 병원·의원 / 약국 have no fixed prompt: their form builds one sentence that the
-// existing Core medical route (국립중앙의료원 data) recognizes.
+// onAsk(text) hands a finished question to the conversation, which sends it
+// right away: one tap asks LOTBI, with nothing to confirm or send again.
+// The 유치원·학교 screen asks the same way (LIFE-DIRECT-CHAT-CARD-COMPACTION-01).
+//
+// LIFE-MEDICAL-AUTO-SEARCH-01 — 병원·약국·응급실 have no form. The tap sends a
+// fixed question the existing Core medical route (국립중앙의료원 data) reads as
+// "nearby"; the existing life-location contract (site-life-location.js) then
+// sends the current location (location use on and permitted), else the saved
+// region, else nothing so Core asks for a region. Conditions such as 지금 ·
+// 야간 · 휴일 · 24시간 are offered on the pharmacy results, not asked first.
+export const LIFE_MEDICAL_QUESTIONS = Object.freeze({
+  hospital: '근처 병원 찾아줘',
+  pharmacy: '근처 약국 찾아줘',
+  emergency: '근처 응급실 찾아줘',
+});
 export const LIFE_SHORTCUTS = Object.freeze([
-  {id: 'hospital', label: '병원·의원', icon: 'hospital', medical: true},
-  {id: 'pharmacy', label: '약국', icon: 'pharmacy', medical: true},
+  {id: 'hospital', label: '병원·의원', icon: 'hospital', ask: LIFE_MEDICAL_QUESTIONS.hospital},
+  {id: 'pharmacy', label: '약국', icon: 'pharmacy', ask: LIFE_MEDICAL_QUESTIONS.pharmacy},
+  {id: 'emergency', label: '응급실', icon: 'emergency', ask: LIFE_MEDICAL_QUESTIONS.emergency},
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
+  // REGIONAL-NEWS-P0: saved region in one tap, otherwise a one-field form.
+  {id: 'news', label: '지역뉴스', icon: 'news'},
   // ONNURI-MERCHANT-01: its own search surface (site-life-onnuri.js). The
   // official logo is not used before approval; brandSlot reserves its place.
   {id: 'onnuri', label: '온누리상품권', brandSlot: 'onnuri'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
+  // JEONBUK-PILOT-01: 전북특별자치도·전주시 공식 음식점 공공데이터 (Core regional_food).
+  {id: 'jeonbuk-food', label: '전북 맛집·음식', icon: 'food', regionalFood: true},
   // KINDERGARTEN-OFFICIAL-INFO-01: 학교(NEIS, 대화) / 유치원(유치원알리미 공시).
-  // Last: an odd last card spans its row (site-life-education.css).
   {id: 'education', label: '유치원·학교', icon: 'school'},
+  // MY-CHILD-SCHOOL-01: the signed-in reader's saved schools / 유치원
+  // (site-life-my-child.js). Last. With 10 cards (전북 맛집·음식 included) every
+  // row of two is full; an odd count would let the last card span its row
+  // (site-life-education.css), so the grid has no empty cell.
+  {id: 'my-child', label: '내 아이 학교·유치원', icon: 'backpack'},
 ]);
 
 // Each existing request form should show examples that belong to that service,
@@ -29,75 +52,13 @@ const LIFE_DETAIL_FIELDS = Object.freeze({
   support: [['지역 또는 장소', '예: 전주시'], ['찾고 싶은 지원', '예: 청년 주거 지원, 자녀 돌봄 지원']],
 });
 
-// LIFE-MEDICAL-CATEGORY-ENTRY-01 — entry forms for the Core medical lookup.
-// Both fields are optional: an empty region becomes "근처", which lets the
-// existing life-location contract (site-life-location.js) decide whether a
-// current location or saved region is sent. Nothing here asks for permission.
-const LIFE_MEDICAL_FORMS = Object.freeze({
-  hospital: {
-    fields: [['region', '지역', '예: 전주 효자동'], ['need', '찾는 진료', '예: 내과, 소아과, 치과, 오늘 밤 진료하는 병원']],
-    chips: [['now', '지금 진료'], ['night', '야간진료'], ['emergency', '응급실']],
-  },
-  pharmacy: {
-    fields: [['region', '지역', '예: 전주 효자동'], ['need', '찾는 조건', '예: 지금 여는 약국, 오늘 밤 여는 약국, 24시간 약국']],
-    chips: [['now', '지금 여는 약국'], ['night', '오늘 밤 여는 약국'], ['allday', '24시간 약국']],
-  },
-});
-const HOSPITAL_TIME_PHRASES = Object.freeze({now: '지금 진료하는', night: '오늘 밤 진료하는'});
-const PHARMACY_CHIP_TEXT = Object.freeze({now: '지금 여는 약국', night: '오늘 밤 여는 약국', allday: '24시간 약국'});
-// Time words the Core classifier reads (medical_conversation._NOW_RE/_NIGHT_RE/
-// _ALL_DAY_RE/_WEEKDAY_RE/_AT_TIME_RE). Without one, Core treats "전주 내과"
-// as a place search, so the form adds "지금".
-const MEDICAL_TIME_RE = /(?:지금|현재|당장|바로|오늘|내일|문\s*(?:연|열린|여는|열려)|(?:영업|운영)\s*(?:중|하는)|진료\s*중|밤|야간|심야|새벽|늦게|늦은\s*시간|저녁|24\s*시|공휴일|휴일|연휴|명절|주말|[월화수목금토일]요일|\d{1,2}\s*시)/u;
-const MEDICAL_PLACE_NOUN_RE = /(?:과|의원|병원|클리닉|센터)$/u;
-
-function medicalText(value) {
-  return String(value ?? '').replace(/\s+/gu, ' ').trim().slice(0, 100);
-}
-function splitHospitalNeed(value) {
-  const text = medicalText(value);
-  for (const [time, phrase] of Object.entries(HOSPITAL_TIME_PHRASES)) {
-    if (text === phrase || text.startsWith(`${phrase} `)) return {time, subject: text.slice(phrase.length).trim()};
-  }
-  return {time: '', subject: text};
-}
-
-export function medicalChipPressed(kind, chip, value) {
-  const text = medicalText(value);
-  if (kind === 'pharmacy') return text === PHARMACY_CHIP_TEXT[chip];
-  if (chip === 'emergency') return text === '응급실';
-  return splitHospitalNeed(text).time === chip;
-}
-
-// A chip edits the visible "찾는 진료/조건" text, so the user always sees what
-// will be asked. Hospital time chips keep a typed department ("내과" + 야간진료
-// → "오늘 밤 진료하는 내과"); pressing a selected chip again clears it.
-export function applyMedicalChip(kind, chip, value) {
-  if (medicalChipPressed(kind, chip, value)) {
-    if (kind === 'pharmacy' || chip === 'emergency') return '';
-    const {subject} = splitHospitalNeed(value);
-    return subject === '병원' ? '' : subject;
-  }
-  if (kind === 'pharmacy') return PHARMACY_CHIP_TEXT[chip];
-  if (chip === 'emergency') return '응급실';
-  const {subject} = splitHospitalNeed(value);
-  return `${HOSPITAL_TIME_PHRASES[chip]} ${!subject || /응급/u.test(subject) ? '병원' : subject}`;
-}
-
-export function buildLifeMedicalPrompt(kind, {region = '', need = ''} = {}) {
-  const place = medicalText(region).replace(/\s*(?:에서|에)$/u, '');
-  const where = place ? `${place}에서 ` : '근처에서 ';
-  let subject = medicalText(need);
-  if (kind === 'pharmacy') {
-    if (!subject) subject = PHARMACY_CHIP_TEXT.now;
-    if (!/약국/u.test(subject)) subject = `${subject} 약국`;
-    if (!MEDICAL_TIME_RE.test(subject)) subject = `지금 여는 ${subject}`;
-    return `${where}${subject} 알려줘`;
-  }
-  if (!subject) subject = `${HOSPITAL_TIME_PHRASES.now} 병원`;
-  if (/응급/u.test(subject) || MEDICAL_TIME_RE.test(subject)) return `${where}${subject} 알려줘`;
-  if (MEDICAL_PLACE_NOUN_RE.test(subject)) return `${where}${HOSPITAL_TIME_PHRASES.now} ${subject} 알려줘`;
-  return `${where}${HOSPITAL_TIME_PHRASES.now} 병원 알려줘. 찾는 진료: ${subject}`;
+// REGIONAL-NEWS-P0 — 지역뉴스 asks for one region's latest news in a sentence
+// Core's news route reads ("전주시 뉴스 알려 줘"). No region means 내 주변:
+// the life-location contract then sends the current position only when
+// location use is on, else the saved region, else Core asks which region.
+export function buildRegionalNewsPrompt(region) {
+  const place = String(region ?? '').replace(/\s+/gu, ' ').trim().slice(0, 100).replace(/\s*(?:의|에서|에)$/u, '');
+  return place ? `${place} 뉴스 알려 줘` : '내 주변 뉴스 알려 줘';
 }
 
 const ICON_PATHS = {
@@ -113,7 +74,11 @@ const ICON_PATHS = {
   link: ['M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2', 'M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2'],
   hospital: ['M4 3h16v18H4V3Z', 'M12 7v8M8 11h8'],
   pharmacy: ['M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7l7-7Z', 'm7 10 7 7'],
+  emergency: ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z', 'M12 8v8M8 12h8'],
+  news: ['M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V5Z', 'M17 9h3v10a2 2 0 0 1-2 2', 'M7 9h7M7 12h7M7 15h4'],
+  food: ['M6 2v7a2 2 0 0 0 4 0V2M8 2v20', 'M18 22V2c-2.2 1.4-3.5 4.2-3.5 7.5V14H18'],
   school: ['m2 9 10-5 10 5-10 5L2 9Z', 'M6 11v5c3 2.5 9 2.5 12 0v-5', 'M22 9v6'],
+  backpack: ['M9 6V5a3 3 0 0 1 6 0v1', 'M6 9a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v12H6V9Z', 'M9 13h6v4H9v-4Z'],
 };
 
 function node(tag, className = '', text = '') {
@@ -149,7 +114,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onDraft, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = ''} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -158,62 +123,28 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onOnnu
   let releasePets;
   let releaseWallet;
   let releaseEducation;
+  let releaseMyChild;
 
   if (section === 'life') {
     // The life home only picks a category: free questions belong to the main
     // chat, and saved items are not duplicated here.
     const grid = node('div', 'consumer-shortcuts');
-    function openMedicalDetail(item, back, detail, title) {
-      const spec = LIFE_MEDICAL_FORMS[item.id];
-      const queryForm = node('form', 'consumer-life-form');
-      const values = {};
-      for (const [key, labelText, placeholder] of spec.fields) {
-        const label = node('label', 'consumer-life-field', labelText);
-        const field = node('input'); field.type = 'text';
-        field.placeholder = placeholder; field.maxLength = 100; field.dataset.medicalField = key;
-        field.setAttribute('aria-label', labelText); label.append(field); values[key] = field; queryForm.append(label);
-      }
-      // Same pill control the festival filters use; no new design system.
-      const chips = node('div', 'festival-chip-row consumer-life-chips');
-      chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', '빠른 선택');
-      const emergencyNotice = item.id === 'hospital' ? createEmergencyCallNotice(document) : null;
-      const syncChips = () => {
-        for (const chip of chips.children) chip.setAttribute('aria-pressed', String(medicalChipPressed(item.id, chip.dataset.medicalChip, values.need.value)));
-        if (!emergencyNotice) return;
-        // The existing 119 notice from the conversation answer, shown as soon as
-        // the user is looking for an emergency room.
-        if (/응급/u.test(values.need.value)) { if (!emergencyNotice.isConnected) chips.after(emergencyNotice); } else emergencyNotice.remove();
-      };
-      for (const [chipId, chipLabel] of spec.chips) {
-        const chip = node('button', 'festival-chip', chipLabel); chip.type = 'button'; chip.dataset.medicalChip = chipId;
-        chip.addEventListener('click', () => {
-          values.need.value = applyMedicalChip(item.id, chipId, values.need.value);
-          values.need.dispatchEvent(new Event('input', {bubbles: true}));
-        });
-        chips.append(chip);
-      }
-      values.need.addEventListener('input', syncChips);
-      queryForm.append(chips);
-      syncChips();
-      const send = action('질문 준비하기'); send.type = 'submit'; queryForm.append(send);
-      queryForm.addEventListener('submit', event => {
-        event.preventDefault();
-        if (disposed) return;
-        onDraft(buildLifeMedicalPrompt(item.id, {region: values.region.value, need: values.need.value}));
-      });
-      const note = '다음 화면에서 질문을 확인한 뒤 보내세요. 지역을 비워 두면 위치 사용을 켠 경우에만 현재 위치를 쓰고, 아니면 저장한 지역을 쓰거나 지역을 다시 물어봐요.';
-      detail.dataset.lifeDetail = item.id;
-      detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
-      root.replaceChildren(detail); title.focus();
-    }
     function openLifeDetail(item) {
-      const back = action('생활정보로 돌아가기', () => {
+      const back = action('지역정보로 돌아가기', () => {
         root.replaceChildren(heading, grid);
         grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
       }, {secondary: true});
       const detail = node('section', 'consumer-life-detail');
       const title = node('h3', '', item.label); title.tabIndex = -1;
-      if (item.medical) { openMedicalDetail(item, back, detail, title); return; }
+      if (item.regionalFood) {
+        // The question goes through the same life handoff (onAsk) as every
+        // other 생활정보 form; Core answers it from the official 전북 data.
+        const {form: foodForm, note} = createJeonbukFoodForm(document, {onSubmit: text => { if (!disposed) onAsk(text); }});
+        detail.dataset.lifeDetail = item.id;
+        detail.append(back, title, foodForm, node('p', 'consumer-feature-note', note));
+        root.replaceChildren(detail); title.focus();
+        return;
+      }
       const queryForm = node('form', 'consumer-life-form');
       const controls = [];
       const fields = LIFE_DETAIL_FIELDS[item.id];
@@ -223,23 +154,55 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onOnnu
         field.placeholder = placeholder; field.maxLength = 1000; field.required = true;
         field.setAttribute('aria-label', labelText); label.append(field); controls.push([labelText, field]); queryForm.append(label);
       }
-      const send = action('질문 준비하기'); send.type = 'submit'; queryForm.append(send);
+      const send = action('롯비에게 물어보기'); send.type = 'submit'; queryForm.append(send);
       queryForm.addEventListener('submit', event => {
         event.preventDefault();
         if (disposed) return;
         const missing = controls.find(([, field]) => !field.value.trim());
         if (missing) { missing[1].focus(); return; }
-        onDraft([item.prompt, ...controls.map(([label, field]) => `${label}: ${field.value.trim()}`)].join('\n'));
+        onAsk([item.prompt, ...controls.map(([label, field]) => `${label}: ${field.value.trim()}`)].join('\n'));
       });
-      const note = '다음 화면에서 질문을 확인한 뒤 보내세요. 현재 위치는 자동으로 수집하지 않습니다.';
+      const note = '누르면 바로 롯비에게 물어봐요. 현재 위치는 자동으로 수집하지 않습니다.';
       detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
+      root.replaceChildren(detail); title.focus();
+    }
+    // 지역뉴스: with a saved region one tap asks for that region's news;
+    // without one, a one-field form asks which region (or 내 주변). Like the
+    // other life cards the question is sent at once (onAsk), not drafted.
+    function openNewsEntry(item) {
+      const saved = savedLifeRegionLabel();
+      if (saved) { onAsk(buildRegionalNewsPrompt(saved)); return; }
+      const home = [...root.children];
+      const back = action('지역정보로 돌아가기', () => {
+        root.replaceChildren(...home);
+        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
+      }, {secondary: true});
+      const detail = node('section', 'consumer-life-detail');
+      detail.dataset.lifeDetail = item.id;
+      const title = node('h3', '', item.label); title.tabIndex = -1;
+      const queryForm = node('form', 'consumer-life-form');
+      const label = node('label', 'consumer-life-field', '지역');
+      const field = node('input'); field.type = 'text'; field.required = true; field.maxLength = 40;
+      field.placeholder = '예: 전주시, 군산시, 완산구'; field.dataset.newsField = 'region';
+      field.setAttribute('aria-label', '지역'); label.append(field); queryForm.append(label);
+      const send = action('뉴스 찾기'); send.type = 'submit'; queryForm.append(send);
+      queryForm.addEventListener('submit', event => {
+        event.preventDefault();
+        if (disposed) return;
+        if (!field.value.trim()) { field.focus(); return; }
+        onAsk(buildRegionalNewsPrompt(field.value));
+      });
+      const nearby = action('내 주변 뉴스', () => { if (!disposed) onAsk(buildRegionalNewsPrompt('')); }, {secondary: true});
+      nearby.dataset.newsNearby = 'true';
+      const note = '기본 지역을 저장해 두면 다음부터 바로 그 지역 뉴스를 보여 드려요. 현재 위치는 내 주변 뉴스를 누르고 위치 사용을 켠 경우에만 써요. 기사는 각 언론사 원문으로 연결돼요.';
+      detail.append(back, title, queryForm, nearby, node('p', 'consumer-feature-note', note));
       root.replaceChildren(detail); title.focus();
     }
     // KINDERGARTEN-OFFICIAL-INFO-01: the 유치원·학교 screen is its own module,
     // loaded on first use; it owns its reads and its "내 유치원" key.
     function openEducation(item) {
       const current = ++generation;
-      const back = action('생활정보로 돌아가기', () => {
+      const back = action('지역정보로 돌아가기', () => {
         releaseEducation?.(); releaseEducation = undefined; generation += 1;
         root.replaceChildren(heading, grid);
         grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
@@ -250,18 +213,47 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onOnnu
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-61e987070df0').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-ef4dd10097af').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
-        releaseEducation = mountEducation({root: host, onDraft, accountId}).dispose;
+        releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
         if (!disposed && current === generation) host.replaceChildren(node('p', 'consumer-error', '유치원·학교 정보를 열지 못했습니다. 잠시 후 다시 열어 주세요.'));
+      });
+    }
+    // MY-CHILD-SCHOOL-01: the saved schools / 유치원 screen is its own module;
+    // the conversation owns the session and mounts it (mountMyChild). Its
+    // "대화로 더 물어보기" asks through the same onAsk as every life card.
+    function openMyChild(item) {
+      const current = ++generation;
+      const back = action('지역정보로 돌아가기', () => {
+        releaseMyChild?.(); releaseMyChild = undefined; generation += 1;
+        root.replaceChildren(heading, grid);
+        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
+      }, {secondary: true});
+      const detail = node('section', 'consumer-life-detail');
+      detail.dataset.lifeDetail = item.id;
+      const title = node('h3', '', item.label); title.tabIndex = -1;
+      const host = node('div', 'consumer-life-my-child');
+      detail.append(back, title, host);
+      root.replaceChildren(detail); title.focus();
+      Promise.resolve(typeof mountMyChild === 'function' ? mountMyChild(host, {onAsk}) : null).then(mounted => {
+        if (disposed || current !== generation) { mounted?.dispose?.(); return; }
+        releaseMyChild = mounted?.dispose;
+      }).catch(() => {
+        if (!disposed && current === generation) host.replaceChildren(node('p', 'consumer-error', '내 아이 학교·유치원을 열지 못했습니다. 잠시 후 다시 열어 주세요.'));
       });
     }
     for (const item of LIFE_SHORTCUTS) {
       const button = node('button', 'consumer-shortcut'); button.type = 'button'; button.dataset.lifeShortcut = item.id;
       button.append(item.brandSlot ? brandSlot(item.brandSlot) : icon(item.icon), node('span', '', item.label));
-      button.addEventListener('click', () => item.id === 'festivals' ? onFestival()
-        : item.id === 'onnuri' ? onOnnuri?.() : item.id === 'education' ? openEducation(item) : openLifeDetail(item));
+      button.addEventListener('click', () => {
+        if (disposed) return;
+        if (item.ask) onAsk(item.ask);
+        else if (item.id === 'festivals') onFestival();
+        else item.id === 'news' ? openNewsEntry(item)
+          : item.id === 'onnuri' ? onOnnuri?.() : item.id === 'education' ? openEducation(item)
+            : item.id === 'my-child' ? openMyChild(item) : openLifeDetail(item);
+      });
       grid.append(button);
     }
     const heading = node('h3', 'consumer-section-label', '생활에 필요한 정보');
@@ -342,5 +334,5 @@ export function mountConsumerSection({section, root, onDraft, onFestival, onOnnu
     for (const label of ['지역몰', '공공몰', '생활서비스', '쇼핑']) groups.append(node('span', 'consumer-category-label', label));
     root.append(state, groups, node('p', 'consumer-feature-note', '업체별 실제 연결 가능 여부와 권한은 연결 서비스에서 확인합니다. 소셜 로그인 계정과 제휴처 이용 권한은 다릅니다. 주문·배송 및 자동 주문은 연결만으로 활성화되지 않으며, 실제 결제는 진행하지 않습니다.'));
   }
-  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); releaseEducation?.(); }};
+  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); releaseEducation?.(); releaseMyChild?.(); }};
 }

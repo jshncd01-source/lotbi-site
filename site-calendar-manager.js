@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-61e987070df0';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-61e987070df0';
-import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-61e987070df0';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-ef4dd10097af';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-ef4dd10097af';
+import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-ef4dd10097af';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   groupCalendarEvents,
   monthGridRange,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-61e987070df0';
-import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-61e987070df0';
+} from './site-calendar-model.js?v=aset-ef4dd10097af';
+import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-ef4dd10097af';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-61e987070df0';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-61e987070df0';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-61e987070df0';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-ef4dd10097af';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-ef4dd10097af';
+import {lunarDateLabel, solarToLunar, lunarDateCompactLabel} from './site-calendar-lunar.js?v=aset-ef4dd10097af';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -30,14 +30,14 @@ import {
   lifeRowPresentation,
   lifeTimelineForDate,
   monthSpanSegments,
-} from './site-calendar-product.js?v=aset-61e987070df0';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-61e987070df0';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-61e987070df0';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-61e987070df0';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-61e987070df0';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-61e987070df0';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-61e987070df0';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-61e987070df0';
+} from './site-calendar-product.js?v=aset-ef4dd10097af';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-ef4dd10097af';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-ef4dd10097af';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-ef4dd10097af';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-ef4dd10097af';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-ef4dd10097af';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-ef4dd10097af';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-ef4dd10097af';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -1459,14 +1459,17 @@ function recurrenceSummary(rule) {
 }
 
 // "☀ 14° / 23°" for a day header: the glyph, then the range when Core sent one.
-function dayWeatherNode(weather, {precipitation = true} = {}) {
+// `condition` adds the word for the sky ("☀ 맑음 14° / 23°") where the glyph
+// is the only weather on screen.
+function dayWeatherNode(weather, {precipitation = true, condition = false} = {}) {
   if (!weather) return null;
   const node = document.createElement('span');
   node.className = 'calendar-day-weather';
   const icon = calendarWeatherIconNode(weather.weatherKind);
   if (icon) node.appendChild(icon);
   const presentation = calendarWeatherPresentation(weather);
-  const text = [presentation.weekLabel, precipitation ? presentation.precipLabel : ''].filter(Boolean).join(' · ');
+  const reading = [condition ? weather.label : '', presentation.weekLabel].filter(Boolean).join(' ');
+  const text = [reading, precipitation ? presentation.precipLabel : ''].filter(Boolean).join(' · ');
   if (text) {
     const label = document.createElement('span');
     label.className = 'calendar-day-weather-text';
@@ -1474,7 +1477,7 @@ function dayWeatherNode(weather, {precipitation = true} = {}) {
     node.appendChild(label);
   }
   if (!node.childElementCount) return null;
-  node.setAttribute('aria-label', ['날씨', weather.label, text].filter(Boolean).join(' '));
+  node.setAttribute('aria-label', ['날씨', condition ? '' : weather.label, text].filter(Boolean).join(' '));
   node.setAttribute('role', 'img');
   return node;
 }
@@ -1745,7 +1748,7 @@ export function calendarWeekLayout() {
 // Week keeps LOTBI's visual language while using the familiar calendar model:
 // dates run left-to-right and clock time runs top-to-bottom. The grid owns its
 // horizontal overflow on narrow screens so the surrounding page never does.
-function renderWeek(state, actions, weatherCredit = null) {
+function renderWeek(state, actions, weatherCredit = null, {timezone} = {}) {
   const section = document.createElement('section');
   section.className = 'calendar-week-agenda';
   const layout = calendarWeekLayout();
@@ -1757,6 +1760,12 @@ function renderWeek(state, actions, weatherCredit = null) {
     ? renderWeekVertical(state, actions, {weatherByDate, holidayMap})
     : renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}));
 
+  // The phone Week draws one day's weather, so it credits only that day. A
+  // week-wide credit under a past day read as weather that never appeared.
+  if (layout === 'vertical') {
+    const shown = weatherByDate.get(state.selectedDate);
+    weatherCredit = calendarWeatherAttribution(shown ? [shown] : [], {timezone});
+  }
   if (weatherCredit) {
     const credit = document.createElement('p');
     credit.className = 'calendar-weather-credit';
@@ -1806,14 +1815,18 @@ function renderWeekVertical(state, actions, {weatherByDate, holidayMap}) {
       holiday ? holiday.name : '',
       `기록 ${count}개`,
     ].filter(Boolean).join(', '));
-    const weekday = document.createElement('span');
-    weekday.className = 'calendar-week-rail-weekday';
-    weekday.textContent = WEEKDAY_INITIALS[day.weekday];
+    // "4 일" on one line, the record dots under it.
+    const line = document.createElement('span');
+    line.className = 'calendar-week-rail-line';
     const number = document.createElement('strong');
     number.className = 'calendar-week-rail-number';
     number.textContent = String(day.day);
+    const weekday = document.createElement('span');
+    weekday.className = 'calendar-week-rail-weekday';
+    weekday.textContent = WEEKDAY_INITIALS[day.weekday];
+    line.append(number, weekday);
     const dots = recordDots(count);
-    control.append(weekday, number, dots);
+    control.append(line, dots);
     control.addEventListener('click', () => { void actions.selectDate(day.date); });
     control.addEventListener('keydown', event => {
       const index = days.findIndex(entry => entry.date === day.date);
@@ -1863,8 +1876,18 @@ function renderWeekDayDetail(state, actions, {weatherByDate, holidayMap}) {
       head.appendChild(lunar);
     }
   }
-  const weather = dayWeatherNode(weatherByDate.get(date), {precipitation: state.showPrecipitation !== false});
-  if (weather) head.appendChild(weather);
+  const weather = dayWeatherNode(weatherByDate.get(date), {precipitation: state.showPrecipitation !== false, condition: true});
+  if (weather) {
+    head.appendChild(weather);
+  } else if (date < state.todayDate && state.weatherReady && !state.weatherMessage) {
+    // Forecasts start today; Core has nothing for a day already past. Say so
+    // once, quietly, instead of leaving a blank that reads as a fault.
+    const past = document.createElement('span');
+    past.className = 'calendar-week-day-weather-note';
+    past.dataset.calendarWeatherNote = 'past';
+    past.textContent = '지난 날짜 날씨 정보 없음';
+    head.appendChild(past);
+  }
   detail.appendChild(head);
 
   const holiday = holidayMap.get(date);
@@ -2131,17 +2154,25 @@ function renderMonth(state, actions, weatherCredit = null) {
     number.className = 'calendar-date-number';
     number.textContent = String(cell.day);
     date.textContent = '';
-    date.appendChild(number);
-    if (state.showLunarDates) {
-      const lunarLabel = lunarDateLabel(solarToLunar(cell.date));
-      if (lunarLabel) {
-        const lunar = document.createElement('span');
-        lunar.className = 'calendar-date-lunar';
-        lunar.textContent = lunarLabel;
-        lunar.setAttribute('aria-hidden', 'true');
-        date.appendChild(lunar);
-        date.setAttribute('aria-label', `${date.getAttribute('aria-label')}, 음력 ${lunarLabel}`);
-      }
+    const lunarDate = state.showLunarDates ? solarToLunar(cell.date) : null;
+    const lunarLabel = lunarDateLabel(lunarDate);
+    if (lunarLabel) {
+      // 화면에는 compact 표기, 접근성 이름에는 완전한 음력 날짜를 유지한다.
+      const line = document.createElement('span');
+      line.className = 'calendar-date-line';
+      // 일반 음력 일자는 두 자리여도 양력 숫자 옆 한 줄을 지킨다. 월초·윤달
+      // 시작 표기만 좁은 칸에서 기존처럼 다음 줄을 쓸 수 있다.
+      line.dataset.lunarKind = lunarDate.day === 1 ? 'month-start' : 'ordinary';
+      const lunar = document.createElement('span');
+      lunar.className = 'calendar-date-lunar';
+      lunar.textContent = lunarDateCompactLabel(lunarDate);
+      lunar.setAttribute('aria-hidden', 'true');
+      line.append(number, lunar);
+      date.appendChild(line);
+      cellNode.dataset.lunar = 'true';
+      date.setAttribute('aria-label', `${date.getAttribute('aria-label')}, 음력 ${lunarLabel}`);
+    } else {
+      date.appendChild(number);
     }
     // On a phone the date button is the whole cell and these dots ride inside
     // it, so the cell is one target and nothing in it is a separate control.
@@ -2198,7 +2229,10 @@ function renderMonth(state, actions, weatherCredit = null) {
         precip.textContent = weatherPresentation.precipLabel;
         weatherSummary.appendChild(precip);
       }
-      if (weatherSummary.childElementCount) header.appendChild(weatherSummary);
+      if (weatherSummary.childElementCount) {
+        header.appendChild(weatherSummary);
+        cellNode.dataset.weather = 'true';
+      }
     }
     if (hasAttention) {
       const marker = document.createElement('span');
@@ -4799,7 +4833,12 @@ export async function mountLifeCalendarManager({
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
     else if (state.mode === 'day') viewport.replaceChildren(renderDay(state, actions));
-    else if (state.mode === 'week') viewport.replaceChildren(renderWeek(state, actions, calendarWeatherAttribution(state.weather, {timezone})));
+    else if (state.mode === 'week') {
+      // Weather is on when there is a place to forecast for (or Core already
+      // sent some); only then does a past day say it has none.
+      state.weatherReady = Boolean(currentWeatherLocation) || state.weather.length > 0;
+      viewport.replaceChildren(renderWeek(state, actions, calendarWeatherAttribution(state.weather, {timezone}), {timezone}));
+    }
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
     else {
       const layout = renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone}));
