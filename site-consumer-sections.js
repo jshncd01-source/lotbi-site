@@ -1,4 +1,4 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-1229ff0bb60f';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-f2506f75ecd1';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -37,6 +37,9 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
   // REGIONAL-NEWS-SCREEN-LIST-01: lists 광역시·도 news titles itself (site-life-news.js).
   {id: 'news', label: '지역뉴스', icon: 'news'},
+  // SUBWAY-LIFE-INFO-P0: its own screen (site-life-subway.js) — nearby and
+  // searched stations, official real-time arrivals, average congestion. No chat.
+  {id: 'subway', label: '지하철 정보', icon: 'subway'},
   // ONNURI-MERCHANT-01: its own search surface (site-life-onnuri.js). The
   // official logo is not used before approval; brandSlot reserves its place.
   {id: 'onnuri', label: '온누리상품권', brandSlot: 'onnuri'},
@@ -73,6 +76,7 @@ const ICON_PATHS = {
   news: ['M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V5Z', 'M17 9h3v10a2 2 0 0 1-2 2', 'M7 9h7M7 12h7M7 15h4'],
   school: ['m2 9 10-5 10 5-10 5L2 9Z', 'M6 11v5c3 2.5 9 2.5 12 0v-5', 'M22 9v6'],
   backpack: ['M9 6V5a3 3 0 0 1 6 0v1', 'M6 9a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v12H6V9Z', 'M9 13h6v4H9v-4Z'],
+  subway: ['M7 3h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z', 'M4 11h16M8 15h.01M16 15h.01', 'm8 18-2 3m10-3 2 3'],
 };
 
 function node(tag, className = '', text = '') {
@@ -108,7 +112,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onSubway, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -191,7 +195,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-1229ff0bb60f').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-f2506f75ecd1').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -238,7 +242,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-1229ff0bb60f').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-f2506f75ecd1').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -276,6 +280,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         if (item.ask) onAsk(item.ask);
         else if (item.choices) openMedicalChoice(item);
         else if (item.id === 'festivals') onFestival();
+        else if (item.id === 'subway') onSubway?.();
         else if (item.children) openChildChoice(item);
         else item.id === 'news' ? openNewsEntry(item)
           : item.id === 'onnuri' ? onOnnuri?.() : openLifeDetail(item);

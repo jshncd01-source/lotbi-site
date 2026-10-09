@@ -708,10 +708,16 @@ async function runCase(browser, origin, dir, testCase) {
       const beforeLast = state.shortcuts.at(-2).box;
       const pair = state.shortcuts.at(-3).box;
       const rowRight = Math.max(...state.shortcuts.slice(0, -1).map(item => item.box.right));
-      assert.equal(state.shortcuts.length, 7);
+      // SUBWAY-LIFE-INFO-P0 adds 지하철 정보: eight cards, every row full. An odd
+      // count would let the last card take its whole row instead.
+      assert.equal(state.shortcuts.length, 8);
       assert.equal(state.shortcuts.at(-1).id, 'my-child');
-      assert.ok(Math.abs(last.x - first.x) <= 1 && Math.abs(last.right - rowRight) <= 1 && last.y > beforeLast.bottom - 1, `${testCase.label}: the odd last card takes its whole row`);
-      assert.ok(Math.abs(beforeLast.y - pair.y) <= 1 && beforeLast.x > pair.right - 1 && Math.abs(beforeLast.w - first.w) <= 1, `${testCase.label}: the row before it holds two column-wide cards (no empty cell)`);
+      if (state.shortcuts.length % 2 === 1) {
+        assert.ok(Math.abs(last.x - first.x) <= 1 && Math.abs(last.right - rowRight) <= 1 && last.y > beforeLast.bottom - 1, `${testCase.label}: the odd last card takes its whole row`);
+        assert.ok(Math.abs(beforeLast.y - pair.y) <= 1 && beforeLast.x > pair.right - 1 && Math.abs(beforeLast.w - first.w) <= 1, `${testCase.label}: the row before it holds two column-wide cards (no empty cell)`);
+      } else {
+        assert.ok(Math.abs(last.y - beforeLast.y) <= 1 && last.x > beforeLast.right - 1 && Math.abs(last.w - first.w) <= 1 && Math.abs(beforeLast.x - first.x) <= 1, `${testCase.label}: the last row holds two column-wide cards (no empty cell)`);
+      }
       await shot('07-odd-last-row');
     }
     return {list: 'OK', cards: state.cards?.length ?? 0};

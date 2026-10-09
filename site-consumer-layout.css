@@ -163,7 +163,10 @@ body.chat-home-page .scam-status { font-size: 13px; line-height: 1.7; }
   body.chat-home-page .consumer-workspace { padding: 20px; }
   body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 23px; }
   /* Phones keep the approved two columns; long names wrap at word gaps. */
-  body.chat-home-page .consumer-workspace .consumer-shortcuts { gap: 0 16px; }
+  /* SUBWAY-LIFE-INFO-P0: eight cards put 내 아이 학교·유치원 in a half-width cell where
+     it wraps to two lines on a 360px phone; every row takes the tallest row's height
+     so the list keeps one card height. */
+  body.chat-home-page .consumer-workspace .consumer-shortcuts { gap: 0 16px; grid-auto-rows: 1fr; }
   body.chat-home-page .consumer-workspace .consumer-shortcut { min-height: 60px; padding: 10px 4px; gap: 10px; }
   body.chat-home-page .consumer-workspace .consumer-shortcut > span { min-width: 0; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.35; }
   body.chat-home-page .consumer-workspace .consumer-life-detail h3 { font-size: 25px; }
