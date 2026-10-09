@@ -11,18 +11,32 @@
 // that is often the worst one available.
 //
 //   - Android Chrome exposes both a compact on-device ko-KR voice and a
-//     network-backed "Google 한국의" voice under the same lang tag. Nothing
-//     prefers the better one automatically.
+//     network-backed "Google 한국의" voice under the same lang tag. The
+//     network one is never used (CHAT-READ-ALOUD-RESTORE-P0 below).
 //   - iOS only offers its higher-quality "Enhanced"/"Premium" ko-KR voice
 //     once the person has downloaded it in Settings, and Safari does not
 //     prefer it over the compact default either.
 //
 // Scoring every ko* voice and setting `utterance.voice` explicitly fixes
 // both, with no paid API and no new network call.
+//
+// CHAT-READ-ALOUD-RESTORE-P0 — only voices the device itself runs. A voice
+// with localService === false sends the answer text to the browser vendor's
+// speech server (Chrome's "Google 한국의", Edge's "… Online (Natural)"), so
+// it is never chosen: not first, not as the fallback. A voice that does not
+// say it is local is treated the same way — "could not confirm it is local"
+// is not "local". This replaces the network-voice bonus the score used to give.
+
+export function isKoreanVoice(voice) {
+  return /^ko([-_]|$)/iu.test(voice?.lang || '');
+}
+
+export function isLocalVoice(voice) {
+  return voice?.localService === true;
+}
 
 export function scoreKoreanVoice(voice) {
   let score = 0;
-  if (voice.localService === false) score += 2;
   if (/enhanced|premium|neural/iu.test(voice.name || '')) score += 2;
   if (voice.default) score += 1;
   return score;
@@ -33,7 +47,7 @@ export function scoreKoreanVoice(voice) {
 // ask "the best Korean voice other than the one that just failed", without
 // duplicating the scoring/lang-matching rules here.
 export function selectKoreanVoice(voices, {avoidNames} = {}) {
-  const korean = (voices || []).filter(voice => /^ko([-_]|$)/iu.test(voice.lang || ''));
+  const korean = (voices || []).filter(voice => isKoreanVoice(voice) && isLocalVoice(voice));
   if (!korean.length) return undefined;
   const avoid = avoidNames instanceof Set ? avoidNames : new Set(avoidNames || []);
   const eligible = avoid.size ? korean.filter(voice => !avoid.has(voice.name)) : korean;

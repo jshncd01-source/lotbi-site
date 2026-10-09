@@ -1,4 +1,4 @@
-import {CORE_ORIGIN} from './site-core.js?v=aset-486f76db5e27';
+import {CORE_ORIGIN} from './site-core.js?v=aset-f0f202fb6c78';
 
 // LOTBI-KAKAO-SHARE-REAL-SHARE-UX-FIX-01 — Kakao Navi readiness does not
 // authorize Kakao Share. The Share action is available only when Core's
@@ -58,18 +58,44 @@ function loadSdk(src) {
   return sdkPromise;
 }
 
+function initializedKakao(Kakao, config) {
+  if (!Kakao?.Share?.sendDefault || typeof Kakao.init !== 'function') throw new Error('KAKAO_SHARE_SDK_INVALID');
+  if (typeof Kakao.isInitialized !== 'function' || !Kakao.isInitialized()) Kakao.init(config.javascriptKey);
+  return Kakao;
+}
+
+// LOTBI-KAKAO-SHARE-ACTUAL-01 — opening the share menu prepares the SDK, so
+// choosing KakaoTalk reaches Kakao.Share.sendDefault inside the same tap: a
+// share popup (PC) or app hand-off (mobile) that first waits for a network load
+// can be blocked as not started by the user. Resolves true only when Share is
+// configured and the SDK loaded and initialized; anything else is false.
+export async function prepareKakaoShare() {
+  const config = await loadKakaoShareConfig();
+  if (!config) return false;
+  try {
+    initializedKakao(await loadSdk(config.sdkUrl), config);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Kakao's text template carries at most 200 characters.
+function shareText(text) {
+  const value = String(text || 'LOTBI에서 공유한 내용입니다.');
+  return value.length > 200 ? `${value.slice(0, 199)}…` : value;
+}
+
 // Resolves 'shared' only after the KakaoTalk share helper has been invoked.
 // Callers own their explicit Link Copy action; this helper never writes to the
 // clipboard as a fallback.
 export async function shareWithKakaoTalk({text, url}) {
   const config = await loadKakaoShareConfig();
   if (!config) throw new Error('KAKAO_SHARE_NOT_CONFIGURED');
-  const Kakao = await loadSdk(config.sdkUrl);
-  if (!Kakao?.Share?.sendDefault || typeof Kakao.init !== 'function') throw new Error('KAKAO_SHARE_SDK_INVALID');
-  if (typeof Kakao.isInitialized !== 'function' || !Kakao.isInitialized()) Kakao.init(config.javascriptKey);
+  const Kakao = initializedKakao(await loadSdk(config.sdkUrl), config);
   await Kakao.Share.sendDefault({
     objectType: 'text',
-    text: String(text || 'LOTBI에서 공유한 내용입니다.').slice(0, 200),
+    text: shareText(text),
     link: {mobileWebUrl: url, webUrl: url},
     buttonTitle: 'LOTBI 열기',
   });

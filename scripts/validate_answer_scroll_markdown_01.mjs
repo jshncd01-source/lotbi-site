@@ -31,8 +31,14 @@ const conversation = read('site-conversation.js');
 const messageBody = read('site-message-body.js');
 
 // ── 1. Staying at the bottom survives later growth ────────────────────────
+// CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 moved the growth handling into
+// keepReadingPosition: a reader following the bottom still follows it, a
+// reader held on the question they just sent stays on it. Sending no longer
+// means following - validate_chat_long_answer_scroll_anchor_01.mjs measures
+// that in a browser.
 assert.ok(
-  /new ResizeObserver\(\(\) => \{ if \(followThreadBottom\) scrollThread\(\); \}\)\.observe\(thread\)/.test(conversation),
+  conversation.includes('new ResizeObserver(keepReadingPosition).observe(thread);')
+    && /const keepReadingPosition = \(\) => \{[\s\S]*?if \(followThreadBottom\) scrollThread\(\);/.test(conversation),
   'the thread must keep following the bottom while an answer is still growing',
 );
 
@@ -47,8 +53,10 @@ assert.ok(
 // switch following off. Only a scroll inside a reader gesture (or one that
 // reaches the bottom) refreshes the flag; the browser test in
 // validate_chat_answer_quality_p0_01.mjs measures both directions.
+// CHAT-LONG-ANSWER-SCROLL-ANCHOR-01: scrolling up switches following off at
+// once (even inside the 72px band); coming down to the tail switches it on.
 assert.ok(
-  /mainScrollHost\.addEventListener\('scroll', \(\) => \{\s*if \(!readerScrollActive\(\) && !isThreadNearBottom\(\)\) return;\s*followThreadBottom = isThreadNearBottom\(\);/.test(conversation),
+  /mainScrollHost\.addEventListener\('scroll', \(\) => \{[\s\S]*?if \(!readerScrollActive\(\)\) \{[\s\S]*?if \(moved < 0\) followThreadBottom = false;\s*else if \(atTailPastTurnAnchor\(\)\) followThreadBottom = true;/.test(conversation),
   'the follow-the-bottom intent must be refreshed by the reader’s own scrolling',
 );
 for (const gesture of ["addEventListener('wheel', markReaderScroll", "addEventListener('touchmove', markReaderScroll"]) {

@@ -211,8 +211,14 @@
 }
 
 .account-login {
+  /* The fill follows the theme with its ink: a fixed translucent white fill
+     under the dark theme's white ink left 로그인 at 1.69:1 on the mobile header.
+     SITE-HEADER-AUTH-BUTTONS-DARK-01 — no fill of its own: the topbar under
+     it is the surface its theme ink is chosen for, so Dark no longer shows a
+     second, slightly different dark pill on the navy topbar. Dark edge:
+     site-theme-tokens.css. */
   border: 1px solid var(--brand-line);
-  background: rgba(255, 255, 255, .72);
+  background: transparent;
   color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
