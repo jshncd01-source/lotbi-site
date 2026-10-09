@@ -192,11 +192,14 @@ assert.equal(result.ok, true, result.error);
   assert.equal(manualView.mode, 'manual', `the uncertain print scene must need manual corners: ${JSON.stringify(manualView)}`);
   assert.equal(manualView.initialConfirm, false, 'save stays off until corners are placed');
   assert.equal(manualView.initialHeading, '자료를 찾지 못했습니다', `not-found heading: ${JSON.stringify(manualView)}`);
-  assert.ok(manualView.initialStatus.includes('신분증이나 문서를 찾지 못했습니다'), `not-found guidance: ${manualView.initialStatus}`);
+  // LIFE-WALLET-SCAN-COPY-UNIFY-01: every item is a 자료; the guidance says what to do (whole item
+  // in the frame) and never asks for an ID in particular.
+  assert.ok(manualView.initialStatus.includes('네 모서리가 모두 화면 안에 들어오게'), `not-found guidance: ${manualView.initialStatus}`);
+  assert.ok(!manualView.initialStatus.includes('신분증') && !manualView.blankStatus.includes('신분증'), `no ID-specific wording: ${manualView.initialStatus} / ${manualView.blankStatus}`);
   assert.equal(manualView.initialWarnings, '', 'no photo-quality advice before an item is found');
   assert.equal(manualView.framingConfirm, true, `corners framing the print must allow saving: ${JSON.stringify(manualView)}`);
   assert.equal(manualView.blankConfirm, false, `corners framing no print must not allow saving: ${JSON.stringify(manualView)}`);
-  assert.ok(manualView.blankStatus.includes('모서리 안에 신분증이나 문서가 보이지 않습니다'), `blank-crop message: ${manualView.blankStatus}`);
+  assert.ok(manualView.blankStatus.includes('모서리 안에 자료가 보이지 않습니다'), `blank-crop message: ${manualView.blankStatus}`);
   assert.equal(sideView.mode, 'automatic', `a card on its side must be cropped: ${JSON.stringify(sideView)}`);
   assert.equal(sideView.rotation, '270', `a clockwise-lying card is turned back: ${JSON.stringify(sideView)}`);
   assert.ok(sideView.width > sideView.height, `the card comes out landscape: ${JSON.stringify(sideView)}`);

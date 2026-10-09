@@ -2,6 +2,7 @@
 .wallet-lock-mark { width: 52px; height: 52px; display: grid; place-items: center; margin-bottom: 18px; border: 1px solid var(--lotbi-border-default); border-radius: 50%; color: var(--consumer-muted); font-size: 12px; }
 .wallet-gate h3, .wallet-editor h3, .wallet-detail h3 { margin: 0; font-size: 22px; letter-spacing: -.035em; }
 .wallet-gate > p { max-width: 540px; margin: 12px 0 22px; color: var(--consumer-muted); font-size: 14px; line-height: 1.7; }
+.wallet-gate > p.wallet-setup-why { margin-top: -12px; font-size: 13px; line-height: 1.65; }
 .wallet-pin-form { width: min(360px, 100%); display: grid; gap: 14px; margin-top: 8px; text-align: left; }
 .wallet-field { display: grid; gap: 8px; font-size: 13px; font-weight: 600; }
 .wallet-field :is(input, select, textarea), .wallet-pin-input { box-sizing: border-box; width: 100%; min-height: 48px; padding: 11px 13px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-primary); color: inherit; font: inherit; font-size: 16px; }

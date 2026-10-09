@@ -1,3 +1,19 @@
+# AUTH-SESSION-CONTINUITY-P0-02 — every HTML document names its scripts with
+# the release asset token (?v=aset-…), so a stale document runs stale code.
+# With no Cache-Control header, browsers kept documents by heuristic and reused
+# them on tab restore and Back without asking the server: a phone could go on
+# running the pre-fix /auth/callback/ long after the fix shipped. Documents
+# now revalidate on every load (the ETag makes that a 304) and the login
+# callback/start pages are never stored. Versioned assets are unchanged.
+map $uri $lotbi_document_cache_control {
+    default "";
+    ~^/auth/(callback|start)(/|/index\.html)?$ "no-store";
+    ~^/app/open/auth/social-return(/|/index\.html)?$ "no-store";
+    ~^/(about|subscribe|refund|exchange|dispute|account-deletion|contact|terms|privacy)$ "no-cache";
+    ~(^/|\.html)$ "no-cache";
+    /site-asset-version.json "no-cache";
+}
+
 server {
     listen ${PORT};
     listen [::]:${PORT};
@@ -6,6 +22,9 @@ server {
 
     root /usr/share/nginx/html;
     index index.html;
+
+    # An empty value (every non-document asset) sends no header at all.
+    add_header Cache-Control $lotbi_document_cache_control;
 
     # The stock mime.types has no .mjs entry, so the Avatar runtime ES modules
     # were served as application/octet-stream and browsers refused to run them.

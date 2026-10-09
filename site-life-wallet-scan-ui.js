@@ -1,5 +1,5 @@
-import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-687d6fe79263';
-import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-687d6fe79263';
+import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-489a95f5dcf2';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-489a95f5dcf2';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -228,10 +228,12 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
       warnings.replaceChildren(); if(manualFramesItem&&!glareCovers&&advice.length){warnings.append(node('strong','', '다시 촬영 권장'));for(const code of advice)warnings.append(node('p','',WARNING_COPY[code]||'사진 상태를 확인해 주세요.'))}
       status.textContent=glareCovers?'빛 반사 때문에 자료의 일부가 보이지 않습니다. 빛이 비치지 않게 각도를 바꿔 다시 찍어 주세요.'
         :manualFramesItem?''
-        :receipt?'영수증은 등록하지 않습니다. 신분증·자격증·문서 사진을 선택해 주세요.'
-        :notDocument?'신분증이나 문서로 보이지 않습니다. 신분증·자격증 사진을 선택해 주세요.'
-        :adjusted?'모서리 안에 신분증이나 문서가 보이지 않습니다. 자료에 맞춰 모서리를 조정해 주세요.'
-        :'신분증이나 문서를 찾지 못했습니다. 신분증·자격증이 잘 보이게 다시 선택해 주세요. 신분증이 맞다면 직접 조정으로 모서리를 맞출 수 있습니다.';
+        // Every item is a 자료 (IDs, certificates, contracts, business cards, bankbooks): the copy
+        // never asks for an ID in particular; the heading already says nothing was found.
+        :receipt?'영수증은 등록하지 않습니다. 다른 사진을 선택해 주세요.'
+        :notDocument?'등록할 수 있는 자료로 보이지 않습니다. 다른 사진을 선택해 주세요.'
+        :adjusted?'모서리 안에 자료가 보이지 않습니다. 자료에 맞춰 모서리를 조정해 주세요.'
+        :'자료의 네 모서리가 모두 화면 안에 들어오게 다시 찍거나 다른 사진을 선택해 주세요. 직접 조정으로 모서리를 맞출 수도 있습니다.';
       confirm.disabled=notDocument||!manualFramesItem||glareCovers; shell.dataset.scanState='review';
     }catch(error){if(version===renderVersion&&!destroyed){status.textContent=error instanceof Error?error.message:'사진을 보정하지 못했습니다.';shell.dataset.scanState='error'}}
   }

@@ -122,13 +122,49 @@ for (const failure of [
   assert.deepEqual(calls.send, [], 'SDK failure must never claim a share');
 }
 
+// LOTBI-KAKAO-SHARE-ACTUAL-01 — prepare runs when the share menu opens: it is
+// true only when Share is configured and the SDK loaded and initialized, it
+// never sends, and the share that follows reuses the loaded SDK.
+for (const [label, state] of Object.entries(notConfiguredStates)) {
+  const {prepareKakaoShare} = await freshModule();
+  const calls = environment(state);
+  assert.equal(await prepareKakaoShare(), false, `${label}: prepare fails closed`);
+  assert.deepEqual(calls.scripts, [], `${label}: prepare must not load the SDK`);
+  assert.deepEqual(calls.init, [], `${label}: prepare must not initialize Kakao`);
+  assert.deepEqual(calls.send, [], `${label}: prepare must not share`);
+}
+for (const failure of [{config: configured, sdkLoads: false}, {config: configured, sdkValid: false}]) {
+  const {prepareKakaoShare} = await freshModule();
+  const calls = environment(failure);
+  assert.equal(await prepareKakaoShare(), false, 'an SDK that does not load or lacks Share is not ready');
+  assert.deepEqual(calls.send, []);
+  assert.deepEqual(calls.copied, []);
+}
+{
+  const {prepareKakaoShare, shareWithKakaoTalk} = await freshModule();
+  const calls = environment({config: configured});
+  assert.equal(await prepareKakaoShare(), true);
+  assert.deepEqual(calls.scripts, [SDK], 'prepare loads the allowlisted SDK once');
+  assert.deepEqual(calls.init, ['test-js-key'], "prepare initializes with Core's public key");
+  assert.deepEqual(calls.send, [], 'prepare never shares by itself');
+  const long = '가'.repeat(260);
+  assert.equal(await shareWithKakaoTalk({text: long, url: URL_TO_SHARE}), 'shared');
+  assert.deepEqual(calls.scripts, [SDK], 'the share reuses the prepared SDK');
+  assert.deepEqual(calls.init, ['test-js-key'], 'no second initialization');
+  assert.equal(calls.send.length, 1);
+  assert.equal(calls.send[0].text.length, 200, 'Kakao text template carries at most 200 characters');
+  assert.ok(calls.send[0].text.endsWith('…'), 'a shortened answer says it was shortened');
+  assert.deepEqual(calls.send[0].link, {mobileWebUrl: URL_TO_SHARE, webUrl: URL_TO_SHARE}, 'only the public LOTBI address is linked');
+  assert.deepEqual(calls.copied, []);
+}
+
 // Chat wiring and accessibility: only Link Copy is initially in the DOM; the
 // Kakao menu item is attached after readiness=true, so false means it is absent
 // from pointer, tab and ARIA trees. Copy remains explicit and independent.
 assert.match(conversation, /return shareWithKakaoTalk\(options\);/);
-assert.match(conversation, /return Boolean\(await module\.loadKakaoShareConfig\(\)\);/);
+assert.match(conversation, /return Boolean\(await module\.prepareKakaoShare\(\)\);/);
 assert.match(conversation, /shareMenu\.append\(linkCopy\);/);
-assert.match(conversation, /if \(ready\) \{\s*if \(!shareMenu\.contains\(kakao\)\) shareMenu\.append\(kakao\);\s*\} else \{\s*kakao\.remove\(\);/s);
+assert.match(conversation, /if \(ready\) \{\s*if \(!shareMenu\.contains\(kakao\)\) shareMenu\.prepend\(kakao\);\s*\} else \{\s*kakao\.remove\(\);/s);
 assert.match(conversation, /writeMessageTextToClipboard\(MESSAGE_ACTION_SHARE_URL\)/);
 assert.match(conversation, /writeMessageTextToClipboard\(value\)/);
 assert.match(conversation, /카카오톡 공유를 열지 못했어요\. 링크 복사를 이용해 주세요\./);

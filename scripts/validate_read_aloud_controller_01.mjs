@@ -16,19 +16,24 @@ class FakeUtterance {
 }
 globalThis.SpeechSynthesisUtterance = FakeUtterance;
 
-const KOREAN_VOICE_A = {lang: 'ko-KR', name: 'Voice A', localService: false, default: false};
+// CHAT-READ-ALOUD-RESTORE-P0: only on-device voices are ever used, so both
+// fixtures are local. A is the better-scored one (an "Enhanced" download), B
+// the plain default — the order the fallback tests below rely on.
+const KOREAN_VOICE_A = {lang: 'ko-KR', name: 'Voice A (Enhanced)', localService: true, default: false};
 const KOREAN_VOICE_B = {lang: 'ko-KR', name: 'Voice B', localService: true, default: true};
+const KOREAN_NETWORK_VOICE = {lang: 'ko-KR', name: 'Google 한국의', localService: false, default: true};
 
 function createFakeSynth(initialVoices = []) {
   const listeners = new Map();
   let voices = initialVoices;
   let current = null;
   const speakLog = [];
+  const voiceLog = [];
   return {
     getVoices: () => voices,
     addEventListener: (name, fn) => listeners.set(name, fn),
     removeEventListener: (name, fn) => { if (listeners.get(name) === fn) listeners.delete(name); },
-    speak(utterance) { current = utterance; speakLog.push(utterance.text); },
+    speak(utterance) { current = utterance; speakLog.push(utterance.text); voiceLog.push(utterance.voice); },
     cancel() {
       if (!current) return;
       const utterance = current;
@@ -39,6 +44,7 @@ function createFakeSynth(initialVoices = []) {
     fireVoicesChanged() { listeners.get('voiceschanged')?.(); },
     current: () => current,
     speakLog,
+    voiceLog,
   };
 }
 
@@ -204,7 +210,7 @@ function createRecorder() {
   const {onTelemetry, events} = createRecorder();
   const controller = createReadAloudController({synth, onTelemetry, voiceReadyTimeoutMs: 500});
   void controller.play(['안녕하세요'], {token: 'a'});
-  // The best-scored voice (network) fails before producing any sound.
+  // The best-scored voice (Enhanced) fails before producing any sound.
   synth.current().onerror({error: 'synthesis-failed'});
   await tick(); await tick();
   assert.equal(events.filter(e => e.event === 'FALLBACK').length, 1, 'exactly one fallback must be used, never more');
@@ -291,16 +297,52 @@ function createRecorder() {
   assert.deepEqual(synth.speakLog, mixed, 'numbers, phone numbers and English text must reach the engine unmodified');
 }
 
-// --- 22. Chat no longer exposes browser read-aloud ------------------------
-// Keep the controller's isolated unit coverage because another surface may
-// reuse it later, while locking the product decision that chat must not wire it.
+// --- 22. network-only Korean voices: a clear reason, and nothing spoken ---
+{
+  const synth = createFakeSynth([KOREAN_NETWORK_VOICE, {lang: 'en-US', name: 'English', localService: true}]);
+  const {onTelemetry, events} = createRecorder();
+  const controller = createReadAloudController({synth, onTelemetry, voiceReadyTimeoutMs: 500});
+  void controller.play(['안녕하세요'], {token: 'a'});
+  await tick(); await tick();
+  assert.equal(synth.speakLog.length, 0, 'a device with only network Korean voices must not be read to through one');
+  assert.equal(events.filter(e => e.event === 'ERROR').at(-1)?.detail.reason, 'NO_LOCAL_KOREAN_VOICE',
+    'network-only Korean voices must be reported as NO_LOCAL_KOREAN_VOICE, distinct from no Korean voice');
+  assert.equal(controller.getState().state, READ_ALOUD_STATE.IDLE);
+}
+
+// --- 23. a local voice next to a network one: the local one speaks -------
+{
+  const synth = createFakeSynth([KOREAN_NETWORK_VOICE, KOREAN_VOICE_B]);
+  const {onTelemetry, events} = createRecorder();
+  const controller = createReadAloudController({synth, onTelemetry, voiceReadyTimeoutMs: 500});
+  void controller.play(['안녕하세요'], {token: 'a'});
+  assert.equal(synth.current()?.voice, KOREAN_VOICE_B, 'the utterance must carry the on-device voice, never the network one');
+  // The one bounded fallback must not switch to the network voice either.
+  synth.current().onerror({error: 'synthesis-failed'});
+  await tick(); await tick();
+  for (const voice of synth.voiceLog) assert.notEqual(voice, KOREAN_NETWORK_VOICE, 'no utterance may ever use a network voice');
+  assert.ok(events.filter(e => e.event === 'VOICE_SELECTED').every(e => e.detail.network === false));
+  controller.stop();
+}
+
+// --- 24. the chat wires this controller only through site-message-read-aloud.js
+// CHAT-READ-ALOUD-RESTORE-P0 restored the 읽어주기 button that 18fd804c took
+// out (this section used to lock its absence). The conversation runtime
+// never touches the speech engine itself, and the button module never talks
+// to a server.
 {
   const fs = await import('node:fs');
   const path = await import('node:path');
-  const source = fs.readFileSync(path.join(import.meta.dirname, '..', 'site-conversation.js'), 'utf8');
-  assert.doesNotMatch(source, /site-read-aloud-controller\.js/);
-  assert.doesNotMatch(source, /createReadAloudController|READ_ALOUD_STATE|readAloud/);
-  assert.doesNotMatch(source, /messageAction: 'speak'|읽어주기|읽기 멈추기/);
+  const read = rel => fs.readFileSync(path.join(import.meta.dirname, '..', rel), 'utf8');
+  const source = read('site-conversation.js');
+  const button = read('site-message-read-aloud.js');
+  // Comments may name what the module deliberately does not do; only code counts.
+  const buttonCode = button.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.match(source, /import \{createMessageReadAloudButton, stopMessageReadAloud\} from '\.\/site-message-read-aloud\.js\?v=[^']+';/);
+  assert.doesNotMatch(source, /speechSynthesis|SpeechSynthesisUtterance|createReadAloudController/, 'the chat must reach the engine only through the button module');
+  assert.match(button, /import \{createReadAloudController, READ_ALOUD_STATE\} from '\.\/site-read-aloud-controller\.js\?v=[^']+';/);
+  assert.doesNotMatch(buttonCode, /fetch\(|XMLHttpRequest|sendBeacon|WebSocket|import\(|\/v2\/|live\/tts|openai|elevenlabs/i, 'reading aloud must make no network request of its own');
+  assert.doesNotMatch(buttonCode, /localStorage|sessionStorage|indexedDB|console\./, 'the answer text must not be stored or logged');
 }
 
-console.log('SITE-VOICE-READ-ALOUD REMOVAL + CONTROLLER UNIT CONTRACT PASS');
+console.log('SITE-VOICE-READ-ALOUD CONTROLLER UNIT CONTRACT + CHAT WIRING (LOCAL VOICES ONLY) PASS');
