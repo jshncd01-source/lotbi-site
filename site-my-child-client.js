@@ -12,7 +12,7 @@
 //   GET    /v2/life/my-children/{id}/meal-plans/{source}/content   a published meal-plan PDF / image
 // Stored per entry: the institution code, the reader's name for it, NEIS
 // allergen numbers. Nothing else about a child is ever sent.
-import {CORE_ORIGIN} from './site-core.js?v=aset-3185210489af';
+import {CORE_ORIGIN} from './site-core.js?v=aset-d74089124a9d';
 
 const BASE_PATH = '/v2/life/my-children';
 const ENTRY_RE = /^mci_[0-9a-f]{20}$/u;
@@ -243,6 +243,9 @@ export function normalizeOverview(raw) {
         meals: (Array.isArray(day?.meals) ? day.meals : []).map(meal).filter(Boolean),
       })).filter(day => /^\d{4}-\d{2}-\d{2}$/u.test(day.date)),
       truncated: meals.truncated === true,
+      // MY-CHILD-MEAL-LINK-PDF-01: does NEIS carry meals for this school at all?
+      coverage: ['PROVIDED', 'NOT_PROVIDED', 'UNKNOWN'].includes(meals.coverage) ? meals.coverage : 'UNKNOWN',
+      coverageDays: Number.isInteger(meals.coverage_basis?.lookback_days) ? meals.coverage_basis.lookback_days : 0,
     }) : null,
     links: Object.freeze({
       homepage: safeLink(raw.links?.homepage_url),

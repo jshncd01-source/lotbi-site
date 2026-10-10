@@ -19,6 +19,9 @@
 //   a link opens in a new tab, a PDF opens through the Bearer content route
 //   in a tab opened inside the tap; source, registered day and "알레르기
 //   번호를 읽지 않아 자동 강조·알림은 되지 않으니" are on the card
+// * "no meal" is told apart: a day / week without a meal ("오늘은 급식이 없는
+//   날이에요"), a school NEIS carries no meal for lately (guidance, with the
+//   lookback days), a 유치원 ("공공 데이터로 급식표가 제공되지 않아요")
 // * every Core call: Bearer, credentials omit; bodies carry only the
 //   institution code, nickname, allergen numbers (and the consent version)
 // * 320/360/412 mobile and 1280 desktop, light and dark: no horizontal
@@ -150,6 +153,18 @@ await check('client: 공개 급식표 — only links and PDF / JPG / PNG files, 
   const html = async () => new Response('<html></html>', {status: 200, headers: {'Content-Type': 'text/html'}});
   await assert.rejects(client.fetchMealPlanFile('site-token', entryId, shown.items[0].id, html), {code: 'CONTRACT_INVALID'});
   assert.equal(screen.formatRegisteredDay('2026-10-05T15:30:00+00:00'), '10.6(화)');
+});
+
+await check('client: NEIS coverage — PROVIDED / NOT_PROVIDED / UNKNOWN with the lookback days; anything else is UNKNOWN', () => {
+  assert.equal(client.normalizeOverview(FIXTURE.overview_school).meals.coverage, 'PROVIDED');
+  const empty = client.normalizeOverview(FIXTURE.overview_school_empty).meals;
+  assert.equal(empty.coverage, 'NOT_PROVIDED');
+  assert.equal(empty.coverageDays, 120);
+  const odd = client.normalizeOverview({...FIXTURE.overview_school_empty, meals: {...FIXTURE.overview_school_empty.meals, coverage: 'NONE'}}).meals;
+  assert.equal(odd.coverage, 'UNKNOWN');
+  assert.equal(screen.NO_MEAL_TODAY, '오늘은 급식이 없는 날이에요.');
+  assert.match(screen.SCHOOL_NOT_PROVIDED, /NEIS로 급식표를 제공하지 않는 것 같아요\. 학교 홈페이지나 가정통신문에서 확인해 주세요\./u);
+  assert.equal(screen.KINDERGARTEN_NO_MEAL, '유치원은 공공 데이터로 급식표가 제공되지 않아요.');
 });
 
 // ── Browser ─────────────────────────────────────────────────────────────
@@ -430,7 +445,8 @@ const SCENARIO = `(async () => {
   save2.requestSubmit();
   const gap = await wait(() => host.querySelector('[data-my-child-section="info-request"]'), 'gap section');
   result.gap = {items: [...gap.querySelectorAll('[data-my-child-gap]')].map(li => li.dataset.myChildGap), text: gap.textContent,
-    emptyLines: [...host.querySelectorAll('.lotbi-mychild-empty-line')].map(n => n.textContent), measure: measure(host)};
+    emptyLines: [...host.querySelectorAll('.lotbi-mychild-empty-line')].map(n => n.textContent), measure: measure(host),
+    coverage: [...host.querySelectorAll('[data-my-child-meal-coverage="NOT_PROVIDED"] p')].map(n => n.textContent)};
   const plansCard = host.querySelector('[data-my-child-section="meal-plans"]');
   const order = [...host.querySelectorAll('[data-my-child-section]')].map(n => n.dataset.myChildSection);
   result.plans = plansCard ? {order, title: plansCard.querySelector('h5')?.textContent, notice: plansCard.querySelector('.lotbi-mychild-hint')?.textContent,
@@ -472,6 +488,9 @@ const SCENARIO = `(async () => {
   save3.requestSubmit();
   const kinder = await wait(() => host.querySelector('[data-my-child-section="kindergarten"] .lotbi-mychild-facts'), 'kindergarten overview');
   const kinderPlans = host.querySelector('[data-my-child-section="meal-plans"]');
+  result.kinderMeal = {line: host.querySelector('[data-my-child-meal-coverage="KINDERGARTEN"]')?.textContent || '',
+    order: [...host.querySelectorAll('[data-my-child-section]')].map(n => n.dataset.myChildSection),
+    hint: host.querySelector('[data-my-child-section="kinder-meal"] .lotbi-mychild-hint')?.textContent || ''};
   result.kinderPlans = kinderPlans ? {title: kinderPlans.querySelector('h5')?.textContent,
     rows: [...kinderPlans.querySelectorAll('[data-my-child-meal-plan]')].map(li => li.querySelector('.lotbi-mychild-mealplan-meta')?.textContent),
     button: kinderPlans.querySelector('[data-my-child-meal-plan-open]')?.textContent} : null;
@@ -693,7 +712,10 @@ try {
       assert.equal(r.second.consent, false, 'consent is asked once');
       assert.deepEqual(r.gap.items, ['MEAL', 'SCHEDULE']);
       assert.match(r.gap.text, /요청한 사람은 직원에게 보이지 않아요/u);
-      assert.ok(r.gap.emptyLines.some(line => line === '오늘은 급식 정보가 없어요.'), JSON.stringify(r.gap.emptyLines));
+      // MY-CHILD-MEAL-LINK-PDF-01: a school NEIS carries no meal for lately is told so (guidance, not a verdict).
+      assert.deepEqual(r.gap.coverage, ['이 학교는 NEIS로 급식표를 제공하지 않는 것 같아요. 학교 홈페이지나 가정통신문에서 확인해 주세요.',
+        '최근 120일 동안 NEIS 급식 기록이 없어요.']);
+      assert.ok(!r.gap.emptyLines.includes('오늘은 급식 정보가 없어요.'), JSON.stringify(r.gap.emptyLines));
       assert.deepEqual(r.gap.after.map(item => item[0]), ['MEAL', 'SCHEDULE']);
       assert.match(r.gap.after[0][1], /급식요청함/u);
       assert.match(r.gap.after[1][1], /학사일정정보 보완 요청/u);
@@ -715,6 +737,9 @@ try {
       assert.match(r.plans.contentCalls[0].path, /^\/v2\/life\/my-children\/mci_[0-9a-f]{20}\/meal-plans\/mps_[0-9a-f]{20}\/content$/u);
       assert.equal(r.plans.contentCalls[0].auth, 'Bearer site-token');
       assert.deepEqual(r.kinderPlans, {title: '유치원 공개 급식표', rows: ['유치원 공개 자료, LOTBI 직원 등록 · 10.5(월) 등록'], button: 'PDF 보기'});
+      assert.equal(r.kinderMeal.line, '유치원은 공공 데이터로 급식표가 제공되지 않아요.');
+      assert.deepEqual(r.kinderMeal.order, ['kindergarten', 'kinder-meal', 'meal-plans']);
+      assert.equal(r.kinderMeal.hint, '', 'the card is there, so no "check the 가정통신문" hint');
     });
     await check(`${label}: 유치원 via the 유치원알리미 picker; 기본정보 with source; no gap request`, () => {
       assert.deepEqual(r.kinderSearch.names, ['예일유치원']);

@@ -1,5 +1,5 @@
 {
- "note": "Produced by lotbi-core app/my_child_api.py (MY-CHILD-SCHOOL-01) on real NEIS / 유치원알리미 rows (meals, schools, 유치원 are captured rows; 학사일정 uses real event names with dates moved into the 10-11월 window); ids are re-issued by the validator; meal_plans blocks come from app/meal_plan_sources.py consumer_meal_plans (MY-CHILD-MEAL-LINK-PDF-01) with example links/files.",
+ "note": "Produced by lotbi-core app/my_child_api.py (MY-CHILD-SCHOOL-01) on real NEIS / 유치원알리미 rows (meals, schools, 유치원 are captured rows; 학사일정 uses real event names with dates moved into the 10-11월 window); ids are re-issued by the validator; meal_plans blocks come from app/meal_plan_sources.py consumer_meal_plans (MY-CHILD-MEAL-LINK-PDF-01) with example links/files, and meals.coverage as app/my_child_institutions.py derives it (overview_school_empty: no NEIS meal in the last 120 days).",
  "listing_empty": {
   "entries": [],
   "max_entries": 10,
@@ -1113,7 +1113,13 @@
      "code": 6,
      "name": "밀"
     }
-   ]
+   ],
+   "coverage": "PROVIDED",
+   "coverage_basis": {
+    "lookback_days": 120,
+    "from": "2026-06-10",
+    "to": "2026-10-11"
+   }
   },
   "links": {
    "homepage_url": "http://www.sewon.es.kr/",
@@ -1214,7 +1220,13 @@
    "days": [],
    "sources": [],
    "truncated": false,
-   "today_matched_allergens": []
+   "today_matched_allergens": [],
+   "coverage": "NOT_PROVIDED",
+   "coverage_basis": {
+    "lookback_days": 120,
+    "from": "2026-06-10",
+    "to": "2026-10-11"
+   }
   },
   "links": {
    "homepage_url": "https://seo-won.sen.es.kr/",

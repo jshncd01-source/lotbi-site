@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js?v=aset-3185210489af';
-import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=aset-3185210489af';
-import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs?v=aset-3185210489af';
-import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=aset-3185210489af';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js?v=aset-d74089124a9d';
+import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=aset-d74089124a9d';
+import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs?v=aset-d74089124a9d';
+import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=aset-d74089124a9d';
 
 const MODEL_URL = '/assets/models/lotbi-faithful-v2-rigged.glb';
 const MODEL_SHA256 = 'fb2729f56f18844e85a821f1cc8f2f6a7c64c95fa858bfcda994632131a35c3d';
