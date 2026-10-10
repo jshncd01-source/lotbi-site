@@ -293,6 +293,9 @@ jobs:
       - name: Validate common UI polish (QA 01 shared items)
         run: node scripts/validate_common_ui_polish_01.mjs
 
+      - name: Validate common UI polish (QA 02 shared items)
+        run: node scripts/validate_common_ui_polish_02.mjs
+
       - name: Validate Bare White Home skin scope
         run: python scripts/validate_bare_white_home_skin_01.py
 
