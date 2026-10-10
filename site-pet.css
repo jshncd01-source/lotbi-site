@@ -1292,3 +1292,24 @@ body[data-site-theme="dark"] .pet-number-term {
   display: grid;
   gap: 12px;
 }
+
+/* SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the pet batch panel reuses the
+   person batch styles (site-person-bulk.css). Its result rows have no
+   thumbnail column, and a refused photo's next step keeps a 44px touch
+   target on phones. */
+.pet-bulk .person-bulk-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.pet-bulk .person-bulk-item[data-pet-bulk-item="STORED"] { border-color: var(--lotbi-success-text, #247647); }
+.pet-bulk .person-bulk-item[data-pet-bulk-item="FAILED"] { border-color: var(--lotbi-error-text, #a02645); }
+.pet-bulk .pet-slot-retry-action {
+  justify-self: start;
+  min-height: 44px;
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 8px 14px;
+  font-size: 14px;
+  white-space: normal;
+  word-break: keep-all;
+}
