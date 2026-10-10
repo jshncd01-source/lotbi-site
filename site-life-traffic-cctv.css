@@ -1,0 +1,393 @@
+/* TRAFFIC-CCTV P0 — 지역정보 실시간 도로 CCTV (도로 → 노선 → 방향 → 구간 → CCTV). Theme tokens only. */
+.cctv-surface {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cctv-title {
+  margin: 0;
+  font-size: 18px;
+  color: var(--lotbi-text-primary);
+}
+
+.cctv-title:focus {
+  outline: none;
+}
+
+.cctv-intro,
+.cctv-status {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--lotbi-text-secondary);
+}
+
+.cctv-status:empty {
+  display: none;
+}
+
+.cctv-road-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cctv-road {
+  display: grid;
+  gap: 4px;
+  align-content: center;
+  min-height: 64px;
+  padding: 10px 14px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cctv-road-label {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.cctv-road-meta {
+  font-size: 12px;
+  color: var(--lotbi-text-secondary);
+}
+
+.cctv-road-meta:empty {
+  display: none;
+}
+
+.cctv-road[aria-pressed="true"] {
+  background: var(--lotbi-brand-solid-bg);
+  border-color: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+}
+
+.cctv-road[aria-pressed="true"] .cctv-road-meta {
+  color: inherit;
+}
+
+.cctv-block {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cctv-block[hidden] {
+  display: none;
+}
+
+.cctv-block-title {
+  margin: 4px 0 0;
+  font-size: 15px;
+  color: var(--lotbi-text-primary);
+}
+
+.cctv-route-search {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  font-size: 16px;
+}
+
+.cctv-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.cctv-row {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.cctv-row:not(:disabled):hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.cctv-row:focus-visible,
+.cctv-road:focus-visible,
+.cctv-player-close:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.cctv-row:disabled {
+  cursor: default;
+  background: var(--lotbi-surface-subtle);
+}
+
+.cctv-row-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.cctv-row-meta {
+  font-size: 12.5px;
+  color: var(--lotbi-text-secondary);
+}
+
+.cctv-section[data-cctv-empty="true"] .cctv-row-title,
+.cctv-section[data-cctv-empty="true"] .cctv-row-meta {
+  color: var(--lotbi-text-muted);
+}
+
+.cctv-part {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--lotbi-text-secondary);
+}
+
+.cctv-empty {
+  padding: 12px;
+  border: 1px dashed var(--lotbi-border-default);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--lotbi-text-secondary);
+}
+
+.cctv-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  background: var(--lotbi-surface-subtle);
+  min-width: 0;
+}
+
+.cctv-summary-text {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cctv-summary-label {
+  font-size: 12px;
+  color: var(--lotbi-text-secondary);
+}
+
+.cctv-summary-value {
+  font-size: 15px;
+  color: var(--lotbi-text-primary);
+}
+
+.cctv-change {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.cctv-direction-row {
+  flex-wrap: wrap;
+}
+
+.cctv-note {
+  margin: 0;
+}
+
+.cctv-camera-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.cctv-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lotbi-text-secondary);
+}
+
+.cctv-badge-hls {
+  border-color: var(--lotbi-brand-solid-bg);
+  background: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+}
+
+.cctv-play-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lotbi-link-primary);
+}
+
+.cctv-unplayable {
+  color: var(--lotbi-warning-text);
+}
+
+.cctv-error {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  font-size: 14px;
+  color: var(--lotbi-error-text);
+}
+
+.cctv-error[hidden] {
+  display: none;
+}
+
+.cctv-source {
+  margin: 4px 0 0;
+}
+
+.cctv-source:empty {
+  display: none;
+}
+
+/* Player: the whole viewport, over the screen and its header, so its own
+   "목록으로" (= one back) is the only way out besides the system back. */
+.cctv-player {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  overflow-y: auto;
+  background: var(--lotbi-bg-primary);
+  color: var(--lotbi-text-primary);
+}
+
+.cctv-player-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cctv-player-close {
+  flex: 0 0 auto;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cctv-player-title {
+  margin: 0;
+  min-width: 0;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.cctv-player-stage {
+  width: 100%;
+  max-width: 960px;
+  align-self: center;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--lotbi-surface-subtle);
+}
+
+.cctv-player-video,
+.cctv-player-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.cctv-player-loading,
+.cctv-player-meta {
+  margin: 0;
+  font-size: 14px;
+  color: var(--lotbi-text-secondary);
+}
+
+.cctv-player-loading[hidden] {
+  display: none;
+}
+
+.cctv-player-error {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  font-size: 14px;
+  color: var(--lotbi-error-text);
+}
+
+.cctv-player-error[hidden] {
+  display: none;
+}
+
+.cctv-player-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.cctv-map-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  color: var(--lotbi-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cctv-map-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+
+.cctv-player-notice {
+  margin: 0;
+}
+
+.cctv-player-notice:empty {
+  display: none;
+}
