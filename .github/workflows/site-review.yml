@@ -356,6 +356,12 @@ jobs:
           node scripts/validate_conversation_calendar_card_02.mjs
           node scripts/validate_calendar_day_list_range_01.mjs
 
+      # CALENDAR-MONTH-TEMPERATURE-01: 월 캘린더 칸마다 그날 최저/최고 온도. 휴대폰은 칸 아래 줄 한 줄,
+      # 좁은 태블릿·음력은 날씨 그림 아래 두 줄. 날씨 요청은 오늘~14일(15일 이하), 로그인/비로그인,
+      # 라이트·다크, 음력, 영하, 넓은 글꼴, 351·360·375·412·600·610·700·768·1024·1280.
+      - name: Validate month calendar temperatures
+        run: node scripts/validate_calendar_month_temperature_01.mjs
+
       # LIFE-PUBLIC-DATA-01 / FEATURE B: NEIS 급식·학사일정·시간표 카드와 학교 저장.
       - name: Validate NEIS school card, school preference and explicit calendar add
         run: |
