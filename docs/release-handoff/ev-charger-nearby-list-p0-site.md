@@ -1,10 +1,11 @@
-READY_FOR_DEPLOY=NO
+READY_FOR_DEPLOY=YES
 CODE_READY=YES
-BLOCKER=PROVIDER_PERMISSION (Core 짝 feature/ev-charger-nearby-list-p0-core가 data.go.kr 활용신청·실호출 검증 전 — Site만 먼저 나가면 카드는 보이고 화면은 '준비하고 있어요'만 보임)
+PROVIDER_ACCESS=VERIFIED_BY_RELEASE_CONTROL (Core 짝 문서 참고: getChargerInfo/getChargerStatus resultCode=00, 2026-10-10)
 MIGRATION=NO
-DEPLOY_ORDER=지역정보 복구 READY c16a4759(SITE-T46) → CORE(feature/ev-charger-nearby-list-p0-core) → (키 승인·EV_CHARGER_ENABLED=true·live probe PASS) → 이 SITE
-ACTIVATION=Site 자체 스위치 없음 — 배포되면 지역정보에 '전기차 충전소' 카드가 바로 보인다
-USER_DECISION_NEEDED=배포 차단: Core와 같음(활용신청). 배포 비차단: 카카오내비 설정 시 아이콘이 기존 승인 자산 kakao-map.png(카카오맵 모양)인 점 — 별도 카카오내비 승인 아이콘이 필요하면 소유자 제공
+DEPLOY_ORDER=CORE(feature/ev-charger-nearby-list-p0-core, EV_CHARGER_ENABLED=true + EV_CHARGER_SERVICE_KEY) → 이 SITE
+ACTIVATION=Site 자체 스위치 없음 — 배포되면 지역정보에 '전기차 충전소' 카드가 바로 보인다(Core가 꺼져 있으면 화면은 '준비하고 있어요')
+USER_DECISION_NEEDED=NONE for deploy (비차단: 카카오내비 설정 시 아이콘은 기존 승인 자산 kakao-map.png(카카오맵 모양) — 별도 카카오내비 승인 아이콘이 필요하면 소유자 제공)
+SUPERSEDES=1f5a62cb (READY_FOR_DEPLOY=NO, provider permission)
 
 # ev-charger-nearby-list-p0-site — release handoff (2026-10-10)
 
@@ -12,10 +13,10 @@ TASK=LOTBI_EV_CHARGER_NEARBY_LIST_P0
 REPO=lotbi-site
 FEATURE_BRANCH=feature/ev-charger-nearby-list-p0-site
 FEATURE_SHA=이 문서 커밋(branch HEAD) — `git ls-remote origin refs/heads/feature/ev-charger-nearby-list-p0-site`
-CODE_SHA=eb88253b3 (site main 56c26095 merge 커밋)
-BASE=site main 56c26095(SITE-T45) + 지역정보 복구 READY c16a4759(main 80da26b7 위, 아직 main 미반영 — SITE-T46 예정)
+CODE_SHA=024e96236 (site main 7b555600 merge 커밋)
+BASE=site main 7b555600(SITE-T48; 지역정보 복구 c16a4759는 SITE-T46 b6dc768d로 운영 반영 완료)
 NCLOUD_REMOTE_MATCH=push 후 ls-remote로 확인(이 문서 커밋 = 원격 HEAD)
-ASSET_VERSION=aset-85017949fee5
+ASSET_VERSION=aset-dfd9463819dc
 CORE_CONTRACT=CORE-EV-CHARGER-NEARBY-01 (GET /v2/life/ev-chargers/nearby, Core branch feature/ev-charger-nearby-list-p0-core)
 NEW_SECRET_CREATED=NO
 NEW_PAID_RESOURCE_CREATED=NO
@@ -51,18 +52,18 @@ TESTS=PASS (NEW_FAILURES=0)
 - 카드 목록 검사기(9장): consumer_sections_02, life_medical_category_entry_01(360px 라벨 한 줄·같은 높이 포함), life_medical_auto_search_card_01, life_info_cleanup_final_01, my_child_school_01, regional_news_p0_01, jeonbuk_real_world_pilot_01, kindergarten_official_info_01, life_direct_chat_card_compaction_01, auth_continuity_02 PASS.
 - site main 56c26095(SITE-T45 Life Wallet 백업) merge 뒤: asset coherence, consumer_sections_02, life_wallet_server_backup_01, life_wallet_entry_lock_01, life_wallet_document_save_01, ev_charger_nearby_list_p0_01, life_medical_category_entry_01, auth_continuity_02 PASS.
 - validate_site_refresh_route_restore_01: 기준선에서도 같은 단계(로그인 왕복 auth checking)로 실패. 단독(부하 적을 때) 실행에서는 branch·기준선 모두 PASS 기록 있음(04:0x).
+- site main 7b555600 merge 뒤(024e9623) 순차 실행 19개 전부 PASS: asset coherence, ev_charger_nearby_list_p0_01, consumer_sections_02, life_medical_category_entry_01, life_medical_auto_search_card_01, life_info_cleanup_final_01, my_child_school_01, regional_news_p0_01, jeonbuk_real_world_pilot_01, kindergarten_official_info_01, life_direct_chat_card_compaction_01, auth_continuity_02, site_refresh_route_restore_01, place_card_compact_01, naver_maps_navigation_01, life_wallet_entry_lock_01, life_wallet_share_01, life_wallet_share_transfer_01, scam_shield_double_check_p0.
 
 ## 미검증 (정직하게)
 
 - 실기기 없음: 실제 Android·iPhone에서 네이버지도·카카오내비·티맵·Google Maps 앱이 열리는지 NOT VERIFIED(링크 형식만 검사). 360/375/390/412는 Chrome 뷰포트 흉내.
-- 실제 공공데이터 충전소 목록: Core 실호출 전이라 NOT VERIFIED(Core 문서 참고).
+- 실제 공공데이터 충전소 목록 화면: Core 공급자 접근은 배포총괄방이 확인(resultCode 00). 실제 지역의 목록 화면은 배포 후 휴대폰에서 확인 필요.
 
 ## MERGE_NOTES
 
-- 이 branch는 지역정보 복구 READY c16a4759를 포함한다 → 복구 branch(SITE-T46)가 먼저 main에 들어가야 하거나 함께 gate. 복구 없이 이 branch만 들어가면 복구 내용까지 같이 들어감(의도 아님) — 배포 순서: 복구 c16a4759 → 이 branch.
-- 카드 9장: 병원·응급실, 약국, 전기차 충전소, 축제·행사, 지역뉴스, 온누리상품권, 지역생활정보, 전북 맛집·음식, 내 아이 학교·유치원(홀수 → 마지막 줄 전체, 360px 라벨 한 줄 유지).
-- 지하철 정보 P0 개발방(feature/subway-life-info-p0-site, 미push)이 카드 1장을 더하면 10장(짝수)이 되어 360px에서 '내 아이 학교·유치원'이 두 줄 → 그 방이 처리하기로 합의(소유자 결정 항목으로 보고 예정).
-- 토큰 충돌은 aset 토큰만 다른 hunk를 main 쪽으로 받은 뒤 asset_cache_version --write.
+- site main 56c26095 → 7b555600(SITE-T46 지역정보 복구, T47, T48) 정상 merge. 실질 충돌: index.html·auth/callback CSS 목록(전기차 CSS 1줄 유지), site-consumer-sections.js mountConsumerSection 인자(main의 subscription + onEvChargers), import 줄(main 쪽 유지). 나머지는 aset 토큰만 다른 hunk → main 쪽 + asset_cache_version --write.
+- 카드 9장: 병원·응급실, 약국, 전기차 충전소, 축제·행사, 지역뉴스, 온누리상품권, 지역생활정보, 전북 맛집·음식, 내 아이 학교·유치원(홀수 → 마지막 줄 전체, 360px 라벨 한 줄).
+- 지하철 정보 P0(feature/subway-life-info-p0-site)가 카드 1장을 더하면 10장 → 360px 라벨 두 줄 문제는 그 방이 처리하기로 합의.
 
 ## 롤백
 
