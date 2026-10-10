@@ -15,7 +15,7 @@
 // (7) copy: the result shown is what the browser reported; refused or missing clipboard → the
 //     number selected for a manual copy; the clipboard is never said to be cleared;
 // (8) official links go only to the customs portal over HTTPS, in a new window;
-// (9) the feature stays off unless the page turns it on (the live site keeps it off);
+// (9) on by default for the live site (owner accepted the open review), off with customsCode: false;
 // (10) light and dark: the card's text keeps its contrast.
 // Synthetic codes only (P000000000123 and the like), never a real person's number.
 import assert from 'node:assert/strict';
@@ -368,12 +368,20 @@ try {
   result.logout = {card: Boolean(customsCard(root)), pageHasDigits: hasSecret(root.innerHTML)};
   mounted.dispose();
 
-  // The live default: no 개인통관고유부호 anywhere, even with one saved.
+  // The live default (no option, as site-consumer-sections mounts it): the card, masked.
   sessionStorage.clear();
   mounted = wallet.mountLifeWallet({root, authenticated: true, accountId: A});
   await unlockWith(root, '2468');
-  await wait(() => root.querySelector('.wallet-shell'), 'wallet without feature');
-  result.liveDefault = {card: Boolean(customsCard(root)), text: root.textContent.includes('개인통관')};
+  const liveCard = await wait(() => customsCard(root)?.dataset.walletCustoms === 'saved' && customsCard(root), 'live default card');
+  result.liveDefault = {state: liveCard.dataset.walletCustoms, masked: liveCard.querySelector('.wallet-customs-number').textContent, pageHasDigits: hasSecret(root.innerHTML)};
+  mounted.dispose();
+
+  // Switched off (customsCode: false): no 개인통관고유부호 anywhere, even with one saved.
+  sessionStorage.clear();
+  mounted = wallet.mountLifeWallet({root, authenticated: true, accountId: A, customsCode: false});
+  await unlockWith(root, '2468');
+  await wait(() => root.querySelector('.wallet-shell'), 'wallet switched off');
+  result.switchedOff = {card: Boolean(customsCard(root)), text: root.textContent.includes('개인통관')};
   mounted.dispose();
 
   // Delete with the PIN.
@@ -527,7 +535,7 @@ assert.equal(ui.ok, true, ui.error);
   const detail = JSON.stringify(ui);
   const portal = 'https://ecos.customs.go.kr/ecp/index.do';
   const officialOnly = links => links.length > 0 && links.every(link => link.href === portal && link.target === '_blank' && link.rel === 'noopener noreferrer');
-  assert.equal(ui.released, false, `the live site keeps it off until the security hold is cleared: ${detail}`);
+  assert.equal(ui.released, true, `on for the live site (owner accepted the open 2026-10-05 review on 2026-10-10): ${detail}`);
   assert.deepEqual(ui.signedOut, {card: false, links: 0}, detail);
   assert.equal(ui.emptyCard.state, 'empty', detail);
   assert.deepEqual(ui.emptyCard.buttons, ['등록하기'], detail);
@@ -577,7 +585,8 @@ assert.equal(ui.ok, true, ui.error);
   assert.deepEqual(ui.back, {cleared: true, historyPushed: 0, masked: 'true'}, `closing the section clears it; no history entries of its own: ${detail}`);
   assert.deepEqual(ui.background, {cleared: true}, detail);
   assert.deepEqual(ui.logout, {card: false, pageHasDigits: false}, detail);
-  assert.deepEqual(ui.liveDefault, {card: false, text: false}, `off unless the page turns it on: ${detail}`);
+  assert.deepEqual(ui.liveDefault, {state: 'saved', masked: 'P •••• •••• 0456', pageHasDigits: false}, `on by default (owner accepted the open review), masked: ${detail}`);
+  assert.deepEqual(ui.switchedOff, {card: false, text: false}, `the switch still takes it off the page: ${detail}`);
   assert.equal(ui.deleteWrongPin, '월렛 PIN을 확인해 주세요.', detail);
   assert.equal(ui.deleted.message, '개인통관고유부호를 삭제했습니다.', detail);
   assert.equal(ui.layout.pageFits, true, detail);

@@ -1,4 +1,4 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-a21b1692b343';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-6a88205b799c';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -142,9 +142,10 @@ function itemAad(scope, id) { return `lotbi-wallet-item:v1:${scope}:${id}`; }
 
 // 개인통관고유부호 (personal customs clearance code). The owner looks it up on the Korea Customs
 // Service portal and types it in; LOTBI never looks it up, estimates its expiry or sends it
-// anywhere. Off on the live site until the wallet's open security review (2026-10-05: lock
-// race, browser PIN, device protection) is cleared or the owner accepts it.
-export const CUSTOMS_CODE_RELEASED = false;
+// anywhere. On since 2026-10-10: the owner accepted the risk of the wallet's open security
+// review (2026-10-05: lock race, browser PIN, device protection — still open). Setting this
+// to false takes it off the page again; saved codes stay encrypted and untouched.
+export const CUSTOMS_CODE_RELEASED = true;
 export const CUSTOMS_CODE_ITEM_ID = 'customs-code';
 // The portal is one page whose menus load inside it (no address per menu), so every official
 // step starts here; the screen names the menu to open. unipass.customs.go.kr now redirects here.
@@ -1248,7 +1249,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-a21b1692b343') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-6a88205b799c') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;
