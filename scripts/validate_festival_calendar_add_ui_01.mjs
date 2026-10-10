@@ -1,4 +1,4 @@
-// FESTIVAL-EVENT-10 (revised) — "📅 일정 등록" UI: structural/accessibility
+// FESTIVAL-EVENT-10 (revised) — "일정 등록" UI: structural/accessibility
 // contract and no-fake-data guarantees. Static source assertions, no
 // browser, the same approach as scripts/validate_festival_nav_wiring_01.mjs.
 // Only covers this room's own additions to site-festival-ui.js — the
@@ -35,7 +35,10 @@ assert.match(ui, /import \{calendarMonthGrid\} from '\.\/site-calendar-model\.js
   'the month picker must reuse the main Calendar\'s own pure cell generator, never a second date-grid implementation');
 
 // -------------------------------------------------------- utility action --
-assert.match(ui, /trigger\.textContent = '📅 일정 등록'/, 'the add-to-Calendar action must exist as its own utility action');
+// FESTIVAL-UX-POLISH-01: same shape as the card's other buttons, no emoji.
+assert.match(ui, /trigger\.className = 'festival-card-icon-button festival-calendar-add-trigger';\s*trigger\.textContent = '일정 등록';/,
+  'the add-to-Calendar action must exist as its own utility action, shaped like the other card buttons');
+assert.doesNotMatch(ui, /📅/u, 'no emoji on the 일정 등록 action');
 const ctaRowMatch = /function buildCtaRow\([\s\S]*?\r?\n\}\r?\n/.exec(ui);
 assert.ok(ctaRowMatch, 'buildCtaRow() must exist');
 assert.doesNotMatch(ctaRowMatch[0], /festival-calendar-add/, 'the add-to-Calendar trigger must not be folded into buildCtaRow()\'s primary [접수]/[프로그램] CTA group');
