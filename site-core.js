@@ -79,6 +79,85 @@ const SCAM_RISK_LEVELS = Object.freeze([
   'CURRENTLY_NO_RISK_SIGNAL', 'UNVERIFIED', 'SUSPICIOUS', 'HIGH_RISK', 'CONFIRMED_MALICIOUS',
 ]);
 
+// SCAM-SHIELD-DOUBLE-CHECK-P0 — the second, independent check that Core runs
+// before answering. Every field is optional so an older Core still renders,
+// and only https government (.go.kr / .or.kr) pages become links.
+const SCAM_OFFICIAL_LINK_HOST = /(?:^|\.)(?:go|or)\.kr$/u;
+
+function scamOfficialUrl(value) {
+  if (typeof value !== 'string') return '';
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.username || url.password || !SCAM_OFFICIAL_LINK_HOST.test(url.hostname)) return '';
+    return url.href;
+  } catch {
+    return '';
+  }
+}
+
+const scamText = value => (typeof value === 'string' ? value : '');
+
+function normalizeScamSources(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter(item => item && typeof item === 'object').map(item => Object.freeze({
+    sourceId: scamText(item.source_id),
+    kind: scamText(item.kind),
+    agency: scamText(item.agency),
+    title: scamText(item.title),
+    url: scamOfficialUrl(item.url),
+    checkedAt: scamText(item.checked_at),
+    stale: item.stale === true,
+    statement: scamText(item.statement),
+  })).filter(item => item.agency && item.title).slice(0, 8);
+}
+
+function normalizeScamDoubleCheck(value) {
+  if (!value || typeof value !== 'object') return null;
+  const status = value.status === 'COMPLETED' || value.status === 'FAILED' ? value.status : '';
+  if (!status) return null;
+  const signals = Array.isArray(value.signals) ? value.signals.filter(item => item && typeof item === 'object').map(item => Object.freeze({
+    code: scamText(item.code),
+    label: scamText(item.label),
+    severity: scamText(item.severity),
+    confirmedBy: scamText(item.confirmed_by),
+  })) : [];
+  const official = value.official_check && typeof value.official_check === 'object' ? value.official_check : {};
+  const lookup = value.individual_lookup && typeof value.individual_lookup === 'object' ? value.individual_lookup : {};
+  const unverified = Array.isArray(value.unverified) ? value.unverified.filter(item => typeof item === 'string') : [];
+  return Object.freeze({
+    status,
+    agreement: scamText(value.agreement),
+    signals: Object.freeze(signals),
+    scamTypes: Object.freeze(Array.isArray(value.scam_types) ? value.scam_types.map(item => scamText(item?.label)).filter(Boolean) : []),
+    officialState: scamText(official.state),
+    officialMessage: scamText(official.message),
+    lookupMessage: scamText(lookup.message),
+    selfChecks: Object.freeze(normalizeScamSources(lookup.self_check)),
+    reportPaths: Object.freeze(normalizeScamSources(value.report_paths)),
+    unverifiedCount: unverified.length,
+  });
+}
+
+function normalizeScamPoliceStatistics(value) {
+  if (!value || typeof value !== 'object' || value.affects_risk_level !== false) return null;
+  const figures = value.figures && typeof value.figures === 'object' ? value.figures : {};
+  const number = key => (Number.isFinite(figures[key]) ? figures[key] : null);
+  const baseYear = Number.isInteger(value.base_year) ? value.base_year : null;
+  if (!baseYear || !scamText(value.category)) return null;
+  return Object.freeze({
+    agency: scamText(value.agency),
+    title: scamText(value.title),
+    category: scamText(value.category),
+    baseYear,
+    cases: number('cases'),
+    damage100mKrw: number('damage_100m_krw'),
+    arrested: number('arrested'),
+    note: scamText(value.note),
+    sourceUrl: scamOfficialUrl(value.source_url),
+    dataVersion: scamText(value.data_version),
+  });
+}
+
 function normalizeScamShieldResult(payload) {
   const caseId = typeof payload?.case_id === 'string' ? payload.case_id.trim() : '';
   const list = value => Array.isArray(value) && value.every(item => typeof item === 'string') ? [...value] : null;
@@ -107,6 +186,10 @@ function normalizeScamShieldResult(payload) {
     caseId,
     riskLevel: payload.risk_level,
     headline: payload.headline,
+    summary: typeof payload?.summary === 'string' ? payload.summary : '',
+    doubleCheck: normalizeScamDoubleCheck(payload?.double_check),
+    officialSources: Object.freeze(normalizeScamSources(payload?.official_sources)),
+    policeStatistics: normalizeScamPoliceStatistics(payload?.police_statistics),
     reasons: Object.freeze(reasons),
     confirmedFacts: Object.freeze(confirmedFacts),
     unverifiedItems: Object.freeze(unverifiedItems),
