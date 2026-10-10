@@ -655,7 +655,12 @@ async function runCase(browser, origin, dir, testCase) {
 
     // 6. A news question typed in the conversation still gets the compact
     //    news cards (CORE-REGIONAL-NEWS-01).
+    //    REGIONAL-INFO-BACK-NAVIGATION-01: ← steps one screen at a time —
+    //    지역뉴스 → the 지역정보 list → the conversation.
     await evaluate("document.querySelector('.consumer-workspace .site-modal-close, .consumer-workspace [data-close], .site-modal-close')?.click(), true");
+    await waitFor(() => evaluate("document.querySelector('.consumer-workspace')?.dataset.siteRoute === 'life' && location.hash === '#life' && Boolean(document.querySelector('.consumer-workspace .consumer-shortcuts'))"), `${testCase.label}: ← from 지역뉴스 → 지역정보`);
+    await evaluate("document.querySelector('.consumer-workspace .site-modal-close')?.click(), true");
+    await waitFor(() => evaluate("!document.querySelector('.consumer-workspace') && location.hash === ''"), `${testCase.label}: ← from 지역정보 → the conversation`);
     await evaluate(`(() => { const p = document.getElementById('lotbi-prompt'); p.value = '군산 뉴스 알려 줘'; p.dispatchEvent(new Event('input', {bubbles: true})); document.querySelector('.send-button').click(); return true; })()`);
     const typedSent = await waitFor(async () => { const sent = await evaluate('globalThis.__sent.slice()'); return sent.length > sentBefore ? sent.at(-1) : null; }, `${testCase.label}: typed news question sent`);
     assert.equal(typedSent.text, '군산 뉴스 알려 줘');

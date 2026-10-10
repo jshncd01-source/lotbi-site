@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <base href="/">
+  <meta charset="utf-8" />
+  <!-- SITE-AUTH-HTTPS-ORIGIN-01 — Account session status is credentialed CORS
+       and intentionally trusts only https://lotbiai.com. Upgrade/canonicalize
+       the public custom-domain document before any runtime can issue the
+       Account request; never weaken the Account allowlist to accept HTTP. -->
+  <script>
+    (() => {
+      try {
+        const hostname = window.location.hostname.toLowerCase();
+        const isLotbiHost = hostname === 'lotbiai.com' || hostname === 'www.lotbiai.com';
+        if (!isLotbiHost) return;
+        if (window.location.protocol === 'https:' && hostname === 'lotbiai.com') return;
+        const secureUrl = new URL(window.location.href);
+        secureUrl.protocol = 'https:';
+        secureUrl.hostname = 'lotbiai.com';
+        secureUrl.port = '';
+        window.location.replace(secureUrl.href);
+      } catch {}
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="https://lotbiai.com/" />
+  <link rel="icon" href="/favicon.ico?v=20260922-officiallogo1" sizes="any" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/assets/brand/lotbi-mark-48.png?v=20260922-officiallogo1" />
+  <link rel="icon" type="image/png" sizes="96x96" href="/assets/brand/lotbi-mark-96.png?v=20260922-officiallogo1" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/lotbi-mark-32.png?v=20260922-officiallogo1" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/brand/lotbi-mark-192.png?v=20260922-officiallogo1" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/lotbi-mark-192.png?v=20260922-officiallogo1" />
+  <link rel="manifest" href="/site.webmanifest?v=20260922-officiallogo1" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LOTBI" />
+  <meta property="og:title" content="LOTBI | 검색부터 예약·구매·일정까지, 당신의 일상을 실행하는 AI" />
+  <meta property="og:description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
+  <meta property="og:url" content="https://lotbiai.com/" />
+  <meta property="og:image" content="https://lotbiai.com/assets/lotbi-og-share.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LOTBI | 검색부터 예약·구매·일정까지, 당신의 일상을 실행하는 AI" />
+  <meta name="twitter:description" content="말하면 알아듣고, 기억하고, 검색부터 예약·구매·일정까지 필요한 일을 이어서 실행하는 AI Life Agent, LOTBI." />
+  <meta name="twitter:image" content="https://lotbiai.com/assets/lotbi-og-share.png" />
+  <title>LOTBI | 일상을 이해하고 계획하고 실행하는 AI</title>
+  <!-- SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — this is the authoritative theme
+       bootstrap and it has to stay here: inline, blocking, and above every
+       stylesheet. site-theme-tokens.css keys its pre-paint rules on
+       html[data-site-theme-bootstrap], and the copy of this code inside
+       site-conversation.js could never satisfy them — that file loads as a
+       module, so it defers past first paint and the stylesheets below had
+       already painted a light page. That was the white flash on reload in
+       Dark.
+       The module still sets the same attribute; it is now a no-op on load and
+       the live writer when the user changes themes.
+       Wrapped in try/catch and deliberately does nothing on a bad or missing
+       value: a storage failure must not stop the page from rendering. -->
+  <script>
+    // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode is the lotbi_theme_preference_v1
+    // cookie shared with account.lotbiai.com; this origin's old key is read only
+    // when that cookie is absent. Reads only. Re-applied when the tab comes back
+    // and at the next 자동모드 boundary, so an open page never stays behind.
+    (function () {
+      var lotbiTimer;
+      function lotbiApplyTheme() {
+        var lotbiSavedTheme = null;
+        try {
+          var lotbiCookies = document.cookie ? document.cookie.split(';') : [];
+          for (var lotbiIndex = 0; lotbiIndex < lotbiCookies.length; lotbiIndex += 1) {
+            var lotbiCookie = lotbiCookies[lotbiIndex].replace(/^\s+/, '');
+            if (lotbiCookie.indexOf('lotbi_theme_preference_v1=') !== 0) continue;
+            var lotbiShared = lotbiCookie.slice('lotbi_theme_preference_v1='.length);
+            lotbiSavedTheme = lotbiSavedTheme === null || lotbiSavedTheme === lotbiShared ? lotbiShared : '';
+          }
+        } catch (error) {}
+        if (lotbiSavedTheme !== 'light' && lotbiSavedTheme !== 'dark' && lotbiSavedTheme !== 'system' && lotbiSavedTheme !== 'auto') {
+          try {
+            lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+          } catch (error) {
+            lotbiSavedTheme = null;
+          }
+        }
+        var lotbiPreference = lotbiSavedTheme;
+        var lotbiHour = new Date().getHours();
+        if (lotbiSavedTheme === 'auto') {
+          // '자동모드' is resolved here, by this device's clock, rather than
+          // stored resolved: a stored answer goes stale at 07:00 and 22:00.
+          lotbiSavedTheme = (lotbiHour >= 22 || lotbiHour < 7) ? 'dark' : 'light';
+        }
+        if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+          document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+          document.documentElement.dataset.siteThemePreference = lotbiPreference;
+        }
+        clearTimeout(lotbiTimer);
+        if (lotbiPreference === 'auto') {
+          var lotbiNext = new Date();
+          lotbiNext.setMinutes(0, 0, 0);
+          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 22 ? 7 : 22);
+          if (lotbiNext.getTime() <= Date.now()) lotbiNext.setDate(lotbiNext.getDate() + 1);
+          lotbiTimer = setTimeout(lotbiApplyTheme, lotbiNext.getTime() - Date.now());
+        }
+      }
+      lotbiApplyTheme();
+      window.addEventListener('pageshow', lotbiApplyTheme);
+      window.addEventListener('focus', lotbiApplyTheme);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') lotbiApplyTheme();
+      });
+    })();
+  </script>
+  <!-- SITE-REFRESH-ROUTE-RESTORE-01 — a reload of /#calendar (or any screen
+       fragment) must not paint the conversation home before that screen
+       opens, and only an inline block above the stylesheets runs before the
+       first paint. site-route.js owns the list of routes; the conversation
+       lifts this marker once the screen is open or the fragment turns out not
+       to be a route, and site-conversation.css lifts it on its own if the
+       runtime never answers. Reads the URL fragment only: no storage, no
+       network, no navigation. -->
+  <script>
+    try {
+      if (/^#[a-z][a-z-]{1,30}$/.test(window.location.hash)) document.documentElement.dataset.siteRoutePending = '';
+    } catch (error) {}
+  </script>
+  <link rel="stylesheet" href="styles.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="home-chat.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-hardening.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-avatar.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-sidebar-nav.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-auth-continuity.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-calendar.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-calendar-expense.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-calendar-weather.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-pet.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-person.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-person-bulk.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-safecare.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-festival.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-life-onnuri.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-life-news.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-life-vouchers.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="footer-business-info.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-bottom-sheet.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="mobile-entry.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="home-bare-white.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-theme-tokens.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-conversation.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-scam-shield.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-consumer-design.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-consumer-detail.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-consumer-layout.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-life-wallet.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-life-education.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-life-my-child.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-life-real-estate.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-life-ev-chargers.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-life-subway.css?v=aset-fc6b63d90865" />
+  <link rel="stylesheet" href="site-life-traffic-cctv.css?v=aset-fc6b63d90865" />
+  <style>
+    body[data-conversation-restore="pending"] [data-home-avatar-anchor] {      visibility: hidden;
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/avatar-runtime/vendor/three/three.module.js",
+      "three/addons/": "/avatar-runtime/vendor/three/addons/"
+    }
+  }
+  </script>
+  <script src="home-shell.js?v=aset-fc6b63d90865" defer></script>
+  <script src="site-consumer-layout.js?v=aset-fc6b63d90865" defer></script>
+  <script src="mobile-entry.js?v=aset-fc6b63d90865" defer></script>
+  <script type="module" src="site-avatar.js?v=aset-fc6b63d90865"></script>
+  <script type="module">
+const out = document.getElementById('lmas-result');
+try {
+  const params = new URLSearchParams(location.search);
+  // A reload keeps the conversation (and the stored turns) of this page.
+  if (!sessionStorage.getItem('lmas-started')) { localStorage.clear(); sessionStorage.setItem('lmas-started', '1'); }
+  if (params.get('theme')) document.cookie = 'lotbi_theme_preference_v1=' + params.get('theme') + '; Path=/';
+  if (params.get('saved')) localStorage.setItem('lotbi.calendar.weather-region.v1', JSON.stringify({label: '전주시 완산구', latitude: 35.812, longitude: 127.119}));
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+  const json = body => Promise.resolve(new Response(JSON.stringify(body), {status:200,headers:{'Content-Type':'application/json'}}));
+  globalThis.__sent = [];
+  globalThis.__promptFocus = 0;
+  const row = (index, kind, name, distance) => ({
+    result_id: 'place-' + index, place_id: 'nmc:' + kind[0] + index, name, category: {PHARMACY:'약국',HOSPITAL:'의원',EMERGENCY:'종합병원'}[kind],
+    address: '전북특별자치도 전주시 완산구 효자로 ' + (100 + index * 37) + ' (효자동' + index + '가)',
+    road_address: '전북특별자치도 전주시 완산구 효자로 ' + (100 + index * 37) + ' (효자동' + index + '가)',
+    latitude: 35.81 + index / 1000, longitude: 127.12, coordinate_system: 'WGS84', coordinate_authority: 'NMC_OFFICIAL',
+    navigation_capability: true, phone: '063-222-10' + index + '0', phone_verified: true,
+    phone_evidence: {source: 'NMC_E_GEN', verification_state: 'OFFICIAL_REGISTRY'}, image_url: null, distance_meters: distance,
+    ...(kind === 'EMERGENCY'
+      ? {emergency_status: {er_operating: true, realtime_state: index === 1 ? 'FRESH' : 'UNAVAILABLE', updated_at_label: index === 1 ? '10/09 01:20' : null,
+          beds: index === 1 ? [{label: '응급실', available: 4}] : [], equipment: [], severe_acceptance_reported: [], severe_unavailable_reported: [], messages: [], acceptance_guaranteed: false}}
+      : {medical_status: {kind, basis: 'NMC_REGISTERED_HOURS', target_label: '지금', open_state: index === 3 ? 'CLOSED' : 'OPEN',
+          hours_label: index === 3 ? '오늘 09:00~18:00' : '오늘 09:00~22:00'}}),
+  });
+  const NAMES = {
+    PHARMACY: ['효자온누리약국', '전주바른약국', '서신365약국', '삼천밤늦게약국', '완산새벽약국'],
+    HOSPITAL: ['가온내과의원', '전주바른가정의학과의원', '효자연합의원', '우리아이소아청소년과의원', '서원정형외과의원'],
+    EMERGENCY: ['전북대학교병원', '전주예수병원', '대자인병원', '전주병원', '엠마오사랑병원'],
+  };
+  const safety = {execution_authority:false,external_side_effect:false,transaction_created:false,order_created:false,payment_attempted:false,reservation_created:false,merchant_execution_started:false};
+  // Core 69b7cb23 shapes: one sentence + NMC cards; CALL_119 only for a symptom.
+  const answer = body => {
+    const text = String(body.text || '');
+    if (/지역만/u.test(text)) return {contract_id:'CORE-WEB-CHAT-01',schema_version:1,status:'FOLLOW_UP_REQUIRED',
+      assistant_text:'어느 지역에서 찾을까요? 시·군·구 이름(예: 전주시 완산구)을 알려주시거나 위치 사용을 허용해 주세요.',
+      response_mode:'MEDICAL_CLARIFICATION',correlation_id:'req_lmas000000000001',intent:{action:'MEDICAL_SEARCH',domain:'LIFE_MEDICAL'},
+      follow_up:{required:true,action:'MEDICAL_SEARCH',automatic_execution:false},safety,retry_safe:true};
+    const kind = /응급/u.test(text) ? 'EMERGENCY' : (/약국/u.test(text) ? 'PHARMACY' : 'HOSPITAL');
+    const count = /한 곳/u.test(text) ? 1 : (kind === 'EMERGENCY' ? 5 : 3);
+    const symptom = /숨이|의식/u.test(text);
+    const results = NAMES[kind].slice(0, count).map((name, i) => row(i + 1, kind, name, 180 + i * 410));
+    const word = {PHARMACY: '근처 약국', HOSPITAL: '가까운 병원', EMERGENCY: '근처 응급실'}[kind];
+    return {
+      contract_id:'CORE-WEB-CHAT-01',schema_version:1,status:'ANSWERED',
+      assistant_text:(symptom ? '생명이 위급하거나 응급 증상이 의심되면 지금 바로 119에 전화하세요. ' : '') + word + ' ' + count + '곳을 찾았어요.',
+      response_mode:'MEDICAL_PROVIDER_READONLY',correlation_id:'req_lmas000000000002',intent:{action:'MEDICAL_SEARCH',domain:'LIFE_MEDICAL',kind},
+      follow_up:{required:false,action:'MEDICAL_SEARCH',automatic_execution:false},safety,
+      place_result:{contract_id:'CORE-PLACE-RESULT-01',schema_version:1,
+        result_set_id:'plrs_' + ({PHARMACY:'a',HOSPITAL:'b',EMERGENCY:'c'}[kind] + (count === 1 ? 'd' : 'e')).repeat(10),
+        provider_code:'NMC',source:'NMC_E_GEN',query:'현재 위치(전북특별자치도 전주시) ' + {PHARMACY:'약국',HOSPITAL:'병원',EMERGENCY:'응급실'}[kind],results},
+      medical_result:{contract_id:'CORE-MEDICAL-RESULT-01',schema_version:1,kind,provider_state:'OK',notices:symptom ? ['CALL_119'] : [],coverage:'COMPLETE'},
+      retry_safe:true,
+    };
+  };
+  globalThis.fetch = (url, init) => {
+    let parsed;
+    try { parsed = new URL(String((url&&url.url)||url), location.origin); } catch { return nativeFetch(url, init); }
+    if (parsed.pathname === '/v2/conversation/guest/sessions') return json({
+      contract_id:'CORE-GUEST-SESSION-01',schema_version:1,guest_token:'g'.repeat(43),
+      expires_at:new Date(Date.now()+3600000).toISOString(),
+    });
+    if (parsed.pathname === '/v2/conversation/guest/messages') {
+      let body = {};
+      try { body = JSON.parse(String(init?.body || '{}')); } catch {}
+      globalThis.__sent.push(body);
+      return new Promise(resolve => setTimeout(resolve, 250)).then(() => json(answer(body)));
+    }
+    if (parsed.origin !== location.origin) return json({items:[]});
+    return nativeFetch(url, init);
+  };
+  // Links in cards are read, not followed (tel:, map apps).
+  document.addEventListener('click', event => {
+    const link = event.target?.closest?.('a');
+    if (link && link.closest('.lotbi-place-orbit, .conversation-emergency-call')) { event.preventDefault(); globalThis.__lastLink = link.href; }
+  }, true);
+  const conversation = await import('/site-conversation.js?v=lmas01');
+  if (!conversation.mountConversation()) throw new Error('mount');
+  document.getElementById('lotbi-prompt').addEventListener('focus', () => { globalThis.__promptFocus += 1; });
+  out.textContent = JSON.stringify({ok:true});
+} catch (e) { out.textContent = JSON.stringify({ok:false,error:String((e&&e.stack)||e)}); }
+</script><pre id="lmas-result" hidden>pending</pre>
+  <script type="module" src="site-continuity.js?v=aset-fc6b63d90865"></script>
+  <script type="module" src="site-footer-legal.js?v=aset-fc6b63d90865"></script></head>
+<body class="chat-home-page" data-conversation-restore="pending">  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+
+  <svg class="lotbi-nav-icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="lotbi-icon-message" viewBox="0 0 24 24"><path d="M5 5.5h14v10H9l-4 3v-13Z"/><path d="M14.5 8.5 17 11l-4.8 4.8-3 .5.5-3 4.8-4.8Z"/></symbol>
+    <symbol id="lotbi-icon-inbox" viewBox="0 0 24 24"><path d="M4.5 6.5h15l1.5 8.5v2.5h-18V15l1.5-8.5Z"/><path d="M3.5 14.5h5l1.5 2h4l1.5-2h5"/></symbol>
+    <symbol id="lotbi-icon-calendar" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/></symbol>
+    <symbol id="lotbi-icon-paw" viewBox="0 0 24 24"><circle cx="9.3" cy="6.1" r="2.1"/><circle cx="14.7" cy="6.1" r="2.1"/><circle cx="5.1" cy="9.5" r="2.1"/><circle cx="18.9" cy="9.5" r="2.1"/><path d="M12 12c2.9 0 5.4 2.2 5.4 4.7 0 2.1-1.8 3.5-3.8 3.5h-3.2c-2 0-3.8-1.4-3.8-3.5 0-2.5 2.5-4.7 5.4-4.7Z"/></symbol>
+    <symbol id="lotbi-icon-festival" viewBox="0 0 24 24"><path d="M6 21V8.5L12 4l6 4.5V21"/><path d="M9.5 21v-6h5v6"/><path d="M4 21h16"/></symbol>
+    <symbol id="lotbi-icon-history" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4.5v4h4M12 8v4.5l3 1.5"/></symbol>
+    <symbol id="lotbi-icon-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.8-4 3-6 6.5-6s5.7 2 6.5 6"/></symbol>
+    <symbol id="lotbi-icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.5 1.5M16.5 16.5 18 18M18 6l-1.5 1.5M7.5 16.5 6 18"/></symbol>
+    <symbol id="lotbi-icon-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.8 9a2.4 2.4 0 0 1 4.7.7c0 2-2.5 2.1-2.5 4M12 17.4h.01"/></symbol>
+    <symbol id="lotbi-icon-link" viewBox="0 0 24 24"><path d="M9.5 14.5 14.5 9.5"/><path d="M7.5 16.5 6 18a3.5 3.5 0 0 1-5-5l3-3a3.5 3.5 0 0 1 5 0"/><path d="m16.5 7.5 1.5-1.5a3.5 3.5 0 0 1 5 5l-3 3a3.5 3.5 0 0 1-5 0"/></symbol>
+    <symbol id="lotbi-icon-bell" viewBox="0 0 24 24"><path d="M6.5 16.5h11l-1.5-2V10a4 4 0 1 0-8 0v4.5l-1.5 2Z"/><path d="M10 19h4"/></symbol>
+    <symbol id="lotbi-icon-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Zm-3 9 2 2 4-4"/></symbol>
+    <symbol id="lotbi-icon-store" viewBox="0 0 24 24"><path d="M4 10v10h16V10M3 10l2-6h14l2 6M9 20v-6h6v6M3 10c0 3 4 3 4 0 0 3 5 3 5 0 0 3 5 3 5 0 0 3 4 3 4 0"/></symbol>
+  </svg>
+
+  <div class="chat-app-shell">
+    <aside class="chat-sidebar chat-sidebar-desktop" aria-label="LOTBI 탐색 메뉴">
+      <a class="sidebar-brand" href="index.html" aria-label="LOTBI 홈" data-new-conversation>
+        <img class="sidebar-brand-logo lotbi-brand-logo-light" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /><img class="sidebar-brand-logo lotbi-brand-logo-dark" src="/assets/brand/lotbi-lockup-dark-160w.png" srcset="/assets/brand/lotbi-lockup-dark-160w.png 160w, /assets/brand/lotbi-lockup-dark-320w.png 320w, /assets/brand/lotbi-lockup-dark-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" />
+      </a>
+
+      <nav class="sidebar-nav sidebar-nav-desktop" aria-label="대화 및 서비스 탐색">
+        <div class="consumer-primary-nav" aria-label="LOTBI 주요 기능">
+        <button class="nav-item nav-link nav-item-primary" type="button" data-new-conversation aria-label="새 대화">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-message"></use></svg>
+          <span class="nav-item-label">새 대화</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-calendar-view="all" aria-label="캘린더">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-calendar"></use></svg>
+          <span class="nav-item-label">캘린더</span>
+          <span class="nav-item-status" aria-hidden="true"><span class="calendar-status-badge" data-calendar-count hidden></span><svg class="nav-status-icon calendar-reminder-icon" data-calendar-reminder aria-hidden="true" focusable="false" hidden><use href="#lotbi-icon-bell"></use></svg></span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="wallet" aria-label="Life Wallet">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-inbox"></use></svg>
+          <span class="nav-item-label">Life Wallet</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-scam-open aria-label="진위확인">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-shield"></use></svg>
+          <span class="nav-item-label">진위확인</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="care" aria-label="안심케어">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-user"></use></svg>
+          <span class="nav-item-label">안심케어</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="life" aria-label="지역정보">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-festival"></use></svg>
+          <span class="nav-item-label">지역정보</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="mall" aria-label="제휴몰">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-store"></use></svg>
+          <span class="nav-item-label">제휴몰</span>
+        </button>
+      </div>
+
+      <div class="sidebar-history-shell">
+        <div class="sidebar-history-scroll">
+          <section class="nav-section sidebar-pinned-section" data-pinned-conversations-section hidden aria-labelledby="desktop-pinned-title">
+            <h2 id="desktop-pinned-title" class="nav-section-title">고정</h2>
+            <ul class="nav-history-list" data-pinned-conversations aria-label="고정 대화 목록"></ul>
+          </section>
+          <section class="nav-section sidebar-history-section" aria-labelledby="desktop-recent-title">
+            <h2 id="desktop-recent-title" class="nav-section-title nav-section-title-icon">
+              <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-history"></use></svg>
+              <span>최근 대화</span>
+            </h2>
+            <ul class="nav-history-list" data-recent-conversations aria-label="최근 대화 목록"></ul>
+          </section>
+        </div>
+      </div>
+
+        <div class="sidebar-account-footer">
+          <div class="sidebar-account-slot" data-sidebar-account data-auth-state="checking" aria-busy="true">
+            <span class="sidebar-account-placeholder" aria-hidden="true"></span>
+            <span class="sr-only" role="status">계정 상태 확인 중</span>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- SITE-FOCUS-RING-CONTAINER-01 — tabindex="0" stays.
+         This element owns the page's vertical scrolling, and a scrollable
+         region has to be reachable by keyboard: validate_chat_layout_attachment_01
+         measures exactly that (mainOverflow "auto", mainTabIndex 0, "main pane
+         must accept scrolling") at every width it checks. An earlier revision of
+         this fix dropped it to "-1" and that gate caught it.
+         What was wrong was never the tab stop — it was where the ring got
+         drawn. The shared rule adds outline-offset: 2px, and this box is
+         exactly as tall as the viewport, so the ring's top and bottom edges
+         landed off screen and only its two vertical sides reached the user:
+         the blue lines down the edges of the content column. The offset is
+         now negative for this one element, in site-theme-tokens.css. -->
+    <main id="main-content" class="chat-home-shell" tabindex="0">
+      <h1 class="sr-only">LOTBI</h1>
+      <header class="chat-topbar" aria-label="LOTBI 홈 헤더">
+        <div class="topbar-left">
+          <button
+            class="mobile-menu-button"
+            type="button"
+            aria-label="메뉴 열기"
+            aria-controls="mobile-nav-drawer"
+            aria-expanded="false"
+            data-mobile-nav-open
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+              <path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z" />
+            </svg>
+          </button>
+          <a class="chat-brand mobile-header-brand lotbi-official-brand" href="index.html" aria-label="LOTBI 홈" data-new-conversation>
+            <img class="mobile-header-logo lotbi-official-brand-logo lotbi-brand-logo-light" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /><img class="mobile-header-logo lotbi-official-brand-logo lotbi-brand-logo-dark" src="/assets/brand/lotbi-lockup-dark-160w.png" srcset="/assets/brand/lotbi-lockup-dark-160w.png 160w, /assets/brand/lotbi-lockup-dark-320w.png 320w, /assets/brand/lotbi-lockup-dark-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" />
+          </a>
+        </div>
+
+        <nav class="account-actions" aria-label="계정 메뉴" data-auth-state="checking" aria-busy="true">
+          <span class="account-auth-placeholder" aria-hidden="true">계정 확인 중</span>
+          <span class="sr-only" role="status">계정 상태 확인 중</span>
+        </nav>
+      </header>
+
+      <section class="chat-hero" aria-label="LOTBI 대화 시작">
+        <img class="consumer-brand-fallback" src="assets/brand/lotbi-mark-512.png" alt="손을 흔드는 LOTBI 캐릭터" width="104" height="104" decoding="async" />
+        <div class="home-avatar-anchor" data-home-avatar-anchor>
+          <div class="chat-character-wrap" aria-label="LOTBI 캐릭터" data-lotbi-avatar-container>
+            <div id="lotbi-avatar-stage" class="site-avatar-stage" data-lotbi-avatar-stage aria-hidden="true"></div>
+            <img
+              src="assets/brand/lotbi-mark-512.png"
+              class="chat-character-logo"
+              data-lotbi-avatar-fallback
+              alt="웃으며 손을 흔드는 LOTBI 캐릭터"
+              width="512"
+              height="512"
+              decoding="async"
+              fetchpriority="high"
+            />
+          </div>
+        </div>
+
+        <section class="home-value-proposition" aria-label="LOTBI 활용 안내">
+          <h2>무엇을 도와드릴까요?</h2>
+          <p class="sr-only">궁금한 것부터 챙겨야 할 일까지, 롯비에게 말해 보세요.</p>
+        </section>
+
+        <div class="home-example-prompts" aria-label="예시 질문">
+          <button type="button" data-home-prompt="이번 주 해야 할 일을 정리해 줘">이번 주 일정 정리</button>
+          <button type="button" data-scam-open>의심되는 문자 확인</button>
+          <button type="button" data-home-prompt="이번 달 생활비를 정리하고 싶어">생활비 정리하기</button>
+        </div>
+
+        <div id="conversation-thread" class="conversation-thread" aria-label="LOTBI 대화" aria-live="polite" hidden></div>
+
+        <div class="chat-composer-stack">
+          <div id="attachment-preview-strip" class="attachment-preview-strip" data-attachment-preview aria-live="polite" hidden></div>
+          <p class="chat-safety-copy">LOTBI는 실수할 수 있습니다. 중요한 정보와 예약·구매 내용은 최종 확인해 주세요.</p>
+          <div class="chat-composer" aria-labelledby="composer-label" aria-describedby="chat-status chat-attachment-help">
+          <label id="composer-label" class="sr-only" for="lotbi-prompt">LOTBI에게 요청할 내용</label>
+          <textarea
+            id="lotbi-prompt"
+            class="chat-input"
+            rows="1"
+            maxlength="1000"
+            placeholder="LOTBI에게 무엇이든 물어보세요"
+            autocomplete="off"
+            autocapitalize="sentences"
+            spellcheck="true"
+          ></textarea>
+
+          <div class="composer-actions">
+            <div class="attachment-control" data-attachment-control>
+              <button
+                class="composer-button attachment-button"
+                type="button"
+                aria-label="첨부 추가"
+                title="첨부 추가"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                data-attachment-trigger
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                  <path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z" />
+                </svg>
+              </button>
+              <div class="attachment-menu" role="menu" aria-label="첨부 추가" data-attachment-menu hidden>
+                <button type="button" role="menuitem" data-attachment-action="camera">카메라</button>
+                <button type="button" role="menuitem" data-attachment-action="photos">사진·스크린샷</button>
+                <button type="button" role="menuitem" data-attachment-action="files">파일</button>
+              </div>
+              <input class="sr-only" type="file" tabindex="-1" aria-hidden="true" accept="image/jpeg,image/png" capture="environment" data-attachment-input="camera" />
+              <input class="sr-only" type="file" tabindex="-1" aria-hidden="true" accept="image/jpeg,image/png" multiple data-attachment-input="photos" />
+              <input class="sr-only" type="file" tabindex="-1" aria-hidden="true" accept=".pdf,.docx,.txt,.csv,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/csv,application/json" multiple data-attachment-input="files" />
+            </div>
+            <div class="response-grade-control" data-response-grade-control hidden inert aria-hidden="true">
+              <button
+                class="response-grade-trigger"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="response-grade-menu"
+                aria-label="응답 등급: 스탠다드"
+                data-response-grade-trigger
+                disabled
+              >
+                <span data-response-grade-label>스탠다드</span>
+                <span class="response-grade-chevron" aria-hidden="true">▾</span>
+              </button>
+
+              <div
+                id="response-grade-menu"
+                class="response-grade-menu"
+                role="menu"
+                aria-label="응답 등급"
+                data-response-grade-menu
+                hidden
+              >
+                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="false" disabled data-response-grade="LIGHT">
+                  <span class="response-grade-name">라이트</span>
+                  <span class="response-grade-description">빠르고 간단한 답변</span>
+                </button>
+                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="true" disabled data-response-grade="STANDARD">
+                  <span class="response-grade-name">스탠다드</span>
+                  <span class="response-grade-description">균형 잡힌 기본 모드</span>
+                </button>
+                <button class="response-grade-option" type="button" role="menuitemradio" aria-checked="false" disabled data-response-grade="PREMIUM">
+                  <span class="response-grade-name">프리미엄</span>
+                  <span class="response-grade-description">복잡한 질문 · 깊은 분석</span>
+                </button>
+              </div>
+            </div>
+
+            <button class="composer-button send-button" type="button" disabled aria-label="전송" title="전송">
+              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                <path d="m4 4 17 8-17 8 3-7 9-1-9-1-3-7Z" />
+              </svg>
+            </button>
+          </div>
+          </div>
+          <p id="chat-attachment-help" class="sr-only">이미지는 JPEG·PNG, 파일은 PDF·DOCX·TXT·CSV·JSON을 지원하며 메시지당 최대 3개까지 첨부할 수 있습니다.</p>
+        </div>
+
+        <p id="chat-status" class="sr-only" role="status">
+          메시지를 입력하면 LOTBI와 대화를 시작합니다. 로그인 연결이 필요하면 안전한 Account handoff로 이동합니다.
+        </p>
+
+        <div id="chat-state-region" class="chat-state-banner" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+        <template id="chat-state-templates">
+          <span data-chat-state="loading">LOTBI 응답을 기다리는 중입니다.</span>
+          <span data-chat-state="unavailable">LOTBI 로그인이 필요합니다.</span>
+          <span data-chat-state="error">LOTBI 대화를 완료하지 못했습니다.</span>
+        </template>
+      </section>
+
+      <dialog class="scam-dialog" data-scam-dialog aria-labelledby="scam-dialog-title">
+        <header class="scam-dialog-header">
+          <div>
+            <p class="scam-dialog-eyebrow">LOTBI 진위확인</p>
+            <h2 id="scam-dialog-title">“롯비야, 이거 진짜야?”</h2>
+          </div>
+          <button class="scam-dialog-close" type="button" aria-label="진위확인 닫기" data-scam-close>×</button>
+        </header>
+        <div class="scam-dialog-inner">
+          <section class="scam-login-gate" data-scam-login-gate hidden>
+            <h3>진위확인은 로그인 후 사용할 수 있어요</h3>
+            <p>확인할 자료를 안전하게 보호하기 위해 로그인이 필요합니다.</p>
+            <div class="scam-login-actions">
+              <button type="button" data-scam-login>로그인하고 확인하기</button>
+              <button type="button" data-scam-login-cancel>취소</button>
+            </div>
+            <p class="scam-login-status" role="status" aria-live="polite" data-scam-login-status></p>
+          </section>
+          <div data-scam-workspace hidden>
+          <p class="scam-dialog-description" data-scam-description>받은 문자나 파일이 의심되면 아래에서 가장 쉬운 방법 하나를 선택하세요.</p>
+          <p class="scam-scope-note">이메일·QR 코드·기관 안내문·거래 안내·법원·세금 문서·의심스러운 사이트도 확인할 수 있어요.</p>
+          <form data-scam-form>
+            <div class="scam-input-kinds" data-scam-methods aria-label="확인 방법 선택">
+              <label><input type="radio" name="scam-input-kind" value="photo" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4V4Zm3 12 4-4 3 3 2-2 3 3M8 9h.01" /></svg><span><strong>사진·스크린샷 선택</strong><small>사진 보관함이나 스크린샷에서 골라요</small></span></label>
+              <label><input type="radio" name="scam-input-kind" value="camera" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3v13H4V7Zm8 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" /></svg><span><strong>카메라로 촬영</strong><small>지금 카메라로 찍어요</small></span></label>
+              <label><input type="radio" name="scam-input-kind" value="document" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l4 4v16H6V2Zm8 0v5h4M9 12h6m-6 4h6" /></svg><span><strong>문서·PDF 선택하기</strong><small>저장된 안내문을 골라요</small></span></label>
+              <label><input type="radio" name="scam-input-kind" value="text" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v14H9l-6 4V3Zm4 5h10M7 12h7" /></svg><span><strong>문자 내용 붙여넣기</strong><small>받은 글을 복사해서 넣어요</small></span></label>
+              <label><input type="radio" name="scam-input-kind" value="url" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2" /></svg><span><strong>인터넷 주소 확인하기</strong><small>의심되는 주소를 붙여넣어요</small></span></label>
+            </div>
+            <div class="scam-check-step" data-scam-step hidden>
+              <button class="scam-method-back" type="button" data-scam-method-back>← 다른 방법 선택</button>
+              <div class="scam-input-panel" data-scam-input-panel="camera" hidden>
+                <label for="scam-camera">받은 문자나 안내문을 화면 가득 찍어 주세요</label>
+                <input id="scam-camera" class="scam-file-input" name="scamCamera" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-describedby="scam-camera-help" disabled />
+                <label class="scam-file-pick" for="scam-camera" data-scam-file-pick="camera">카메라로 촬영</label>
+                <p id="scam-camera-help" class="scam-field-help">사진은 확인하기를 누르기 전에는 전송되지 않습니다. · 최대 10MB</p>
+              </div>
+              <div class="scam-input-panel" data-scam-input-panel="photo" hidden>
+                <label for="scam-photo">사진 보관함이나 스크린샷에서 확인할 사진을 골라 주세요</label>
+                <input id="scam-photo" class="scam-file-input" name="scamPhoto" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="scam-photo-help" disabled />
+                <label class="scam-file-pick" for="scam-photo" data-scam-file-pick="photo">사진·스크린샷 선택</label>
+                <p id="scam-photo-help" class="scam-field-help">사진(JPEG·PNG·WEBP) · 최대 10MB</p>
+              </div>
+              <div class="scam-input-panel" data-scam-input-panel="document" hidden>
+                <label for="scam-document">확인할 문서나 PDF를 골라 주세요</label>
+                <input id="scam-document" name="scamDocument" type="file" accept=".txt,text/plain,.html,.htm,text/html,application/pdf" aria-describedby="scam-document-help" disabled />
+                <p id="scam-document-help" class="scam-field-help">PDF·TXT·HTML 파일을 선택할 수 있어요 · 최대 10MB</p>
+              </div>
+              <div class="scam-input-panel" data-scam-input-panel="text" hidden>
+                <label for="scam-text">받은 문자나 이메일 내용을 여기에 붙여넣어 주세요</label>
+                <textarea id="scam-text" name="scamText" rows="5" maxlength="20000" placeholder="이곳을 누른 뒤 받은 내용을 붙여넣으세요" disabled></textarea>
+              </div>
+              <div class="scam-input-panel" data-scam-input-panel="url" hidden>
+                <label for="scam-url">의심되는 인터넷 주소를 붙여넣어 주세요</label>
+                <input id="scam-url" name="scamUrl" type="url" placeholder="https://…" disabled />
+              </div>
+              <div class="scam-file-preview" data-scam-file-preview hidden>
+                <img data-scam-preview-image alt="선택한 사진 미리보기" hidden />
+                <p data-scam-preview-prompt></p>
+                <button type="button" data-scam-reselect>다시 고르기</button>
+              </div>
+              <label class="scam-clicked"><input type="checkbox" data-scam-clicked /> 이미 눌렀거나 개인정보를 입력했어요</label>
+              <div class="scam-incident" data-scam-incident hidden>
+                <label>어느 기기인가요?
+                  <select name="device"><option value="">선택해 주세요</option><option value="Galaxy">Android / Galaxy</option><option value="iPhone">iPhone</option><option value="Windows">Windows PC</option><option value="macOS">Mac</option></select>
+                </label>
+                <label>어디까지 했나요?
+                  <select name="incidentLevel"><option value="1">링크나 파일을 열었어요</option><option value="2">개인정보 일부를 입력했어요</option><option value="3">비밀번호·OTP를 입력했어요</option><option value="4">앱·프로그램을 설치했어요</option><option value="5">접근성·원격제어 권한을 줬어요</option><option value="6">송금·결제가 발생했어요</option></select>
+                </label>
+              </div>
+              <button class="scam-submit" type="submit">확인하기</button>
+            </div>
+          </form>
+          <p class="scam-status" role="status" aria-live="polite" data-scam-status>확인 방법을 하나 선택해 주세요.</p>
+          <div class="scam-result" data-scam-result aria-live="polite" hidden></div>
+          </div>
+        </div>
+      </dialog>
+
+      <footer class="lotbi-footer chat-home-footer">
+        <details class="footer-legal-disclosure" data-footer-legal-disclosure>
+          <summary
+            class="footer-legal-summary"
+            data-footer-legal-toggle
+            aria-controls="footer-legal-panels"
+          >
+            <span class="footer-legal-summary-text">LOTBI · 회사 및 이용 안내</span>
+            <svg class="footer-legal-summary-chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.7 9.3 12 14.6l5.3-5.3 1.4 1.4-6.7 6.7-6.7-6.7 1.4-1.4Z" /></svg>
+          </summary>
+        </details>
+
+        <div id="footer-legal-panels" class="footer-legal-panels">
+        <div class="footer-links">
+          <a href="/about">회사 소개</a>
+          <a href="/subscribe">구독 안내</a>
+          <a href="/refund">구독 철회 및 해지</a>
+          <a href="/exchange">반품 및 교환</a>
+          <a href="/dispute">소비자 분쟁 해결 기준</a>
+          <a href="/terms">이용약관</a>
+          <a href="/privacy">개인정보처리방침</a>
+          <a href="/account-deletion">계정 삭제</a>
+          <a href="/contact">문의하기</a>
+        </div>
+
+        <div class="company-legal" aria-label="LOTBI 사업자 정보">
+          <div class="company-legal-row">
+            <span>유한회사 알에이디홀딩스</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>대표자: 전선혜</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>사업자등록번호: 583-88-03679</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>통신판매업신고번호: 2026-전주덕진-0798</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <a href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=5838803679" target="_blank" rel="noopener noreferrer">사업자정보확인</a>
+          </div>
+          <div class="company-legal-row">
+            <span>주소: 전북특별자치도 전주시 덕진구 혁신로 542, 1동 1층 (여의동)</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>전화: <a href="tel:0632370930">063-237-0930</a></span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>이메일: <a href="mailto:developer@lotbiai.com">developer@lotbiai.com</a></span>
+          </div>
+          <div class="company-legal-row">
+            <span>LOTBI (롯비) © 2026 · AI Voice Commerce Agent</span>
+            <span class="company-separator" aria-hidden="true">|</span>
+            <span>호스팅서비스 제공: 네이버클라우드 주식회사 (NAVER Cloud)</span>
+          </div>
+        </div>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <div class="mobile-nav-backdrop" data-mobile-nav-backdrop aria-hidden="true"></div>
+  <aside
+    id="mobile-nav-drawer"
+    class="mobile-nav-drawer"
+    aria-labelledby="mobile-nav-title"
+    aria-hidden="true"
+    inert
+  >
+    <div class="mobile-drawer-header">
+      <strong id="mobile-nav-title" class="mobile-drawer-brand lotbi-official-brand">
+        <img class="mobile-drawer-brand-logo lotbi-official-brand-logo lotbi-brand-logo-light" src="/assets/brand/lotbi-lockup-160w.png" srcset="/assets/brand/lotbi-lockup-160w.png 160w, /assets/brand/lotbi-lockup-320w.png 320w, /assets/brand/lotbi-lockup-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" /><img class="mobile-drawer-brand-logo lotbi-official-brand-logo lotbi-brand-logo-dark" src="/assets/brand/lotbi-lockup-dark-160w.png" srcset="/assets/brand/lotbi-lockup-dark-160w.png 160w, /assets/brand/lotbi-lockup-dark-320w.png 320w, /assets/brand/lotbi-lockup-dark-480w.png 480w" sizes="160px" alt="LOTBI" width="160" height="70" decoding="async" />
+      </strong>
+      <button class="mobile-drawer-close" type="button" aria-label="메뉴 닫기" data-mobile-nav-close>×</button>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="LOTBI 모바일 탐색 메뉴">
+      <div class="consumer-primary-nav" aria-label="LOTBI 주요 기능">
+        <button class="nav-item nav-link nav-item-primary" type="button" data-new-conversation aria-label="새 대화">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-message"></use></svg>
+          <span class="nav-item-label">새 대화</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-calendar-view="all" aria-label="캘린더">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-calendar"></use></svg>
+          <span class="nav-item-label">캘린더</span>
+          <span class="nav-item-status" aria-hidden="true"><span class="calendar-status-badge" data-calendar-count hidden></span><svg class="nav-status-icon calendar-reminder-icon" data-calendar-reminder aria-hidden="true" focusable="false" hidden><use href="#lotbi-icon-bell"></use></svg></span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="wallet" aria-label="Life Wallet">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-inbox"></use></svg>
+          <span class="nav-item-label">Life Wallet</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-scam-open aria-label="진위확인">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-shield"></use></svg>
+          <span class="nav-item-label">진위확인</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="care" aria-label="안심케어">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-user"></use></svg>
+          <span class="nav-item-label">안심케어</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="life" aria-label="지역정보">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-festival"></use></svg>
+          <span class="nav-item-label">지역정보</span>
+        </button>
+        <button class="nav-item nav-link" type="button" data-consumer-section="mall" aria-label="제휴몰">
+          <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-store"></use></svg>
+          <span class="nav-item-label">제휴몰</span>
+        </button>
+      </div>
+
+      <div class="sidebar-history-shell">
+        <div class="sidebar-history-scroll">
+          <section class="nav-section sidebar-pinned-section" data-pinned-conversations-section hidden aria-labelledby="mobile-pinned-title">
+            <h2 id="mobile-pinned-title" class="nav-section-title">고정</h2>
+            <ul class="nav-history-list" data-pinned-conversations aria-label="고정 대화 목록"></ul>
+          </section>
+          <section class="nav-section sidebar-history-section" aria-labelledby="mobile-recent-title">
+            <h2 id="mobile-recent-title" class="nav-section-title nav-section-title-icon">
+              <svg class="nav-icon" aria-hidden="true" focusable="false"><use href="#lotbi-icon-history"></use></svg>
+              <span>최근 대화</span>
+            </h2>
+            <ul class="nav-history-list" data-recent-conversations aria-label="최근 대화 목록"></ul>
+          </section>
+        </div>
+      </div>
+
+      <div class="sidebar-account-footer">
+        <div class="sidebar-account-slot" data-sidebar-account data-auth-state="checking" aria-busy="true">
+            <span class="sidebar-account-placeholder" aria-hidden="true"></span>
+            <span class="sr-only" role="status">계정 상태 확인 중</span>
+          </div>
+      </div>
+    </nav>
+  </aside>
+</body>
+</html>

@@ -763,12 +763,15 @@ async function runCase(browser, origin, workDir, testCase) {
     v = await waitState(s => !s.hub && s.shortcuts.includes('onnuri'), `${testCase.label}: back to 지역정보`);
     v = await openHub();
     same(v.activeTab, 'onnuri', 'a new modal starts on 온누리상품권');
-    // Browser back/forward around the screen (same 'life' route as today).
+    // Browser back/forward around the screen. REGIONAL-INFO-BACK-NAVIGATION-01:
+    // it has its own route 'onnuri' (it used to share 'life', so the system back
+    // left 지역정보 for the home): back shows the 지역정보 list, forward the screen.
     const hashOpen = v.hash;
+    same(hashOpen, '#onnuri', 'the screen has its own route');
     await evaluate('history.back(), true');
-    v = await waitState(s => !s.hub && s.hash !== hashOpen, `${testCase.label}: browser back`);
+    v = await waitState(s => !s.hub && s.shortcuts.includes('onnuri') && s.hash === '#life', `${testCase.label}: browser back → 지역정보`);
     await evaluate('history.forward(), true');
-    v = await waitState(s => s.shortcuts.includes('onnuri') && s.hash === hashOpen, `${testCase.label}: browser forward`);
+    v = await waitState(s => s.hub && s.hash === hashOpen, `${testCase.label}: browser forward → 온누리상품권·지역화폐`);
 
     if (testCase.full) {
       // 11. Location already allowed → 가까운 순 offered; it sends the rounded point.

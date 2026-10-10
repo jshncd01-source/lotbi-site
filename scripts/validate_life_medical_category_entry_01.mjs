@@ -37,7 +37,9 @@ assert.deepEqual(LIFE_SHORTCUTS.find(item => item.id === 'medical').choices.map(
   ['hospital', '근처 병원 찾아줘'], ['emergency', '근처 응급실 찾아줘'],
 ]);
 for (const id of ['festivals', 'news', 'local', 'onnuri', 'ev-chargers', 'my-child']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
-assert.ok(LIFE_SHORTCUTS.find(item => item.id === 'my-child').children.some(choice => choice.id === 'education'), '유치원·학교 찾기 kept inside 내 아이 학교·유치원');
+// REGIONAL-INFO-BACK-NAVIGATION-01 (owner decision 2026-10-10): 내 아이 학교·유치원
+// opens the saved schools screen at once — no 내 아이 정보 / 유치원·학교 찾기 choice.
+assert.equal(LIFE_SHORTCUTS.find(item => item.id === 'my-child').children, undefined, '내 아이 학교·유치원 opens its screen at once');
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills' || /공과금/u.test(item.label)), false, '공과금 확인 stays hidden');
 assert.ok(Object.isFrozen(LIFE_SHORTCUTS) && Object.isFrozen(LIFE_MEDICAL_QUESTIONS));
 // Each question carries "근처", so Core takes it to the 국립중앙의료원 lookup
@@ -51,7 +53,8 @@ for (const question of Object.values(LIFE_MEDICAL_QUESTIONS)) {
 // ── Source contract ─────────────────────────────────────────────────────
 const source = read('site-consumer-sections.js');
 assert.match(source, /if \(item\.ask\) onAsk\(item\.ask\);/u, 'a medical card asks at once');
-assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/u, '유치원·학교 asks through onAsk');
+assert.doesNotMatch(source, /mountEducation|import\('\.\/site-life-education\.js/u, '지역정보 no longer links the 유치원·학교 lookup');
+assert.match(source, /mountMyChild\(host, \{onAsk\}\)/u, '내 아이 학교·유치원 asks through the same onAsk');
 assert.doesNotMatch(source, /openMedicalDetail|data-medical-field|질문 준비하기|onDraft/u, 'no region/condition form, no draft handoff');
 assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|geolocation|getCurrentPosition/u, 'no own search engine, storage or location request');
 const conversation = read('site-conversation.js');
