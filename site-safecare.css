@@ -1032,6 +1032,27 @@
   min-height: 48px;
 }
 
+/* SAFECARE-CONSENT-VISIBLE-01: required consents stay visible below their
+   section; a missing one is outlined when the button is pressed. */
+.safecare-notice-consents {
+  display: grid;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.safecare-consent-all {
+  border-width: 2px;
+}
+
+.safecare-consent-row.is-missing {
+  border-color: var(--lotbi-error-text, #a02645);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lotbi-error-text, #a02645) 22%, transparent);
+}
+
+.safecare-renewal-confirm[aria-disabled="true"] {
+  opacity: .55;
+}
+
 @media (min-width: 901px) {
   .lotbi-sheet[data-presentation="SHEET"].safecare-renewal-sheet {
     top: 50%;
@@ -1094,6 +1115,11 @@
   .safecare-consent-row {
     padding: 10px;
     font-size: 14px;
+  }
+
+  .safecare-notice-consents {
+    gap: 6px;
+    padding: 0 11px 11px;
   }
 
   .safecare-renewal-confirm {

@@ -15,16 +15,16 @@ import {
   personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, personSosReceivedMessage, putHumanSightingPhoto,
   respondGuardianNotice, PERSON_FOUND_EMERGENCY_TEXT, PERSON_FOUND_FORM_NOTE, PERSON_SOS_ACTIVE_NOTE, PERSON_SOS_EMERGENCY_TEXT, PERSON_SOS_FORM_NOTE,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-900a77209cd0';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-900a77209cd0';
+} from './site-person.js?v=aset-01663e2689fc';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-01663e2689fc';
 import {
-  FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, personFoundReviewStateCopy,
+  FOUND_REPORT_MAX_PHOTOS, birthYearOptions, birthYearStart, formatDate, formatMoment, foundPhotoProgress, personFoundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge, safecareEmergencyNotice,
-} from './site-safecare-common.js?v=aset-900a77209cd0';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-900a77209cd0';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-900a77209cd0';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-900a77209cd0';
-import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-900a77209cd0';
+} from './site-safecare-common.js?v=aset-01663e2689fc';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-01663e2689fc';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-01663e2689fc';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-01663e2689fc';
+import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-01663e2689fc';
 
 const RELATIONSHIPS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'], ['FAMILY', '가족'], ['DEPENDENT', '돌봄 대상'], ['OTHER', '기타']]);
 const SIGHTING_SLOT_LABELS = Object.freeze(['얼굴 정면', '얼굴 왼쪽', '얼굴 오른쪽', '상반신', '전신', '추가 사진 1', '추가 사진 2', '추가 사진 3', '추가 사진 4', '추가 사진 5']);
@@ -390,10 +390,19 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     return wrap;
   };
 
+  // QA 02 D3: the label is tied to its control explicitly (for/id) as well as by nesting.
+  let fieldSerial = 0;
   const labeled = (text, control, hint = '') => {
     const field = el('label', 'site-field person-field');
+    if (!control.id) { fieldSerial += 1; control.id = `person-field-${fieldSerial}`; }
+    field.htmlFor = control.id;
     field.append(el('span', 'person-field-label', text), control);
-    if (hint) field.append(el('span', 'person-field-hint', hint));
+    if (hint) {
+      const note = el('span', 'person-field-hint', hint);
+      note.id = `${control.id}-hint`;
+      control.setAttribute('aria-describedby', note.id);
+      field.append(note);
+    }
     return field;
   };
 
@@ -424,7 +433,8 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
 
     const openBirthPicker = () => {
       clearSheet();
-      let pendingYear = selectedYear || new Date().getFullYear();
+      // QA 02 D2: before a year is chosen the wheel starts near a likely year for the relationship.
+      let pendingYear = selectedYear || birthYearStart(relationship.value);
       let pendingMonth = selectedMonth || new Date().getMonth() + 1;
       const picker = el('section', 'person-birth-picker');
       picker.dataset.personBirthPicker = '';
