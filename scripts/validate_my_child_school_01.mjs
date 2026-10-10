@@ -2,8 +2,11 @@
 //
 // Contract checked here:
 // * 생활정보 shows a ninth (last) card "내 아이 학교·유치원" (the eight existing
-//   cards and their order stay); it opens a screen with "지역정보로 돌아가기"
-//   (the label every life screen uses); its "대화로 더 물어보기" asks through
+//   cards and their order stay); the card opens this screen at once — no
+//   내 아이 정보 / 유치원·학교 찾기 choice (REGIONAL-INFO-BACK-NAVIGATION-01, owner
+//   decision 2026-10-10) — its header ← ("지역정보로 돌아가기", the one back
+//   of the screen — QA 2026-10-10 #3) steps one screen back to the 지역정보
+//   list; its "대화로 더 물어보기" asks through
 //   the same onAsk as every life card (one tap, no keyboard)
 // * signed out: a login notice (/auth/start/), no Core call
 // * signed in: NEIS school search → pick → nickname (default "첫째") +
@@ -40,16 +43,20 @@ const sections = await import('../site-consumer-sections.js');
 const screen = await import('../site-life-my-child.js');
 const client = await import('../site-my-child-client.js');
 
-await check('지역정보: 내 아이 학교·유치원 is the last card and opens 내 아이 정보 / 유치원·학교 찾기', () => {
+await check('지역정보: 내 아이 학교·유치원 is the last card and opens the saved schools / 유치원 screen at once', () => {
   assert.deepEqual(sections.LIFE_SHORTCUTS.map(item => item.id), ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'local', 'my-child']);
   const item = sections.LIFE_SHORTCUTS.at(-1);
   assert.equal(item.label, '내 아이 학교·유치원');
   assert.ok(!item.prompt && !item.medical);
   const source = read('site-consumer-sections.js');
-  // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: one education card, two features.
-  assert.deepEqual(item.children.map(choice => choice.id), ['my-child', 'education']);
-  assert.match(source, /else if \(item\.children\) openChildChoice\(item\);/u);
-  assert.match(source, /else openMyChild\(item\);/u);
+  // REGIONAL-INFO-BACK-NAVIGATION-01 (owner decision 2026-10-10): one card, one
+  // screen — no 내 아이 정보 / 유치원·학교 찾기 choice in between.
+  assert.equal(item.children, undefined);
+  assert.match(source, /else if \(item\.id === 'my-child'\) openMyChild\(item\);/u);
+  assert.doesNotMatch(source, /openChildChoice|data-child-choice|childChoice/u);
+  // Owner decision 2026-10-10: signed out only, the saved screen links the public lookup.
+  assert.match(source, /const lookup = authenticated \? null : node\('button', [^)]*'로그인 없이 학교·유치원 찾기'\);/u);
+  assert.equal(sections.LIFE_VIEW_PARENT['life-my-child'], 'life');
   assert.doesNotMatch(source, /\bfetch\(|localStorage|innerHTML/u);
   const conversation = read('site-conversation.js');
   assert.match(conversation, /mountMyChild: async \(root, \{onAsk: askFromMyChild\} = \{\}\) => \{\r?\n\s+const \{mountMyChild\} = await import\('\.\/site-life-my-child\.js\?v=aset-[0-9a-f]{12}'\);/u);
@@ -288,17 +295,17 @@ const SCENARIO = `(async () => {
   result.cards = [...panel.querySelectorAll('[data-life-shortcut]')].map(n => n.dataset.lifeShortcut);
   result.card = {label: shortcut.textContent.trim(), box: box(shortcut)};
   shortcut.click();
-  const pickChild = await wait(() => panel.querySelector('[data-child-choice="my-child"]'), 'child choice');
-  result.choices = [...panel.querySelectorAll('[data-child-choice]')].map(n => n.dataset.childChoice + ':' + n.textContent.trim());
-  pickChild.click();
   const host = await wait(() => panel.querySelector('.lotbi-mychild'), 'my-child screen');
-  result.back = panel.querySelector('.consumer-life-detail > .consumer-action')?.textContent.trim();
+  result.choices = [...panel.querySelectorAll('[data-child-choice]')].map(n => n.dataset.childChoice + ':' + n.textContent.trim());
+  result.back = panel.querySelector('.site-modal-close')?.getAttribute('aria-label') || '';
+  result.textBack = Boolean(panel.querySelector('.consumer-life-detail > .consumer-action-secondary:not([data-life-education-entry])'));
+  result.lookup = panel.querySelector('[data-life-education-entry]')?.textContent || '';
   if (!${'${SIGNED_IN}'}) {
     const notice = await wait(() => host.querySelector('[data-my-child-state="LOGIN_REQUIRED"]'), 'login notice');
     result.login = {text: notice.textContent, href: notice.querySelector('a')?.getAttribute('href'), measure: measure(host)};
     result.calls = globalThis.__mcsCalls.length;
-    panel.querySelector('.consumer-life-detail > .consumer-action').click();
-    await wait(() => panel.querySelector('[data-life-shortcut="my-child"]'), 'back to life');
+    panel.querySelector('.site-modal-close').click();
+    await wait(() => panel.querySelector('[data-life-shortcut="my-child"]') && !panel.querySelector('.lotbi-mychild'), 'back to life');
     result.backHome = document.activeElement?.dataset?.lifeShortcut || '';
     return result;
   }
@@ -325,6 +332,14 @@ const SCENARIO = `(async () => {
   result.withoutConsent = {status: save.querySelector('.lotbi-mychild-status').textContent, posts: globalThis.__mcsCalls.filter(c => c.method === 'POST').length};
   save.querySelector('[data-my-child-consent-check]').checked = true;
   save.requestSubmit();
+  // SUBVIEW-BACK-NAVIGATION-01: the phone's back on the overview shows the
+  // saved list — one step, 지역정보 stays — and the entry opens again.
+  await wait(() => host.querySelector('[data-my-child-section="meals"]'), 'school overview (first)');
+  await wait(() => history.state && history.state.lotbiSubview, 'the overview layer entry');
+  history.back();
+  await wait(() => host.querySelector('[data-my-child-entry]') && !host.querySelector('[data-my-child-section="meals"]'), 'phone back → the saved list');
+  result.overviewBack = {list: true, route: document.querySelector('[data-site-route]')?.dataset.siteRoute || '', hash: location.hash};
+  host.querySelector('[data-my-child-entry]').click();
   const meals = await wait(() => host.querySelector('[data-my-child-section="meals"]'), 'school overview');
   const overview = () => ({
     title: host.querySelector('.lotbi-mychild-title')?.textContent,
@@ -435,9 +450,12 @@ const SCENARIO = `(async () => {
   const save4 = await wait(() => host.querySelector('[data-my-child-save="SCHOOL"]'), 'save form 4');
   result.consentAgain = Boolean(save4.querySelector('[data-my-child-consent-check]'));
 
-  // 6. 지역정보로 돌아가기.
-  panel.querySelector('.consumer-life-detail > .consumer-action').click();
-  await wait(() => panel.querySelector('[data-life-shortcut="my-child"]') && !panel.querySelector('.lotbi-mychild'), 'back to life');
+  // 6. The header ← steps one layer at a time (SUBVIEW-BACK-NAVIGATION-01): the
+  //    open 추가 form → the saved list → the 지역정보 list.
+  panel.querySelector('.site-modal-close').click();
+  await wait(() => host.querySelector('[data-my-child-add]') && !host.querySelector('[data-my-child-save]'), '← → the saved list');
+  panel.querySelector('.site-modal-close').click();
+  await wait(() => panel.querySelector('[data-life-shortcut="my-child"]') && !panel.querySelector('.consumer-life-detail'), 'back to life');
   result.backHome = document.activeElement?.dataset?.lifeShortcut || '';
   result.calls = globalThis.__mcsCalls;
   return result;
@@ -564,15 +582,20 @@ try {
   for (const testCase of CASES) {
     const r = await runCase(browser, origin, dir, testCase, 'inner.html', true);
     const label = testCase.label;
-    await check(`${label}: the last card opens 내 아이 정보 with 지역정보로 돌아가기; empty list explains storage`, () => {
-      assert.deepEqual(r.choices, ['my-child:내 아이 정보', 'education:유치원·학교 찾기']);
+    await check(`${label}: the last card opens the saved screen at once with 지역정보로 돌아가기; empty list explains storage`, () => {
+      assert.deepEqual(r.choices, [], 'no 내 아이 정보 / 유치원·학교 찾기 choice');
       assert.deepEqual(r.cards, ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'local', 'my-child']);
       assert.equal(r.card.label, '내 아이 학교·유치원');
       assert.ok(r.card.box.h >= 44, JSON.stringify(r.card.box));
       assert.equal(r.back, '지역정보로 돌아가기');
+      assert.equal(r.textBack, false, 'one back: the header ←, no second text link (QA #3)');
+      assert.equal(r.lookup, '', 'signed in: no 로그인 없이 학교·유치원 찾기 link');
       assert.match(r.empty.text, /아직 저장한 학교·유치원이 없어요/u);
       assert.match(r.empty.footer, /아이 이름·생년월일·사진·학년·반은 받지 않아요/u);
       assert.equal(r.backHome, 'my-child', 'focus returns to the card');
+    });
+    await check(`${label}: the phone's back on a saved school's overview → the saved list (SUBVIEW-BACK-NAVIGATION-01)`, () => {
+      assert.deepEqual(r.overviewBack, {list: true, route: 'life-my-child', hash: '#life-my-child'});
     });
     await check(`${label}: NEIS search → pick → 첫째 + 19 allergen boxes + first-save consent`, () => {
       assert.deepEqual(r.tabs, [['SCHOOL', 'true'], ['KINDERGARTEN', 'false']]);
@@ -674,6 +697,9 @@ try {
     assert.match(out.login.text, /로그인하고 아이 학교·유치원을 저장하세요/u);
     assert.equal(out.login.href, '/auth/start/');
     assert.equal(out.back, '지역정보로 돌아가기');
+    assert.equal(out.textBack, false);
+    assert.equal(out.lookup, '로그인 없이 학교·유치원 찾기', 'signed out: the public lookup link (owner decision 2026-10-10)');
+    assert.deepEqual(out.choices, []);
     assert.equal(out.calls, 0);
     assert.deepEqual(out.login.measure.small, []);
     assert.deepEqual(out.login.measure.overflow, []);

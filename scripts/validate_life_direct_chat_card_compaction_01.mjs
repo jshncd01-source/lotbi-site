@@ -257,7 +257,8 @@ try {
       result.formContrast = {button: contrast(button), note: contrast(form.closest('.consumer-life-detail')?.querySelector('.consumer-feature-note'))};
     } else if (ITEM === 'school') {
       shortcut.click();
-      (await wait(() => document.querySelector('[data-child-choice="education"]'), '유치원·학교 찾기')).click();
+      // Signed out, 내 아이 학교·유치원 links the public lookup (owner decision 2026-10-10).
+      (await wait(() => document.querySelector('[data-life-education-entry]'), '로그인 없이 학교·유치원 찾기')).click();
       const tab = await wait(() => document.querySelector('[data-edu-tab="school"]'), 'school tab');
       tab.click();
       const name = await wait(() => document.querySelector('[data-edu-school-name]'), 'school form');

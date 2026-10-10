@@ -85,6 +85,8 @@ body.chat-home-page .site-modal-backdrop:has(> .consumer-section-panel) { paddin
 .consumer-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--lotbi-border-default); }
 .consumer-tabs button { min-height: 48px; padding: 12px 20px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--consumer-muted); font: inherit; font-size: 14px; cursor: pointer; }
 .consumer-tabs button[aria-selected="true"] { color: inherit; border-bottom-color: currentColor; font-weight: 600; }
+/* COMMON-UI-POLISH-01 (QA #20) — the workspace trims the padding to 4px, which left '사람' 34px wide. */
+.consumer-tabs button { min-width: 44px; }
 .consumer-care-body { min-width: 0; }
 .consumer-error { color: var(--lotbi-error-text); font-size: 14px; }
 /* Keep calendar and pet owner geometry and actions; reduce decorative noise. */

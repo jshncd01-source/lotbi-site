@@ -442,9 +442,15 @@ try {
 
   await scenario(executable, origin, workDir, 'renewal before expiry swaps the bearer without leaving the page; Core refusal renews too', {account: 'signed-in', firstLifetimeMs: 5 * 60 * 1000 + 2500}, async ({evaluate, snapshot, navigations}) => {
     await waitFor(async () => (await snapshot()).auth === 'authenticated', 'first restore');
+    // The mock counts a redeem when the request arrives; the page records its
+    // renewal mark only after it has read the answer and adopted the bearer.
+    // Judge the renewal once it has finished (its mark is there), not halfway:
+    // under gate load a snapshot taken in between saw only the first 'restore'
+    // mark (SITE-LOGIN-HANDOFF-REPEAT-01 gate return, reproduced on main with
+    // CPU throttling). The assertions below are unchanged.
     const renewed = await waitFor(async () => {
       const value = await snapshot();
-      return value.redeems.length >= 2 ? value : false;
+      return value.redeems.length >= 2 && value.marks.length >= 2 ? value : false;
     }, 'renewal before expiry', 12000);
     assert.deepEqual(renewed.redeems, [{pkce: true}, {pkce: true}]);
     assert.equal(renewed.auth, 'authenticated');
@@ -462,7 +468,7 @@ try {
     await evaluate(`window.dispatchEvent(new CustomEvent('lotbi:site-session-renewal-request')); true`);
     const refused = await waitFor(async () => {
       const value = await snapshot();
-      return value.redeems.length >= 3 ? value : false;
+      return value.redeems.length >= 3 && value.marks.length >= 3 ? value : false;
     }, 'renewal after Core refusal');
     assert.equal(refused.marks.at(-1)?.reason, 'core-refused');
     assert.equal(refused.marks.at(-1)?.outcome, 'RESTORED');

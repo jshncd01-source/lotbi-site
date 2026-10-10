@@ -51,10 +51,19 @@ assert.doesNotMatch(source, /onDraft/);
 // The separate 유치원·학교 card is gone (owner decision 2026-10-10): 내 아이
 // 학교·유치원 opens 내 아이 정보 or 유치원·학교 찾기, and the public lookup still
 // asks through onAsk (LIFE-DIRECT-CHAT-CARD-COMPACTION-01).
+// REGIONAL-INFO-BACK-NAVIGATION-01 (owner decision 2026-10-10, "학교·유치원
+// 등록인데 메뉴를 왜 나눠?"): the card opens the saved schools / 유치원 screen at
+// once through its route 'life-my-child' — no 내 아이 정보 / 유치원·학교 찾기 choice.
 const child = LIFE_SHORTCUTS.find(item => item.id === 'my-child');
-assert.deepEqual(child.children.map(choice => [choice.id, choice.label]), [['my-child', '내 아이 정보'], ['education', '유치원·학교 찾기']]);
+assert.equal(child.children, undefined);
+assert.match(source, /else if \(item\.id === 'my-child'\) openMyChild\(item\);/);
+assert.match(source, /else if \(name === 'life-my-child' && items\['my-child'\]\) openMyChild\(/);
+assert.doesNotMatch(source, /openChildChoice|data-child-choice|childChoice/);
+// Owner decision 2026-10-10 ("1링크 다시 살리"): signed out only, the saved screen
+// links "로그인 없이 학교·유치원 찾기" — the public lookup, its own route.
+assert.match(source, /const lookup = authenticated \? null : node\('button', [^)]*'로그인 없이 학교·유치원 찾기'\);/);
+assert.match(source, /else if \(name === 'life-education' && items\['my-child'\]\) openEducation\(\);/);
 assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/);
-assert.match(source, /if \(choice\.id === 'education'\) openEducation\(/);
 assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 // Phones keep two columns: the later layout sheet must not turn the menu into one.
 assert.doesNotMatch(read('site-consumer-layout.css'), /\.consumer-shortcuts \{ grid-template-columns: minmax\(0, 1fr\); \}/);

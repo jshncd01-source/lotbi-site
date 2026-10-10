@@ -151,6 +151,87 @@ await check('map app: the icon is the approved image of the app the link really 
   }
 });
 
+// EV-CHARGER-MAP-LINK-FIX-01 — a charger's name is not a place NAVER can search
+// for ("전북 전주 세이브존2(7kW)", "오거리"): the old name+address web search showed
+// "조건에 맞는 업체가 없습니다" and an unrelated default map. Every app must carry the
+// official WGS84 point in its own, correct parameters (lat/lng never swapped) and
+// the NAVER web search (desktop, 티맵 desktop/iOS fallback, Android/iOS app
+// fallback) must search that point, never the name.
+const mapStations = ev.normalizeEvSearch(FIXTURE.jeonju_5km_all).stations;
+const searchLike = {...mapStations.find(item => item.name === '테스트 전주 NACS')};
+const point6 = station => `${station.latitude.toFixed(6)},${station.longitude.toFixed(6)}`;
+const naverSearch = station => `https://map.naver.com/p/search/${encodeURIComponent(point6(station))}`;
+await check('map links: every app carries the official point in the right parameters; NAVER web searches the point, not the name', () => {
+  assert.ok(mapStations.length >= 4 && searchLike.latitude > 33 && searchLike.longitude > 124);
+  for (const station of mapStations) {
+    const place = ev.evMapPlace(station);
+    assert.equal(place.navigationCapable, true);
+    assert.equal(place.searchText, point6(station));
+    const lat7 = station.latitude.toFixed(7), lng7 = station.longitude.toFixed(7);
+    for (const [platform, userAgent] of [['android', ANDROID_UA], ['ios', IPHONE_UA], ['desktop', DESKTOP_UA]]) {
+      const build = provider => navigation.buildDefaultMapHref(provider, place, {userAgent, origin: 'https://lotbiai.com'});
+      const tag = `${station.name} ${platform}`;
+      // NAVER
+      const naver = build('NAVER_MAP');
+      if (platform === 'desktop') {
+        assert.equal(naver, naverSearch(station), tag);
+      } else {
+        const native = platform === 'android'
+          ? new URL(naver.replace(/^intent:/u, 'https:').split('#Intent')[0])
+          : new URL(new URL(naver).searchParams.get('native').replace(/^nmap:/u, 'https:'));
+        assert.equal(native.hostname, 'navigation', tag);
+        assert.equal(native.searchParams.get('dlat'), lat7, `${tag} dlat`);
+        assert.equal(native.searchParams.get('dlng'), lng7, `${tag} dlng`);
+        assert.equal(native.searchParams.get('dname'), station.name, `${tag} dname`);
+        const fallback = platform === 'android'
+          ? decodeURIComponent(/S\.browser_fallback_url=([^;]+);/u.exec(naver)[1])
+          : new URL(naver).searchParams.get('fallback');
+        assert.equal(fallback, naverSearch(station), `${tag} web fallback searches the point`);
+      }
+      assert.ok(!decodeURIComponent(naver).includes(station.name) || platform !== 'desktop', `${tag}: no name search on the web`);
+      // 카카오내비
+      const kakao = build('KAKAO_NAVI');
+      if (platform === 'desktop') {
+        assert.equal(kakao, `https://map.kakao.com/link/to/${encodeURIComponent(station.name)},${station.latitude},${station.longitude}`, tag);
+      } else {
+        const url = new URL(kakao);
+        assert.equal(url.pathname, '/kakao-navi.html', tag);
+        assert.equal(url.searchParams.get('x'), String(station.longitude), `${tag} x is the longitude`);
+        assert.equal(url.searchParams.get('y'), String(station.latitude), `${tag} y is the latitude`);
+        assert.equal(url.searchParams.get('name'), station.name, tag);
+        assert.equal(url.searchParams.get('coordType'), 'wgs84', tag);
+      }
+      // 티맵
+      const tmap = build('TMAP');
+      if (platform === 'desktop') {
+        assert.equal(tmap, naverSearch(station), `${tag}: no 티맵 on a desktop — NAVER web at the point`);
+      } else {
+        const native = platform === 'android'
+          ? new URL(tmap.replace(/^intent:/u, 'https:').split('#Intent')[0])
+          : new URL(new URL(tmap).searchParams.get('native').replace(/^tmap:/u, 'https:'));
+        assert.equal(native.hostname, 'route', tag);
+        assert.equal(native.searchParams.get('goalx'), lng7, `${tag} goalx is the longitude`);
+        assert.equal(native.searchParams.get('goaly'), lat7, `${tag} goaly is the latitude`);
+        assert.equal(native.searchParams.get('goalname'), station.name, tag);
+        if (platform === 'ios') assert.equal(new URL(tmap).searchParams.get('fallback'), naverSearch(station), `${tag} web fallback`);
+      }
+      // Google
+      const google = new URL(build('GOOGLE_MAPS'));
+      assert.equal(google.origin + google.pathname, 'https://www.google.com/maps/dir/', tag);
+      assert.equal(google.searchParams.get('destination'), `${lat7},${lng7}`, `${tag} destination is lat,lng`);
+      assert.equal(google.searchParams.get('api'), '1', tag);
+    }
+  }
+});
+
+await check('map links: other places keep the shared name+address search (no searchText, nothing else changed)', () => {
+  const plain = {name: '가나다 약국', address: '전북특별자치도 전주시 완산구 어진길 1', placeId: 'naver:1', navigationCapable: false};
+  assert.equal(navigation.buildDefaultMapHref('NAVER_MAP', plain, {userAgent: DESKTOP_UA}),
+    `https://map.naver.com/p/search/${encodeURIComponent('가나다 약국 전북특별자치도 전주시 완산구 어진길 1')}`);
+  assert.equal(navigation.buildDefaultMapHref('TMAP', plain, {userAgent: DESKTOP_UA}),
+    `https://map.naver.com/p/search/${encodeURIComponent('가나다 약국 전북특별자치도 전주시 완산구 어진길 1')}`);
+});
+
 // ── Browser ─────────────────────────────────────────────────────────────
 function browserPath() {
   const candidates = [process.env.CHROME_BIN, 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -511,6 +592,10 @@ async function runCase(browser, origin, workDir, testCase) {
     await check(`${label}: default map app (네이버지도) — its approved icon, its link`, () => {
       const platform = testCase.userAgent === DESKTOP_UA ? 'desktop' : testCase.userAgent === IPHONE_UA ? 'ios' : 'android';
       for (const item of s.items) {
+        const station = mapStations.find(candidate => candidate.name === item.name);
+        assert.ok(station, item.name);
+        if (platform === 'desktop') assert.equal(item.href, naverSearch(station), `${item.name}: desktop NAVER web searches the point`);
+        else assert.ok(decodeURIComponent(item.href).includes(`dlat=${station.latitude.toFixed(7)}&dlng=${station.longitude.toFixed(7)}`) && decodeURIComponent(item.href).includes(naverSearch(station)), `${item.name}: ${item.href}`);
         assert.equal(item.provider, 'NAVER_MAP');
         assert.equal(item.icon, 'naver-map');
         assert.equal(item.img, '/assets/place-actions/naver-map.png?v=place-icons-20260925');

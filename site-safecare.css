@@ -363,10 +363,54 @@
   border-color: var(--brand-violet, #7b62bb);
 }
 
-.safecare-slot[data-safecare-slot-locked="true"] {
-
+/* SAFECARE-PHOTO-EASY-UPLOAD-01: the tiles are examples; a tile that a batch
+   could not fill (or whose photo was refused) offers its own picker. */
+.safecare-slot[data-safecare-slot-retry="true"] {
   border-style: dashed;
-  background: var(--lotbi-surface-subtle, #f7f7f7);
+  border-color: var(--lotbi-warning-text, #8a4b16);
+}
+
+.safecare-slot-examples {
+  margin: 12px 0 8px;
+}
+
+/* SAFECARE-PHOTO-EASY-UPLOAD-01: call 112 / 182 first where someone may be in danger. */
+.safecare-emergency {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--lotbi-error-text, #a02645);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.safecare-emergency-text {
+  margin: 0;
+  color: var(--lotbi-text-primary, #1f1f1f);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.safecare-emergency-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* scoped so later generic .site-button rules cannot shrink the tap target */
+.safecare-emergency .safecare-emergency-call {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--lotbi-error-text, #a02645);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lotbi-error-text, #a02645);
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .safecare-slot[data-safecare-slot-working="true"] {

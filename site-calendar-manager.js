@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-40c16cdb5f6b';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-40c16cdb5f6b';
-import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-40c16cdb5f6b';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-9fc1386c8a08';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-9fc1386c8a08';
+import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-9fc1386c8a08';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,15 +10,15 @@ import {
   groupCalendarEvents,
   monthGridRange,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-40c16cdb5f6b';
-import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-40c16cdb5f6b';
+} from './site-calendar-model.js?v=aset-9fc1386c8a08';
+import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, formatExpenseAmount} from './site-calendar-expense.js?v=aset-9fc1386c8a08';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-40c16cdb5f6b';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-40c16cdb5f6b';
-import {lunarDateLabel, solarToLunar, lunarDateCompactLabel} from './site-calendar-lunar.js?v=aset-40c16cdb5f6b';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-9fc1386c8a08';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-9fc1386c8a08';
+import {lunarDateLabel, solarToLunar, lunarDateCompactLabel} from './site-calendar-lunar.js?v=aset-9fc1386c8a08';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -30,14 +30,14 @@ import {
   lifeRowPresentation,
   lifeTimelineForDate,
   monthSpanSegments,
-} from './site-calendar-product.js?v=aset-40c16cdb5f6b';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-40c16cdb5f6b';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-40c16cdb5f6b';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-40c16cdb5f6b';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-40c16cdb5f6b';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-40c16cdb5f6b';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-40c16cdb5f6b';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-40c16cdb5f6b';
+} from './site-calendar-product.js?v=aset-9fc1386c8a08';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-9fc1386c8a08';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-9fc1386c8a08';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-9fc1386c8a08';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-9fc1386c8a08';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-9fc1386c8a08';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-9fc1386c8a08';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-9fc1386c8a08';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -1563,6 +1563,7 @@ function dayPanel(state, actions, {includeActions = false, presentation = DAY_DE
   if (weather) head.appendChild(weather);
   if (closable) {
     const close = button('닫기', 'calendar-day-close');
+    close.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
     close.setAttribute('aria-label', `${month}월 ${day}일 기록 닫기`);
     close.addEventListener('click', () => actions.closeDayDetail?.());
     head.appendChild(close);
@@ -2503,6 +2504,7 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   heading.id = 'calendar-settings-heading';
   heading.textContent = '캘린더 설정';
   const close = button('×', 'calendar-settings-close');
+  close.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
   close.setAttribute('aria-label', '캘린더 설정 닫기');
   header.append(heading, close);
 
@@ -3074,6 +3076,7 @@ function calendarReadonlyDetailDialog({root, item, opener = null, onClose = () =
   const footer = document.createElement('div');
   footer.className = 'calendar-readonly-actions';
   const done = button('닫기', 'calendar-readonly-done');
+  done.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
   footer.append(done);
   dialog.append(header, title, notice, details, footer);
   backdrop.append(dialog);
@@ -3152,6 +3155,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
       : '기록 추가';
   const editorHeader = document.createElement('div'); editorHeader.className = 'calendar-editor-header';
   const closeButton = button('×', 'calendar-editor-close'); closeButton.setAttribute('aria-label', '닫기');
+  closeButton.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
   editorHeader.append(heading, closeButton);
   const form = document.createElement('form'); form.className = 'calendar-editor-form';
   // The browser's own "required" bubble would talk over our alert line.
@@ -3597,6 +3601,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
       const confirmationActions = document.createElement('div');
       confirmationActions.className = 'calendar-delete-confirm-actions';
       const cancelDelete = button('취소', 'calendar-delete-confirm-cancel');
+      cancelDelete.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
       const confirmDelete = button('삭제', 'calendar-delete-confirm-submit');
       const deleteOneDate = recurringItem ? button('이 날짜만 삭제', 'calendar-delete-confirm-occurrence') : null;
       if (deleteOneDate) {
@@ -3898,6 +3903,7 @@ function calendarPhotoConfirmDialog({root, draft, fallbackDate, controller, onSa
   heading.textContent = '사진에서 읽었어요';
   const close = button('×', 'calendar-photo-confirm-close');
   close.setAttribute('aria-label', '닫기');
+  close.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
   header.append(heading, close);
 
   const localDate = validCivilDate(draft?.localDate) ? draft.localDate : '';
@@ -4049,6 +4055,7 @@ function calendarAmountDialog({root, monthLabel, summary, local, opener = null})
   heading.textContent = `${monthLabel} 입력 금액`;
   const close = button('×', 'calendar-amount-close');
   close.setAttribute('aria-label', '닫기');
+  close.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
   header.append(heading, close);
   const done = button('닫기', 'calendar-amount-done');
   const footer = document.createElement('div');

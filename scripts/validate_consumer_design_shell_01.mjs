@@ -4,7 +4,9 @@ const read = file => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'ut
 const html = read('index.html');
 const js = read('site-conversation.js');
 const subscribe = read('subscribe.html');
-const expected = ['새 대화', '캘린더', 'Life Wallet', '진위확인', '안심케어', '지역정보', '제휴몰'];
+// CONNECTED-SERVICES-NAME-01 — 대표 결정(2026-10-10 "연결서비스로 통합"): the seventh item
+// always opened Account's 연결 서비스 page; it now carries that page's name.
+const expected = ['새 대화', '캘린더', 'Life Wallet', '진위확인', '안심케어', '지역정보', '연결 서비스'];
 const navs = [...html.matchAll(/<div class="consumer-primary-nav"[^>]*>([\s\S]*?)<\/div>/g)];
 assert.equal(navs.length, 2, 'desktop and mobile use the same navigation');
 for (const [,nav] of navs) {
@@ -27,6 +29,11 @@ assert.match(calendarSurface, /modal: true,\s*dismissOnBackdrop: false,/,
 assert.doesNotMatch(calendarSurface, /workspace:/, 'Calendar must remain an overlay over the chat');
 assert.match(js, /dismissOnBackdrop = true/,
   'Other surfaces must retain backdrop dismissal unless they explicitly opt out');
+// REGIONAL-INFO-BACK-NAVIGATION-01 (owner report: any blank spot went to the
+// home): a full-screen workspace never closes on a tap of its empty area; only
+// a popup over the chat keeps the outside tap.
+assert.match(js, /if \(dismissOnBackdrop && !workspace\) \{\s*const backdropDismiss = createBackdropDismissGuard\(surface\);/,
+  'workspaces never close on a backdrop tap');
 assert.match(js, /mainScrollHost.inert = true/);
 assert.match(js, /mainScrollHost.inert = false/);
 assert.match(js, /else if \(!workspace\) trapFocus/);

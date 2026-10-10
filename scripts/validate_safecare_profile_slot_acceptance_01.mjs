@@ -222,26 +222,26 @@ try {
         await __until(() => document.querySelector('[data-person-slot-grid]'));
         const tiles = () => [...document.querySelectorAll('[data-person-slot]')];
         const labels = tiles().map(tile => tile.querySelector('.safecare-slot-label').textContent);
-        const tile = () => tiles().find(item => item.querySelector('[data-person-slot-input]').dataset.personSlotInput === ${JSON.stringify(code)});
+        const tile = () => tiles().find(item => item.dataset.personSlot === ${JSON.stringify(code)});
+        // SAFECARE-PHOTO-EASY-UPLOAD-01: with the front stored, an empty tile offers its own picker.
+        const retryLabel = tile().querySelector('.safecare-slot-choose')?.textContent || '';
         globalThis.__refuse = ${JSON.stringify(reason)};
         await __put(tile().querySelector('input[type=file]'), 'side.png');
         await __until(() => tile().querySelector('.safecare-slot-error') && !tile().querySelector('.safecare-slot-error').hidden);
         const error = tile().querySelector('.safecare-slot-error');
         const box = tile().getBoundingClientRect(), text = error.getBoundingClientRect();
         const result = {
-          labels, text: error.textContent, hidden: error.hidden, overflow: __overflow(),
+          labels, retryLabel, text: error.textContent, hidden: error.hidden, overflow: __overflow(),
           inside: text.left >= box.left - 1 && text.right <= box.right + 1 && text.width > 0 && text.height > 0,
           errorWidth: Math.round(text.width), tileWidth: Math.round(box.width),
           stillEmpty: tile().dataset.safecareSlotFilled, count: document.querySelector('[data-safecare-photo-count]').textContent,
         };
-        // A completed photo can still be replaced (slot 1 here) and keeps the set.
+        // SAFECARE-PHOTO-EASY-UPLOAD-01: a stored photo has no per-tile picker; it is
+        // replaced through '사진 여러 장 선택' (validate_safecare_photo_bulk_upload_01, e2).
         globalThis.__refuse = null;
         const first = tiles()[0];
-        result.replaceButton = first.querySelector('.safecare-slot-choose').textContent;
-        await __put(first.querySelector('input[type=file]'), 'front-again.png');
-        await __until(() => __puts.includes(1));
-        await __wait(200);
-        result.afterReplace = document.querySelector('[data-safecare-photo-count]').textContent;
+        result.replaceButton = first.querySelector('.safecare-slot-choose')?.textContent || '';
+        result.firstInput = Boolean(first.querySelector('input[type=file]'));
         result.puts = [...__puts];
         return result;
       `);
@@ -252,9 +252,10 @@ try {
       assert.ok(r.inside, `${where}: the sentence stays inside its tile (${r.errorWidth}/${r.tileWidth}px)`);
       assert.ok(r.overflow <= 1, `${where}: horizontal overflow ${r.overflow}px`);
       assert.equal(r.stillEmpty, 'false', `${where}: a refused photo leaves the slot empty`);
-      assert.equal(r.replaceButton, '다른 사진 선택', `${where}: a stored photo offers replacement`);
-      assert.ok(r.puts.includes(1), `${where}: the replacement reached Core`);
-      assert.equal(r.afterReplace, r.count, `${where}: replacing a stored photo keeps the count`);
+      assert.equal(r.retryLabel, '이 칸 다시 고르기', `${where}: the empty tile offers its own picker`);
+      assert.equal(r.replaceButton, '', `${where}: a stored photo has no per-tile picker (replacement goes through the batch)`);
+      assert.equal(r.firstInput, false, where);
+      assert.deepEqual(r.puts, [({FACE_LEFT_PROFILE: 4, FACE_RIGHT_PROFILE: 5})[code]], `${where}: only the refused tile was sent, nothing else`);
     }
     console.log(`  ${label}: slot 4/5 reasons readable in the tile, no overflow`);
   }

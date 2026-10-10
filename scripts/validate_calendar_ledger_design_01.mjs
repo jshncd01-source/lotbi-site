@@ -61,8 +61,10 @@ try {
   // ── the one line ──
   const line = amountSummaryLinePresentation(summary, {month: 9});
   assert.deepEqual(line, {label: '9월 입력 금액 합계', amounts: ['84,200원', '12 USD']});
-  assert.equal(amountSummaryLinePresentation({currencies: [], entriesWithoutAmount: 3}, {month: 9}), null,
-    'a month with no amount draws no line at all');
+  // Owner decision 2026-10-10: a month with no amount keeps its line at 0원
+  // (the 10-06 redesign had hidden it, read as "가계부 표시가 사라졌다").
+  assert.deepEqual(amountSummaryLinePresentation({currencies: [], entriesWithoutAmount: 3}, {month: 9}),
+    {label: '9월 입력 금액 합계', amounts: ['0원']}, 'a month with no amount reads 0원, never vanishes');
   let opened = null;
   const lineNode = calendarAmountSummaryLine({state: 'ready', summary, month: 9, onOpen: opener => { opened = opener; }});
   assert.equal(lineNode.tagName, 'button');
@@ -75,7 +77,13 @@ try {
   for (const state of ['loading', 'guest']) {
     assert.equal(calendarAmountSummaryLine({state, summary}), null, `${state} must not claim any total`);
   }
-  assert.equal(calendarAmountSummaryLine({state: 'ready', summary: {currencies: [], entriesWithoutAmount: 2}, month: 9}), null);
+  const emptyLine = calendarAmountSummaryLine({state: 'ready', summary: {currencies: [], entriesWithoutAmount: 2}, month: 9});
+  assert.equal(emptyLine.dataset.calendarAmountSummary, 'ready');
+  assert.equal(find(emptyLine, 'calendar-amount-line-amount').textContent, '0원');
+  const emptyBlock = calendarAmountSummaryBlock({state: 'ready', summary: {currencies: [], entriesWithoutAmount: 2}, month: 9, onOpen: () => {}});
+  assert.deepEqual(findAll(emptyBlock, 'calendar-amount-category').map(node => [node.dataset.expenseCategory, text(node.children[1])]),
+    [['FOOD', '0원'], ['TRAVEL', '0원'], ['SHOPPING', '0원'], ['LIVING', '0원'], ['OTHER', '0원']],
+    'an empty month keeps the five fixed 0원 slots');
   const failed = calendarAmountSummaryLine({state: 'error', errorMessage: '입력 금액 합계를 불러오지 못했어요.'});
   assert.equal(failed.attributes.role, 'status');
   assert.equal(failed.textContent, '입력 금액 합계를 불러오지 못했어요.');

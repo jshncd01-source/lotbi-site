@@ -81,6 +81,20 @@ jobs:
       - name: Validate refresh keeps the current Site screen
         run: node scripts/validate_site_refresh_route_restore_01.mjs
 
+      # REGIONAL-INFO-BACK-NAVIGATION-01 — 지역정보 안의 화면(병원·응급실 ·
+      # 지역뉴스 · 지역생활정보 · 내 아이 학교·유치원과 그 하위 · 축제 · 전기차 ·
+      # 지하철 · 온누리 · 부동산)에서 시스템 뒤로가기 · 화면 위 ← · '…로
+      # 돌아가기' · Escape 가 한 단계씩(하위 → 카테고리 → 지역정보 → 홈)
+      # 돌아가고, 새로고침해도 같은 화면인지 360 · 390 · 1280px 에서 확인한다.
+      - name: Validate 지역정보 back steps one screen at a time
+        run: node scripts/validate_regional_info_back_navigation_01.mjs
+
+      # SUBVIEW-BACK-NAVIGATION-01 — 화면 안 상세·창(Life Wallet·안심케어·반려동물·
+      # 축제·내 아이·캘린더 상세/창, 모달 하단 시트)에서 뒤로가기·←·Escape 가
+      # 한 층씩 닫고 그 화면은 남는지 360 · 1280px 에서 확인한다.
+      - name: Validate in-screen layers step back one at a time
+        run: node scripts/validate_subview_back_navigation_01.mjs
+
       # Run feature-owned profile regressions before unrelated Site gates so
       # active logo/main work cannot hide whether this branch is executable.
       - name: Validate conversation, profile and thread UX contracts
@@ -275,6 +289,9 @@ jobs:
       # 접는 것과 지우는 것은 다르다. 넓은 화면은 접지 않는다.
       - name: Validate mobile footer legal sheet
         run: node scripts/validate_mobile_footer_legal_sheet_01.mjs
+
+      - name: Validate common UI polish (QA 01 shared items)
+        run: node scripts/validate_common_ui_polish_01.mjs
 
       - name: Validate Bare White Home skin scope
         run: python scripts/validate_bare_white_home_skin_01.py
@@ -515,6 +532,12 @@ jobs:
           node scripts/validate_festival_calendar_link_01.mjs
           node scripts/validate_festival_calendar_add_ui_01.mjs
 
+      # FESTIVAL-UX-POLISH-01 (QA 2026-10-10 #1·#2·#3·#20·#27): 프로그램·접수는
+      # 그 축제에 실제로 있을 때만, 월 표시와 시간 칩 일치, 화면마다 뒤로 하나
+      # (data-subview-back), 44px 버튼, 설정한 지도앱 하나, 포스터 전체 보이기.
+      - name: Validate 축제·행사 card actions, month chips, back and poster
+        run: node scripts/validate_festival_ux_polish_01.mjs
+
       - name: Validate PET FAMILY web surface
         run: |
           node --check site-pet.js
@@ -562,6 +585,16 @@ jobs:
           node --check site-person-bulk-photos.js
           node scripts/validate_safecare_photo_bulk_upload_01.mjs
 
+      # SAFECARE-PHOTO-EASY-UPLOAD-01: the ten tiles are examples and
+      # '사진 여러 장 선택' is the only way in (a tile offers its own picker only
+      # after a batch could not fill it); 112 / 182 call buttons first on the
+      # SOS and found-report screens; copy says what happens today; ending a
+      # missing-person case asks once more. 360/1280.
+      - name: Validate SafeCare photo examples, 112/182 and SOS close confirmation
+        run: |
+          node --check site-safecare-common.js
+          node scripts/validate_safecare_photo_easy_upload_01.mjs
+
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
@@ -585,6 +618,11 @@ jobs:
 
       - name: Validate Site session restore and renewal in place
         run: node scripts/validate_auth_session_continuity_p0_02.mjs
+
+      # SITE-LOGIN-HANDOFF-REPEAT-01 — a signed-in device is not sent round
+      # Account again or onto "LOTBI 연결 오류" by a stale callback or one miss.
+      - name: Validate signed-in device skips repeated login hand-overs
+        run: node scripts/validate_site_login_handoff_repeat_01.mjs
 
       # SITE-SESSION-REQUEST-STORM-P0-01 — a refused Site bearer never turns the
       # signed-in Home into a /v2/life/today and Account status request storm.

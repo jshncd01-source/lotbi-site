@@ -298,7 +298,16 @@ export function isPlaceResultFresh(placeResult, now = Date.now()) {
 // wrong place in NAVER/TMAP search. The 120-char cap is a defensive upper
 // bound for the URL, not an address truncation; real Korean addresses stay
 // far under it even combined with a venue/festival name.
+//
+// EV-CHARGER-MAP-LINK-FIX-01 — a place may carry its own `searchText`. A charger
+// station's name ("전북 전주 세이브존2(7kW)", "오거리", "… 아파트 4") is not a place
+// NAVER can search for, so the name+address query answered "조건에 맞는 업체가
+// 없습니다" and left the map on its default view. That card passes the official
+// WGS84 point ("lat,lng") instead, which NAVER resolves to the address at that
+// point and pins. Places without searchText are unchanged.
 function searchQuery(place) {
+  const own = text(place?.searchText);
+  if (own) return own.slice(0, 120);
   const name = text(place?.name);
   const address = text(place?.address);
   return [name, address].filter(Boolean).join(' ').slice(0, 120);

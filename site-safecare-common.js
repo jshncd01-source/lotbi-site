@@ -73,6 +73,34 @@ export function foundPhotoProgress(count) {
 }
 
 // Registered-subject identity photos: exactly ten.
+// SAFECARE-PHOTO-EASY-UPLOAD-01: LOTBI is not a police report. Where someone
+// may be in danger, the call buttons come first (tel: links, no script).
+export const SAFECARE_EMERGENCY_CALLS = Object.freeze([
+  Object.freeze({number: '112', label: '112 경찰 신고'}),
+  Object.freeze({number: '182', label: '182 실종 신고'}),
+]);
+export function safecareEmergencyNotice(text) {
+  const box = document.createElement('div');
+  box.className = 'safecare-emergency';
+  box.dataset.safecareEmergency = '';
+  box.setAttribute('role', 'note');
+  const message = document.createElement('p');
+  message.className = 'safecare-emergency-text';
+  message.textContent = text;
+  const actions = document.createElement('div');
+  actions.className = 'safecare-emergency-actions';
+  for (const {number, label} of SAFECARE_EMERGENCY_CALLS) {
+    const link = document.createElement('a');
+    link.className = 'site-button safecare-emergency-call';
+    link.href = `tel:${number}`;
+    link.textContent = label;
+    link.dataset.safecareEmergencyCall = number;
+    actions.append(link);
+  }
+  box.append(message, actions);
+  return box;
+}
+
 export const IDENTITY_PHOTO_TOTAL = 10;
 
 export function identityPhotoProgress(count) {

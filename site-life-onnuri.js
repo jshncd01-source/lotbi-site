@@ -18,10 +18,10 @@
 // Brand: the official 온누리상품권 logo is NOT used until its use is approved.
 // The slot below is reserved for it and renders nothing; labels are plain text.
 // LOTBI is not presented as an official/partner service of the issuer.
-import {CORE_ORIGIN} from './site-core.js?v=aset-40c16cdb5f6b';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-40c16cdb5f6b';
-import {isLocationUsageEnabled, readDefaultMapProvider, DEFAULT_MAP_PROVIDER_COOKIE, DEFAULT_MAP_PROVIDERS} from './site-location-preference.js?v=aset-40c16cdb5f6b';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-40c16cdb5f6b';
+import {CORE_ORIGIN} from './site-core.js?v=aset-9fc1386c8a08';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-9fc1386c8a08';
+import {isLocationUsageEnabled, readDefaultMapProvider, DEFAULT_MAP_PROVIDER_COOKIE, DEFAULT_MAP_PROVIDERS} from './site-location-preference.js?v=aset-9fc1386c8a08';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-9fc1386c8a08';
 
 export const ONNURI_MENU_LABEL = '온누리상품권';
 export const ONNURI_CARD_LABEL = '온누리 가맹점';
@@ -36,6 +36,9 @@ export const ONNURI_CATEGORIES = Object.freeze([
 export const ONNURI_ACCEPTS = Object.freeze([['', '전체'], ['PAPER', '지류형'], ['DIGITAL', '디지털형(모바일·카드)']]);
 export const ONNURI_DISCLAIMER = '공공데이터에 등록된 가맹점 정보를 보여 드려요. 실시간 결제 가능 여부는 아니니 방문 전 가맹점에 확인해 주세요. '
   + 'LOTBI는 공공데이터를 안내할 뿐, 온누리상품권 발행기관의 공식·제휴 서비스가 아니에요.';
+// ONNURI-REGION-FIRST-UX-01 (QA #16): one short line on top; the full notice folds.
+export const ONNURI_DISCLAIMER_SUMMARY = '공공데이터 기준 안내예요. 방문 전 가맹점에 확인해 주세요.';
+export const ONNURI_REGION_PROMPT = '시·도를 고르거나 [내 주변]으로 찾아 주세요. 지역을 고르기 전에는 가맹점을 보여 드리지 않아요.';
 export const ONNURI_DIGITAL_NOTE = '2025년 3월부터 모바일·카드형이 디지털 온누리로 통합돼, 공식 자료는 모바일과 카드를 따로 구분하지 않아요.';
 export const ONNURI_SETTINGS_URL = 'https://account.lotbiai.com/account#privacy';
 export const ONNURI_MAP_SETTINGS_URL = 'https://account.lotbiai.com/account#personalization';
@@ -409,7 +412,13 @@ export async function mountOnnuriMerchants({
   const intro = el('div', 'onnuri-intro');
   const brand = el('div', 'onnuri-brand');
   brand.append(createOnnuriLogoSlot(documentRef), el('strong', 'onnuri-brand-label', `${ONNURI_MENU_LABEL} 가맹점 찾기`));
-  intro.append(brand, el('p', 'consumer-feature-note onnuri-disclaimer', ONNURI_DISCLAIMER));
+  // ONNURI-REGION-FIRST-UX-01 (QA #16): the long notice no longer pushes the
+  // results down -- one line, the rest under 자세히.
+  const notice = el('details', 'onnuri-disclaimer-box');
+  const noticeSummary = el('summary', 'consumer-feature-note onnuri-disclaimer-summary');
+  noticeSummary.append(el('span', '', ONNURI_DISCLAIMER_SUMMARY), el('span', 'onnuri-disclaimer-more', '자세히'));
+  notice.append(noticeSummary, el('p', 'consumer-feature-note onnuri-disclaimer', ONNURI_DISCLAIMER));
+  intro.append(brand, notice);
 
   // Mode switch: 내 주변 / 지역 선택.
   const modes = el('div', 'onnuri-modes'); modes.setAttribute('role', 'tablist'); modes.setAttribute('aria-label', '찾는 방법');
@@ -450,9 +459,16 @@ export async function mountOnnuriMerchants({
   const regionNote = el('p', 'consumer-feature-note onnuri-region-note'); regionNote.setAttribute('role', 'status');
   regionPanel.append(regionRow, regionNote);
 
-  const chipGroup = (items, key, labelText) => {
+  // ONNURI-REGION-FIRST-UX-01 (QA #16): each chip row says what it filters, so
+  // the two '전체' chips are told apart ('업종' / '종류').
+  const chipGroup = (items, key, labelText, visibleLabel = labelText) => {
+    const field = el('div', 'onnuri-chip-field');
+    field.dataset.onnuriChipField = key;
+    const name = el('span', 'onnuri-chip-name', visibleLabel);
+    name.id = `onnuri-chip-name-${key}`;
     const row = el('div', 'festival-chip-row onnuri-chip-row');
-    row.setAttribute('role', 'group'); row.setAttribute('aria-label', labelText);
+    row.setAttribute('role', 'group'); row.setAttribute('aria-labelledby', name.id);
+    field.append(name, row);
     for (const [value, chipLabel] of items) {
       const chip = button(chipLabel, 'festival-chip'); chip.dataset.onnuriFilter = key; chip.dataset.value = value;
       chip.setAttribute('aria-pressed', String(state[key] === value));
@@ -464,12 +480,12 @@ export async function mountOnnuriMerchants({
       });
       row.append(chip);
     }
-    return row;
+    return field;
   };
   const digitalNote = el('p', 'consumer-feature-note onnuri-digital-note', ONNURI_DIGITAL_NOTE);
   digitalNote.hidden = true;
   const categoryRow = chipGroup(ONNURI_CATEGORIES, 'category', '업종');
-  const acceptRow = chipGroup(ONNURI_ACCEPTS, 'accept', '상품권 종류');
+  const acceptRow = chipGroup(ONNURI_ACCEPTS, 'accept', '상품권 종류', '종류');
 
   const scopeLine = el('p', 'onnuri-scope');
   const status = el('p', 'onnuri-status'); status.setAttribute('role', 'status');
@@ -520,19 +536,15 @@ export async function mountOnnuriMerchants({
   function paintCoverage(result) {
     const coverage = result?.coverage;
     if (!coverage) { coverageNote.textContent = ''; return; }
+    // QA-02 E1: data-quality counts (확인/확인 안 됨 n곳) are not shown to customers.
+    // Only what the reader can act on stays, in words.
     if (state.mode === 'location') {
       coverageNote.textContent = coverage.unlocated
-        ? `공식 자료에 위치가 없는 가맹점 ${won(coverage.unlocated)}곳은 거리로 찾을 수 없어 빠져요. 지역 선택으로 찾아 주세요.`
+        ? '공식 자료에 위치가 없는 가맹점은 거리로 찾을 수 없어요. 지역 선택으로 찾아 주세요.'
         : '';
       return;
     }
-    const known = coverage.regionKnown;
-    if (known !== null && known < coverage.total) {
-      coverageNote.textContent = `${state.sido || '전국'} 가맹점 ${won(coverage.total)}곳 중 시·군·구를 확인한 곳은 ${won(known)}곳이에요. `
-        + '확인되지 않은 곳은 시·도 전체나 시장·상점가로 찾을 수 있어요.';
-    } else {
-      coverageNote.textContent = '';
-    }
+    coverageNote.textContent = '';
   }
 
   function showEmpty(result) {
@@ -569,6 +581,17 @@ export async function mountOnnuriMerchants({
     status.textContent = '찾는 중…'; error.hidden = true; more.hidden = true; emptyActions.hidden = true;
     const useLocation = state.mode === 'location' && state.location;
     if (state.mode === 'location' && !state.location) { status.textContent = ''; return; }
+    // ONNURI-REGION-FIRST-UX-01 (QA #16): no nationwide list in arbitrary order --
+    // a region (or 내 주변) comes first.
+    if (state.mode === 'region' && !state.sido) {
+      controller.abort();
+      state.items = []; state.result = null; list.replaceChildren(); coverageNote.textContent = ''; source.textContent = '';
+      scopeLine.textContent = '';
+      status.textContent = ONNURI_REGION_PROMPT;
+      root.dataset.onnuriAwaitingRegion = 'true';
+      return;
+    }
+    delete root.dataset.onnuriAwaitingRegion;
     const startedAt = globalThis.performance?.now?.() ?? 0;
     const response = await getJson(onnuriSearchUrl({
       ...(useLocation ? {...state.location, radius: state.radius}
@@ -649,10 +672,6 @@ export async function mountOnnuriMerchants({
       await loadRegions('dong');
     } else if (!cities.regions.length) {
       notes.push(`${state.sido}는 공식 자료에 시·군·구가 확인된 가맹점이 없어 시·군·구로 나눠 볼 수 없어요. 시·도 전체나 시장·상점가로 찾아 주세요.`);
-    }
-    const coverage = cities.coverage;
-    if (coverage && coverage.withoutRegion) {
-      notes.push(`시·군·구 확인 ${won(coverage.withRegion ?? 0)}곳 · 확인 안 됨 ${won(coverage.withoutRegion)}곳(공식 자료가 시·도까지만 있고 시장 위치도 찾지 못한 곳).`);
     }
     regionNote.textContent = notes.join(' ');
     await loadRegions('market');

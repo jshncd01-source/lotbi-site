@@ -40,6 +40,9 @@ assert.match(petUi, /camera\.accept = 'image\/jpeg,image\/png'/, 'camera input m
 assert.match(petUi, /camera\.setAttribute\('capture', 'environment'\)/, 'camera input must force the device camera');
 assert.match(petUi, /gallery\.accept = 'image\/\*'/, 'gallery input must not use a narrow mime list (the Android generic-chooser-fallback bug)');
 assert.ok(!/file\.accept = 'image\/jpeg,image\/png'/.test(petUi), 'the File option must not carry the same narrow accept as Camera');
+// PET-FILE-INPUT-IMAGE-ONLY-01 — owner: "캠코더 없이 사진첩만". An empty accept let
+// Android's chooser list the camcorder; File now takes the same single type as Gallery.
+assert.match(petUi, /file\.accept = 'image\/\*'/, 'the File option takes image/* so the Android chooser lists no camcorder');
 assert.ok(!petUi.includes("gallery.setAttribute('capture'"), 'gallery must never force the camera');
 assert.ok(!petUi.includes("file.setAttribute('capture'"), 'the File option must never force the camera');
 
@@ -478,6 +481,7 @@ assert.equal(mobileAndroid.afterFile.length, 1, 'choosing File must click exactl
 assert.equal(mobileAndroid.afterFile[0].source, 'file');
 assert.equal(mobileAndroid.afterFile[0].capture, '', 'File must never force the camera');
 assert.notEqual(mobileAndroid.afterFile[0].accept, 'image/jpeg,image/png', 'File must not be the same narrow-list input as Camera');
+assert.equal(mobileAndroid.afterFile[0].accept, 'image/*', 'File takes image/* (no camcorder in the Android chooser)');
 
 assert.equal(mobileAndroid.menuAfterEscape, false, 'Escape must close the sheet');
 

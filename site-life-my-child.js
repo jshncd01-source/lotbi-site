@@ -24,8 +24,8 @@ import {
   searchSchools,
   telHref,
   updateMyChild,
-} from './site-my-child-client.js?v=aset-40c16cdb5f6b';
-import {fetchKindergartenRegions, searchKindergartens} from './site-kindergarten-client.js?v=aset-40c16cdb5f6b';
+} from './site-my-child-client.js?v=aset-9fc1386c8a08';
+import {fetchKindergartenRegions, searchKindergartens} from './site-kindergarten-client.js?v=aset-9fc1386c8a08';
 
 const ORDINALS = Object.freeze(['첫째', '둘째', '셋째', '넷째', '다섯째', '여섯째', '일곱째', '여덟째', '아홉째', '열째']);
 const WEEKDAYS = Object.freeze(['일', '월', '화', '수', '목', '금', '토']);
@@ -233,6 +233,7 @@ export function mountMyChild({
     const current = ++generation;
     say('');
     const back = button('목록으로', () => void renderHome());
+    back.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
     const title = node('h4', 'lotbi-mychild-title', '학교·유치원 추가'); title.tabIndex = -1;
     const tabs = node('div', 'consumer-tabs lotbi-mychild-tabs');
     tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '기관 종류');
@@ -576,6 +577,7 @@ export function mountMyChild({
     const current = ++generation;
     if (!keepStatus) say('');
     const back = button('목록으로', () => void renderHome());
+    back.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
     const title = node('h4', 'lotbi-mychild-title', entry.nickname); title.tabIndex = -1;
     view.setAttribute('aria-busy', 'true');
     view.replaceChildren(back, title, node('p', 'consumer-feature-note', '정보를 불러오고 있어요.'));
@@ -639,6 +641,7 @@ export function mountMyChild({
     const current = ++generation;
     say('');
     const back = button('취소', () => void renderOverview(entry));
+    back.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
     const title = node('h4', 'lotbi-mychild-title', `${entry.nickname} 바꾸기`); title.tabIndex = -1;
     const form = node('form', 'consumer-life-form lotbi-mychild-save');
     form.dataset.myChildEditForm = entry.id;
