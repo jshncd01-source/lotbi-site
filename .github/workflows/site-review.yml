@@ -439,6 +439,12 @@ jobs:
       - name: Validate life info direct chat and photo-less place cards
         run: node scripts/validate_life_direct_chat_card_compaction_01.mjs
 
+      # 대화·답변 UX(QA 2026-10-10 #6~#11): 위치 없이 물은 약국 등 "어느 지역?" 답에 [현재 위치 사용]·[지역 선택],
+      # 캘린더에 추가는 일정 있는 답에만, 장소 분류 마지막 단계 표시, 홈 예시 바로 전송, 한글 단어 단위 줄바꿈.
+      # 320·360·390·412·1280, 라이트·다크.
+      - name: Validate conversation answer UX
+        run: node scripts/validate_conversation_answer_ux_01.mjs
+
       # 장소 카드 캐러셀은 transform 으로만 돌고 스크롤하지 않는다. 상품 카드
       # 레일의 scroll snap 을 물려받아 회전할 때마다 레일이 153~252px 밀리던
       # 결함 — 이전/다음·스와이프·방향키 뒤에도 가운데 카드가 제자리인지 잰다.

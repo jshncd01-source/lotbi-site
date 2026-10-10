@@ -11,10 +11,10 @@
 //
 //   - a message with a real Core calendar_draft opens the editor pre-filled,
 //     heading "일정 초안 확인"
-//   - a plain answer with neither a place nor a calendar_draft still opens the
-//     editor, blank, heading "기록 추가" — never the bare calendar view
-//     (LIFE UX 01 renamed the blank editor from "일정 등록" to "기록 추가";
-//     the contract — it always opens, it never invents a title — is unchanged)
+//   - CONVERSATION-ANSWER-UX-01 (QA #8): a plain answer with no calendar_draft
+//     offers no 캘린더에 추가 at all, so no null hint can reach openCalendar;
+//     the draft answer's button, pressed again after it, still opens the
+//     pre-filled editor — never the bare calendar view
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
@@ -229,7 +229,11 @@ try{
   result.kakaoInit=[...kakaoCalls.init];
   result.kakaoSdkScripts=[...document.querySelectorAll('script[src*="kakaocdn"]')].length;
   result.shareMenuClosed=latestActions.querySelector('.lotbi-share-menu').hidden;
-  const plain=await openViaFooter('plain');
+  // CONVERSATION-ANSWER-UX-01 (QA #8): an answer with no schedule offers no
+  // 캘린더에 추가 at all. The Calendar shell below is exercised from the draft
+  // answer above it, whose footer button must still open its editor.
+  result.plain_calendarButton=Boolean(latestActions.querySelector('[data-message-action="calendar"]'));
+  const plain=await openViaFooter('reopenedDraft');
   result.plain_editorOpened=Boolean(plain.editor);
   result.plain_heading=plain.editor?.querySelector('#calendar-editor-heading')?.textContent||'';
   result.plain_title=plain.editor?.querySelector('.calendar-editor-title')?.value||'';
@@ -329,12 +333,13 @@ try {
     if (v.withDraft_title !== '전주 치과 정기검진') throw new Error(`${label}: the editor must pre-fill the draft's title, got "${v.withDraft_title}"`);
     if (v.withDraft_date !== '2026-10-05') throw new Error(`${label}: the editor must pre-fill the draft's date, got "${v.withDraft_date}"`);
 
-    // The regression: no place, no calendar_draft — must still reach the
-    // editor, never the bare calendar view.
-    if (!v.plain_editorOpened) throw new Error(`${label}: a plain answer's footer button must still open the editor, not the bare calendar view (calendarManagerView="${v.plain_calendarManagerView}")`);
-    if (v.plain_heading !== '기록 추가') throw new Error(`${label}: a blank fallback must read "기록 추가", got "${v.plain_heading}"`);
-    if (v.plain_title !== '') throw new Error(`${label}: a plain answer must not invent a title, got "${v.plain_title}"`);
-    assertList(v.messageActionLabels, ['복사하기', '공유하기', '캘린더에 추가', '답변 읽어주기'], `${label}: chat answer tools`);
+    // CONVERSATION-ANSWER-UX-01 (QA #8): no schedule, no 캘린더에 추가 (the old
+    // blank "기록 추가" fallback had no answer left to serve). The draft
+    // answer's button still reaches its pre-filled editor, never the bare view.
+    if (v.plain_calendarButton) throw new Error(`${label}: an answer with no schedule must not offer 캘린더에 추가`);
+    if (!v.plain_editorOpened) throw new Error(`${label}: the draft answer's footer button must still open the editor, not the bare calendar view (calendarManagerView="${v.plain_calendarManagerView}")`);
+    if (v.plain_heading !== '일정 초안 확인' || v.plain_title !== '전주 치과 정기검진') throw new Error(`${label}: reopening the draft must pre-fill it again, got "${v.plain_heading}" / "${v.plain_title}"`);
+    assertList(v.messageActionLabels, ['복사하기', '공유하기', '답변 읽어주기'], `${label}: chat answer tools`);
     if (v.answerCopied.length !== 1 || !v.answerCopied[0].startsWith('오늘은 대체로 맑고')) throw new Error(`${label}: ordinary answer copy regressed, got ${JSON.stringify(v.answerCopied)}`);
     // LOTBI-KAKAO-SHARE-ACTUAL-01: KakaoTalk comes first once Share is ready.
     assertList(v.shareMenuItems, kakao === 'configured' ? ['카카오톡 공유하기', '링크 복사'] : ['링크 복사'], `${label}: share menu`);
@@ -364,11 +369,12 @@ try {
 
     console.log(label, JSON.stringify({
       withDraft: {heading: v.withDraft_heading, title: v.withDraft_title, date: v.withDraft_date},
-      plain: {heading: v.plain_heading, title: v.plain_title},
+      plainCalendarButton: v.plain_calendarButton,
+      reopenedDraft: {heading: v.plain_heading, title: v.plain_title},
       kakao: v.kakaoFeedback,
     }));
   }
-  console.log('MESSAGE CALENDAR FOOTER EDITOR 01 PASS — a real draft opens the editor pre-filled ("일정 초안 확인"), and a plain answer with nothing to pre-fill still opens it blank ("기록 추가") instead of landing on the bare calendar view.');
+  console.log('MESSAGE CALENDAR FOOTER EDITOR 01 PASS — a real draft opens the editor pre-filled ("일정 초안 확인"), an answer with no schedule offers no 캘린더에 추가, and the Calendar stays a modal over the conversation');
 } finally {
   server.kill();
   try { fs.unlinkSync(INNER); } catch {}

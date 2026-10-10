@@ -266,6 +266,18 @@ function normalizePlace(place, index) {
   });
 }
 
+// CONVERSATION-ANSWER-UX-01 (QA #9): NAVER's category is a path such as
+// "여행,명소>동물원" or "음식점>한식>소고기구이". A card shows its last, most
+// specific step; a step that still lists several names reads "카페·디저트".
+// The raw value stays in the result for everything else that reads it.
+export function placeCategoryLabel(category) {
+  const value = typeof category === 'string' ? category.trim() : '';
+  if (!value) return '';
+  const steps = value.split('>').map(step => step.trim()).filter(Boolean);
+  const last = steps.length ? steps[steps.length - 1] : value;
+  return last.split(',').map(part => part.trim()).filter(Boolean).join('·').slice(0, 40);
+}
+
 export function normalizePlaceResult(value, {capturedAt = Date.now()} = {}) {
   if (!value || typeof value !== 'object') return null;
   if (value.contract_id !== 'CORE-PLACE-RESULT-01' || value.schema_version !== 1) return null;

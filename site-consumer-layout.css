@@ -191,7 +191,7 @@ body.chat-home-page .scam-status { font-size: 13px; line-height: 1.7; }
   body.chat-home-page .composer-actions .attachment-control,
   body.chat-home-page .composer-actions .response-grade-control,
   body.chat-home-page .composer-actions .send-button { grid-row: 2; }
-  body.chat-home-page .chat-safety-copy { max-width: 260px; align-self: center; }
+  body.chat-home-page .chat-safety-copy { max-width: 260px; align-self: center; margin-inline: auto; }
   body.chat-home-page:not(.conversation-active) .home-example-prompts { gap: 4px 12px; margin-top: 18px; flex-wrap: wrap; }
   body.chat-home-page .home-example-prompts button { font-size: 11px; }
   body.chat-home-page .consumer-plan-menu .subscription-plan-banner { top: 68px; }
