@@ -543,3 +543,7 @@
     transition: none !important;
   }
 }
+
+/* CONVERSATION-ANSWER-UX-01 (QA #11): Korean words wrap whole ("내용은",
+   "찾아보세요."); a single word too long for its line still breaks. */
+body { word-break: keep-all; overflow-wrap: break-word; }

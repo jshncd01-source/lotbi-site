@@ -489,5 +489,3 @@ textarea:focus-visible {
     color: var(--muted);
   }
 }
-/* CONVERSATION-ANSWER-UX-01 (QA #11): Korean words wrap whole; a single word too long for its line still breaks. */
-body{word-break:keep-all;overflow-wrap:break-word}

@@ -61,7 +61,8 @@ assert.match(conversationSource, /const reason = response\?\.followUp\?\.reason 
 assert.equal((conversationSource.match(/const locationRequest = answerLocationRequest\(response, message\);/gu) || []).length, 2, 'guest and signed-in answers both remember it');
 assert.match(conversationSource, /import\('\.\/site-region-picker\.js\?v=aset-[0-9a-f]{12}'\)/u, 'the region list loads only when asked');
 assert.doesNotMatch(conversationSource, /^import [^\n]*site-region-picker/mu, 'no new module in the first bundle');
-assert.match(read('styles.css'), /body\{word-break:keep-all;overflow-wrap:break-word\}/u);
+// styles.css is a locked file (validate_hardening.py); the app's own base sheet carries it.
+assert.match(read('home-chat.css'), /body \{ word-break: keep-all; overflow-wrap: break-word; \}/u);
 
 // ── Browser ────────────────────────────────────────────────────────────────
 function browserPath() {
