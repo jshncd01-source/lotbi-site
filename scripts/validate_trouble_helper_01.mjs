@@ -603,7 +603,9 @@ async function runFlow(browser, origin, dir, testCase) {
     })()`);
     await page('Emulation.setEmulatedMedia', {media: '', features: [{name: 'prefers-reduced-motion', value: 'reduce'}]});
 
-    // Reload: the dialog reopens on the 정리표 with what was written.
+    // Reload: the dialog reopens on the 정리표 with what was written. The old
+    // page's "ready" mark is cleared first so only the new page can answer.
+    await evaluate("document.getElementById('th-result').textContent = 'pending'; true");
     await page('Page.reload', {});
     await ready();
     r.reload = await evaluate(`(async () => {
