@@ -231,6 +231,21 @@ assert.deepEqual(iosModel(scamPhoto.accept, false), ['photo-library', 'take-phot
 for (const accept of ['image/*', 'image/jpeg,image/png,image/webp', '.jpg,.png', 'application/pdf', '']) {
   assert.ok(chooserModel(accept, false).deprecated.includes('camera'), `no accept value hides the camera on the older engine (${accept || 'empty'})`);
 }
+// PHOTO-INPUT-GALLERY-ONLY-01 — mixing a non-image type in does not give a
+// camera-less image picker either: the older engine falls back to the generic
+// chooser (camera, camcorder, recorder), the current one leaves the photo
+// picker for a chooser that still adds the camera. Only an image-only accept
+// on the current engine reaches the camera-less photo picker.
+for (const accept of ['image/*,application/pdf', 'image/*,application/octet-stream', 'image/*,.txt']) {
+  const mixed = chooserModel(accept, false);
+  assert.ok(mixed.deprecated.includes('camera') && mixed.deprecated.includes('camcorder'), `${accept}: older engine shows camera and camcorder`);
+  assert.ok(mixed.current.includes('camera') && !mixed.current.includes('photo-picker'), `${accept}: current engine shows a chooser with the camera, not the photo picker`);
+  assert.ok(iosModel(accept, false).includes('take-photo'), `${accept}: iPhone still offers Take Photo`);
+}
+// 'photo-picker' = showPhotoPicker(): Android 13+ (preferAndroidMediaPicker)
+// gets the system media picker, which has no camera; Android 12 and older get
+// Chrome's own media picker, which has a camera tile (PhotoPickerAction.LAUNCH_CAMERA).
+assert.ok(!chooserModel('image/*', false).current.includes('camera'), 'image/* on the current engine: the photo picker path, not a chooser with a camera intent');
 assert.equal(scamCamera.capture, true);
 assert.deepEqual([scamCamera.deprecated, scamCamera.current, iosModel(scamCamera.accept, true)], [['camera-direct'], ['camera-direct'], ['camera-direct']], '카메라로 촬영: still photo camera only, everywhere');
 assert.deepEqual(scamDocument.current, ['files'], '문서·PDF 선택하기 (current Android Chrome): files only');
