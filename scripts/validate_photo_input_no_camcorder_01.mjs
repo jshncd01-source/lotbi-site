@@ -173,11 +173,9 @@ const KNOWN = new Map([
   ['index.html#scam-document', DOCUMENT],
   ['site-life-wallet.js#filesInput@691', DOCUMENT],
   ['site-life-wallet.js#fileInput@1647', OTHER],
-  // SITE-PET-PHOTO-SOURCE-01 by design: LOTBI's own sheet offers 카메라 / 갤러리 /
-  // 파일, and 파일 carries no accept so a current Chrome opens the Files app
-  // rather than the photo picker. On the deprecated chooser path a no-accept
-  // input still lists the camcorder; left to the pet owner's decision.
-  ['site-pet-ui.js#petPhotoSourceInput=file', OTHER],
+  // PET-FILE-INPUT-IMAGE-ONLY-01 — owner decision ("캠코더 없이 사진첩만"): the
+  // pet sheet's 파일 option follows the photo picker rule like 갤러리.
+  ['site-pet-ui.js#petPhotoSourceInput=file', PHOTO_PICKER],
 ]);
 
 const keyOf = input => {

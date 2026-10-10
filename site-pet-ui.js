@@ -51,20 +51,20 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-40c16cdb5f6b';
+} from './site-pet.js?v=aset-d66272a4aad5';
 import {
   petPhotoSlotArtwork,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-40c16cdb5f6b';
+} from './site-pet-guides.js?v=aset-d66272a4aad5';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-40c16cdb5f6b';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-40c16cdb5f6b';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-40c16cdb5f6b';
+} from './site-pet-gate.js?v=aset-d66272a4aad5';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-d66272a4aad5';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-d66272a4aad5';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -72,7 +72,7 @@ import {
   foundReviewStateCopy,
   identityPhotoProgress,
   renewalBadge,
-} from './site-safecare-common.js?v=aset-40c16cdb5f6b';
+} from './site-safecare-common.js?v=aset-d66272a4aad5';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -127,6 +127,9 @@ function petPhotoGalleryLabel() {
 // provider, with no way left to reach the camera or a Files app. Gallery and
 // File both drop that exact list; petPhotoRejection() still enforces JPG/PNG
 // after the owner has chosen a file, so nothing here weakens validation.
+// PET-FILE-INPUT-IMAGE-ONLY-01 — File takes image/* too (owner: "캠코더 없이
+// 사진첩만"). An empty accept made Android's chooser list the camcorder; with
+// image/* a current Chrome on Android 13+ opens the photo picker, as Gallery.
 function buildPetPhotoSourceInputs() {
   const camera = el('input');
   camera.type = 'file';
@@ -143,6 +146,7 @@ function buildPetPhotoSourceInputs() {
 
   const file = el('input');
   file.type = 'file';
+  file.accept = 'image/*';
   file.hidden = true;
   file.dataset.petPhotoSourceInput = 'file';
 
