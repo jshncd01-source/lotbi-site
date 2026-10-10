@@ -2709,9 +2709,9 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
 
 /* The month's cells are as wide as the room beside the day rail allows, not
    as wide as the screen, so the forecast follows the grid's own width. Under
-   ~96px a cell (a small laptop, a tablet held sideways) keeps the glyph and
-   its "min/max" line in its top-right corner; precipitation is in the day
-   rail. */
+   ~96px a cell (a small laptop, a tablet held sideways) keeps the glyph in
+   its top-right corner and its "min/max" line under the date; precipitation
+   is in the day rail. */
 @media (min-width: 601px) {
   .calendar-month-grid { container: calendar-month / inline-size; }
 }
@@ -2723,19 +2723,19 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   .calendar-month-grid .calendar-weather-summary { position: absolute; top: 6px; right: 5px; margin: 0; }
   .calendar-month-grid .calendar-weather-summary > .calendar-weather-icon { display: inline-flex; align-items: center; justify-content: center; }
   .calendar-month-grid .calendar-date-cell[data-lunar="true"][data-weather="true"] .calendar-date-trigger { max-width: calc(100% - 29px); padding-right: 0; }
-  /* Beside a lunar label the date line reaches under the glyph, so min/max
-     stack in a narrow column under it, high over low; below the glyph and
-     above the first record, never over either. */
-  .calendar-month-grid .calendar-date-cell[data-lunar="true"] .calendar-weather-temperature { display: flex; flex-direction: column-reverse; align-items: flex-end; font-size: 9px; line-height: 9px; }
-  .calendar-month-grid .calendar-date-cell[data-lunar="true"] .calendar-weather-temperature-separator { display: none; }
+  /* A lunar label, or today's "10•", reaches under the glyph (to ~56px in the
+     Linux gate's wide fonts), so the min/max line sits in the free band
+     between the date line (ends 38px down) and the first record (starts 49px
+     down): one 9px line, right-aligned, top 6px + 32px = 38px. */
+  .calendar-month-grid .calendar-date-cell .calendar-weather-temperature { position: absolute; top: 32px; right: 0; display: flex; font-size: 9px; line-height: 9px; letter-spacing: -0.05em; }
+  .calendar-month-grid .calendar-date-cell .calendar-weather-temperature-separator { margin-inline: 0; }
+  /* A lunar month start (음9.1) may fold under the date into that band: that
+     one cell keeps the glyph alone, as on a phone. */
+  .calendar-month-grid .calendar-date-cell[data-lunar="true"]:has(.calendar-date-line[data-lunar-kind="month-start"]) .calendar-weather-temperature { display: none; }
 }
 @container calendar-month (max-width: 519px) {
   .calendar-month-grid .calendar-weather-summary > .calendar-weather-icon { width: 18px; height: 18px; font-size: 18px; line-height: 18px; }
   .calendar-month-grid .calendar-date-cell[data-lunar="true"][data-weather="true"] .calendar-date-trigger { max-width: calc(100% - 23px); }
-  /* ~72px cells: even today's "10•" reaches under the glyph, so every cell
-     takes the same high-over-low column. */
-  .calendar-month-grid .calendar-date-cell .calendar-weather-temperature { display: flex; flex-direction: column-reverse; align-items: flex-end; font-size: 9px; line-height: 9px; }
-  .calendar-month-grid .calendar-date-cell .calendar-weather-temperature-separator { display: none; }
 }
 
 /* Any cell wide enough for titles (tablet and desk, ~100px): the glyph keeps

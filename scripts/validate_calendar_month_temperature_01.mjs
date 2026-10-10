@@ -9,8 +9,8 @@
 // glyph alone.
 //
 // Locked here, signed-in (/v2/life/weather) and guest (/v2/life/weather/public),
-// light and dark, lunar dates on and off, 351-1280px, plus a wide-font pass
-// (DejaVu/Verdana, the Linux gate's wider metrics):
+// light and dark, lunar dates on and off, 351-1280px, plus wide-font passes
+// (DejaVu/Verdana, the Linux gate's wider metrics) at every width:
 //   - every weather request stays inside today..today+14 (<=15 days), so no
 //     month ever asks Core for a window it refuses
 //   - each forecast cell shows its min and max as visible text (>=9px)
@@ -20,8 +20,8 @@
 //   - the forecast does not change the row height
 //   - days with no forecast (past, beyond the horizon) show no weather at all
 // Normal blanks: widths <=350px (the forecast stays in the day panel), lunar
-// dates at <=357px, and on a phone the lunar month-start cell (음9.1): a
-// wrapped lunar label takes the bottom line there.
+// dates at <=357px, and on a phone or narrow tablet grid the lunar
+// month-start cell (음9.1): a wrapped lunar label takes that line there.
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
@@ -162,7 +162,8 @@ try {
       glyph: shown(cell.querySelector('.calendar-weather-icon')) ? box(cell.querySelector('.calendar-weather-icon')) : null, others,
     };
   });
-  out.textContent = JSON.stringify({ok: true, width: innerWidth, today: TODAY, requests, fixture: FIX, cells});
+  const gridWidth = root.querySelector('.calendar-month-grid')?.clientWidth || 0;
+  out.textContent = JSON.stringify({ok: true, width: innerWidth, gridWidth, today: TODAY, requests, fixture: FIX, cells});
 } catch (e) { out.textContent = JSON.stringify({ok: false, error: String(e?.stack || e), requests}); }
 </script></body></html>`;
 
@@ -245,6 +246,19 @@ const CASES = [
   ['768-guest-lunar', 768, 'auth=0&lunar=1'],
   ['1024-auth', 1024, 'auth=1'],
   ['1280-auth-lunar-dark', 1280, 'auth=1&lunar=1&theme=dark'],
+  // Wide fonts with lunar dates at every width: the gate's Linux fonts made
+  // the 610px lunar label reach under the glyph (SITE-T52 return).
+  ['375-guest-lunar-dark-wide', 375, 'auth=0&lunar=1&theme=dark&font=wide'],
+  ['412-auth-lunar-wide', 412, 'auth=1&lunar=1&font=wide'],
+  ['600-auth-lunar-wide', 600, 'auth=1&lunar=1&font=wide'],
+  ['610-auth-lunar-wide', 610, 'auth=1&lunar=1&font=wide'],
+  ['610-auth-lunar-dark-wide', 610, 'auth=1&lunar=1&theme=dark&font=wide'],
+  ['610-guest-lunar-cold-wide', 610, 'auth=0&lunar=1&fix=cold&font=wide'],
+  ['650-auth-lunar-wide', 650, 'auth=1&lunar=1&font=wide'],
+  ['768-auth-lunar-wide', 768, 'auth=1&lunar=1&font=wide'],
+  ['768-auth-wide', 768, 'auth=1&font=wide'],
+  ['1024-auth-lunar-wide', 1024, 'auth=1&lunar=1&font=wide'],
+  ['1280-auth-wide', 1280, 'auth=1&font=wide'],
 ];
 
 const addDays = (date, days) => new Date(Date.parse(date + 'T00:00:00Z') + days * 86400000).toISOString().slice(0, 10);
@@ -271,9 +285,11 @@ function check(label, width, query, value) {
       continue;
     }
     if (!cell.glyph && width > 350) problems.push(`${cell.date} lost its weather glyph`);
-    // A lunar month start (음9.1) may fold under the date on a phone and take
-    // the bottom line: that one cell keeps the glyph alone.
-    const expectHidden = gridHidden || (lunar && width <= 600 && cell.lunarKind === 'month-start');
+    // A lunar month start (음9.1) may fold under the date on a phone or a
+    // narrow tablet grid (<680px) and take the temperature's line: that one
+    // cell keeps the glyph alone.
+    const narrowGrid = width <= 600 || value.gridWidth < 680;
+    const expectHidden = gridHidden || (lunar && narrowGrid && cell.lunarKind === 'month-start');
     if (expectHidden) {
       if (cell.tempShown) problems.push(`${cell.date} shows a temperature where the cell has no room for it`);
       continue;
