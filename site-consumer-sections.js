@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-f8362b92bd59';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-f8362b92bd59';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-f8362b92bd59';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-a3828a247dd1';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-a3828a247dd1';
+import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-a3828a247dd1';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -24,8 +24,19 @@ export const LIFE_MEDICAL_QUESTIONS = Object.freeze({
 // separate 유치원·학교 card is gone (owner decision 2026-10-10): 내 아이 학교·유치원
 // is the one education card and opens 내 아이 정보 (signed-in, MY-CHILD-SCHOOL-01)
 // or 유치원·학교 찾기 (the public lookup, KINDERGARTEN-OFFICIAL-INFO-01).
-// Eight cards with 전북 맛집·음식: every row of two is full (an odd count would
-// let the last card span its row, site-consumer-design.css).
+// REGIONAL-CARDS-BUNDLE-01 (four feature screens, one card list):
+// * 전기차 충전소 right after 약국 (EV-CHARGER-NEARBY-LIST-P0, site-life-ev-chargers.js)
+// * 지하철 정보 right after 지역뉴스 (SUBWAY-LIFE-INFO-P0, site-life-subway.js)
+// * 부동산 실거래가 right after 온누리상품권·지역화폐 (REAL-ESTATE-REGION-FAVORITES-P0,
+//   site-life-real-estate.js)
+// * 도로 CCTV after it only while TRAFFIC_CCTV_UI_ENABLED (off: owner decision
+//   2026-10-10, TRAFFIC-CCTV P0, site-life-traffic-cctv.js)
+// Each is a screen of its own, never a question to the conversation. Ten
+// cards (CCTV off; no 전북 맛집·음식 — owner decision 2026-10-10): five full rows
+// of two. On a 360px phone 내 아이 학교·유치원 wraps at its word gap inside the
+// shared card height (site-consumer-layout.css: grid-auto-rows 1fr). Turning
+// CCTV on makes eleven: the odd last card then spans its row
+// (site-consumer-design.css), so no cell is empty either way.
 export const LIFE_MEDICAL_CHOICES = Object.freeze([
   Object.freeze({id: 'hospital', label: '병원·의원 찾기'}),
   Object.freeze({id: 'emergency', label: '응급실 찾기'}),
@@ -37,16 +48,29 @@ export const LIFE_CHILD_CHOICES = Object.freeze([
 export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'medical', label: '병원·응급실', icon: 'hospital', choices: LIFE_MEDICAL_CHOICES},
   {id: 'pharmacy', label: '약국', icon: 'pharmacy', ask: LIFE_MEDICAL_QUESTIONS.pharmacy},
+  // EV-CHARGER-NEARBY-LIST-P0: nearest stations from 한국환경공단 data, no chat.
+  {id: 'ev-chargers', label: '전기차 충전소', icon: 'ev'},
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
   // REGIONAL-NEWS-SCREEN-LIST-01: lists 광역시·도 news titles itself (site-life-news.js).
   {id: 'news', label: '지역뉴스', icon: 'news'},
+  // SUBWAY-LIFE-INFO-P0: its own screen (site-life-subway.js) — nearby and
+  // searched stations, official real-time arrivals, average congestion. No chat.
+  {id: 'subway', label: '지하철 정보', icon: 'subway'},
   // ONNURI-MERCHANT-01: its own search surface (site-life-onnuri.js). The
   // official logo is not used before approval; brandSlot reserves its place.
   // LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: 온누리상품권 + 지역화폐 in one card.
   {id: 'onnuri', label: '온누리상품권·지역화폐', brandSlot: 'onnuri'},
+  // REAL-ESTATE-REGION-FAVORITES-P0: 국토교통부 실거래가 list + 관심 아파트, no chat.
+  {id: 'real-estate', label: '부동산 실거래가', icon: 'building'},
+  // TRAFFIC-CCTV P0: official ITS road cameras by road, route and 구간, no chat.
+  // The screen is titled 실시간 도로 CCTV; the card says 도로 CCTV so the label
+  // stays on one line in the approved two-column grid at 360 px. Hidden while
+  // TRAFFIC_CCTV_UI_ENABLED is off.
+  ...(TRAFFIC_CCTV_UI_ENABLED ? [{id: 'traffic-cctv', label: '도로 CCTV', icon: 'cctv'}] : []),
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
-  // JEONBUK-PILOT-01: 전북특별자치도·전주시 공식 음식점 공공데이터 (Core regional_food).
-  {id: 'jeonbuk-food', label: '전북 맛집·음식', icon: 'food', regionalFood: true},
+  // REGIONAL-CARDS-BUNDLE-01: no 전북 맛집·음식 card or entry form (owner decision
+  // 2026-10-10 — LOTBI serves the whole country, not 전북 only). The 전북 official
+  // record cards shown in a conversation answer stay.
   // MY-CHILD-SCHOOL-01 + KINDERGARTEN-OFFICIAL-INFO-01 behind one card. Last.
   {id: 'my-child', label: '내 아이 학교·유치원', icon: 'backpack', children: LIFE_CHILD_CHOICES},
 ]);
@@ -80,6 +104,10 @@ const ICON_PATHS = {
   food: ['M6 2v7a2 2 0 0 0 4 0V2M8 2v20', 'M18 22V2c-2.2 1.4-3.5 4.2-3.5 7.5V14H18'],
   school: ['m2 9 10-5 10 5-10 5L2 9Z', 'M6 11v5c3 2.5 9 2.5 12 0v-5', 'M22 9v6'],
   backpack: ['M9 6V5a3 3 0 0 1 6 0v1', 'M6 9a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v12H6V9Z', 'M9 13h6v4H9v-4Z'],
+  building: ['M4 21V8l6-4v17', 'M10 21V9h10v12', 'M2 21h20', 'M13 12h1m3 0h1m-5 4h1m3 0h1M6.5 10h1m-1 4h1'],
+  ev: ['M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16', 'M2 21h15', 'm10 7-2.5 4h4L9 15', 'M15 9h1.5a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-2.5-2.5'],
+  subway: ['M7 3h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z', 'M4 11h16M8 15h.01M16 15h.01', 'm8 18-2 3m10-3 2 3'],
+  cctv: ['M3 7.5 15 3.8l2 6.2-12 3.7-2-6.2Z', 'm17 8.6 4-1.2v5.2l-3.2 1', 'M8 12.6 9 16H4.5v4.5', 'M7 8.4h.01'],
 };
 
 function node(tag, className = '', text = '') {
@@ -115,7 +143,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onEvChargers, onRealEstate, onSubway, onTrafficCctv, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -138,15 +166,6 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       }, {secondary: true});
       const detail = node('section', 'consumer-life-detail');
       const title = node('h3', '', item.label); title.tabIndex = -1;
-      if (item.regionalFood) {
-        // The question goes through the same life handoff (onAsk) as every
-        // other 생활정보 form; Core answers it from the official 전북 data.
-        const {form: foodForm, note} = createJeonbukFoodForm(document, {onSubmit: text => { if (!disposed) onAsk(text); }});
-        detail.dataset.lifeDetail = item.id;
-        detail.append(back, title, foodForm, node('p', 'consumer-feature-note', note));
-        root.replaceChildren(detail); title.focus();
-        return;
-      }
       const queryForm = node('form', 'consumer-life-form');
       const controls = [];
       const fields = LIFE_DETAIL_FIELDS[item.id];
@@ -207,7 +226,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-f8362b92bd59').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-a3828a247dd1').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -254,7 +273,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-f8362b92bd59').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-a3828a247dd1').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -291,10 +310,14 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         if (disposed) return;
         if (item.ask) onAsk(item.ask);
         else if (item.choices) openMedicalChoice(item);
+        else if (item.id === 'traffic-cctv') onTrafficCctv?.();
         else if (item.id === 'festivals') onFestival();
+        else if (item.id === 'ev-chargers') onEvChargers?.();
+        else if (item.id === 'subway') onSubway?.();
         else if (item.children) openChildChoice(item);
         else item.id === 'news' ? openNewsEntry(item)
-          : item.id === 'onnuri' ? onOnnuri?.() : openLifeDetail(item);
+          : item.id === 'onnuri' ? onOnnuri?.()
+            : item.id === 'real-estate' ? onRealEstate?.() : openLifeDetail(item);
       });
       grid.append(button);
     }
