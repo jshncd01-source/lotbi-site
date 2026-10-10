@@ -12,7 +12,9 @@
 //     draw no month total
 //   - one line: label, total and chevron share a row; a real button with a
 //     44px touch target; no category name and no ledger words on the line
-//   - a month with no recorded amount draws no line at all (no 0원 ledger)
+//   - a month with no recorded amount keeps its line at 0원 and the five
+//     fixed 0원 slots (owner decision 2026-10-10: the 10-06 redesign had hidden
+//     the line, which read as "가계부 표시가 사라졌다")
 //   - pressing it opens the breakdown -- a sheet on a phone, a side panel on
 //     a desk -- listing only the categories that hold an amount, in the fixed
 //     order, with the total; Escape closes it and focus returns to the line
@@ -313,13 +315,14 @@ try{
   result.octoberLabel=line(root).querySelector('.calendar-amount-line-label')?.textContent||'';
   result.octoberAria=line(root).getAttribute('aria-label')||'';
 
-  // --- empty month: no line at all ----------------------------------------
+  // --- empty month: the line stays, at 0원 ----------------------------------
   {
     const emptyFetch=stubFetch({expense:{currencies:[],entries_without_amount:3}});
     root=await mountCase(manager,{sessionToken:'tok_expense_fixture',fetchImpl:emptyFetch});
     await settled(root,emptyFetch,'empty');
     result.emptyLine=line(root)?.dataset.calendarAmountSummary||'absent';
-    result.emptyZero=(root.querySelector('.calendar-month')?.textContent||'').includes('0원');
+    result.emptyAmount=line(root)?.querySelector('.calendar-amount-line-amount')?.textContent||'';
+    result.emptySlots=[...root.querySelectorAll('.calendar-amount-category')].map(n=>[n.dataset.expenseCategory,n.querySelector('dd')?.textContent||'']);
     result.emptyForbidden=forbiddenIn(root.textContent);
   }
 
@@ -378,6 +381,7 @@ try{
     root=await mountCase(manager,{sessionToken:'',fetchImpl:stubFetch({expense:KRW_SUMMARY}),guestRepository:blankRepo});
     await settled(root,null,'blank');
     result.blankLine=line(root)?.dataset.calendarAmountSummary||'absent';
+    result.blankLineAmount=line(root)?.querySelector('.calendar-amount-line-amount')?.textContent||'';
     root.querySelector('[data-calendar-date-trigger="2026-09-14"]').click();
     await wait(()=>root.querySelector('.calendar-day-panel [data-calendar-event-id]'),'event row');
     root.querySelector('.calendar-day-panel [data-calendar-event-id]').click();
@@ -412,10 +416,11 @@ try{
   }));
   root.querySelector('.calendar-amount-done').click();
 
-  // --- guest, empty month: no line, never a login prompt ------------------
+  // --- guest, empty month: a 0원 line, never a login prompt ----------------
   root=await mountCase(manager,{sessionToken:'',fetchImpl:stubFetch({expense:KRW_SUMMARY}),guestRepository:makeGuestRepo([])});
   await settled(root,null,'guest empty');
   result.guestEmptyLine=line(root)?.dataset.calendarAmountSummary||'absent';
+  result.guestEmptyAmount=line(root)?.querySelector('.calendar-amount-line-amount')?.textContent||'';
   result.guestEmptyLogin=(root.querySelector('.calendar-month')?.textContent||'').includes('로그인');
 
   // --- guest, a repository that throws: the Calendar must outlive it ------
@@ -566,8 +571,10 @@ try {
       fail(`the line must follow the displayed month, got "${value.octoberLabel}" / "${value.octoberAria}"`);
     }
 
-    if (value.emptyLine !== 'absent') fail(`a month with no recorded amount must draw no line, got "${value.emptyLine}"`);
-    if (value.emptyZero) fail('a month with no recorded amount must not show a 0원 ledger');
+    if (value.emptyLine !== 'ready' || value.emptyAmount !== '0원') fail(`a month with no recorded amount must keep its line at 0원, got "${value.emptyLine}" / "${value.emptyAmount}"`);
+    if (JSON.stringify(value.emptySlots) !== JSON.stringify([['FOOD', '0원'], ['TRAVEL', '0원'], ['SHOPPING', '0원'], ['LIVING', '0원'], ['OTHER', '0원']])) {
+      fail(`a month with no recorded amount must keep the five fixed 0원 slots, got ${JSON.stringify(value.emptySlots)}`);
+    }
     if (value.emptyForbidden.length) fail(`an empty month must not report excluded entries, got ${value.emptyForbidden.join(',')}`);
 
     for (const status of [401, 403]) {
@@ -599,7 +606,7 @@ try {
     if (!value.labelParity) fail('the breakdown and the editor must call every category the same thing');
 
     // An entry with no amount must not wear a 0 that looks saved.
-    if (value.blankLine !== 'absent') fail(`a month whose only entry has no amount must draw no line, got "${value.blankLine}"`);
+    if (value.blankLine !== 'ready' || value.blankLineAmount !== '0원') fail(`a month whose only entry has no amount must read 0원 (the entry is not counted), got "${value.blankLine}" / "${value.blankLineAmount}"`);
     if (value.blankAmountValue !== '') fail(`an entry with no amount must open with an empty box, got "${value.blankAmountValue}"`);
     if (/^\s*0\s*$/.test(value.blankAmountPlaceholder || '')) fail('the amount box must not show a placeholder 0');
     if (value.blankAmountCategory !== 'TRAVEL') fail(`the saved category must survive, got ${value.blankAmountCategory}`);
@@ -619,7 +626,7 @@ try {
       {currency: 'USD', label: '합계 (USD)', amount: '1,200 USD'},
     ])) fail(`each currency must keep its own total, got ${JSON.stringify(value.currencyTotals)}`);
 
-    if (value.guestEmptyLine !== 'absent') fail(`a signed-out empty month must draw no line, got "${value.guestEmptyLine}"`);
+    if (value.guestEmptyLine !== 'ready' || value.guestEmptyAmount !== '0원') fail(`a signed-out empty month must keep its line at 0원, got "${value.guestEmptyLine}" / "${value.guestEmptyAmount}"`);
     if (value.guestEmptyLogin) fail('a signed-out empty month must not read as a login wall');
 
     // The Calendar went down over this bar once. It must not again.

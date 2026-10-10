@@ -19,6 +19,8 @@
 //   - min and max each keep >=4.5:1 contrast on the cell behind them
 //   - the forecast does not change the row height
 //   - days with no forecast (past, beyond the horizon) show no weather at all
+//   - the month's 가계부 line (here 0원) and its five 0원 slots stay visible
+//     above the grid, on screen (CALENDAR-MONTH-EXPENSE-RESTORE-01)
 // Normal blanks: widths <=350px (the forecast stays in the day panel), lunar
 // dates at <=357px, and on a phone or narrow tablet grid the lunar
 // month-start cell (음9.1): a wrapped lunar label takes that line there.
@@ -163,7 +165,15 @@ try {
     };
   });
   const gridWidth = root.querySelector('.calendar-month-grid')?.clientWidth || 0;
-  out.textContent = JSON.stringify({ok: true, width: innerWidth, gridWidth, today: TODAY, requests, fixture: FIX, cells});
+  const amountLine = root.querySelector('[data-calendar-amount-summary]');
+  const amount = {
+    state: amountLine?.dataset.calendarAmountSummary || 'absent', shown: shown(amountLine),
+    label: amountLine?.querySelector('.calendar-amount-line-label')?.textContent || '',
+    total: amountLine?.querySelector('.calendar-amount-line-amount')?.textContent || '',
+    box: shown(amountLine) ? box(amountLine) : null, gridTop: box(root.querySelector('.calendar-month-grid'))?.top ?? 0,
+    slots: [...root.querySelectorAll('.calendar-amount-category')].filter(shown).map(n => [n.dataset.expenseCategory, n.querySelector('dd')?.textContent || '', box(n)]),
+  };
+  out.textContent = JSON.stringify({ok: true, width: innerWidth, gridWidth, today: TODAY, requests, fixture: FIX, cells, amount});
 } catch (e) { out.textContent = JSON.stringify({ok: false, error: String(e?.stack || e), requests}); }
 </script></body></html>`;
 
@@ -311,6 +321,19 @@ function check(label, width, query, value) {
   const rows = new Map();
   for (const cell of value.cells) rows.set(cell.row, [...(rows.get(cell.row) || []), cell.height]);
   for (const [row, heights] of rows) if (Math.max(...heights) - Math.min(...heights) > 0.5) problems.push(`row at ${row}px has uneven heights ${[...new Set(heights.map(h => h.toFixed(1)))].join('/')}`);
+  // The month's 가계부 line stays above the grid beside the forecast (CALENDAR-
+  // MONTH-EXPENSE-RESTORE-01): this fixture's months hold no amount, so it reads 0원.
+  const month = Number(value.today.slice(5, 7));
+  const amount = value.amount;
+  if (amount.state !== 'ready' || !amount.shown) problems.push(`the month's amount line is ${amount.state}${amount.shown ? '' : ' and hidden'}`);
+  else {
+    if (amount.label !== `${month}월 입력 금액 합계` || amount.total !== '0원') problems.push(`amount line reads "${amount.label} ${amount.total}"`);
+    if (amount.box.bottom > amount.gridTop + 0.5) problems.push('the amount line overlaps the month grid');
+    if (amount.box.right > width + 0.5 || amount.box.left < -0.5) problems.push('the amount line leaves the screen');
+    const slots = amount.slots.map(([category, text]) => `${category}:${text}`).join(',');
+    if (slots !== 'FOOD:0원,TRAVEL:0원,SHOPPING:0원,LIVING:0원,OTHER:0원') problems.push(`amount slots are ${slots}`);
+    for (const [category, , slot] of amount.slots) if (slot.bottom > amount.gridTop + 0.5 || slot.right > width + 0.5) problems.push(`${category} slot overlaps the grid or leaves the screen`);
+  }
   if (!gridHidden && shownCount < 5) problems.push(`only ${shownCount} forecast cells showed a temperature`);
   if (problems.length) throw new Error(`${label}: ${problems.slice(0, 8).join('; ')}`);
   return shownCount;
