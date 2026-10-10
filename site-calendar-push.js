@@ -1,4 +1,4 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-cb1e2d5d19ae';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-33623027ca60';
 
 function assertSessionToken(sessionToken) {
   const value = typeof sessionToken === 'string' ? sessionToken.trim() : '';
@@ -88,7 +88,7 @@ export async function getCalendarPushConfig(fetchImpl = globalThis.fetch) {
 
 export async function registerCalendarPushWorker({
   navigatorImpl = globalThis.navigator,
-  workerUrl = '/lotbi-calendar-push-worker.js?v=aset-cb1e2d5d19ae',
+  workerUrl = '/lotbi-calendar-push-worker.js?v=aset-33623027ca60',
 } = {}) {
   const container = navigatorImpl?.serviceWorker;
   if (!container || typeof container.register !== 'function') {

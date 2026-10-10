@@ -18,9 +18,9 @@
 // hls.js light build (vendor/hls.js-1.6.19, loaded on first need with SRI).
 // Closing the player stops the stream and releases the player. Nothing is
 // recorded, downloaded or stored, and the stream URL is never logged.
-import {CORE_ORIGIN} from './site-core.js?v=aset-cb1e2d5d19ae';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-cb1e2d5d19ae';
-import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-cb1e2d5d19ae';
+import {CORE_ORIGIN} from './site-core.js?v=aset-33623027ca60';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-33623027ca60';
+import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-33623027ca60';
 
 export const CCTV_MENU_LABEL = '실시간 도로 CCTV';
 export const CCTV_SCREEN_TITLE = '실시간 도로 CCTV';
