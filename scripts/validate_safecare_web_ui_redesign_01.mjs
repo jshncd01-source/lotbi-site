@@ -35,6 +35,12 @@ for (let count = 0; count <= 10; count += 1) {
   assert.equal(progress.canAdd, count < 10, `found report with ${count} photos: adding must ${count < 10 ? 'stay open' : 'stop'}`);
 }
 assert.equal(common.foundPhotoProgress(1).message, '현재 1/5장 · 최종 제출하려면 사진 4장이 더 필요합니다.');
+// QA 02 D2: the birth-year wheel starts near a likely year for the relationship.
+{
+  const now = new Date(Date.UTC(2026, 9, 10));
+  assert.deepEqual(['CHILD', 'PARENT', 'SPOUSE', 'FAMILY', 'DEPENDENT', 'OTHER', 'UNKNOWN'].map(code => common.birthYearStart(code, now)), [2018, 1961, 1986, 1981, 1956, 1981, 1981]);
+  for (const code of ['CHILD', 'PARENT', 'SPOUSE', 'FAMILY', 'DEPENDENT', 'OTHER']) assert.ok(common.birthYearOptions(now).includes(common.birthYearStart(code, now)), `${code}: the start year is on the wheel`);
+}
 assert.equal(common.foundPhotoProgress(0).message, '발견한 대상의 사진 1장부터 작성을 시작할 수 있습니다.');
 assert.equal(common.NO_RELIABLE_MATCH_LABEL, '확인 가능한 일치 대상 없음');
 assert.equal(common.foundReviewStateCopy('NO_RELIABLE_MATCH').label, '확인 가능한 일치 대상 없음');
@@ -444,19 +450,49 @@ async function run() {
       await shoot('person-02-photos');
 
       // ------------------------------------------------ person: register
+      // QA 02 D3: the browser's own accessibility tree names the name input '이름'.
+      await cdp.evaluate(`
+        await __mountPerson(); await __until(() => document.querySelector('[data-person-list]'));
+        [...document.querySelectorAll('.person-section-heading button')].find(b => b.textContent === '사람 등록').click();
+        await __until(() => document.querySelector('[data-person-basic-form]'));
+        return true;
+      `);
+      await cdp.send('DOM.enable');
+      await cdp.send('Accessibility.enable');
+      const axRoot = await cdp.send('DOM.getDocument', {depth: 0});
+      const nameAx = await cdp.send('Accessibility.queryAXTree', {nodeId: axRoot.root.nodeId, accessibleName: '이름', role: 'textbox'});
       r.personRegister = await cdp.evaluate(`
         await __mountPerson(); await __until(() => document.querySelector('[data-person-list]'));
         [...document.querySelectorAll('.person-section-heading button')].find(b => b.textContent === '사람 등록').click();
         await __until(() => document.querySelector('[data-person-basic-form]'));
         const form = document.querySelector('[data-person-basic-form]');
         const trigger = form.querySelector('[data-person-birth-trigger]');
+        const nameInput = form.querySelector('input');
+        const nameLabel = {
+          id: nameInput.id, labels: nameInput.labels.length, forMatches: nameInput.labels[0]?.htmlFor === nameInput.id && Boolean(nameInput.id),
+          text: nameInput.labels[0]?.querySelector('.person-field-label')?.textContent || '',
+        };
+        const selectedYearNow = () => document.querySelector('[data-person-birth-picker] [data-person-birth-year-option][aria-selected="true"]')?.dataset.personBirthYearOption;
+        // QA 02 D2: a parent's wheel starts decades back, not at this year.
+        const relationshipSelect = form.querySelector('select');
+        relationshipSelect.value = 'PARENT';
         trigger.click();
         await __until(() => document.querySelector('[data-person-birth-picker]'));
         await __wait(260);
+        const parentStart = selectedYearNow();
+        const parentVisible = (() => { const wheel = document.querySelector('[data-person-birth-picker] [aria-label="연도 선택"]'); const option = wheel.querySelector('[aria-selected="true"]'); const a = wheel.getBoundingClientRect(), b = option.getBoundingClientRect(); return b.top >= a.top - 1 && b.bottom <= a.bottom + 1; })();
+        document.querySelector('[data-lotbi-sheet-dismiss]').click();
+        await __until(() => !document.querySelector('[data-person-birth-picker]'));
+        await __wait(260);
+        relationshipSelect.value = 'CHILD';
+        trigger.click();
+        await __until(() => document.querySelector('[data-person-birth-picker]'));
+        await __wait(260);
+        const childStart = selectedYearNow();
         const picker = document.querySelector('[data-person-birth-picker]');
         const yearWheel = picker.querySelector('[aria-label="연도 선택"]');
-        const year2018 = picker.querySelector('[data-person-birth-year-option="2018"]');
-        yearWheel.scrollTop = year2018.offsetTop - (yearWheel.clientHeight - year2018.offsetHeight) / 2;
+        const year2015 = picker.querySelector('[data-person-birth-year-option="2015"]');
+        yearWheel.scrollTop = year2015.offsetTop - (yearWheel.clientHeight - year2015.offsetHeight) / 2;
         yearWheel.dispatchEvent(new Event('scroll'));
         await __wait(140);
         return {
@@ -467,12 +503,14 @@ async function run() {
           wheelLabels: [...picker.querySelectorAll('.person-birth-wheel-label')].map(node => node.textContent),
           monthValues: [...picker.querySelectorAll('[data-person-birth-month-option]')].map(node => node.dataset.personBirthMonthOption),
           scrolledYear: picker.querySelector('[data-person-birth-year-option][aria-selected="true"]')?.dataset.personBirthYearOption,
+          parentStart, parentVisible, childStart, nameLabel, thisYear: new Date().getFullYear(),
           dayControls: picker.querySelectorAll('[data-person-birth-day], [aria-label*="일 선택"]').length,
           typedBirthControls: form.querySelectorAll('input[type=number], [data-person-birth-year][contenteditable], [data-person-birth-month][contenteditable]').length,
           numberInputs: form.querySelectorAll('input[type=number]').length,
           inlineRenewalNotices: [...form.querySelectorAll('.person-consent')].filter(node => node.textContent.includes('갱신 주기')).length,
         };
       `);
+      r.personRegister.nameAccessibleName = nameAx.nodes.length === 1;
       await shoot('person-03-register-step1');
       r.personRenewalNotice = await cdp.evaluate(`
         const form = document.querySelector('[data-person-basic-form]');
@@ -494,8 +532,34 @@ async function run() {
           activeBeforeConfirm: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent,
           sectionCount: renewalDialog.querySelectorAll('[data-safecare-notice-section]').length,
           guardianVisible: Boolean(renewalDialog.querySelector('[data-safecare-notice-section="guardian"]')),
-          confirmDisabledInitially: renewalDialog.querySelector('[data-safecare-renewal-confirm]')?.disabled,
+          // SAFECARE-CONSENT-VISIBLE-01: inactive until consent, but never a silently dead button.
+          confirmDisabledInitially: renewalDialog.querySelector('[data-safecare-renewal-confirm]')?.getAttribute('aria-disabled') === 'true',
+          confirmNativeDisabled: renewalDialog.querySelector('[data-safecare-renewal-confirm]')?.disabled,
+          // Every required checkbox is visible before any 상세보기 is opened.
+          visibleConsents: [...renewalDialog.querySelectorAll('[data-safecare-consent]')].filter(input => input.getClientRects().length > 0).map(input => input.dataset.safecareConsent),
+          openDetailsAtStart: [...renewalDialog.querySelectorAll('[data-safecare-notice-detail]')].filter(node => !node.hidden).length,
         };
+        // Pressing without consent says which ones are missing, moves to the first, creates nothing.
+        renewalDialog.querySelector('[data-safecare-renewal-confirm]').click();
+        await __wait(80);
+        const missingError = renewalDialog.querySelector('.safecare-renewal-error');
+        renewalNotice.missingPress = {
+          shown: !missingError.hidden, text: missingError.textContent, role: missingError.getAttribute('role'),
+          focused: document.activeElement?.dataset?.safecareConsent || '',
+          outlined: renewalDialog.querySelectorAll('.safecare-consent-row.is-missing').length,
+          created: __calls.includes('POST /v2/person-profiles'),
+        };
+        // 모두 동의 ticks every required box at once and can untick them again.
+        const allConsent = renewalDialog.querySelector('[data-safecare-consent-all]');
+        allConsent.click();
+        renewalNotice.afterAll = {
+          checked: [...renewalDialog.querySelectorAll('[data-safecare-consent]')].every(input => input.checked),
+          ready: renewalDialog.querySelector('[data-safecare-renewal-confirm]').getAttribute('aria-disabled') === 'false',
+          errorHidden: missingError.hidden,
+          outlined: renewalDialog.querySelectorAll('.safecare-consent-row.is-missing').length,
+        };
+        allConsent.click();
+        renewalNotice.afterAllAgain = [...renewalDialog.querySelectorAll('[data-safecare-consent]')].some(input => input.checked);
         renewalDialog.querySelector('[data-safecare-notice-toggle="renewal"]').click();
         renewalNotice.openAfterRenewal = [...renewalDialog.querySelectorAll('[data-safecare-notice-detail]')]
           .filter(node => !node.hidden).map(node => node.dataset.safecareNoticeDetail);
@@ -505,16 +569,22 @@ async function run() {
         const usageConsent = renewalDialog.querySelector('[data-safecare-consent="usage"]');
         renewalNotice.usageLabel = usageConsent.closest('label').textContent.trim();
         usageConsent.click();
-        renewalNotice.disabledAfterUsage = renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        renewalNotice.disabledAfterUsage = renewalDialog.querySelector('[data-safecare-renewal-confirm]').getAttribute('aria-disabled') === 'true';
         const privacyConsent = renewalDialog.querySelector('[data-safecare-consent="privacy"]');
         renewalNotice.privacyLabel = privacyConsent.closest('label').textContent.trim();
         privacyConsent.click();
-        renewalNotice.disabledAfterPrivacy = renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        renewalNotice.disabledAfterPrivacy = renewalDialog.querySelector('[data-safecare-renewal-confirm]').getAttribute('aria-disabled') === 'true';
+        // Only the guardian consent is left: the message names just that one.
+        renewalDialog.querySelector('[data-safecare-renewal-confirm]').click();
+        await __wait(80);
+        renewalNotice.guardianOnlyMissing = renewalDialog.querySelector('.safecare-renewal-error').textContent;
         renewalDialog.querySelector('[data-safecare-notice-toggle="guardian"]').click();
         const guardianConsent = renewalDialog.querySelector('[data-safecare-consent="guardian"]');
         renewalNotice.guardianLabel = guardianConsent.closest('label').textContent.trim();
         guardianConsent.click();
-        renewalNotice.confirmEnabledAfterRequiredConsents = !renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        renewalNotice.confirmEnabledAfterRequiredConsents = renewalDialog.querySelector('[data-safecare-renewal-confirm]').getAttribute('aria-disabled') === 'false'
+          && !renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        renewalNotice.errorClearedAfterConsent = renewalDialog.querySelector('.safecare-renewal-error').hidden;
         renewalNotice.confirmText = renewalDialog.querySelector('[data-safecare-renewal-confirm]').textContent;
         await __wait(260);
         return {selectedBirth, renewalNotice};
@@ -663,12 +733,18 @@ async function run() {
           text: renewalDialog.textContent,
           photosVisibleBeforeConfirm: Boolean(document.querySelector('[data-pet-draft-slot]')),
           guardianVisible: Boolean(renewalDialog.querySelector('[data-safecare-consent="guardian"]')),
-          confirmDisabledInitially: renewalDialog.querySelector('[data-safecare-renewal-confirm]')?.disabled,
+          confirmDisabledInitially: renewalDialog.querySelector('[data-safecare-renewal-confirm]')?.getAttribute('aria-disabled') === 'true',
+        };
+        renewalDialog.querySelector('[data-safecare-renewal-confirm]').click();
+        await __wait(80);
+        renewalNotice.missingPress = {
+          text: renewalDialog.querySelector('.safecare-renewal-error').textContent,
+          photos: Boolean(document.querySelector('[data-pet-draft-slot]')),
         };
         const privacyConsent = renewalDialog.querySelector('[data-safecare-consent="privacy"]');
         renewalNotice.privacyLabel = privacyConsent.closest('label').textContent.trim();
         privacyConsent.click();
-        renewalNotice.confirmEnabledAfterPrivacy = !renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        renewalNotice.confirmEnabledAfterPrivacy = renewalDialog.querySelector('[data-safecare-renewal-confirm]').getAttribute('aria-disabled') === 'false';
         await __wait(260);
         return {renewalNotice};
       `);
@@ -772,7 +848,13 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.personRegister.triggerText, '출생 연월 선택');
   assert.deepEqual(r.personRegister.wheelLabels, ['연도', '월']);
   assert.deepEqual(r.personRegister.monthValues, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
-  assert.equal(r.personRegister.scrolledYear, '2018', `${label}: scrolling the wheel must change its selected year`);
+  assert.equal(r.personRegister.scrolledYear, '2015', `${label}: scrolling the wheel must change its selected year`);
+  // QA 02 D2 / D3
+  assert.equal(r.personRegister.parentStart, String(r.personRegister.thisYear - 65), `${label}: a parent's wheel starts near a likely birth year`);
+  assert.equal(r.personRegister.parentVisible, true, `${label}: the start year is scrolled into view`);
+  assert.equal(r.personRegister.childStart, String(r.personRegister.thisYear - 8), `${label}: a child's wheel starts near a likely birth year`);
+  assert.deepEqual(r.personRegister.nameLabel, {id: r.personRegister.nameLabel.id, labels: 1, forMatches: true, text: '이름'}, `${label}: the name input is tied to its label`);
+  assert.equal(r.personRegister.nameAccessibleName, true, `${label}: the name input's accessible name is 이름`);
   assert.equal(r.personRegister.dayControls, 0, `${label}: birth day must not be collected`);
   assert.equal(r.personRegister.typedBirthControls, 0, `${label}: birth year/month must not be typed`);
   assert.equal(r.personRegister.numberInputs, 0);
@@ -786,6 +868,18 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.personRenewalNotice.renewalNotice.sectionCount, 3, `${label}: under-14 child must see renewal, usage, and guardian sections`);
   assert.equal(r.personRenewalNotice.renewalNotice.guardianVisible, true, `${label}: under-14 child must require guardian confirmation`);
   assert.equal(r.personRenewalNotice.renewalNotice.confirmDisabledInitially, true, `${label}: registration must wait for required consent`);
+  // SAFECARE-CONSENT-VISIBLE-01 (QA 02 D1)
+  assert.equal(r.personRenewalNotice.renewalNotice.confirmNativeDisabled, false, `${label}: the button answers a press instead of being silently dead`);
+  assert.deepEqual(r.personRenewalNotice.renewalNotice.visibleConsents, ['usage', 'privacy', 'guardian'], `${label}: every required checkbox is visible without opening 상세보기`);
+  assert.equal(r.personRenewalNotice.renewalNotice.openDetailsAtStart, 0, `${label}: only the explanations are folded`);
+  assert.deepEqual(r.personRenewalNotice.renewalNotice.missingPress, {
+    shown: true, role: 'alert', focused: 'usage', outlined: 3, created: false,
+    text: '필수 동의가 빠졌어요: 식별 사진 등록 및 이용 동의, 법정대리인 확인. 체크한 뒤 다시 눌러 주세요.',
+  }, `${label}: a press without consent names what is missing and creates nothing`);
+  assert.deepEqual(r.personRenewalNotice.renewalNotice.afterAll, {checked: true, ready: true, errorHidden: true, outlined: 0}, `${label}: 모두 동의 ticks every required box`);
+  assert.equal(r.personRenewalNotice.renewalNotice.afterAllAgain, false, `${label}: 모두 동의 unticks them again`);
+  assert.equal(r.personRenewalNotice.renewalNotice.guardianOnlyMissing, '필수 동의가 빠졌어요: 법정대리인 확인. 체크한 뒤 다시 눌러 주세요.', `${label}: the message names only what is still missing`);
+  assert.equal(r.personRenewalNotice.renewalNotice.errorClearedAfterConsent, true, `${label}: the message goes away once everything is ticked`);
   assert.deepEqual(r.personRenewalNotice.renewalNotice.openAfterRenewal, ['renewal'], `${label}: renewal details must open alone`);
   assert.deepEqual(r.personRenewalNotice.renewalNotice.openAfterUsage, ['usage'], `${label}: opening usage details must close renewal details`);
   assert.equal(r.personRenewalNotice.renewalNotice.usageLabel, '위 내용에 동의합니다 (필수)');
@@ -870,6 +964,7 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.petRenewalNotice.renewalNotice.photosVisibleBeforeConfirm, false, `${label}: pet photos must wait for renewal notice confirmation`);
   assert.equal(r.petRenewalNotice.renewalNotice.guardianVisible, false, `${label}: pet registration must not ask for legal guardian confirmation`);
   assert.equal(r.petRenewalNotice.renewalNotice.confirmDisabledInitially, true, `${label}: pet registration must wait for privacy consent`);
+  assert.deepEqual(r.petRenewalNotice.renewalNotice.missingPress, {text: '필수 동의가 빠졌어요: 사진 보관·이용 동의. 체크한 뒤 다시 눌러 주세요.', photos: false}, `${label}: a pet press without consent names it and opens nothing`);
   assert.equal(r.petRenewalNotice.renewalNotice.privacyLabel, '🔒 사진은 비공개로 안전하게 보관되며, 분실·발견 시 후보 비교를 위해 사용됩니다. (필수)');
   assert.equal(r.petRenewalNotice.renewalNotice.confirmEnabledAfterPrivacy, true, `${label}: pet privacy consent enables photo registration`);
   assert.ok(r.petRenewalNotice.renewalNotice.text.includes('나이와 관계없이 · 6개월(180일)마다'));
