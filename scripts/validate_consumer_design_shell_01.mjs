@@ -27,6 +27,11 @@ assert.match(calendarSurface, /modal: true,\s*dismissOnBackdrop: false,/,
 assert.doesNotMatch(calendarSurface, /workspace:/, 'Calendar must remain an overlay over the chat');
 assert.match(js, /dismissOnBackdrop = true/,
   'Other surfaces must retain backdrop dismissal unless they explicitly opt out');
+// REGIONAL-INFO-BACK-NAVIGATION-01 (owner report: any blank spot went to the
+// home): a full-screen workspace never closes on a tap of its empty area; only
+// a popup over the chat keeps the outside tap.
+assert.match(js, /if \(dismissOnBackdrop && !workspace\) \{\s*const backdropDismiss = createBackdropDismissGuard\(surface\);/,
+  'workspaces never close on a backdrop tap');
 assert.match(js, /mainScrollHost.inert = true/);
 assert.match(js, /mainScrollHost.inert = false/);
 assert.match(js, /else if \(!workspace\) trapFocus/);

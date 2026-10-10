@@ -1,22 +1,26 @@
 // REGIONAL-INFO-BACK-NAVIGATION-01 — 지역정보 steps back one screen at a time.
 //
-// Owner report 2026-10-10 17:01 (Samsung Internet, phone): 지역정보 → 내 아이
-// 학교·유치원 → back went to the home instead of 지역정보. The screens inside
-// 지역정보 (병원·응급실, 지역뉴스, 지역생활정보, 내 아이 학교·유치원 and its 내 아이
-// 정보 / 유치원·학교 찾기) changed inside one surface without a history entry,
-// and 온누리상품권·지역화폐 shared the 'life' route, so one back left 지역정보.
+// Owner reports 2026-10-10 17:01~ (Samsung Internet, phone): 지역정보 → 내 아이
+// 학교·유치원 → back went to the home instead of 지역정보, and a tap on any blank
+// spot of a screen went to the home too. The screens inside 지역정보 (병원·응급실,
+// 지역뉴스, 지역생활정보, 내 아이 학교·유치원) changed inside one surface without a
+// history entry, 온누리상품권·지역화폐 shared the 'life' route, and every
+// workspace but Calendar closed on a tap of its empty backdrop.
 //
 // Contract checked here:
 // * every screen inside 지역정보 has a route (site-route.js) and a parent
-//   (LIFE_VIEW_PARENT): 하위 → 카테고리 → 지역정보 → home
+//   (LIFE_VIEW_PARENT): 카테고리 → 지역정보 → home
 // * for every category that opens a screen (병원·응급실, 지역뉴스, 지역생활정보,
 //   내 아이 학교·유치원, 축제·행사, 전기차 충전소, 지하철 정보, 온누리상품권·지역화폐,
 //   부동산 실거래가): the browser/system back shows the 지역정보 list, a second
 //   back the home; the header ← does the same in one history step (the entry
 //   index goes down by one — no new entry)
-// * 내 아이 정보 / 유치원·학교 찾기: back → 내 아이 학교·유치원 → 지역정보 → home, by
-//   the system back, the header ←, the '…로 돌아가기' button and Escape; forward
-//   reopens the screen; a reload keeps the screen and back still steps up
+// * 내 아이 학교·유치원 opens the saved schools screen at once (owner decision:
+//   no 내 아이 정보 / 유치원·학교 찾기 choice); its '지역정보로 돌아가기' and Escape
+//   step back once; forward reopens it; a reload or typed URL keeps it
+// * a tap on the empty area of a workspace (지역정보 and its screens, Life Wallet,
+//   안심케어, 축제·행사, 전기차, 지하철, 온누리, 부동산) keeps it open — same URL, no
+//   history step — and the next back still steps one screen
 // * the URL always names the screen on view (history state matches)
 //
 // Browser: real Chrome through the DevTools protocol, 360×780 (Samsung
@@ -40,7 +44,7 @@ const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 // ── Pure contract ───────────────────────────────────────────────────────
 const {SITE_ROUTES, isSiteRoute} = await import('../site-route.js');
 const sections = await import('../site-consumer-sections.js');
-const LIFE_VIEWS = ['life-medical', 'life-news', 'life-local', 'life-my-child', 'life-my-child-info', 'life-education'];
+const LIFE_VIEWS = ['life-medical', 'life-news', 'life-local', 'life-my-child'];
 
 await check('every screen inside 지역정보 is a route with a parent; chains end at 지역정보', () => {
   assert.deepEqual(Object.keys(sections.LIFE_VIEW_PARENT), LIFE_VIEWS);
@@ -50,12 +54,10 @@ await check('every screen inside 지역정보 is a route with a parent; chains e
     const seen = new Set();
     while (at !== 'life') { assert.ok(!seen.has(at), `${view}: loop`); seen.add(at); at = sections.LIFE_VIEW_PARENT[at]; assert.ok(at, `${view}: no parent`); }
   }
-  assert.equal(sections.LIFE_VIEW_PARENT['life-my-child-info'], 'life-my-child');
-  assert.equal(sections.LIFE_VIEW_PARENT['life-education'], 'life-my-child');
-  assert.equal(sections.lifeBackLabel('life-education'), '내 아이 학교·유치원으로 돌아가기');
-  assert.equal(sections.lifeBackLabel('life-my-child'), '지역정보로 돌아가기');
+  for (const view of LIFE_VIEWS) assert.equal(sections.lifeBackLabel(view), '지역정보로 돌아가기', view);
+  assert.equal(sections.LIFE_SHORTCUTS.find(item => item.id === 'my-child').children, undefined, '내 아이 학교·유치원 opens its screen at once');
   assert.ok(SITE_ROUTES.includes('onnuri'), '온누리상품권·지역화폐 has its own route');
-  assert.deepEqual(SITE_ROUTES.slice(SITE_ROUTES.indexOf('life'), SITE_ROUTES.indexOf('life') + 7), ['life', ...LIFE_VIEWS]);
+  assert.deepEqual(SITE_ROUTES.slice(SITE_ROUTES.indexOf('life'), SITE_ROUTES.indexOf('life') + 5), ['life', ...LIFE_VIEWS]);
 });
 
 await check('the conversation opens every life route and 온누리 steps back to 지역정보', () => {
@@ -66,6 +68,7 @@ await check('the conversation opens every life route and 온누리 steps back to
   assert.match(table, /onnuri: \(\) => openOnnuri\(\)/u);
   assert.match(conversation, /workspace: 'life', route: 'onnuri', backLabel: '지역정보로 돌아가기', onBack: \(\) => openConsumerSection\('life'\), backRoute: 'life'/u);
   assert.match(conversation, /requestLifeBack: \(parent, apply\) => leaveSiteRoute\(parent, /u, 'an in-panel step back goes through history first');
+  assert.match(conversation, /if \(dismissOnBackdrop && !workspace\) \{/u, 'a workspace never closes on a backdrop tap');
 });
 
 // ── Browser ─────────────────────────────────────────────────────────────
@@ -147,7 +150,7 @@ const CATEGORIES = [
   {card: 'medical', hash: '#life-medical', detail: 'medical'},
   {card: 'news', hash: '#life-news', detail: 'news'},
   {card: 'local', hash: '#life-local', detail: 'local'},
-  {card: 'my-child', hash: '#life-my-child', detail: 'my-child-choice'},
+  {card: 'my-child', hash: '#life-my-child', detail: 'my-child'},
   {card: 'festivals', hash: '#festival'},
   {card: 'ev-chargers', hash: '#ev-chargers'},
   {card: 'subway', hash: '#subway'},
@@ -291,6 +294,53 @@ async function runCase(browser, origin, workDir, testCase) {
       }
       return atLife('open 지역정보');
     };
+    const tapAt = async ({x, y}) => {
+      if (testCase.mobile) {
+        await page('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x, y}]});
+        await sleep(30);
+        await page('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []});
+      } else {
+        await page('Input.dispatchMouseEvent', {type: 'mouseMoved', x, y});
+        await page('Input.dispatchMouseEvent', {type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1});
+        await sleep(30);
+        await page('Input.dispatchMouseEvent', {type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1});
+      }
+    };
+    // The empty area of the open workspace: a point of its backdrop the panel
+    // does not cover (the owner's "빈 여백"), else an empty spot of the panel
+    // itself (a point whose element is a plain container, not a control).
+    const emptySpot = () => evaluate(`(() => {
+      const surface = document.querySelector('[data-site-route]');
+      if (!surface) return null;
+      for (const fx of [0.5, 0.06, 0.94]) for (let y = innerHeight - 6; y > innerHeight * 0.35; y -= 12) {
+        const x = Math.round(innerWidth * fx);
+        if (document.elementFromPoint(x, y) === surface) return {x, y, backdrop: true};
+      }
+      const panel = surface.querySelector('.site-modal');
+      if (!panel) return null;
+      const r = panel.getBoundingClientRect();
+      const interactive = 'button, a, input, select, textarea, label, summary, [role="button"], [role="tab"], [tabindex], [contenteditable], img, video, iframe';
+      for (let y = Math.min(innerHeight, r.bottom) - 6; y > Math.max(0, r.top) + 40; y -= 12) {
+        for (const fx of [0.5, 0.15, 0.85]) {
+          const x = Math.round(r.left + r.width * fx);
+          const hit = document.elementFromPoint(x, y);
+          if (hit && panel.contains(hit) && !hit.closest(interactive) && hit.matches('.site-modal, .site-modal-content, .consumer-section-content, .consumer-life-detail')) return {x, y, backdrop: false};
+        }
+      }
+      return null;
+    })()`);
+    const tapEmptyKeepsScreen = async what => {
+      const before = await snapshot();
+      const index = await historyIndex();
+      const spot = await waitFor(async () => (await emptySpot()) || {ok: false}, `${label}: ${what}: an empty spot to tap`, 8000);
+      await tapAt(spot);
+      await sleep(700);
+      const after = await snapshot();
+      assert.ok(!after.home && after.route === before.route && after.hash === before.hash && after.detail === before.detail,
+        `${label}: ${what}: a tap on the empty area (${spot.backdrop ? 'backdrop' : 'panel'}) closed or changed the screen ${JSON.stringify({before, after, spot})}`);
+      assert.equal(await historyIndex(), index, `${label}: ${what}: the empty tap wrote or stepped history`);
+      log.push(`${what}:${spot.backdrop ? 'backdrop' : 'panel'}`);
+    };
     const headerBack = () => tapSelector('[data-site-route] .site-modal-close');
     const innerBack = () => tapSelector('[data-site-route] .consumer-life-detail > .consumer-action-secondary');
 
@@ -298,10 +348,15 @@ async function runCase(browser, origin, workDir, testCase) {
     await ready();
 
     // 1. Every category: system back → 지역정보 list → home; header ← → 지역정보 in one step.
+    await openLife();
+    await tapEmptyKeepsScreen('life');
+    await go(-1);
+    await atHome('life: system back after an empty tap');
     for (const category of CATEGORIES) {
       await openLife();
       await tapSelector(`[data-site-route="life"] [data-life-shortcut="${category.card}"]`);
       await atScreen(category, `${category.card} opens`);
+      await tapEmptyKeepsScreen(category.card);
       await go(-1);
       const back = await atLife(`${category.card}: system back`);
       assert.equal(back.focusedCard === category.card || back.focusedCard === '', true, `${label}: ${category.card}: focus ${back.focusedCard}`);
@@ -317,65 +372,41 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.equal(await historyIndex(), before - 1, `${label}: ${category.card}: ← stepped back one entry (no new entry)`);
       await headerBack();
       await atHome(`${category.card}: header ← on 지역정보`);
-      log.push(category.card);
     }
 
-    // 2. 내 아이 학교·유치원 → 유치원·학교 찾기 / 내 아이 정보: one step at a time.
+    // 2. 내 아이 학교·유치원: the saved screen at once; '지역정보로 돌아가기' steps once.
     const myChild = CATEGORIES.find(category => category.card === 'my-child');
-    const SUBS = [
-      {choice: 'education', hash: '#life-education', detail: 'education'},
-      {choice: 'my-child', hash: '#life-my-child-info', detail: 'my-child'},
-    ];
-    for (const sub of SUBS) {
-      // System back: sub → 내 아이 학교·유치원 → 지역정보 → home; forward reopens.
-      await openLife();
-      await tapSelector('[data-site-route="life"] [data-life-shortcut="my-child"]');
-      await atScreen(myChild, 'my-child');
-      await tapSelector(`[data-site-route="life-my-child"] [data-child-choice="${sub.choice}"]`);
-      const opened = await atScreen(sub, `${sub.choice} opens`);
-      assert.equal(opened.innerBack, '내 아이 학교·유치원으로 돌아가기', `${label}: ${sub.choice}: inner back names its parent`);
-      assert.equal(opened.headerBack, '내 아이 학교·유치원으로 돌아가기', `${label}: ${sub.choice}: header ← names its parent`);
+    await openLife();
+    await tapSelector('[data-site-route="life"] [data-life-shortcut="my-child"]');
+    const mine = await atScreen(myChild, 'my-child opens at once');
+    assert.equal(mine.innerBack, '지역정보로 돌아가기', `${label}: my-child: inner back`);
+    assert.equal(await evaluate("document.querySelectorAll('[data-child-choice]').length"), 0, `${label}: no 내 아이 정보 / 유치원·학교 찾기 choice`);
+    await waitFor(() => evaluate("Boolean(document.querySelector('[data-site-route=\"life-my-child\"] .lotbi-mychild'))"), `${label}: the saved schools screen`);
+    let before = await historyIndex();
+    await innerBack();
+    const listed = await atLife('my-child: 지역정보로 돌아가기');
+    assert.equal(await historyIndex(), before - 1, `${label}: my-child: button one entry back`);
+    assert.equal(listed.focusedCard, 'my-child', `${label}: focus returns to the card`);
+    await go(1);
+    await atScreen(myChild, 'my-child: forward');
+    await go(-1);
+    await atLife('my-child: back again');
+    await headerBack();
+    await atHome('my-child: done');
+    // 안심케어 and Life Wallet: an empty tap keeps them; back → home.
+    for (const section of ['wallet', 'care']) {
+      if (testCase.mobile) {
+        await tapSelector('[data-mobile-nav-open]');
+        await waitFor(() => evaluate("document.body.classList.contains('nav-drawer-open')"), `${label}: drawer`);
+        await sleep(150);
+        await tapSelector(`#mobile-nav-drawer [data-consumer-section="${section}"]`);
+      } else {
+        await tapSelector(`.chat-sidebar-desktop [data-consumer-section="${section}"]`);
+      }
+      await at(s => s.route === section, `open ${section}`);
+      await tapEmptyKeepsScreen(section);
       await go(-1);
-      const choice = await atScreen(myChild, `${sub.choice}: system back`);
-      assert.equal(choice.focusedCard, sub.choice, `${label}: focus returns to ${sub.choice}`);
-      await go(1);
-      await atScreen(sub, `${sub.choice}: forward`);
-      await go(-1);
-      await atScreen(myChild, `${sub.choice}: back again`);
-      await go(-1);
-      await atLife(`${sub.choice}: back from 내 아이 학교·유치원`);
-      await go(-1);
-      await atHome(`${sub.choice}: back from 지역정보`);
-      // Header ←: the same three steps, each one history entry back.
-      await openLife();
-      await tapSelector('[data-site-route="life"] [data-life-shortcut="my-child"]');
-      await atScreen(myChild, 'my-child (←)');
-      await tapSelector(`[data-site-route="life-my-child"] [data-child-choice="${sub.choice}"]`);
-      await atScreen(sub, `${sub.choice} opens (←)`);
-      let before = await historyIndex();
-      await headerBack();
-      await atScreen(myChild, `${sub.choice}: header ←`);
-      assert.equal(await historyIndex(), before - 1, `${label}: ${sub.choice}: ← one entry back`);
-      before = await historyIndex();
-      await headerBack();
-      await atLife(`${sub.choice}: header ← on 내 아이 학교·유치원`);
-      assert.equal(await historyIndex(), before - 1, `${label}: my-child: ← one entry back`);
-      await headerBack();
-      await atHome(`${sub.choice}: header ← on 지역정보`);
-      // '…로 돌아가기' inside the screen: the same steps.
-      await openLife();
-      await tapSelector('[data-site-route="life"] [data-life-shortcut="my-child"]');
-      await atScreen(myChild, 'my-child (button)');
-      await tapSelector(`[data-site-route="life-my-child"] [data-child-choice="${sub.choice}"]`);
-      await atScreen(sub, `${sub.choice} opens (button)`);
-      before = await historyIndex();
-      await innerBack();
-      await atScreen(myChild, `${sub.choice}: 내 아이 학교·유치원으로 돌아가기`);
-      assert.equal(await historyIndex(), before - 1, `${label}: ${sub.choice}: button one entry back`);
-      await innerBack();
-      await atLife(`${sub.choice}: 지역정보로 돌아가기`);
-      await headerBack();
-      await atHome(`${sub.choice}: done`);
+      await atHome(`${section}: system back`);
     }
 
     // 3. Escape (desktop) and a reload keep the same rule.
@@ -383,35 +414,31 @@ async function runCase(browser, origin, workDir, testCase) {
       await openLife();
       await tapSelector('[data-site-route="life"] [data-life-shortcut="my-child"]');
       await atScreen(myChild, 'my-child (reload)');
-      await tapSelector('[data-site-route="life-my-child"] [data-child-choice="education"]');
-      await atScreen(SUBS[0], 'education (reload)');
       if (!testCase.mobile) {
         await page('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27});
         await page('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27});
-        await atScreen(myChild, 'education: Escape');
+        await atLife('my-child: Escape');
         await go(1);
-        await atScreen(SUBS[0], 'education: forward after Escape');
+        await atScreen(myChild, 'my-child: forward after Escape');
       }
       const loaded = loadEvent();
       await page('Page.reload', {ignoreCache: false});
       await loaded;
       await ready();
-      const reloaded = await atScreen(SUBS[0], 'education: reload keeps the screen');
-      assert.equal(reloaded.innerBack, '내 아이 학교·유치원으로 돌아가기');
-      await go(-1);
-      await atScreen(myChild, 'education: back after the reload');
+      const reloaded = await atScreen(myChild, 'my-child: reload keeps the screen');
+      assert.equal(reloaded.innerBack, '지역정보로 돌아가기');
       await go(-1);
       await atLife('my-child: back after the reload');
       await go(-1);
       await atHome('지역정보: back after the reload');
-      // A typed URL of a screen inside 지역정보 opens it; ← then steps to its parent.
-      await navigate(`${origin}/#life-my-child-info`);
+      // A typed URL of a screen inside 지역정보 opens it; ← then steps to 지역정보.
+      await navigate(`${origin}/#life-news`);
       await ready();
-      await atScreen(SUBS[1], 'direct /#life-my-child-info');
+      await atScreen(CATEGORIES.find(category => category.card === 'news'), 'direct /#life-news');
       await headerBack();
-      await atScreen(myChild, 'direct URL: ←');
+      await atLife('direct URL: ←');
       await headerBack();
-      await atLife('direct URL: ← ←');
+      await atHome('direct URL: ← ←');
     }
     assert.deepEqual(errors, [], `${label}: page errors`);
     return log;
