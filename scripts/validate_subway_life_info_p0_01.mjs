@@ -104,6 +104,12 @@ await check('Core answers: groups, lines and arrivals normalize to exactly what 
   assert.deepEqual(subway.directionChoices(arrivals, FIXTURE.congestion_gangnam_2_weekday.series),
     [{code: 'INNER', label: '내선', heading: '역삼방면'}, {code: 'OUTER', label: '외선', heading: '교대방면'}]);
   assert.equal(subway.headingOf('성수행 - 교대방면 (막차)'), '교대방면');
+  // 신분당선's live rows run a few minutes ahead of the clock: official words, no age.
+  const ahead = subway.normalizeArrival({...FIXTURE.arrivals_gangnam_sinbundang.arrivals[0], clock_ahead: true, age_seconds: null, eta_seconds: null});
+  assert.equal(ahead.clockAhead, true);
+  const item = subway.arrivalItem(ahead, {documentRef: {createElement: tag => ({tag, className: '', textContent: '', dataset: {}, children: [], append(...nodes) { this.children.push(...nodes); }})}});
+  const meta = item.children.find(node => node.className === 'subway-arrival-meta');
+  assert.match(meta.textContent, /^정보 생성 \d{2}:\d{2}:\d{2} \(제공처 시각이 지금보다 앞서 경과 시간을 계산하지 않았어요\)$/u);
   assert.equal(subway.formatSeconds(75), '1분 15초');
   assert.equal(subway.formatSeconds(120), '2분');
   assert.equal(subway.kstDayType(Date.parse('2026-10-11T23:30:00Z')), 'weekday', 'Monday 08:30 KST');

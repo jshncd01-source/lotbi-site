@@ -20,10 +20,10 @@
 // (arvlMsg2), the official 진입/도착/출발 code, 막차, and the time it was
 // generated. The remaining time is Core's barvlDt minus the age; when it has
 // passed the screen says so instead of moving the train a station on its own.
-import {CORE_ORIGIN} from './site-core.js?v=aset-f2506f75ecd1';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-f2506f75ecd1';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-f2506f75ecd1';
-import {formatDistanceMeters} from './site-navigation.js?v=aset-f2506f75ecd1';
+import {CORE_ORIGIN} from './site-core.js?v=aset-9da3d15308c1';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-9da3d15308c1';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-9da3d15308c1';
+import {formatDistanceMeters} from './site-navigation.js?v=aset-9da3d15308c1';
 
 export const SUBWAY_MENU_LABEL = '지하철 정보';
 export const SUBWAY_STATION_TITLE = '지하철 도착정보';
@@ -169,6 +169,7 @@ export function normalizeArrival(value) {
     etaElapsed: value.eta_elapsed === true,
     generatedAt: kstClock(value.generated_at),
     ageSeconds: age,
+    clockAhead: value.clock_ahead === true,
     lastTrain: value.last_train === true,
     position,
   });
@@ -523,7 +524,8 @@ export function arrivalItem(arrival, {documentRef = document} = {}) {
   const parts = [];
   if (arrival.etaElapsed) parts.push('공식 예정 시간이 지났어요');
   else if (arrival.etaSeconds !== null && arrival.etaSeconds > 0) parts.push(`지금 기준 약 ${formatSeconds(arrival.etaSeconds)} 남음`);
-  if (arrival.generatedAt) parts.push(`정보 생성 ${arrival.generatedAt}${arrival.ageSeconds !== null ? ` (${formatSeconds(arrival.ageSeconds)} 전)` : ''}`);
+  if (arrival.clockAhead) parts.push(`정보 생성 ${arrival.generatedAt} (제공처 시각이 지금보다 앞서 경과 시간을 계산하지 않았어요)`);
+  else if (arrival.generatedAt) parts.push(`정보 생성 ${arrival.generatedAt}${arrival.ageSeconds !== null ? ` (${formatSeconds(arrival.ageSeconds)} 전)` : ''}`);
   meta.textContent = parts.join(' · ');
   item.append(head, message, meta);
   if (arrival.position) {
