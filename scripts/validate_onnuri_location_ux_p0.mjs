@@ -527,16 +527,22 @@ async function runCase(browser, origin, dir, testCase) {
       for (const tab of Object.values(state.tabs)) assert.ok(tab.box.h >= 44, `${testCase.label}: mode tab touch target`);
     };
 
-    // 1. No permission: 지역 선택, 전국 12곳, 더 보기 without duplicates, no distance.
+    // 1. No permission: 지역 선택 first (ONNURI-REGION-FIRST-UX-01, QA #16) — no
+    //    nationwide list in arbitrary order; then 부산 12곳, 더 보기 without duplicates, no distance.
     await load();
     let state = await openOnnuri();
     assert.equal(state.tabs.region.selected, true);
     assert.equal(state.regionVisible, true);
     assert.equal(state.regions.sigungu.visible, false, 'no empty 시·군·구 picker before a 시·도');
-    assert.equal(state.cards.length, REAL_CORE ? 12 : 12, `${testCase.label}: first page of 12`);
+    assert.equal(state.cards.length, 0, `${testCase.label}: nothing listed before a region`);
+    assert.match(state.status, /시·도를 고르거나 \[내 주변\]으로 찾아 주세요/u, `${testCase.label}: asks for a region`);
+    assert.equal(state.requests.filter(url => url.startsWith('/v2/life/onnuri/merchants')).length, 0, 'no merchant request before a region');
+    await select('sido', '부산광역시');
+    state = await waitState(v => v.cards.length >= 12 && settled(v), `${testCase.label}: 부산 first page`);
+    assert.equal(state.cards.length, 12, `${testCase.label}: first page of 12`);
     assert.ok(state.cards.every(card => card.distance === ''), 'no distance without location');
     assert.ok(state.requests.every(url => !url.includes('latitude=')), 'no location sent without a user action');
-    assert.match(state.scope, /전국 전체/u);
+    assert.match(state.scope, /부산광역시 전체/u);
     assert.match(state.appNote, /지도앱: 네이버지도\(기본값\)/u);
     measures.renderMs12 = state.renderMs;
     await shot('01-region');
@@ -732,7 +738,9 @@ async function runCase(browser, origin, dir, testCase) {
       assert.equal(state.cards.length, 0, 'no guessed region results under 내 주변');
       assert.ok(state.requests.every(url => !url.includes('latitude=')));
       await tap(await reveal('.onnuri-to-region'));
-      state = await waitState(v => v.tabs.region.selected && v.cards.length && settled(v), `${testCase.label}: denied → region`);
+      // ONNURI-REGION-FIRST-UX-01: falling back to 지역 선택 asks for a 시·도 (no nationwide list).
+      state = await waitState(v => v.tabs.region.selected && settled(v) && /시·도를 고르거나/u.test(v.status), `${testCase.label}: denied → region`);
+      assert.equal(state.cards.length, 0, 'region fallback waits for a 시·도');
 
       // 7. Location failure (no position): reason, nothing guessed.
       await load({geo: 'fail'});
@@ -752,6 +760,7 @@ async function runCase(browser, origin, dir, testCase) {
       // 9. Not published yet.
       await evaluate('globalThis.__onnuri.notReady = true, true');
       await tap(await reveal('[data-onnuri-mode="region"]'));
+      await select('sido', '부산광역시');      // region first (ONNURI-REGION-FIRST-UX-01)
       state = await waitState(v => v.status.includes('준비하고 있어요'), `${testCase.label}: not ready`);
     }
     return {cards: state.cards.length, requests: state.requests.length, ...measures};

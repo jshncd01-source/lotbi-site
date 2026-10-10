@@ -293,7 +293,9 @@ const PROBE = `(() => {
       tabIndex: t.tabIndex, focused: document.activeElement === t, controls: t.getAttribute('aria-controls'), box: box(t),
       contrast: contrast(getComputedStyle(t).color, bgOf(t))})),
     panels: [...(hub?.querySelectorAll('[data-voucher-panel]') || [])].map(p => ({key: p.dataset.voucherPanel, id: p.id, role: p.getAttribute('role'), hidden: p.hidden, labelledby: p.getAttribute('aria-labelledby')})),
-    onnuri: {visible: visible(hub?.querySelector('.onnuri-surface')), cards: [...(hub?.querySelectorAll('.onnuri-card') || [])].map(c => ({label: c.querySelector('.onnuri-card-label')?.textContent || '', text: c.textContent})),
+    onnuri: {visible: visible(hub?.querySelector('.onnuri-surface')), status: hub?.querySelector('.onnuri-status')?.textContent || '',
+      awaitingRegion: hub?.querySelector('.onnuri-surface')?.dataset.onnuriAwaitingRegion === 'true',
+      sidoOptions: [...(hub?.querySelector('[data-onnuri-region="sido"]')?.options || [])].map(o => o.value), cards: [...(hub?.querySelectorAll('.onnuri-card') || [])].map(c => ({label: c.querySelector('.onnuri-card-label')?.textContent || '', text: c.textContent})),
       requests: (globalThis.__onnuri?.requests || []).slice()},
     local: Boolean(local), localVisible: visible(local), regions,
     schemes: [...(local?.querySelectorAll('[data-voucher-scheme]') || [])].map(s => ({id: s.dataset.voucherScheme, name: s.querySelector('.voucher-scheme-name')?.textContent || '',
@@ -510,7 +512,14 @@ async function runCase(browser, origin, workDir, testCase) {
     };
     const openHub = async () => {
       await tap(await reveal('.consumer-workspace [data-life-shortcut="onnuri"]'));
-      return await waitState(v => v.hub && v.onnuri.visible && v.onnuri.cards.length === 3, `${testCase.label}: hub with onnuri tab`, 30000);
+      // ONNURI-REGION-FIRST-UX-01 (QA #16): without location the 온누리 tab asks for a
+      // 시·도 first and lists nothing; with location already allowed it starts at 내 주변.
+      const first = await waitState(v => v.hub && v.onnuri.visible && (v.onnuri.cards.length === 3
+        || (v.onnuri.awaitingRegion && v.onnuri.sidoOptions.includes('강원특별자치도'))), `${testCase.label}: hub with onnuri tab`, 30000);
+      if (first.onnuri.cards.length === 3) return first;
+      check(first.onnuri.cards.length === 0 && /시·도를 고르거나/u.test(first.onnuri.status), 'onnuri tab asks for a region before listing');
+      await evaluate(`(() => { const s = document.querySelector('[data-onnuri-region="sido"]'); s.value = '강원특별자치도'; s.dispatchEvent(new Event('change', {bubbles: true})); return true; })()`);
+      return await waitState(v => v.hub && v.onnuri.visible && v.onnuri.cards.length === 3, `${testCase.label}: onnuri 강원 list`, 30000);
     };
     const openLocal = async () => {
       const at = await reveal('[data-voucher-tab="local"]');
