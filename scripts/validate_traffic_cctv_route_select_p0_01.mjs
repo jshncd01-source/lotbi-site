@@ -1,7 +1,12 @@
 // TRAFFIC-CCTV P0 — 지역정보 → 실시간 도로 CCTV → 도로 → 노선 → 방향 → 구간 → CCTV → 영상.
 //
 // Contract checked here:
-// * 지역정보 shows '도로 CCTV' (screen title 실시간 도로 CCTV) right after 온누리상품권; the other cards
+// * shipped switch TRAFFIC_CCTV_UI_ENABLED (site-feature-flags.js) off — owner
+//   decision 2026-10-10: no card, no #traffic-cctv route, no module, no player,
+//   no CCTV request, even when the URL names #traffic-cctv; the 지역정보 grid is
+//   main's eight cards. Everything below runs with the switch served on by
+//   this validator's own server (the shipped file is not changed).
+// * on: 지역정보 shows '도로 CCTV' (screen title 실시간 도로 CCTV) right after 온누리상품권; the other cards
 //   and their order stay; phones keep the approved two-column grid with no
 //   empty cell (nine cards: the odd last card spans its row)
 // * the card opens its own screen (/#traffic-cctv), never the conversation:
@@ -58,9 +63,16 @@ const NA = FIXTURE.route_ids.national;
 const sections = await import('../site-consumer-sections.js');
 const cctv = await import('../site-life-traffic-cctv.js');
 const {SITE_ROUTES} = await import('../site-route.js');
+const {TRAFFIC_CCTV_UI_ENABLED} = await import('../site-feature-flags.js');
+const CARDS_OFF = ['medical', 'pharmacy', 'festivals', 'news', 'onnuri', 'local', 'jeonbuk-food', 'my-child'];
 
-await check('지역정보: 실시간 도로 CCTV right after 온누리상품권, the other cards and their order kept', () => {
+await check(`switch ${TRAFFIC_CCTV_UI_ENABLED ? 'on' : 'off'}: ${TRAFFIC_CCTV_UI_ENABLED ? '도로 CCTV right after 온누리상품권' : 'no card and no #traffic-cctv route (main\'s eight cards)'}`, () => {
   const ids = sections.LIFE_SHORTCUTS.map(item => item.id);
+  if (!TRAFFIC_CCTV_UI_ENABLED) {
+    assert.deepEqual(ids, CARDS_OFF);
+    assert.equal(SITE_ROUTES.includes('traffic-cctv'), false);
+    return;
+  }
   assert.deepEqual(ids, EXPECTED_CARDS);
   const card = sections.LIFE_SHORTCUTS.find(item => item.id === 'traffic-cctv');
   assert.equal(card.label, '도로 CCTV', 'one line on a 360 px phone; the screen keeps the full title');
@@ -70,14 +82,16 @@ await check('지역정보: 실시간 도로 CCTV right after 온누리상품권,
 
 await check('the card opens its own routed screen; nothing goes to the conversation; no location, no phone', () => {
   const source = read('site-consumer-sections.js');
+  assert.match(source, /\.\.\.\(TRAFFIC_CCTV_UI_ENABLED \? \[\{id: 'traffic-cctv', label: '도로 CCTV', icon: 'cctv'\}\] : \[\]\),/u);
+  assert.match(read('site-route.js'), /\.\.\.\(TRAFFIC_CCTV_UI_ENABLED \? \['traffic-cctv'\] : \[\]\),/u);
   assert.match(source, /else if \(item\.id === 'traffic-cctv'\) onTrafficCctv\?\.\(\);/u);
   assert.match(source, /export function mountConsumerSection\(\{[^}]*\bonTrafficCctv,/u);
   const conversation = read('site-conversation.js');
   assert.match(conversation, /onTrafficCctv: \(\) => \{ closeSurface\(\); void openTrafficCctv\(\); \},/u);
-  assert.match(conversation, /workspace: 'life', route: 'traffic-cctv', backLabel: '지역정보로 돌아가기', onBack: \(\) => openConsumerSection\('life'\), backRoute: 'life',/u);
+  assert.match(conversation, /const openTrafficCctv = async \(\) => \{\n\s+\/\/[^\n]*\n\s+if \(!TRAFFIC_CCTV_UI_ENABLED\) return;/u);
+  assert.match(conversation, /workspace: 'life', route: TRAFFIC_CCTV_UI_ENABLED \? 'traffic-cctv' : '', backLabel: '지역정보로 돌아가기', onBack: \(\) => openConsumerSection\('life'\), backRoute: 'life',/u);
   assert.match(conversation, /const \{mountTrafficCctv\} = await import\('\.\/site-life-traffic-cctv\.js\?v=aset-[0-9a-f]{12}'\);/u);
-  assert.match(conversation, /'traffic-cctv': \(\) => openTrafficCctv\(\),/u);
-  assert.ok(SITE_ROUTES.includes('traffic-cctv'));
+  assert.match(conversation, /\.\.\.\(TRAFFIC_CCTV_UI_ENABLED \? \{'traffic-cctv': \(\) => openTrafficCctv\(\)\} : \{\}\),/u);
   const screen = read('site-life-traffic-cctv.js');
   for (const banned of [/\bonAsk\b/u, /requestAssistant|askWithoutKeyboard/u, /\/v2\/conversation/u, /tel:/u, /전화/u, /innerHTML/u,
     /navigator\.geolocation|getCurrentPosition|watchPosition|site-current-location|isLocationUsageEnabled/u, /localStorage/u,
@@ -217,7 +231,7 @@ function browserPath() {
   throw new Error('Chrome/Chromium is required for the 실시간 도로 CCTV validation.');
 }
 
-function startServer() {
+function startServer({switchOn = false} = {}) {
   const serverCode = `
     const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
     const root=${JSON.stringify(ROOT)};
@@ -227,6 +241,7 @@ function startServer() {
       const pathname=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname);
       const target=path.resolve(root,'.'+pathname);
       if(!target.startsWith(root)){res.writeHead(403);res.end();return;}
+      if(${switchOn} && pathname==='/site-feature-flags.js'){fs.readFile(target,'utf8',(error,text)=>{res.writeHead(200,{'Content-Type':types['.js'],'Cache-Control':'no-store'});res.end(String(text).replace('export const TRAFFIC_CCTV_UI_ENABLED = false;','export const TRAFFIC_CCTV_UI_ENABLED = true;'));});return;}
       fs.stat(target,(error,stat)=>send(res,!error&&stat.isDirectory()?path.join(target,'index.html'):target));
     });
     server.listen(0,'127.0.0.1',()=>process.stdout.write(String(server.address().port)+'\\n'));
@@ -316,6 +331,10 @@ const MOCK = `(() => {
   };
 })();`;
 
+const OFF_CASES = [
+  {label: 'off-samsung-360x780', width: 360, height: 780, mobile: true, userAgent: SAMSUNG_UA, platform: 'android', off: true},
+  {label: 'off-desktop-1280x900', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA, platform: 'desktop', off: true},
+];
 const CASES = [
   {label: 'samsung-360x780', width: 360, height: 780, mobile: true, userAgent: SAMSUNG_UA, full: true, platform: 'android'},
   {label: 'iphone-375x812', width: 375, height: 812, mobile: true, userAgent: IPHONE_UA, platform: 'ios'},
@@ -597,6 +616,45 @@ async function runCase(browser, origin, workDir, testCase) {
     await navigate(`${origin}/`);
     await ready();
     await evaluate("(() => { localStorage.removeItem('__cctvScenario'); sessionStorage.clear(); return true; })()");
+    if (testCase.off) {
+      // The shipped state: switch off (there is no CCTV card to wait for).
+      if (testCase.mobile) {
+        await tapSelector('[data-mobile-nav-open]');
+        await waitFor(() => evaluate("document.body.classList.contains('nav-drawer-open')"), `${label}: drawer`);
+        await sleep(150);
+        await tapSelector('#mobile-nav-drawer [data-consumer-section="life"]');
+      } else {
+        await tapSelector('.chat-sidebar-desktop [data-consumer-section="life"]');
+      }
+      await waitFor(() => evaluate("location.hash === '#life' && document.querySelectorAll('[data-site-route=\"life\"] .consumer-shortcut').length > 0"), `${label}: 지역정보 (off)`);
+      const offGrid = await evaluate(`(() => {
+        const grid = document.querySelector('[data-site-route="life"] .consumer-shortcuts');
+        const cards = [...grid.querySelectorAll('.consumer-shortcut')];
+        const columns = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
+        return {ids: cards.map(card => card.dataset.lifeShortcut), columns};
+      })()`);
+      await check(`${label}: switch off — 지역정보 is main's eight cards, no 도로 CCTV`, () => {
+        assert.deepEqual(offGrid.ids, CARDS_OFF);
+        if (testCase.mobile) assert.equal(offGrid.columns, 2);
+      });
+      await navigate('about:blank');
+      await navigate(`${origin}/#traffic-cctv`);
+      await ready();
+      await sleep(1500);
+      await evaluate("(() => { window.location.hash = '#traffic-cctv'; window.dispatchEvent(new HashChangeEvent('hashchange')); return true; })()");
+      await sleep(1000);
+      const off = await snapshot();
+      const loaded = await evaluate("performance.getEntriesByType('resource').filter(entry => /site-life-traffic-cctv\\.js|hls\\.light/u.test(entry.name)).map(entry => entry.name.split('/').pop())");
+      await check(`${label}: switch off — a URL naming #traffic-cctv opens no screen, loads no CCTV module, makes no CCTV request, no player`, () => {
+        assert.equal(off.open, false);
+        assert.equal(off.player, null);
+        assert.equal(off.hlsScript, null);
+        assert.deepEqual(loaded, []);
+        assert.deepEqual(off.log.calls ?? [], []);
+        assert.equal(off.homeVisible, true, "the home stays on view");
+      });
+      return {off: true};
+    }
     const canMp4 = await evaluate("Boolean(window.MediaRecorder && MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') && window.MediaSource && MediaSource.isTypeSupported('video/mp4; codecs=\"avc1.42E01E\"'))");
     const webm = await evaluate(RECORD('video/webm;codecs=vp8'));
     media.webm = webm ? Buffer.from(webm, 'base64') : null;
@@ -1035,17 +1093,23 @@ async function runCase(browser, origin, workDir, testCase) {
 const browser = browserPath();
 const dir = fs.mkdtempSync(path.join(ROOT, 'scripts/.traffic-cctv-'));
 const server = startServer();
+const serverOn = startServer({switchOn: true});
 const summary = [];
 try {
-  const port = await serverPort(server);
-  const origin = `http://127.0.0.1:${port}`;
+  const origin = `http://127.0.0.1:${await serverPort(server)}`;
+  const originOn = `http://127.0.0.1:${await serverPort(serverOn)}`;
   const only = process.env.TRAFFIC_CCTV_CASE || '';
+  for (const testCase of (TRAFFIC_CCTV_UI_ENABLED ? [] : OFF_CASES).filter(item => !only || item.label === only)) {
+    await runCase(browser, origin, dir, testCase);
+    summary.push(`${testCase.label}: switch off as shipped — nothing reachable`);
+  }
   for (const testCase of CASES.filter(item => !only || item.label === only)) {
-    const outcome = await runCase(browser, origin, dir, testCase);
+    const outcome = await runCase(browser, originOn, dir, testCase);
     summary.push(`${testCase.label}: HLS ${outcome.nativeHlsOutcome ? `through this browser's own HLS player under the ${testCase.platform} user agent: ${outcome.nativeHlsOutcome}` : outcome.hlsPlays ? 'played (fMP4 test stream via hls.js)' : 'load path only (this browser cannot record/play H.264)'}`);
   }
 } finally {
   server.kill('SIGTERM');
+  serverOn.kill('SIGTERM');
   for (let attempt = 0; attempt < 20; attempt += 1) {
     try { fs.rmSync(dir, {recursive: true, force: true}); break; } catch { await sleep(250); }
   }

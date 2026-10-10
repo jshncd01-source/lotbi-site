@@ -14,7 +14,7 @@
 // This table is the only list of routes: the parser, the URL builder, the
 // login return allowlist (site-auth.js) and the conversation's openers
 // (site-conversation.js) all read it.
-import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-e4c9b99791b4';
+import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-e0cf681ce39e';
 
 export const SITE_ROUTES = Object.freeze([
   'calendar',
@@ -23,8 +23,9 @@ export const SITE_ROUTES = Object.freeze([
   'care',
   'pets',
   'life',
-  // TRAFFIC-CCTV P0: 지역정보 → 실시간 도로 CCTV (back → life).
-  'traffic-cctv',
+  // TRAFFIC-CCTV P0: 지역정보 → 실시간 도로 CCTV (back → life); no route while
+  // the switch is off, so #traffic-cctv is not a screen at all.
+  ...(TRAFFIC_CCTV_UI_ENABLED ? ['traffic-cctv'] : []),
   'festival',
   ...(LOTBI_BOX_UI_ENABLED ? ['lotbi-box'] : []),
 ]);

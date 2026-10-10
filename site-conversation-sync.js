@@ -18,7 +18,7 @@
 //
 // Nothing in this module ever reads another namespace: a different account on
 // the same browser has a different namespace and its own engine state.
-import {CORE_ORIGIN} from './site-core.js?v=aset-e4c9b99791b4';
+import {CORE_ORIGIN} from './site-core.js?v=aset-e0cf681ce39e';
 
 const API = '/v2/conversation-history';
 const STORAGE_PREFIX = 'lotbi.site.ux.v1';

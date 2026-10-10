@@ -1,6 +1,7 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-e4c9b99791b4';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-e4c9b99791b4';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-e4c9b99791b4';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-e0cf681ce39e';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-e0cf681ce39e';
+import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-e0cf681ce39e';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-e0cf681ce39e';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -26,10 +27,11 @@ export const LIFE_MEDICAL_QUESTIONS = Object.freeze({
 // or 유치원·학교 찾기 (the public lookup, KINDERGARTEN-OFFICIAL-INFO-01).
 // Eight cards with 전북 맛집·음식: every row of two is full (an odd count would
 // let the last card span its row, site-consumer-design.css).
-// TRAFFIC-CCTV P0 adds 도로 CCTV after 온누리상품권: its own screen
-// (site-life-traffic-cctv.js) where the reader picks 도로 → 노선 → 방향 → 구간;
-// no location, never a question to the conversation. Nine cards: the odd
-// last card (내 아이 학교·유치원) spans its row, so no cell is empty.
+// TRAFFIC-CCTV P0 adds 도로 CCTV after 온누리상품권 -- only while
+// TRAFFIC_CCTV_UI_ENABLED (off: owner decision 2026-10-10). Its own screen
+// (site-life-traffic-cctv.js): 도로 → 노선 → 방향 → 구간, no location, never a
+// question to the conversation. On, nine cards: the odd last card
+// (내 아이 학교·유치원) spans its row, so no cell is empty.
 export const LIFE_MEDICAL_CHOICES = Object.freeze([
   Object.freeze({id: 'hospital', label: '병원·의원 찾기'}),
   Object.freeze({id: 'emergency', label: '응급실 찾기'}),
@@ -49,8 +51,9 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'onnuri', label: '온누리상품권', brandSlot: 'onnuri'},
   // TRAFFIC-CCTV P0: official ITS road cameras by road, route and 구간, no chat.
   // The screen is titled 실시간 도로 CCTV; the card says 도로 CCTV so the label
-  // stays on one line in the approved two-column grid at 360 px.
-  {id: 'traffic-cctv', label: '도로 CCTV', icon: 'cctv'},
+  // stays on one line in the approved two-column grid at 360 px. Hidden while
+  // TRAFFIC_CCTV_UI_ENABLED is off.
+  ...(TRAFFIC_CCTV_UI_ENABLED ? [{id: 'traffic-cctv', label: '도로 CCTV', icon: 'cctv'}] : []),
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
   // JEONBUK-PILOT-01: 전북특별자치도·전주시 공식 음식점 공공데이터 (Core regional_food).
   {id: 'jeonbuk-food', label: '전북 맛집·음식', icon: 'food', regionalFood: true},
@@ -215,7 +218,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-e4c9b99791b4').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-e0cf681ce39e').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -262,7 +265,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-e4c9b99791b4').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-e0cf681ce39e').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
