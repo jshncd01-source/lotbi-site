@@ -1,33 +1,33 @@
-import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-9fc1386c8a08';
-import * as siteCore from './site-core.js?v=aset-9fc1386c8a08';
-import './site-scam-shield.js?v=aset-9fc1386c8a08';
-import {mountConsumerSection, LIFE_VIEW_PARENT, lifeBackLabel} from './site-consumer-sections.js?v=aset-9fc1386c8a08';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl, captureWalletShareIntent} from './site-route.js?v=aset-9fc1386c8a08';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-9fc1386c8a08';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-9fc1386c8a08';
-import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-9fc1386c8a08';
-import * as siteAttachments from './site-attachments.js?v=aset-9fc1386c8a08';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-9fc1386c8a08';
-import {deterministicReply} from './site-deterministic.js?v=aset-9fc1386c8a08';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-9fc1386c8a08';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-9fc1386c8a08';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-9fc1386c8a08';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-9fc1386c8a08';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-9fc1386c8a08';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-9fc1386c8a08';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-9fc1386c8a08';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-9fc1386c8a08';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-9fc1386c8a08';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-9fc1386c8a08';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-9fc1386c8a08';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-9fc1386c8a08';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-9fc1386c8a08';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-9fc1386c8a08';
-import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-9fc1386c8a08';
-import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-9fc1386c8a08';
-import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-9fc1386c8a08';
-import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-9fc1386c8a08';
-import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-9fc1386c8a08';
+import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-5b9751ac1afe';
+import * as siteCore from './site-core.js?v=aset-5b9751ac1afe';
+import './site-scam-shield.js?v=aset-5b9751ac1afe';
+import {mountConsumerSection, LIFE_VIEW_PARENT, lifeBackLabel} from './site-consumer-sections.js?v=aset-5b9751ac1afe';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl, captureWalletShareIntent} from './site-route.js?v=aset-5b9751ac1afe';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-5b9751ac1afe';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-5b9751ac1afe';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-5b9751ac1afe';
+import * as siteAttachments from './site-attachments.js?v=aset-5b9751ac1afe';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-5b9751ac1afe';
+import {deterministicReply} from './site-deterministic.js?v=aset-5b9751ac1afe';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-5b9751ac1afe';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-5b9751ac1afe';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-5b9751ac1afe';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-5b9751ac1afe';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-5b9751ac1afe';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-5b9751ac1afe';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-5b9751ac1afe';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-5b9751ac1afe';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-5b9751ac1afe';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-5b9751ac1afe';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-5b9751ac1afe';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-5b9751ac1afe';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-5b9751ac1afe';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-5b9751ac1afe';
+import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-5b9751ac1afe';
+import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-5b9751ac1afe';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-5b9751ac1afe';
+import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-5b9751ac1afe';
+import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-5b9751ac1afe';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -204,7 +204,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-9fc1386c8a08';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-5b9751ac1afe';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -297,7 +297,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-9fc1386c8a08');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-5b9751ac1afe');
   return shareWithKakaoTalk(options);
 }
 
@@ -306,7 +306,7 @@ async function shareMessageWithKakao(options) {
 // already has the SDK loaded, so choosing it shares within the same tap.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-9fc1386c8a08');
+    const module = await import('./site-kakao-share.js?v=aset-5b9751ac1afe');
     return Boolean(await module.prepareKakaoShare());
   } catch {
     return false;
@@ -1013,8 +1013,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (conversationSync) return Promise.resolve(conversationSync);
     if (!conversationSyncLoading) {
       conversationSyncLoading = Promise.all([
-        import('./site-conversation-sync.js?v=aset-9fc1386c8a08'),
-        import('./site-conversation-sync-ui.js?v=aset-9fc1386c8a08'),
+        import('./site-conversation-sync.js?v=aset-5b9751ac1afe'),
+        import('./site-conversation-sync-ui.js?v=aset-5b9751ac1afe'),
       ]).then(([engine, ui]) => {
         conversationSyncUi = ui;
         ui.ensureConversationSyncStyles();
@@ -2027,18 +2027,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       for (const key of keys) seenPlaceKeys.add(key);
       return true;
     });
-    // Three cards first; the rest of Core's list waits behind "다른 … 보기".
-    let shownCount = Math.min(places.length, 3);
-    const placeKinds = new Set(places.map(place => (place.animalHospitalVerification ? 'ANIMAL' : (place.medicalStatus?.kind || (place.emergencyStatus ? 'EMERGENCY' : '')))));
-    const placeNoun = placeKinds.size === 1
-      ? ({HOSPITAL: '병원', EMERGENCY: '응급실', PHARMACY: '약국', ANIMAL: '동물병원'}[[...placeKinds][0]] || '장소')
-      : '장소';
+    // PLACE-CARD-RAIL-ALL-RESULTS-01 — every place Core sent (up to five) turns
+    // in the rail: "5곳을 찾았어요" shows 1/5 … 5/5. Nothing waits behind a
+    // "다른 … 보기" button; that button only showed places already sent.
+    const cardCount = places.length;
     const rail = document.createElement('section');
     rail.className = 'lotbi-rich-card-rail lotbi-place-orbit has-orbit-footer';
     rail.classList.toggle('has-place-photo', places.some(place => Boolean(place.imageUrl)));
     rail.dataset.richCardType = 'PLACE';
     rail.dataset.placeResultSetId = placeResult.resultSetId;
-    rail.dataset.cardCount = String(shownCount);
+    rail.dataset.cardCount = String(cardCount);
     rail.dataset.placeCount = String(places.length);
     rail.dataset.freshness = fresh ? 'fresh' : 'stale';
     rail.setAttribute('aria-label', '장소 검색 결과');
@@ -2063,7 +2061,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       item.dataset.orbitIndex = String(placeIndex);
       item.setAttribute('role', 'group');
       item.setAttribute('aria-roledescription', 'slide');
-      item.setAttribute('aria-label', `${placeIndex + 1} / ${shownCount} · ${place.name}`);
+      item.setAttribute('aria-label', `${placeIndex + 1} / ${cardCount} · ${place.name}`);
       item.tabIndex = placeIndex === 0 ? 0 : -1;
 
       const media = place.imageUrl ? document.createElement('div') : null;
@@ -2222,20 +2220,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     next.setAttribute('aria-label', '다음 장소');
     next.textContent = '›';
 
-    // Where you are (1/3) and, when Core sent more than three, the rest of its
-    // list. Phones have no arrows (CSS): a swipe or drag turns the cards. The
-    // arrows stay for a mouse on wider screens, and the keys work everywhere.
+    // Where you are (1/5). Phones have no arrows (CSS): a swipe or drag turns
+    // the cards. The arrows stay for a mouse on wider screens, and the keys
+    // work everywhere.
     const footer = document.createElement('div');
     footer.className = 'lotbi-place-orbit-footer';
     const position = document.createElement('span');
     position.className = 'lotbi-place-orbit-position';
     position.setAttribute('aria-hidden', 'true');
-    const more = document.createElement('button');
-    more.type = 'button';
-    more.className = 'lotbi-place-orbit-more';
-    more.textContent = `다른 ${placeNoun} 보기`;
-    more.setAttribute('aria-label', `다른 ${placeNoun} ${places.length - shownCount}곳 더 보기`);
-    footer.append(position, more);
+    footer.append(position);
 
     rail.append(previous, next, footer, status);
 
@@ -2267,12 +2260,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     let capturedBodyTapIndex = null;
 
     const wrapIndex = index => {
-      const count = shownCount;
+      const count = cardCount;
       return count ? ((index % count) + count) % count : 0;
     };
 
     const orbitSlotFor = (index, centerIndex) => {
-      const count = shownCount;
+      const count = cardCount;
       if (!count || index === centerIndex) return 'CENTER';
       const forward = (index - centerIndex + count) % count;
       const backward = (centerIndex - index + count) % count;
@@ -2289,29 +2282,25 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     const applyOrbitState = ({announce = false} = {}) => {
       cards.forEach((card, index) => {
-        const shown = index < shownCount;
-        const current = shown && index === activeIndex;
-        card.hidden = !shown;
-        if (shown) card.dataset.orbitSlot = orbitSlotFor(index, activeIndex);
-        else delete card.dataset.orbitSlot;
+        const current = index === activeIndex;
+        card.dataset.orbitSlot = orbitSlotFor(index, activeIndex);
         card.classList.toggle('is-primary', current);
         card.setAttribute('aria-current', current ? 'true' : 'false');
-        card.setAttribute('aria-label', `${index + 1} / ${shownCount} · ${places[index].name}`);
+        card.setAttribute('aria-label', `${index + 1} / ${cardCount} · ${places[index].name}`);
         card.tabIndex = current ? 0 : -1;
         for (const control of card.querySelectorAll('a, button')) {
           control.tabIndex = current ? 0 : -1;
           control.setAttribute('aria-disabled', current ? 'false' : 'true');
         }
       });
-      previous.disabled = shownCount < 2;
-      next.disabled = shownCount < 2;
-      position.textContent = `${activeIndex + 1}/${shownCount}`;
-      position.hidden = shownCount < 2;
-      more.hidden = shownCount >= places.length;
-      footer.hidden = position.hidden && more.hidden;
+      previous.disabled = cardCount < 2;
+      next.disabled = cardCount < 2;
+      position.textContent = `${activeIndex + 1}/${cardCount}`;
+      position.hidden = cardCount < 2;
+      footer.hidden = position.hidden;
       rail.classList.toggle('has-orbit-footer', !footer.hidden);
       if (announce && cards[activeIndex]) {
-        status.textContent = `${activeIndex + 1} / ${shownCount} · ${places[activeIndex].name}`;
+        status.textContent = `${activeIndex + 1} / ${cardCount} · ${places[activeIndex].name}`;
       }
     };
 
@@ -2340,13 +2329,6 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     previous.addEventListener('click', () => setActiveIndex(activeIndex - 1, {step: -1}));
     next.addEventListener('click', () => setActiveIndex(activeIndex + 1, {step: 1}));
-    more.addEventListener('click', () => {
-      if (shownCount >= places.length) return;
-      const firstAdded = shownCount;
-      shownCount = places.length;
-      rail.dataset.cardCount = String(shownCount);
-      setActiveIndex(firstAdded, {focus: true, step: 1});
-    });
 
     cards.forEach((card, index) => {
       card.addEventListener('click', event => {
@@ -2370,14 +2352,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (event.key === 'ArrowRight') { nextIndex = activeIndex + 1; step = 1; }
       else if (event.key === 'ArrowLeft') { nextIndex = activeIndex - 1; step = -1; }
       else if (event.key === 'Home') { nextIndex = 0; step = -1; }
-      else if (event.key === 'End') { nextIndex = shownCount - 1; step = 1; }
+      else if (event.key === 'End') { nextIndex = cardCount - 1; step = 1; }
       if (nextIndex === null) return;
       event.preventDefault();
       setActiveIndex(nextIndex, {focus: true, step});
     });
 
     rail.addEventListener('wheel', event => {
-      if (shownCount < 2 || wheelLocked) return;
+      if (cardCount < 2 || wheelLocked) return;
       if (Math.abs(event.deltaX) < 24 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
       event.preventDefault();
       wheelLocked = true;
@@ -2396,7 +2378,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       pointerOriginIndex = resolvePlaceOrbitPointerIndex({
         targetIndex: Number.isInteger(originIndex) ? originIndex : null,
         activeIndex,
-        cardCount: shownCount,
+        cardCount,
         clientX: event.clientX,
         clientY: event.clientY,
         centerRect,
@@ -2424,7 +2406,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         dragMoved = true;
         rail.classList.add('is-dragging');
       }
-      if (!dragMoved || shownCount < 2) return;
+      if (!dragMoved || cardCount < 2) return;
       event.preventDefault();
       const visualDelta = Math.max(-72, Math.min(72, delta * 0.45));
       rail.style.setProperty('--lotbi-orbit-drag-x', `${visualDelta}px`);
@@ -2456,7 +2438,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
       if (cancelled) {
         applyOrbitState();
-      } else if (crossedDragThreshold && shownCount > 1) {
+      } else if (crossedDragThreshold && cardCount > 1) {
         const step = delta < 0 ? 1 : -1;
         setActiveIndex(activeIndex + step, {step});
       } else if (crossedDragThreshold) {
@@ -4063,7 +4045,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-9fc1386c8a08');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-5b9751ac1afe');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -4091,7 +4073,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-9fc1386c8a08');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-5b9751ac1afe');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -4124,7 +4106,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseCctvSurface?.(); releaseCctvSurface = null; },
     });
     try {
-      const {mountTrafficCctv} = await import('./site-life-traffic-cctv.js?v=aset-9fc1386c8a08');
+      const {mountTrafficCctv} = await import('./site-life-traffic-cctv.js?v=aset-5b9751ac1afe');
       const mounted = await mountTrafficCctv({root: content, showTitle: false});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseCctvSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -4153,7 +4135,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseOnnuriSurface?.(); releaseOnnuriSurface = null; },
     });
     try {
-      const {mountVoucherHub} = await import('./site-life-vouchers.js?v=aset-9fc1386c8a08');
+      const {mountVoucherHub} = await import('./site-life-vouchers.js?v=aset-5b9751ac1afe');
       const mounted = await mountVoucherHub({root: content});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseOnnuriSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -4203,7 +4185,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       event.preventDefault(); event.stopPropagation(); backToList();
     }, true);
     try {
-      const {mountRealEstate} = await import('./site-life-real-estate.js?v=aset-9fc1386c8a08');
+      const {mountRealEstate} = await import('./site-life-real-estate.js?v=aset-5b9751ac1afe');
       if (!backdrop.isConnected || realEstateSurface !== entry) return;
       entry.controller = mountRealEstate({
         root: content,
@@ -4246,7 +4228,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseEvSurface?.(); releaseEvSurface = null; },
     });
     try {
-      const {mountEvChargers} = await import('./site-life-ev-chargers.js?v=aset-9fc1386c8a08');
+      const {mountEvChargers} = await import('./site-life-ev-chargers.js?v=aset-5b9751ac1afe');
       const mounted = await mountEvChargers({root: content, showTitle: false, askLocationOnOpen: askLocation});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseEvSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -4285,7 +4267,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseSubwaySurface?.(); releaseSubwaySurface = null; },
     });
     try {
-      const {mountSubwayHome} = await import('./site-life-subway.js?v=aset-9fc1386c8a08');
+      const {mountSubwayHome} = await import('./site-life-subway.js?v=aset-5b9751ac1afe');
       const mounted = await mountSubwayHome({
         root: content, askLocationOnOpen: askLocation, initialState,
         onState: value => { if (backdrop.isConnected) rememberSubwayState('subway', 'lotbiSubwayHome', value); },
@@ -4314,7 +4296,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     // A station picked on #subway is written into the entry pushed for it.
     queueMicrotask(() => { if (backdrop.isConnected) rememberSubwayState('subway-station', 'lotbiSubwayStation', saved); });
     try {
-      const {mountSubwayStation} = await import('./site-life-subway.js?v=aset-9fc1386c8a08');
+      const {mountSubwayStation} = await import('./site-life-subway.js?v=aset-5b9751ac1afe');
       const mounted = await mountSubwayStation({
         root: content, initialState: saved,
         onState: value => { if (backdrop.isConnected) rememberSubwayState('subway-station', 'lotbiSubwayStation', value); },
@@ -4621,8 +4603,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-9fc1386c8a08'),
-          import('./site-pet.js?v=aset-9fc1386c8a08'),
+          import('./site-person.js?v=aset-5b9751ac1afe'),
+          import('./site-pet.js?v=aset-5b9751ac1afe'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -4631,11 +4613,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-9fc1386c8a08');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-5b9751ac1afe');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-9fc1386c8a08');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-5b9751ac1afe');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -4643,7 +4625,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       // only). It asks through the onAsk handed over by the life section, so a
       // question is sent at once without the keyboard, like every life card.
       mountMyChild: async (root, {onAsk: askFromMyChild} = {}) => {
-        const {mountMyChild} = await import('./site-life-my-child.js?v=aset-9fc1386c8a08');
+        const {mountMyChild} = await import('./site-life-my-child.js?v=aset-5b9751ac1afe');
         return mountMyChild({sessionToken, root, authenticated: Boolean(sessionToken), onAsk: askFromMyChild});
       },
     });
