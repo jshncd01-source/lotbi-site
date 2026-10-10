@@ -1,5 +1,7 @@
 // ONNURI-MERCHANT-LOCATION-UX-P0 — 온누리상품권 가맹점: 내 주변(반경) / 지역 선택,
-// compact responsive cards, relation map, the user's map app, verified phone.
+// compact responsive cards, the user's map app, verified phone.
+// ONNURI-REMOVE-RELATION-MAP-01: the tile-less 위치 관계도 block is gone (owner decision
+// 2026-10-10); every case asserts it is absent, the list/distance/map links stay.
 //
 // Node part: response/URL contract and the map-preference reading.
 // Browser part: the real app (index.html) with Core answered in the page by a
@@ -98,6 +100,8 @@ const REAL_CORE = process.env.ONNURI_REAL_CORE || '';
   assert.doesNotMatch(source, /localStorage|sessionStorage|innerHTML|indexedDB|document\.cookie\s*=/u, 'nothing stored, no HTML injection');
   assert.doesNotMatch(source, /oapi\.map\.naver|dapi\.kakao\.com\/v2\/maps|maps\.googleapis|apis\.openapi\.sk\.com|tile\.openstreetmap|maps\.apigw\.ntruss/u,
     'no map SDK, tile server or key in the Onnuri screen');
+  assert.doesNotMatch(source, /onnuriRelationMap|createElementNS|onnuri-map-(?:svg|pin|range|me|caption|selection|canvas)|배경 지도 없이|위쪽이 북쪽|위치 관계도'/u,
+    'ONNURI-REMOVE-RELATION-MAP-01: no relation-map sketch code left in the Onnuri screen');
   assert.doesNotMatch(source, /onnuri\.gift|cdn\.onnuri|🎟|#EB6620/iu, 'no copied official logo / brand asset');
   assert.match(read('index.html'), /site-life-onnuri\.css\?v=aset-/u);
 }
@@ -309,9 +313,9 @@ const PROBE = `(() => {
     error: surface?.querySelector('.onnuri-error:not([hidden])')?.textContent || '',
     more: (() => { const m = surface?.querySelector('.onnuri-more'); return m && !m.hidden ? box(m) : null; })(),
     locate: box(surface?.querySelector('.onnuri-locate')),
-    map: visible(surface?.querySelector('.onnuri-map')), mapRange: Boolean(surface?.querySelector('.onnuri-map-range')), mapMe: Boolean(surface?.querySelector('.onnuri-map-me')),
-    mapCaption: surface?.querySelector('.onnuri-map-caption')?.textContent || '', pins,
-    mapSelection: visible(surface?.querySelector('.onnuri-map-selection')) ? surface.querySelector('.onnuri-map-selection').textContent : '',
+    // ONNURI-REMOVE-RELATION-MAP-01: any trace of the removed sketch, visible or not.
+    relationMap: Boolean(surface?.querySelector('.onnuri-map, .onnuri-map-svg, .onnuri-map-pin, .onnuri-map-caption, .onnuri-map-selection, svg')),
+    relationText: /배경 지도 없이|위치 관계|위쪽이 북쪽/u.test(surface?.textContent || ''), pins,
     appNote: surface?.querySelector('.onnuri-map-app')?.textContent || '',
     source: surface?.querySelector('.onnuri-source')?.textContent || '',
     columns: (() => { const list = surface?.querySelector('.onnuri-results'); return list ? getComputedStyle(list).gridTemplateColumns.split(' ').filter(Boolean).length : 0; })(),
@@ -559,7 +563,7 @@ async function runCase(browser, origin, dir, testCase) {
       await select('market', '서면시장');
       state = await waitState(v => settled(v) && v.cards.length === 6, `${testCase.label}: 서면시장`);
       assert.ok(state.cards.every(card => card.address.includes('중앙대로 680번길')));
-      assert.ok(state.map && state.pins.length === 1 && !state.mapRange, 'region map: market pin, no radius circle');
+      assert.ok(!state.relationMap && !state.relationText && !state.pins.length, `${testCase.label}: region results have no relation map`);
       await select('sido', '대전광역시');
       state = await waitState(v => settled(v) && v.regionNote.includes('나눠 볼 수 없어요'), `${testCase.label}: 대전`);
       assert.equal(state.regions.sigungu.visible, false, 'no disabled-only picker');
@@ -584,7 +588,7 @@ async function runCase(browser, origin, dir, testCase) {
       assert.match(state.status, /가맹점이 아니라는 뜻은 아니에요/u);
     }
 
-    // 4. Permission granted: 내 주변 5 km, nearest first, market distance said so, relation map.
+    // 4. Permission granted: 내 주변 5 km, nearest first, market distance said so, no relation map.
     await load({geo: 'grant', cookies: ['lotbi_default_map_provider_v1=KAKAO_NAVI']});
     state = await openOnnuri();
     state = await waitState(v => v.tabs.location.selected && v.cards.length && settled(v), `${testCase.label}: nearby`);
@@ -601,8 +605,9 @@ async function runCase(browser, origin, dir, testCase) {
       assert.match(state.cards[0].basis, /소속 시장 기준/u);
       assert.ok(state.cards.some(card => card.distance && !card.distance.startsWith('시장까지')), 'building shop shows its own distance');
     }
-    assert.ok(state.map && state.mapRange && state.mapMe, 'relation map with the search circle and centre');
-    assert.match(state.mapCaption, /배경 지도 없이 위치 관계만/u);
+    assert.equal(state.relationMap, false, `${testCase.label}: 내 주변 has no relation map (circle, dots, count)`);
+    assert.equal(state.relationText, false, `${testCase.label}: no '배경 지도 없이 위치 관계만…' caption`);
+    assert.equal(state.pins.length, 0, `${testCase.label}: no map pins`);
     assert.match(state.note, /저장하지 않아요/u);
     assert.match(state.appNote, /카카오내비\(내 설정\)/u);
     for (const card of state.cards) {
@@ -621,22 +626,18 @@ async function runCase(browser, origin, dir, testCase) {
     }
     layout(state, 'nearby');
     await shot('03-nearby');
-    await shot('03-map', '.onnuri-modes');
-    // Pin → cards, card → pin.
-    const firstPin = state.pins[0];
-    await tap(await reveal(`.onnuri-map-pin[data-onnuri-point="${firstPin.point}"]`));
-    state = await waitState(v => v.mapSelection && v.cards.some(card => card.selected), `${testCase.label}: pin selects cards`);
-    assert.ok(state.cards.filter(card => card.selected).every(card => card.point === firstPin.point));
-    assert.match(state.mapSelection, /가맹점 \d+곳/u);
-    const otherCard = state.cards.find(card => card.point && card.point !== firstPin.point);
-    if (otherCard) {
-      await evaluate(`document.querySelector('.onnuri-card[data-onnuri-merchant="${otherCard.id}"] .onnuri-card-title').scrollIntoView({block:'center'}), true`);
+    // Tapping a card body selects nothing any more (there is no sketch to point at);
+    // its links still open the chosen map app.
+    if (state.cards[0]) {
+      await evaluate(`document.querySelector('.onnuri-card[data-onnuri-merchant="${state.cards[0].id}"] .onnuri-card-title').scrollIntoView({block:'center'}), true`);
       await sleep(150);
-      const at = await evaluate(`(() => { const r = document.querySelector('.onnuri-card[data-onnuri-merchant="${otherCard.id}"] .onnuri-card-title').getBoundingClientRect(); return {cx: r.x + 4, cy: r.y + r.height / 2}; })()`);
+      const at = await evaluate(`(() => { const r = document.querySelector('.onnuri-card[data-onnuri-merchant="${state.cards[0].id}"] .onnuri-card-title').getBoundingClientRect(); return {cx: r.x + 4, cy: r.y + r.height / 2}; })()`);
       await tap(at);
-      state = await waitState(v => v.pins.some(pin => pin.selected && pin.point === otherCard.point), `${testCase.label}: card selects pin`);
+      await sleep(200);
+      state = await waitState(v => settled(v), `${testCase.label}: after card tap`);
+      assert.ok(state.cards.every(card => !card.selected), 'no card selection state');
+      assert.equal(state.relationMap, false, 'still no relation map after a card tap');
     }
-    await shot('04-pin');
 
     // Radius: 1 km → fewer; 25 km → 기장 too.
     await tap(await reveal('[data-onnuri-radius="1000"]'));
@@ -763,4 +764,4 @@ try {
   }
 }
 
-console.log(`ONNURI-MERCHANT-LOCATION-UX-P0 OK${REAL_CORE ? ' (real local Core)' : ''} — 내 주변 반경/지역 단계, 12-card responsive grid, relation map, chosen map app (4 + default + conflict, live refresh), verified phone only, honest empty/failure states (viewport emulation, not a device run)`);
+console.log(`ONNURI-MERCHANT-LOCATION-UX-P0 OK${REAL_CORE ? ' (real local Core)' : ''} — 내 주변 반경/지역 단계, 12-card responsive grid, no relation map, chosen map app (4 + default + conflict, live refresh), verified phone only, honest empty/failure states (viewport emulation, not a device run)`);
