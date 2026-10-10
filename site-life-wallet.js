@@ -1,4 +1,6 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-6a88205b799c';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-913d8327d86c';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-913d8327d86c';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-913d8327d86c';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -1249,7 +1251,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-6a88205b799c') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-913d8327d86c') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;
