@@ -89,6 +89,12 @@ jobs:
       - name: Validate 지역정보 back steps one screen at a time
         run: node scripts/validate_regional_info_back_navigation_01.mjs
 
+      # SUBVIEW-BACK-NAVIGATION-01 — 화면 안 상세·창(Life Wallet·안심케어·반려동물·
+      # 축제·내 아이·캘린더 상세/창, 모달 하단 시트)에서 뒤로가기·←·Escape 가
+      # 한 층씩 닫고 그 화면은 남는지 360 · 1280px 에서 확인한다.
+      - name: Validate in-screen layers step back one at a time
+        run: node scripts/validate_subview_back_navigation_01.mjs
+
       # Run feature-owned profile regressions before unrelated Site gates so
       # active logo/main work cannot hide whether this branch is executable.
       - name: Validate conversation, profile and thread UX contracts

@@ -327,6 +327,14 @@ const SCENARIO = `(async () => {
   result.withoutConsent = {status: save.querySelector('.lotbi-mychild-status').textContent, posts: globalThis.__mcsCalls.filter(c => c.method === 'POST').length};
   save.querySelector('[data-my-child-consent-check]').checked = true;
   save.requestSubmit();
+  // SUBVIEW-BACK-NAVIGATION-01: the phone's back on the overview shows the
+  // saved list — one step, 지역정보 stays — and the entry opens again.
+  await wait(() => host.querySelector('[data-my-child-section="meals"]'), 'school overview (first)');
+  await wait(() => history.state && history.state.lotbiSubview, 'the overview layer entry');
+  history.back();
+  await wait(() => host.querySelector('[data-my-child-entry]') && !host.querySelector('[data-my-child-section="meals"]'), 'phone back → the saved list');
+  result.overviewBack = {list: true, route: document.querySelector('[data-site-route]')?.dataset.siteRoute || '', hash: location.hash};
+  host.querySelector('[data-my-child-entry]').click();
   const meals = await wait(() => host.querySelector('[data-my-child-section="meals"]'), 'school overview');
   const overview = () => ({
     title: host.querySelector('.lotbi-mychild-title')?.textContent,
@@ -575,6 +583,9 @@ try {
       assert.match(r.empty.text, /아직 저장한 학교·유치원이 없어요/u);
       assert.match(r.empty.footer, /아이 이름·생년월일·사진·학년·반은 받지 않아요/u);
       assert.equal(r.backHome, 'my-child', 'focus returns to the card');
+    });
+    await check(`${label}: the phone's back on a saved school's overview → the saved list (SUBVIEW-BACK-NAVIGATION-01)`, () => {
+      assert.deepEqual(r.overviewBack, {list: true, route: 'life-my-child', hash: '#life-my-child'});
     });
     await check(`${label}: NEIS search → pick → 첫째 + 19 allergen boxes + first-save consent`, () => {
       assert.deepEqual(r.tabs, [['SCHOOL', 'true'], ['KINDERGARTEN', 'false']]);

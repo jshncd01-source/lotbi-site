@@ -15,16 +15,16 @@ import {
   personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, personSosReceivedMessage, putHumanSightingPhoto, putPersonIdentityPhoto,
   respondGuardianNotice,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-1d4521c105ad';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-1d4521c105ad';
+} from './site-person.js?v=aset-6bddfde21b8f';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-6bddfde21b8f';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, personFoundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-1d4521c105ad';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-1d4521c105ad';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-1d4521c105ad';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-1d4521c105ad';
-import {createPersonBulkPhotos} from './site-person-bulk-photos.js?v=aset-1d4521c105ad';
+} from './site-safecare-common.js?v=aset-6bddfde21b8f';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-6bddfde21b8f';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-6bddfde21b8f';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-6bddfde21b8f';
+import {createPersonBulkPhotos} from './site-person-bulk-photos.js?v=aset-6bddfde21b8f';
 
 const RELATIONSHIPS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'], ['FAMILY', '가족'], ['DEPENDENT', '돌봄 대상'], ['OTHER', '기타']]);
 const SIGHTING_SLOT_LABELS = Object.freeze(['얼굴 정면', '얼굴 왼쪽', '얼굴 오른쪽', '상반신', '전신', '추가 사진 1', '추가 사진 2', '추가 사진 3', '추가 사진 4', '추가 사진 5']);
@@ -109,7 +109,8 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
   };
   const clearSheet = () => { activeSheet?.destroy(); activeSheet = null; };
   const go = next => { clearSheet(); view = next; render(); surface.scrollIntoView?.({block: 'start', behavior: 'smooth'}); };
-  const backBar = (label = '목록으로') => { const bar = el('div', 'safecare-back'); bar.append(button(`← ${label}`, () => go({name: 'list'}))); return bar; };
+  // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
+  const backBar = (label = '목록으로') => { const bar = el('div', 'safecare-back'); const back = button(`← ${label}`, () => go({name: 'list'})); back.dataset.subviewBack = ''; bar.append(back); return bar; };
   const activeCaseFor = personId => cases.find(record => record.personId === personId && record.status === 'ACTIVE');
   const isUnfinished = item => Number(item?.identityPhotoCount || 0) < 10;
   // 등록 완료 / 등록 중 / 사진 갱신 필요 on the person card (pets keep renewalBadge).
@@ -129,6 +130,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const bar = el('div', 'safecare-back person-registration-bar');
     const cancel = button('등록 취소', () => openRegistrationCancel(person));
     cancel.dataset.personRegistrationCancel = '';
+    cancel.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js). It asks first.
     bar.append(cancel);
     return bar;
   };

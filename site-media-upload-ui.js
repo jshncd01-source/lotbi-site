@@ -10,7 +10,7 @@
 // the reusable piece ready for that integration once STRUCTURE-03/05 (or
 // whatever Core actually ships) exists and its owner reconciles it in.
 
-import {MEDIA_UPLOAD_STATE, MEDIA_UPLOAD_ERROR} from './site-media-upload.js?v=aset-1d4521c105ad';
+import {MEDIA_UPLOAD_STATE, MEDIA_UPLOAD_ERROR} from './site-media-upload.js?v=aset-6bddfde21b8f';
 
 const ERROR_COPY = Object.freeze({
   [MEDIA_UPLOAD_ERROR.FILE_TOO_LARGE]: '사진 용량이 너무 큽니다.',
