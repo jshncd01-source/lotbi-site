@@ -1,6 +1,8 @@
 // ONNURI-MERCHANT-01 — 생활정보 '온누리상품권' 가맹점 찾기.
-// ONNURI-MERCHANT-LOCATION-UX-P0 — two ways to search, compact cards, a
-// relation map, the user's own map app and verified phone numbers only.
+// ONNURI-MERCHANT-LOCATION-UX-P0 — two ways to search, compact cards, the
+// user's own map app and verified phone numbers only.
+// ONNURI-REMOVE-RELATION-MAP-01: the tile-less 위치 관계도 sketch is gone (owner
+// decision 2026-10-10: it looked like an error). Distance and the map-app links stay.
 //
 // Reads only Core's public, guest-safe GET /v2/life/onnuri/merchants|regions
 // (the PUBLISHED copy of 소상공인시장진흥공단 「전국 온누리상품권 가맹점 현황」,
@@ -16,10 +18,10 @@
 // Brand: the official 온누리상품권 logo is NOT used until its use is approved.
 // The slot below is reserved for it and renders nothing; labels are plain text.
 // LOTBI is not presented as an official/partner service of the issuer.
-import {CORE_ORIGIN} from './site-core.js?v=aset-872ab64dbf34';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-872ab64dbf34';
-import {isLocationUsageEnabled, readDefaultMapProvider, DEFAULT_MAP_PROVIDER_COOKIE, DEFAULT_MAP_PROVIDERS} from './site-location-preference.js?v=aset-872ab64dbf34';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-872ab64dbf34';
+import {CORE_ORIGIN} from './site-core.js?v=aset-51bf873661d1';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-51bf873661d1';
+import {isLocationUsageEnabled, readDefaultMapProvider, DEFAULT_MAP_PROVIDER_COOKIE, DEFAULT_MAP_PROVIDERS} from './site-location-preference.js?v=aset-51bf873661d1';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-51bf873661d1';
 
 export const ONNURI_MENU_LABEL = '온누리상품권';
 export const ONNURI_CARD_LABEL = '온누리 가맹점';
@@ -42,7 +44,6 @@ export const ONNURI_MAP_SETTINGS_URL = 'https://account.lotbiai.com/account#pers
 export const ONNURI_LOGO_ASSET = '';
 
 const TIMEOUT_MS = 12_000;
-const SVG_NS = 'http://www.w3.org/2000/svg';
 const text = value => (typeof value === 'string' ? value.trim() : '');
 const bool = value => (value === true ? true : value === false ? false : null);
 const count = value => (Number.isInteger(value) && value >= 0 ? value : null);
@@ -290,35 +291,50 @@ function placeFor(item) {
   };
 }
 
+// The real app icons used on place and medical cards (assets/place-actions).
+export const MAP_ICON_VERSION = 'place-icons-20260925';
+
+export function mapIconName(provider, {userAgent = globalThis.navigator?.userAgent || ''} = {}) {
+  const presentation = defaultMapProviderPresentation(provider, {userAgent});
+  // Desktop 티맵 opens NAVER Map web instead (said in the label): show that app's icon.
+  if (provider === 'TMAP' && /네이버지도/u.test(presentation.label)) return 'naver-map';
+  return presentation.icon;
+}
+
+export function mapAppIcon(provider, {userAgent = globalThis.navigator?.userAgent || '', className = 'onnuri-map-icon'} = {}) {
+  const iconName = mapIconName(provider, {userAgent});
+  const icon = el('img', className);
+  icon.src = `/assets/place-actions/${iconName}.png?v=${MAP_ICON_VERSION}`;
+  icon.alt = '';
+  icon.width = 22; icon.height = 22;
+  icon.decoding = 'async';
+  icon.dataset.mapIcon = iconName;
+  return icon;
+}
+
+// ONNURI-REMOVE-RELATION-MAP-01 (owner, 2026-10-10): ONE map button per card --
+// '길찾기' and '지도에서 보기' did the same thing. It opens the user's saved map app
+// with that app's icon; a market-based location is said in the card body, not on
+// the button.
 export function onnuriMapActions(item, {mapProvider, userAgent = globalThis.navigator?.userAgent || ''}) {
-  const {target, atMarket, place} = placeFor(item);
+  const {target, place} = placeFor(item);
   const app = defaultMapProviderPresentation(mapProvider, {userAgent}).label;
-  const links = [];
+  let link;
   try {
-    if (place.navigationCapable) {
-      // 길찾기 only to a point the data really has (building or market).
-      const route = el('a', 'consumer-action onnuri-card-map', `${app} ${atMarket ? '시장 길찾기' : '길찾기'}`);
-      route.href = buildDefaultMapHref(mapProvider, place, {userAgent});
-      route.dataset.mapAction = 'route';
-      route.setAttribute('aria-label', `${app}에서 ${target} 길찾기`);
-      const open = el('a', 'consumer-action consumer-action-secondary onnuri-card-open', '지도에서 보기');
-      open.href = buildDefaultMapHref(mapProvider, {...place, navigationCapable: false}, {userAgent});
-      open.dataset.mapAction = 'open';
-      open.setAttribute('aria-label', `${app}에서 ${target} 보기`);
-      links.push(route, open);
-    } else {
-      // No point: a name search in the chosen app, never a route.
-      const search = el('a', 'consumer-action consumer-action-secondary onnuri-card-map', `${app}에서 찾기`);
-      search.href = buildDefaultMapHref(mapProvider, place, {userAgent});
-      search.dataset.mapAction = 'search';
-      search.setAttribute('aria-label', `${app}에서 ${target} 이름으로 찾기`);
-      links.push(search);
-    }
+    // 길찾기 only to a point the data really has (building or market); no point:
+    // a name search in the chosen app, never a route.
+    const route = place.navigationCapable;
+    link = el('a', 'consumer-action onnuri-card-map');
+    link.href = buildDefaultMapHref(mapProvider, place, {userAgent});
+    link.dataset.mapAction = route ? 'route' : 'search';
+    link.dataset.mapProvider = mapProvider;
+    link.append(mapAppIcon(mapProvider, {userAgent}), el('span', 'onnuri-card-map-label', route ? `${app} 길찾기` : `${app}에서 찾기`));
+    link.setAttribute('aria-label', route ? `${app}에서 ${target} 길찾기` : `${app}에서 ${target} 이름으로 찾기`);
   } catch {
     return [];                                           // no map link rather than a wrong one
   }
-  for (const link of links) { link.target = '_blank'; link.rel = 'noopener noreferrer'; }
-  return links;
+  link.target = '_blank'; link.rel = 'noopener noreferrer';
+  return [link];
 }
 
 export function onnuriMerchantCard(item, {mapProvider, userAgent = globalThis.navigator?.userAgent || ''}) {
@@ -361,81 +377,6 @@ export function onnuriMerchantCard(item, {mapProvider, userAgent = globalThis.na
   return card;
 }
 
-// ── 위치 관계도: no map tiles, no provider SDK, no key ─────────────────────
-// A north-up sketch of the points the data really has, around the search
-// centre (내 주변) or the shown shops (지역). Shops without a point are counted,
-// never drawn.
-function pointGroups(items) {
-  const groups = new Map();
-  for (const item of items) {
-    if (item.latitude === null) continue;
-    const key = `${item.latitude.toFixed(6)},${item.longitude.toFixed(6)}`;
-    const group = groups.get(key) || {key, latitude: item.latitude, longitude: item.longitude, items: [], atMarket: item.locationBasis === 'MARKET'};
-    group.items.push(item);
-    groups.set(key, group);
-  }
-  return [...groups.values()];
-}
-
-export function onnuriRelationMap({items, center = null, radiusMeters = null, documentRef = document}) {
-  const groups = pointGroups(items);
-  const width = 320; const height = 200; const pad = 18;
-  let cLat; let cLng; let span;
-  const k = lat => Math.cos(lat * Math.PI / 180);
-  if (center) {
-    cLat = center.latitude; cLng = center.longitude;
-    span = (radiusMeters || ONNURI_DEFAULT_RADIUS) * 1.1;
-  } else if (groups.length) {
-    const lats = groups.map(group => group.latitude); const lngs = groups.map(group => group.longitude);
-    cLat = (Math.min(...lats) + Math.max(...lats)) / 2; cLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-    const dy = (Math.max(...lats) - Math.min(...lats)) * 111_000 / 2;
-    const dx = (Math.max(...lngs) - Math.min(...lngs)) * 111_000 * k(cLat) / 2;
-    span = Math.max(400, dy, dx) * 1.25;
-  } else {
-    return null;
-  }
-  const scale = Math.min(width - 2 * pad, height - 2 * pad) / (2 * span);
-  const project = (lat, lng) => ({
-    x: width / 2 + (lng - cLng) * 111_000 * k(cLat) * scale,
-    y: height / 2 - (lat - cLat) * 111_000 * scale,
-  });
-  const svg = documentRef.createElementNS(SVG_NS, 'svg');
-  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-  svg.setAttribute('class', 'onnuri-map-svg');
-  svg.setAttribute('role', 'group');
-  svg.setAttribute('aria-label', center ? `현재 위치 기준 반경 ${radiusLabel(radiusMeters || ONNURI_DEFAULT_RADIUS)} 위치 관계도` : '검색 결과 위치 관계도');
-  const shape = (tag, attrs) => {
-    const node = documentRef.createElementNS(SVG_NS, tag);
-    for (const [name, value] of Object.entries(attrs)) node.setAttribute(name, String(value));
-    return node;
-  };
-  if (center) {
-    svg.append(shape('circle', {cx: width / 2, cy: height / 2, r: (radiusMeters || ONNURI_DEFAULT_RADIUS) * scale, class: 'onnuri-map-range'}));
-    svg.append(shape('circle', {cx: width / 2, cy: height / 2, r: 5, class: 'onnuri-map-me'}));
-  }
-  // Farthest first, so where two points touch the nearer one is on top and tappable.
-  const drawOrder = groups.slice().sort((left, right) => (right.items[0].distanceMeters ?? 0) - (left.items[0].distanceMeters ?? 0));
-  for (const group of drawOrder) {
-    const {x, y} = project(group.latitude, group.longitude);
-    if (x < 0 || x > width || y < 0 || y > height) continue;
-    const pin = shape('g', {class: `onnuri-map-pin${group.atMarket ? ' is-market' : ''}`, tabindex: 0, role: 'button'});
-    pin.dataset.onnuriPoint = group.key;
-    const first = group.items[0];
-    const where = group.atMarket && first.marketName ? first.marketName : first.name;
-    const distance = first.distanceMeters !== null ? ` ${group.atMarket ? '시장까지 ' : ''}${formatDistanceMeters(first.distanceMeters)}` : '';
-    pin.setAttribute('aria-label', `${where} ${group.items.length}곳${distance}`);
-    pin.append(shape('circle', {cx: x, cy: y, r: 13, class: 'onnuri-map-hit'}));
-    pin.append(shape('circle', {cx: x, cy: y, r: group.items.length > 1 ? 8 : 6, class: 'onnuri-map-dot'}));
-    if (group.items.length > 1) {
-      const label = shape('text', {x, y: y + 3.5, 'text-anchor': 'middle', class: 'onnuri-map-count'});
-      label.textContent = String(group.items.length);
-      pin.append(label);
-    }
-    svg.append(pin);
-  }
-  return svg;
-}
-
 // ── 화면 ─────────────────────────────────────────────────────────────────
 
 function locationFailureText(outcome) {
@@ -460,7 +401,7 @@ export async function mountOnnuriMerchants({
   const regionTokens = {sigungu: 0, dong: 0, market: 0};
   const state = {
     mode: 'region', location: null, radius: ONNURI_DEFAULT_RADIUS, sido: '', sigungu: '', dong: '', market: '',
-    category: '', accept: '', offset: 0, items: [], result: null, selectedPoint: '', noSigungu: false,
+    category: '', accept: '', offset: 0, items: [], result: null, noSigungu: false,
   };
   let preference = readMapPreference(documentRef.cookie || '');
 
@@ -535,18 +476,13 @@ export async function mountOnnuriMerchants({
   const coverageNote = el('p', 'consumer-feature-note onnuri-coverage');
   const emptyActions = el('div', 'onnuri-empty-actions'); emptyActions.hidden = true;
   const error = el('div', 'onnuri-error'); error.setAttribute('role', 'alert'); error.hidden = true;
-  const mapBox = el('section', 'onnuri-map'); mapBox.setAttribute('aria-label', '위치 관계도'); mapBox.hidden = true;
-  const mapCanvas = el('div', 'onnuri-map-canvas');
-  const mapCaption = el('p', 'consumer-feature-note onnuri-map-caption');
-  const mapSelection = el('div', 'onnuri-map-selection'); mapSelection.hidden = true;
-  mapBox.append(mapCanvas, mapSelection, mapCaption);
   const appNote = el('p', 'consumer-feature-note onnuri-map-app');
   const list = el('div', 'onnuri-results');
   const more = button('더 보기', 'consumer-action consumer-action-secondary onnuri-more'); more.hidden = true;
   const source = el('p', 'consumer-feature-note onnuri-source');
 
   root.replaceChildren(intro, modes, nearbyPanel, regionPanel, categoryRow, acceptRow, digitalNote, scopeLine, status,
-    coverageNote, emptyActions, error, mapBox, appNote, list, more, source);
+    coverageNote, emptyActions, error, appNote, list, more, source);
 
   function paintMode() {
     for (const [key, tab] of Object.entries(modeButtons)) {
@@ -577,63 +513,8 @@ export async function mountOnnuriMerchants({
     return state.market ? `${where} · ${state.market}` : `${where} 전체`;
   }
 
-  function selectPoint(key, {scroll = false} = {}) {
-    state.selectedPoint = key || '';
-    for (const card of list.querySelectorAll('.onnuri-card')) {
-      card.classList.toggle('is-selected', Boolean(key) && card.dataset.onnuriPoint === key);
-    }
-    for (const pin of mapCanvas.querySelectorAll('.onnuri-map-pin')) {
-      const on = Boolean(key) && pin.dataset.onnuriPoint === key;
-      pin.classList.toggle('is-selected', on);
-      pin.setAttribute('aria-pressed', String(on));
-    }
-    const items = state.items.filter(item => item.latitude !== null && `${item.latitude.toFixed(6)},${item.longitude.toFixed(6)}` === key);
-    mapSelection.replaceChildren();
-    mapSelection.hidden = !items.length;
-    if (!items.length) return;
-    const first = items[0];
-    const where = first.locationBasis === 'MARKET' && first.marketName ? first.marketName : first.name;
-    const distance = first.distanceMeters !== null ? ` · ${first.locationBasis === 'MARKET' ? '시장까지 ' : ''}${formatDistanceMeters(first.distanceMeters)}` : '';
-    mapSelection.append(el('strong', 'onnuri-map-selection-title', `${where} · 가맹점 ${items.length}곳${distance}`));
-    const actions = el('div', 'onnuri-card-actions');
-    actions.append(...onnuriMapActions(first, {mapProvider: preference.provider}));
-    mapSelection.append(actions);
-    if (scroll) {
-      const card = list.querySelector(`.onnuri-card[data-onnuri-point="${key}"]`);
-      card?.scrollIntoView?.({block: 'nearest', behavior: 'smooth'});
-    }
-  }
-
-  function paintMap() {
-    const center = state.mode === 'location' && state.location ? state.location : null;
-    // A whole-country list has nothing to relate; the sketch starts at a 시·도.
-    const svg = center || state.sido ? onnuriRelationMap({items: state.items, center, radiusMeters: state.radius, documentRef}) : null;
-    mapCanvas.replaceChildren();
-    const unplaced = state.items.filter(item => item.latitude === null).length;
-    if (!svg) { mapBox.hidden = true; return; }
-    mapCanvas.append(svg);
-    mapBox.hidden = false;
-    for (const pin of svg.querySelectorAll('.onnuri-map-pin')) {
-      const choose = () => selectPoint(pin.dataset.onnuriPoint === state.selectedPoint ? '' : pin.dataset.onnuriPoint, {scroll: true});
-      pin.addEventListener('click', choose);
-      pin.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); } });
-    }
-    const parts = ['배경 지도 없이 위치 관계만 보여 드려요(위쪽이 북쪽). 점을 누르면 그 위치의 가맹점을 표시해요.'];
-    if (state.items.some(item => item.locationBasis === 'MARKET')) parts.push('시장 점은 시장 위치예요.');
-    if (unplaced) parts.push(`위치가 확인되지 않은 ${unplaced}곳은 지도에 표시하지 않아요.`);
-    mapCaption.textContent = parts.join(' ');
-    if (state.selectedPoint) selectPoint(state.selectedPoint);
-  }
-
   function renderCards() {
     list.replaceChildren(...state.items.map(item => onnuriMerchantCard(item, {mapProvider: preference.provider})));
-    for (const card of list.querySelectorAll('.onnuri-card[data-onnuri-point]')) {
-      card.addEventListener('click', event => {
-        if (event.target.closest('a,button')) return;                  // links keep their own job
-        selectPoint(card.dataset.onnuriPoint === state.selectedPoint ? '' : card.dataset.onnuriPoint);
-      });
-    }
-    paintMap();
   }
 
   function paintCoverage(result) {
@@ -681,7 +562,7 @@ export async function mountOnnuriMerchants({
 
   async function search({reset = false} = {}) {
     if (disposed) return;
-    if (reset) { state.offset = 0; state.items = []; state.selectedPoint = ''; list.replaceChildren(); mapBox.hidden = true; }
+    if (reset) { state.offset = 0; state.items = []; list.replaceChildren(); }
     controller?.abort(); controller = new AbortController();
     const token = ++requestToken;
     scopeLine.textContent = scopeText();
@@ -798,7 +679,7 @@ export async function mountOnnuriMerchants({
       const toRegion = button('지역 선택으로 찾기', 'consumer-action consumer-action-secondary onnuri-to-region');
       toRegion.addEventListener('click', () => switchMode('region'));
       locationNote.append(toRegion);
-      list.replaceChildren(); mapBox.hidden = true; more.hidden = true; status.textContent = ''; scopeLine.textContent = '';
+      list.replaceChildren(); more.hidden = true; status.textContent = ''; scopeLine.textContent = '';
       coverageNote.textContent = ''; emptyActions.hidden = true;
       return undefined;
     }
@@ -825,7 +706,7 @@ export async function mountOnnuriMerchants({
       const toRegion = button('지역 선택으로 찾기', 'consumer-action consumer-action-secondary onnuri-to-region');
       toRegion.addEventListener('click', () => switchMode('region'));
       locationNote.append(toRegion);
-      list.replaceChildren(); mapBox.hidden = true; more.hidden = true; status.textContent = ''; scopeLine.textContent = '';
+      list.replaceChildren(); more.hidden = true; status.textContent = ''; scopeLine.textContent = '';
       coverageNote.textContent = ''; emptyActions.hidden = true; state.items = [];
       return undefined;
     }
