@@ -156,13 +156,15 @@ const send=async text=>{
   box.dispatchEvent(new Event('input',{bubbles:true}));
   await wait(()=>!sendButton.disabled,'composer ready');
   const before=calls.filter(c=>c.path==='/v2/conversation/messages').length;
-  const footersBefore=footerCalendarButtons().length;
+  const rowsBefore=document.querySelectorAll('.chat-message-actions').length;
   click(sendButton);
   await wait(()=>calls.filter(c=>c.path==='/v2/conversation/messages').length>before,'turn sent');
-  // Wait for THIS turn's own footer button, never a stale one still in the
+  // Wait for THIS turn's own answer tools, never a stale row still in the
   // thread from an earlier turn — a bare existence check would resolve
-  // instantly against the previous message's button and click the wrong one.
-  await wait(()=>footerCalendarButtons().length>footersBefore,"this turn's footer button rendered");
+  // instantly against the previous message's row. (CONVERSATION-ANSWER-UX-01:
+  // only an answer with a schedule has a 캘린더 button, so the row is what
+  // every answer has.)
+  await wait(()=>document.querySelectorAll('.chat-message-actions').length>rowsBefore,"this turn's answer tools rendered");
 };
 
 const openViaFooter=async label=>{

@@ -124,6 +124,8 @@ const params = new URLSearchParams(location.search);
 const PHASE = params.get('phase') || 'clarify';
 const PERM = params.get('perm') || 'prompt';
 const DARK = params.get('dark') === '1';
+// Optional evidence (CONVERSATION_ANSWER_UX_SCREENSHOTS): pause so the runner can capture.
+const SHOTS = params.get('shots') === '1';
 const log = JSON.parse(sessionStorage.getItem('cau-log') || '[]');
 const remember = entry => { log.push(entry); sessionStorage.setItem('cau-log', JSON.stringify(log)); };
 try {
@@ -210,6 +212,7 @@ try {
   };
   const settle = async count => { await wait(() => assistants().length >= count && !inFlightVisible(), 'answer ' + count); await sleep(500); };
   const inFlightVisible = () => Boolean(document.querySelector('.chat-message-loading'));
+  const shot = async name => { if (!SHOTS) return; window.__cauShot = name; await wait(() => window.__cauShotTaken === name, 'shot ' + name, 800); };
   const snapshot = () => ({requests: mine(), users: users(), promptValue: prompt.value, focus: {events: focusEvents, calls: focusCalls},
     activeIsPrompt: document.activeElement === prompt, status: document.querySelector('[data-site-status], #site-status, .site-status')?.textContent?.trim() || ''});
   const result = {ok: true, phase: PHASE};
@@ -236,6 +239,7 @@ try {
     result.rowContrast = [...(locationRow(answerNode)?.querySelectorAll('button') || [])].map(contrast);
     result.viewport = {w: innerWidth, h: innerHeight};
     result.afterFirst = snapshot();
+    await shot('where-answer');
     const action = params.get('action') || '';
     if (action === 'current') {
       locationRow(answerNode).querySelector('[data-location-request="current"]').click();
@@ -266,6 +270,7 @@ try {
       const city = sheet.querySelector('[data-region-picker="city"]');
       result.picker.cities = [...city.options].map(o => o.value).filter(Boolean);
       city.value = '전북특별자치도 전주시'; city.dispatchEvent(new Event('change', {bubbles: true}));
+      await shot('region-picker');
       const submit = sheet.querySelector('[data-region-picker="submit"]');
       result.picker.contrast.submit = contrast(submit);
       result.picker.submitEnabled = !submit.disabled;
@@ -292,6 +297,7 @@ try {
     await sleep(400);
     const answerNode = lastAnswer();
     result.categories = [...document.querySelectorAll('.lotbi-place-orbit-card .lotbi-rich-card-source')].map(n => n.textContent.trim());
+    await shot('place-answer');
     result.tools = tools(answerNode);
     result.rowButtons = rowButtons(answerNode);
     // #11 on the chat: the safety line is centred under the composer, and a
@@ -319,6 +325,7 @@ try {
     result.descriptionWordLines = new Set([...tailRange.getClientRects()].map(r => Math.round(r.top))).size;
     probe.remove();
   } else if (PHASE === 'home') {
+    await shot('home');
     const examples = [...document.querySelectorAll('.home-example-prompts button')];
     result.examples = examples.map(b => ({text: b.textContent.trim(), prompt: b.dataset.homePrompt || '', opens: b.hasAttribute('data-scam-open'), after: getComputedStyle(b, '::after').content}));
     examples.find(b => b.dataset.homePrompt).click();
@@ -400,9 +407,22 @@ async function openDevtools(browser, profile) {
   return {send, close};
 }
 
+const SHOT_DIR = process.env.CONVERSATION_ANSWER_UX_SCREENSHOTS || '';
+
 async function runPhase(devtools, url, label) {
-  await devtools.send('Page.navigate', {url});
+  await devtools.send('Page.navigate', {url: SHOT_DIR ? `${url}&shots=1` : url});
   const text = await waitFor(async () => {
+    if (SHOT_DIR) {
+      const pending = await devtools.send('Runtime.evaluate', {expression: "window.__cauShot && window.__cauShot !== window.__cauShotTaken ? window.__cauShot : ''", returnByValue: true}).catch(() => null);
+      const name = pending?.result?.value;
+      if (name) {
+        await new Promise(resolve => setTimeout(resolve, 350));
+        const png = await devtools.send('Page.captureScreenshot', {format: 'png'});
+        fs.mkdirSync(SHOT_DIR, {recursive: true});
+        fs.writeFileSync(path.join(SHOT_DIR, `${label.replace(/[^0-9a-z-]+/giu, '_')}-${name}.png`), Buffer.from(png.data, 'base64'));
+        await devtools.send('Runtime.evaluate', {expression: `window.__cauShotTaken = ${JSON.stringify(name)}`});
+      }
+    }
     const result = await devtools.send('Runtime.evaluate', {
       expression: "document.getElementById('cau-result')?.textContent || 'pending'",
       returnByValue: true,
