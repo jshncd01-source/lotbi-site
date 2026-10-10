@@ -140,7 +140,14 @@ const MOCK = `(() => {
     festival_id: 'fest_demo', name: '가을 억새 축제', start_date: day(0), end_date: day(2),
     region_name: '서울특별시', address: '서울특별시 영등포구 여의동로 330', latitude: 37.52, longitude: 126.93,
     homepage_url: 'https://official.example.com/festival', telephone: '02-000-0000', status: 'PUBLISHED',
-    programs: [{program_id: 'p1', title: '개막 공연', program_date: day(0), start_time: '18:00', end_time: '19:00', place_name: '주무대'}],
+    // The real Core contract (site-festival-client.js normalizeFestivalProgram):
+    // program_name / start_date / venue / reservation_url. A card shows
+    // [프로그램] only for a festival whose detail has programs, and [접수] only
+    // when one carries a reservation_url — so the second one is there on purpose.
+    programs: [
+      {program_name: '개막 공연', category: '공연', start_date: day(0), start_time: '18:00', end_time: '19:00', venue: '주무대'},
+      {program_name: '체험 부스', category: '체험', start_date: day(0), end_date: day(2), start_time: '10:00', end_time: '17:00', venue: '체험존', reservation_url: 'https://example.com/join'},
+    ],
     transport: {parking: '유료 주차장 이용'}, notices: [],
   });
   window.fetch = async (input, init = {}) => {
@@ -283,8 +290,8 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.ok(entry, `${label}: history entry ${delta} from ${currentIndex}`);
       await page('Page.navigateToHistoryEntry', {entryId: entry.id});
     };
-    const tapSelector = async selector => {
-      const box = await waitFor(() => evaluate(`(() => {
+    const tapSelector = async (selector, {settle = false} = {}) => {
+      const measureTap = () => evaluate(`(() => {
         const nodes = [...document.querySelectorAll(${JSON.stringify(selector)})].filter(node => node.getClientRects().length && !node.closest('[inert]'));
         const node = nodes[nodes.length - 1]; if (!node) return null;
         node.scrollIntoView({block: 'center', inline: 'center'});
@@ -292,7 +299,20 @@ async function runCase(browser, origin, workDir, testCase) {
         const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
         const hit = document.elementFromPoint(x, y);
         return hit && (hit === node || node.contains(hit)) ? {x, y} : null;
-      })()`), `${label}: tap target ${selector}`);
+      })()`);
+      let box = await waitFor(measureTap, `${label}: tap target ${selector}`);
+      // settle: a control that moves while its screen is still filling in is not
+      // tapped on a measured spot: its centre must stay put over three reads
+      // 100 ms apart. Nothing is relaxed — the same tap, the same assertions.
+      if (settle) {
+        for (let still = 0, previous = JSON.stringify(box), guard = Date.now(); still < 3;) {
+          if (Date.now() - guard > 15000) throw new Error(`${label}: tap target ${selector} never held still`);
+          await sleep(100);
+          const now = await measureTap();
+          const key = JSON.stringify(now);
+          if (now && key === previous) still += 1; else { still = 0; previous = key; if (now) box = now; }
+        }
+      }
       if (testCase.mobile) {
         await page('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x: box.x, y: box.y}]});
         await sleep(30);
@@ -402,7 +422,7 @@ async function runCase(browser, origin, workDir, testCase) {
     await tapSelector('[data-site-route="life"] [data-life-shortcut="festivals"]');
     await at(s => s.route === 'festival' && s.festivalList, null, 'festival list', 20000);
     const listIndex = await historyIndex();
-    await tapSelector('.festival-card-action-program');
+    await tapSelector('.festival-card-action-program', {settle: true});
     await at(s => s.route === 'festival' && s.festivalBack && !s.festivalList, listIndex + 1, 'festival program screen: one entry', 20000);
     await go(-1);
     await at(s => s.route === 'festival' && s.festivalList && !s.festivalBack, listIndex, 'back from the program → the festival list');
@@ -410,7 +430,7 @@ async function runCase(browser, origin, workDir, testCase) {
     // [접수] is a modal sheet on a phone (a layer); on a wide screen the same
     // content opens inline in the card (site-bottom-sheet.js INLINE), not a layer.
     if (testCase.mobile && await evaluate("Boolean(document.querySelector('.festival-card-action-registration'))")) {
-      await tapSelector('.festival-card-action-registration');
+      await tapSelector('.festival-card-action-registration', {settle: true});
       await at(s => s.route === 'festival' && (s.sheet || s.festivalBack), listIndex + 1, 'festival 접수 popup: one entry', 20000);
       await go(-1);
       await at(s => s.route === 'festival' && s.festivalList && !s.sheet && !s.festivalBack, listIndex, 'back from 접수 → the festival list');
@@ -433,7 +453,7 @@ async function runCase(browser, origin, workDir, testCase) {
     done.push('calendar-settings');
     // A guest picks a day first: where the day opens as a closable sheet that
     // sheet is a layer of its own; its '+ 기록' opens the editor over it.
-    await tapSelector('.calendar-date-trigger');
+    await tapSelector('.calendar-date-trigger', {settle: true});
     await waitFor(() => evaluate("[...document.querySelectorAll('[data-calendar-add]')].some(node => node.getClientRects().length)"), `${label}: calendar '+ 기록'`, 20000);
     const daySheet = await evaluate("Boolean(document.querySelector('.calendar-day-close'))");
     const dayIndex = calendarIndex + (daySheet ? 1 : 0);
@@ -441,7 +461,7 @@ async function runCase(browser, origin, workDir, testCase) {
     // The editor opens over the day — or in its place — so the entries are
     // one per layer on view; back closes the editor first, then the day sheet.
     const layersOnView = `[...document.querySelectorAll('[data-subview-back], [data-lotbi-sheet][aria-modal="true"] [data-lotbi-sheet-dismiss]')].filter(node => !node.closest('[hidden]')).length`;
-    await tapSelector('[data-calendar-add]');
+    await tapSelector('[data-calendar-add]', {settle: true});
     await at(s => s.calendar && s.editor, null, 'calendar editor', 20000);
     const editorLayers = await evaluate(layersOnView);
     assert.ok(editorLayers >= 1, `${label}: the editor is a layer`);

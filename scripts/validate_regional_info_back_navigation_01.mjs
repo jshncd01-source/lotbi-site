@@ -268,8 +268,8 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.ok(entry, `${label}: history entry ${delta} from ${currentIndex}`);
       await page('Page.navigateToHistoryEntry', {entryId: entry.id});
     };
-    const tapSelector = async selector => {
-      const box = await waitFor(() => evaluate(`(() => {
+    const tapSelector = async (selector, {settle = false} = {}) => {
+      const measureTap = () => evaluate(`(() => {
         const nodes = [...document.querySelectorAll(${JSON.stringify(selector)})].filter(node => node.getClientRects().length && !node.closest('[inert]'));
         const node = nodes[0]; if (!node) return null;
         node.scrollIntoView({block: 'center', inline: 'center'});
@@ -277,7 +277,24 @@ async function runCase(browser, origin, workDir, testCase) {
         const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
         const hit = document.elementFromPoint(x, y);
         return hit && (hit === node || node.contains(hit)) ? {x, y} : null;
-      })()`), `${label}: tap target ${selector}`);
+      })()`);
+      let box = await waitFor(measureTap, `${label}: tap target ${selector}`);
+      // settle: a control that moves while its screen is still filling in (a
+      // module mounting under it — the signed-out 로그인 없이 학교·유치원 찾기
+      // link jumps 175 px down when 내 아이's login notice renders) is not tapped
+      // on a measured spot: its centre must stay put over three reads 100 ms
+      // apart. Nothing is relaxed — the same tap, the same assertions after it.
+      // Used where content arrives asynchronously, not on every tap (each costs
+      // ~0.45 s).
+      if (settle) {
+        for (let still = 0, previous = JSON.stringify(box), guard = Date.now(); still < 3;) {
+          if (Date.now() - guard > 15000) throw new Error(`${label}: tap target ${selector} never held still`);
+          await sleep(100);
+          const now = await measureTap();
+          const key = JSON.stringify(now);
+          if (now && key === previous) still += 1; else { still = 0; previous = key; if (now) box = now; }
+        }
+      }
       if (testCase.mobile) {
         await page('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x: box.x, y: box.y}]});
         await sleep(30);
@@ -407,16 +424,20 @@ async function runCase(browser, origin, workDir, testCase) {
     await go(1);
     await atScreen(myChild, 'my-child: forward');
     const lookup = {card: 'my-child', hash: '#life-education', detail: 'education'};
-    await tapSelector('[data-site-route="life-my-child"] [data-life-education-entry]');
-    const opened = await atScreen(lookup, 'the public lookup opens');
+    // The link sits under the module's content: it is tapped once that content
+    // (the login notice) is on screen and the link has stopped moving.
+    await waitFor(() => evaluate(`Boolean(document.querySelector('[data-site-route="life-my-child"] [data-my-child-state="LOGIN_REQUIRED"]'))`), `${label}: 내 아이's login notice rendered`, 30000);
+    await tapSelector('[data-site-route="life-my-child"] [data-life-education-entry]', {settle: true});
+    const opened = await atScreen(lookup, 'the public lookup opens', 30000);
     assert.equal(opened.headerBack, '내 아이 학교·유치원으로 돌아가기', `${label}: lookup ← names its step`);
     await waitFor(() => evaluate("Boolean(document.querySelector('[data-site-route=life-education] .lotbi-edu'))"), `${label}: the lookup's tabs`);
     await go(-1);
     const backToChild = await atScreen(myChild, 'lookup: system back → 내 아이 학교·유치원');
     assert.equal(await evaluate("document.activeElement?.hasAttribute('data-life-education-entry') || false"), true, `${label}: focus returns to the link`);
     void backToChild;
-    await tapSelector('[data-site-route="life-my-child"] [data-life-education-entry]');
-    await atScreen(lookup, 'the lookup again');
+    await waitFor(() => evaluate(`Boolean(document.querySelector('[data-site-route="life-my-child"] [data-my-child-state="LOGIN_REQUIRED"]'))`), `${label}: 내 아이's login notice rendered (again)`, 30000);
+    await tapSelector('[data-site-route="life-my-child"] [data-life-education-entry]', {settle: true});
+    await atScreen(lookup, 'the lookup again', 30000);
     before = await historyIndex();
     await headerBack();
     await atScreen(myChild, 'lookup: header ← → 내 아이 학교·유치원');
