@@ -18,10 +18,10 @@
 // Brand: the official 온누리상품권 logo is NOT used until its use is approved.
 // The slot below is reserved for it and renders nothing; labels are plain text.
 // LOTBI is not presented as an official/partner service of the issuer.
-import {CORE_ORIGIN} from './site-core.js?v=aset-6f6641983c49';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-6f6641983c49';
-import {isLocationUsageEnabled, readDefaultMapProvider, DEFAULT_MAP_PROVIDER_COOKIE, DEFAULT_MAP_PROVIDERS} from './site-location-preference.js?v=aset-6f6641983c49';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-6f6641983c49';
+import {CORE_ORIGIN} from './site-core.js?v=aset-363e43389206';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-363e43389206';
+import {isLocationUsageEnabled, readDefaultMapProvider, DEFAULT_MAP_PROVIDER_COOKIE, DEFAULT_MAP_PROVIDERS} from './site-location-preference.js?v=aset-363e43389206';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-363e43389206';
 
 export const ONNURI_MENU_LABEL = '온누리상품권';
 export const ONNURI_CARD_LABEL = '온누리 가맹점';
@@ -536,19 +536,15 @@ export async function mountOnnuriMerchants({
   function paintCoverage(result) {
     const coverage = result?.coverage;
     if (!coverage) { coverageNote.textContent = ''; return; }
+    // QA-02 E1: data-quality counts (확인/확인 안 됨 n곳) are not shown to customers.
+    // Only what the reader can act on stays, in words.
     if (state.mode === 'location') {
       coverageNote.textContent = coverage.unlocated
-        ? `공식 자료에 위치가 없는 가맹점 ${won(coverage.unlocated)}곳은 거리로 찾을 수 없어 빠져요. 지역 선택으로 찾아 주세요.`
+        ? '공식 자료에 위치가 없는 가맹점은 거리로 찾을 수 없어요. 지역 선택으로 찾아 주세요.'
         : '';
       return;
     }
-    const known = coverage.regionKnown;
-    if (known !== null && known < coverage.total) {
-      coverageNote.textContent = `${state.sido || '전국'} 가맹점 ${won(coverage.total)}곳 중 시·군·구를 확인한 곳은 ${won(known)}곳이에요. `
-        + '확인되지 않은 곳은 시·도 전체나 시장·상점가로 찾을 수 있어요.';
-    } else {
-      coverageNote.textContent = '';
-    }
+    coverageNote.textContent = '';
   }
 
   function showEmpty(result) {
@@ -676,10 +672,6 @@ export async function mountOnnuriMerchants({
       await loadRegions('dong');
     } else if (!cities.regions.length) {
       notes.push(`${state.sido}는 공식 자료에 시·군·구가 확인된 가맹점이 없어 시·군·구로 나눠 볼 수 없어요. 시·도 전체나 시장·상점가로 찾아 주세요.`);
-    }
-    const coverage = cities.coverage;
-    if (coverage && coverage.withoutRegion) {
-      notes.push(`시·군·구 확인 ${won(coverage.withRegion ?? 0)}곳 · 확인 안 됨 ${won(coverage.withoutRegion)}곳(공식 자료가 시·도까지만 있고 시장 위치도 찾지 못한 곳).`);
     }
     regionNote.textContent = notes.join(' ');
     await loadRegions('market');

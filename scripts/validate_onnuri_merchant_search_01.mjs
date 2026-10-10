@@ -221,7 +221,8 @@ const PROBE = `(() => {
     note: surface?.querySelector('.onnuri-location-note')?.textContent || '',
     settingsLink: surface?.querySelector('.onnuri-location-note a')?.getAttribute('href') || '',
     error: surface?.querySelector('.onnuri-error:not([hidden])')?.textContent || '',
-    more: (() => { const m = surface?.querySelector('.onnuri-more'); return m && !m.hidden ? box(m) : null; })(),
+    // QA-02 E1: rendered visibility, not only the hidden attribute.
+    more: (() => { const m = surface?.querySelector('.onnuri-more'); if (!m) return null; const r = m.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(m).display !== 'none' ? box(m) : null; })(),
     locate: box(surface?.querySelector('.onnuri-locate')),
     modeTab: box(surface?.querySelector('[data-onnuri-mode="location"]')),
     digitalNote: Boolean(surface?.querySelector('.onnuri-digital-note:not([hidden])')),

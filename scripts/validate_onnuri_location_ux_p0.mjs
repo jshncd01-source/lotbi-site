@@ -312,7 +312,8 @@ const PROBE = `(() => {
     toRegion: visible(surface?.querySelector('.onnuri-to-region')),
     emptyButtons: [...(surface?.querySelectorAll('.onnuri-empty-actions:not([hidden]) button') || [])].map(b => ({text: b.textContent, expand: b.dataset.onnuriExpand || ''})),
     error: surface?.querySelector('.onnuri-error:not([hidden])')?.textContent || '',
-    more: (() => { const m = surface?.querySelector('.onnuri-more'); return m && !m.hidden ? box(m) : null; })(),
+    // QA-02 E1: rendered visibility, not only the hidden attribute.
+    more: (() => { const m = surface?.querySelector('.onnuri-more'); if (!m) return null; const r = m.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(m).display !== 'none' ? box(m) : null; })(),
     locate: box(surface?.querySelector('.onnuri-locate')),
     // ONNURI-REMOVE-RELATION-MAP-01: any trace of the removed sketch, visible or not.
     relationMap: Boolean(surface?.querySelector('.onnuri-map, .onnuri-map-svg, .onnuri-map-pin, .onnuri-map-caption, .onnuri-map-selection, svg')),
@@ -537,6 +538,7 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(state.cards.length, 0, `${testCase.label}: nothing listed before a region`);
     assert.match(state.status, /시·도를 고르거나 \[내 주변\]으로 찾아 주세요/u, `${testCase.label}: asks for a region`);
     assert.equal(state.requests.filter(url => url.startsWith('/v2/life/onnuri/merchants')).length, 0, 'no merchant request before a region');
+    assert.equal(state.more, null, `${testCase.label}: no 더 보기 before a region (QA-02 E1)`);
     await select('sido', '부산광역시');
     state = await waitState(v => v.cards.length >= 12 && settled(v), `${testCase.label}: 부산 first page`);
     assert.equal(state.cards.length, 12, `${testCase.label}: first page of 12`);
@@ -558,8 +560,9 @@ async function runCase(browser, origin, dir, testCase) {
       state = await waitState(v => v.regions.sigungu.visible && v.regions.market.visible && settled(v), `${testCase.label}: 부산 lists`);
       assert.ok(state.regions.sigungu.options.includes('부산진구'));
       assert.ok(state.regions.market.options.includes('부전시장'));
-      assert.match(state.regionNote, /확인 안 됨 4곳/u, 'unplaced shops are counted, not hidden');
-      assert.match(state.coverage, /시·군·구를 확인한 곳은/u);
+      // QA-02 E1: no data-quality counts for customers (확인/확인 안 됨 n곳, n곳 중 확인한 곳).
+      assert.doesNotMatch(state.regionNote, /확인 안 됨|\d+곳/u, `${testCase.label}: no data-quality count in the region note (${state.regionNote})`);
+      assert.doesNotMatch(state.coverage, /확인한 곳|\d+곳/u, `${testCase.label}: no data-quality count above the results (${state.coverage})`);
       await select('sigungu', '부산진구');
       state = await waitState(v => v.regions.dong.visible && v.regions.dong.options.includes('부전동') && settled(v), `${testCase.label}: 부산진구 dongs`);
       assert.deepEqual(state.regions.market.options.slice(1), ['부전시장', '서면시장'], '시장 list follows the 시·군·구');

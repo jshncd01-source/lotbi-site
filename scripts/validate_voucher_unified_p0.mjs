@@ -311,7 +311,8 @@ const PROBE = `(() => {
     empty: empty ? {reason: empty.dataset.emptyReason, title: empty.querySelector('.voucher-empty-title')?.textContent || '', text: empty.textContent,
       official: empty.querySelector('[data-voucher-official]')?.getAttribute('href') || ''} : null,
     error: local?.querySelector('.voucher-error:not([hidden])')?.textContent || '',
-    more: (() => { const m = local?.querySelector('.voucher-more'); return m && !m.hidden ? box(m) : null; })(),
+    // QA-02 E1: rendered visibility, not only the hidden attribute.
+    more: (() => { const m = local?.querySelector('.voucher-more'); if (!m) return null; const r = m.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(m).display !== 'none' ? box(m) : null; })(),
     chips: [...(local?.querySelectorAll('[data-voucher-filter]') || [])].map(c => ({key: c.dataset.voucherFilter, value: c.dataset.value, pressed: c.getAttribute('aria-pressed') === 'true', h: c.getBoundingClientRect().height})),
     cards, columns: (() => { const l = local?.querySelector('.voucher-results'); return l ? getComputedStyle(l).gridTemplateColumns.split(' ').filter(Boolean).length : 0; })(),
     requests: (globalThis.__voucher?.requests || []).slice(), credentials: globalThis.__voucher?.credentials || '',
@@ -610,6 +611,7 @@ async function runCase(browser, origin, workDir, testCase) {
 
     // 4. 지역화폐: 시·도 → 시·군·구 → both vouchers (광역 + 기초).
     v = await openLocal();
+    check(v.more === null, `${testCase.label}: no 더 보기 before a region (QA-02 E1)`);
     check(v.regions.sido.visible && !v.regions.sigungu.visible && !v.regions.dong.visible, 'only 시·도 before a choice');
     check(/실시간 결제 가능 여부가 아니니/u.test(v.notice), `notice: ${v.notice}`);
     check(/공식·제휴 서비스가 아니에요/u.test(v.notPartner), 'not a partner service');
