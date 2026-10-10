@@ -4339,12 +4339,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onFestival: () => { closeSurface(); void openFestival(); },
       onOnnuri: () => { closeSurface(); void openOnnuri(); },
       onRealEstate: () => { closeSurface(); void openRealEstate(); },
+      onEvChargers: () => { closeSurface(); void openEvChargers(); },
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
           import('./site-person.js?v=aset-cd3d42af9220'),
           import('./site-pet.js?v=aset-cd3d42af9220'),
-      onEvChargers: () => { closeSurface(); void openEvChargers(); },
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
