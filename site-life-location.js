@@ -8,9 +8,9 @@
 //   3) 그것도 없으면 아무것도 보내지 않는다 — Core 가 지역을 되묻는다.
 // 좌표는 소수 셋째 자리(약 100m)로 반올림해 이 한 번의 요청에만 싣는다. 이 모듈은
 // 아무것도 저장하지 않는다.
-import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-492b980298bf';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-492b980298bf';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-492b980298bf';
+import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-2beed216ee62';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-2beed216ee62';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-2beed216ee62';
 
 // JEONBUK-PILOT-01: "근처 전북 맛집" (전북 맛집·음식) is a life public-data lookup too.
 const LIFE_TARGET_RE = /(?:동물\s*병원|애견\s*병원|약국|병원|의원|응급실|응급\s*의료|소아\s*청소년과|소아과|내과|이비인후과|치과|피부과|정형외과|안과|산부인과|달빛\s*어린이|전북[^.?!\n]{0,24}?(?:맛집|음식점|식당|막걸리집))/u;

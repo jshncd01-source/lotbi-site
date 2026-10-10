@@ -322,6 +322,11 @@ async function openDialog(event) {
   if (!dialog) return;
   const sequence = ++openSequence;
   dialogTrigger = event?.currentTarget instanceof HTMLElement ? event.currentTarget : document.activeElement;
+  // COMMON-UI-POLISH-01 (QA #4) — every other drawer item closes the mobile menu
+  // before its surface opens; 진위확인 left it open under the login prompt, and
+  // still open after 취소. restoreDialogFocus already falls back to the ☰ button.
+  const drawerClose = document.querySelector('[data-mobile-nav-close]');
+  if (document.body.classList.contains('nav-drawer-open') && drawerClose instanceof HTMLButtonElement) drawerClose.click();
   resetScamFlow();
   if (result) result.hidden = true;
   if (loginGate) loginGate.hidden = true;

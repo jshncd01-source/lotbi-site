@@ -123,6 +123,11 @@ body.chat-home-page :is(.pet-button, .pet-submit, .pet-form button, .festival-ct
   min-height: 44px; border-radius: 10px; font-size: 14px; font-weight: 500;
 }
 body.chat-home-page :is(.pet-empty, .lotbi-box-empty) { border: 0; background: transparent; padding: 32px 16px; }
+/* COMMON-UI-POLISH-01 (QA #25) — signed out, 사람 showed a dashed, centred box with an underlined
+   '로그인' while 반려동물 showed a title and a solid button. 사람 now takes 반려동물's shape. */
+body.chat-home-page .consumer-care-body .person-empty-panel { display: grid; justify-items: start; gap: 8px; border: 0; background: transparent; padding: 32px 16px; text-align: left; }
+body.chat-home-page .consumer-care-body .person-empty-panel > p { margin: 0; color: var(--lotbi-text-primary, #202634); font-size: 18px; font-weight: 500; }
+body.chat-home-page .consumer-care-body .person-login-link { text-decoration: none; }
 body.chat-home-page .consumer-workspace:has(.consumer-life-detail) > .site-modal > .site-modal-header h2 { font-size: 14px; color: var(--consumer-detail-muted); font-weight: 500; }
 body.chat-home-page .consumer-workspace:has(.consumer-life-detail) > .site-modal > .site-modal-description { display: none; }
 .consumer-life-detail > .consumer-action { min-height: 44px; }
