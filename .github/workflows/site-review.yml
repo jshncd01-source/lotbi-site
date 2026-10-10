@@ -515,6 +515,12 @@ jobs:
           node scripts/validate_festival_calendar_link_01.mjs
           node scripts/validate_festival_calendar_add_ui_01.mjs
 
+      # FESTIVAL-UX-POLISH-01 (QA 2026-10-10 #1·#2·#3·#20·#27): 프로그램·접수는
+      # 그 축제에 실제로 있을 때만, 월 표시와 시간 칩 일치, 화면마다 뒤로 하나
+      # (data-subview-back), 44px 버튼, 설정한 지도앱 하나, 포스터 전체 보이기.
+      - name: Validate 축제·행사 card actions, month chips, back and poster
+        run: node scripts/validate_festival_ux_polish_01.mjs
+
       - name: Validate PET FAMILY web surface
         run: |
           node --check site-pet.js

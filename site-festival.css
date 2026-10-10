@@ -82,7 +82,8 @@
 }
 
 /* 〈 2026년 9월 〉 월별 탐색 -- independent of the quick filter chips above;
-   is-active only mirrors the MONTH filter being selected. */
+   is-active mirrors the MONTH filter being selected, and then the month
+   reads as the selected filter (filled like a pressed chip). */
 .festival-month-nav {
   display: flex;
   align-items: center;
@@ -91,8 +92,8 @@
 }
 
 .festival-month-nav-button {
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   border: 1px solid var(--lotbi-border-default);
   border-radius: 999px;
   background: var(--lotbi-surface-primary);
@@ -112,15 +113,26 @@
 }
 
 .festival-month-nav-label {
-  min-width: 96px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 112px;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
   text-align: center;
   font-size: 13px;
   font-weight: 700;
   color: var(--lotbi-text-primary);
+  white-space: nowrap;
 }
 
 .festival-month-nav.is-active .festival-month-nav-label {
-  color: var(--lotbi-brand-solid-bg);
+  background: var(--lotbi-brand-solid-bg);
+  border-color: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
 }
 
 /* --------------------------------------------------- location banner ---- */
@@ -379,7 +391,11 @@
   outline-offset: 2px;
 }
 
+/* The poster/photo is shown whole (contain: a poster's title is never cut);
+   the same picture, blurred, fills the rest of the 16:9 frame. */
 .festival-hero {
+  position: relative;
+  overflow: hidden;
   aspect-ratio: 16 / 9;
   background: var(--lotbi-surface-subtle);
   display: flex;
@@ -390,8 +406,22 @@
 .festival-hero img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+}
+
+.festival-hero .festival-hero-image {
+  position: relative;
+}
+
+.festival-hero .festival-hero-backdrop {
+  position: absolute;
+  inset: 0;
+  object-fit: cover;
+  filter: blur(18px) saturate(1.1);
+  opacity: 0.55;
+  transform: scale(1.15);
+  pointer-events: none;
 }
 
 .festival-hero-placeholder::before {
@@ -440,25 +470,53 @@
   padding: 0 14px 14px;
 }
 
-.festival-card-map-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
+/* Every card action — [프로그램] [접수] [일정 등록] [지도앱] — is the same
+   44px button; only [프로그램]/[접수] are filled. */
 .festival-card-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
+  gap: 6px;
+  box-sizing: border-box;
+  min-height: 44px;
   border: 1px solid var(--lotbi-border-default);
   border-radius: 10px;
-  padding: 6px 10px;
-  font-size: 12px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 14px;
   font-weight: 700;
+  line-height: 1.2;
   color: var(--lotbi-text-primary);
   background: var(--lotbi-surface-primary);
+  text-decoration: none;
   cursor: pointer;
+}
+
+.festival-card-icon-button[hidden] {
+  display: none;
+}
+
+/* The consumer design gives every festival <button> weight 500
+   (site-consumer-detail.css); the map action is a link, so it follows. */
+body.chat-home-page .festival-manager a.festival-card-icon-button {
+  font-weight: 500;
+}
+
+.festival-card-icon-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.festival-card-map-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.festival-card-map-icon img {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  display: block;
 }
 
 .festival-card-icon-button:hover {
@@ -482,11 +540,10 @@
   filter: brightness(0.96);
 }
 
-/* The reused "+ 내 캘린더에 추가" trigger sits among compact icon buttons here. */
-.festival-card-action-row .festival-calendar-add-trigger {
-  min-height: 36px;
-  padding: 6px 10px;
-  font-size: 12px;
+.festival-calendar-add-feedback {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--lotbi-text-muted);
 }
 
 .festival-card-body {
@@ -546,6 +603,14 @@
 
 .festival-back-button:hover {
   color: var(--lotbi-link-hover);
+}
+
+/* One back per screen: where the site shell drives in-panel steps
+   (data-subview-back), the panel's own ← goes back one step by pressing this
+   button, so it stays in the page but is not shown twice. An older shell
+   without that marker keeps showing it. */
+html[data-subview-back-shell] .festival-back-button[data-subview-back] {
+  display: none;
 }
 
 .festival-back-button:focus-visible {
@@ -691,7 +756,7 @@
   color: var(--lotbi-text-muted);
 }
 
-/* ------------------------------------------------- [📅 일정 등록] sheet -- */
+/* --------------------------------------------------- [일정 등록] sheet -- */
 .festival-schedule-sheet {
   display: flex;
   flex-direction: column;
@@ -728,8 +793,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   border: 1px solid var(--lotbi-border-default);
   border-radius: 10px;
   background: var(--lotbi-surface-primary);

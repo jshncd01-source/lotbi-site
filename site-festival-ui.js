@@ -19,15 +19,15 @@
 // longer opens LOTBI's internal detail screen, and there is no separate
 // "detail view" affordance. Every internal action the detail screen used to
 // gate behind that navigation is instead a direct action on the card itself:
-// [프로그램] and [접수] lazy-fetch the festival's programs on click (browse
-// items never carry programs) and open the same internal program/registration
-// surfaces the detail screen uses; "+ 내 캘린더에 추가" and the 네이버지도/
-// 카카오내비/TMAP deep links (site-navigation.js, the same builders the chat
+// [프로그램] and [접수] open the same internal program/registration surfaces
+// the detail screen uses, but appear only once that festival's own detail
+// read shows it really has programs / a program reservation link (browse
+// items never carry programs, so each card asks when it comes into view; see
+// watchCardActions). A card never offers a button that can only answer
+// "없습니다". [일정 등록] and the single map action (the visitor's Settings
+// 지도앱, through the same site-navigation.js builders, name and icon the chat
 // Place Card uses) need only fields the browse item already carries, so they
-// render immediately, no fetch needed. All five keep their existing hide-
-// when-not-applicable rules ([프로그램]/[접수] degrade to an empty-state
-// message inside the popup instead of pre-hiding, since visibility can't be
-// known before the lazy fetch resolves).
+// render immediately, no fetch needed.
 //
 // The detail/CTA/program screens below (renderDetail() onward) still exist
 // unchanged and are still reached by Calendar re-entry (FESTIVAL-EVENT-10):
@@ -63,21 +63,21 @@ import {
   listFestivalRegions,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-492b980298bf';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-492b980298bf';
+} from './site-festival-client.js?v=aset-0653f62c1f1a';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-0653f62c1f1a';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-492b980298bf';
-import {isLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-492b980298bf';
+} from './site-current-location.js?v=aset-0653f62c1f1a';
+import {isLocationUsageEnabled, LOCATION_USAGE_EVENT, readDefaultMapProvider} from './site-location-preference.js?v=aset-0653f62c1f1a';
 // The visit-date picker inside "일정 등록" is a compact month grid, not a
 // custom date engine -- calendarMonthGrid() is the exact same pure cell
 // generator (leading/trailing days, leap years, week length) the main
 // Calendar view itself uses, reused here read-only.
-import {calendarMonthGrid} from './site-calendar-model.js?v=aset-492b980298bf';
+import {calendarMonthGrid} from './site-calendar-model.js?v=aset-0653f62c1f1a';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -87,29 +87,23 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-492b980298bf';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-492b980298bf';
-// Reuses the exact same deep-link builders the chat Place Card uses
-// (SITE-PLACE-CARD-MAP-DEEPLINK-01) — no new API key, no SDK, no re-derived
-// URL scheme. Each open*Place() call already opens its own new browsing
-// context (window.open(..., '_blank', 'noopener,noreferrer')).
-import {
-  isTmapHandoffAvailable,
-  openKakaoNaviPlace,
-  openNaverMapsPlace,
-  openTmapPlace,
-} from './site-navigation.js?v=aset-492b980298bf';
+} from './site-festival-calendar.js?v=aset-0653f62c1f1a';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-0653f62c1f1a';
+// Reuses the exact same default-map builders the chat Place Card and the
+// 온누리 card use — one link in the 지도앱 chosen in Settings (네이버지도 when
+// none is saved), no new API key, no SDK, no re-derived URL scheme.
+import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-0653f62c1f1a';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-492b980298bf';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-0653f62c1f1a';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-492b980298bf';
+} from './site-calendar-weather.js?v=aset-0653f62c1f1a';
 
 const PAGE_SIZE = 20;
 
@@ -137,13 +131,25 @@ function statusBadge(status) {
 function heroImage(festival, {compact = false} = {}) {
   const wrap = el('div', compact ? 'festival-hero' : 'festival-hero festival-hero-detail');
   if (festival.imageUrl) {
+    // Posters are mostly portrait and photos landscape: the image is shown
+    // whole (contain, never a cropped title), and the same picture, blurred,
+    // fills the rest of the frame instead of empty bars.
+    const backdrop = document.createElement('img');
+    backdrop.className = 'festival-hero-backdrop';
+    backdrop.src = festival.imageUrl;
+    backdrop.alt = '';
+    backdrop.loading = 'lazy';
+    backdrop.setAttribute('aria-hidden', 'true');
     const img = document.createElement('img');
+    img.className = 'festival-hero-image';
     img.src = festival.imageUrl;
     img.alt = `${festival.name} 대표 이미지`;
     img.loading = 'lazy';
+    wrap.appendChild(backdrop);
     img.addEventListener('error', () => {
       // A registered image_url that fails to actually load must degrade to
       // the same neutral placeholder as "no image", never a broken-image icon.
+      backdrop.remove();
       img.remove();
       wrap.classList.add('festival-hero-placeholder');
       wrap.setAttribute('role', 'img');
@@ -166,77 +172,76 @@ function festivalNavigablePlace(festival) {
   return {name: festival.name, address: festival.address, latitude: festival.latitude, longitude: festival.longitude, navigationCapable};
 }
 
-// NAVER always renders (it falls back to a name+locality search when there is
-// no coordinate). Kakao Navi needs a real destination coordinate — it has no
-// search-by-name fallback, unlike NAVER/TMAP — so it is hidden without one.
-// TMAP is mobile-app-only: rendering it on desktop would be a button that
-// does nothing when pressed, which this codebase treats as worse than no
-// button at all (see site-navigation.js's isTmapHandoffAvailable() comment).
-function buildMapActionButtons(festival) {
+// The same app icons the chat Place Card shows (site-conversation.js,
+// PLACE_ACTION_ICON_VERSION) — one picture per 지도앱.
+const MAP_ACTION_ICON_VERSION = 'place-icons-20260925';
+
+// One map action, in the 지도앱 the visitor chose in Settings — the chat Place
+// Card's and the 온누리 card's rule, built by the same functions. The link
+// decides per app and device: a route when the festival has a coordinate, a
+// name + address search when it does not (TMAP on a desktop opens 네이버지도
+// web and says so in its label).
+function buildMapAction(festival, {mapProvider = readDefaultMapProvider(globalThis.document?.cookie || '')} = {}) {
   const place = festivalNavigablePlace(festival);
-  const wrap = el('div', 'festival-card-map-actions');
-  wrap.setAttribute('role', 'group');
-  wrap.setAttribute('aria-label', `${festival.name} 길찾기`);
-
-  const naver = document.createElement('button');
-  naver.type = 'button';
-  naver.className = 'festival-card-icon-button festival-card-map-naver';
-  naver.textContent = '네이버지도';
-  naver.setAttribute('aria-label', `${festival.name} 네이버지도, 새 창에서 열립니다`);
-  naver.addEventListener('click', () => { openNaverMapsPlace(place); });
-  wrap.appendChild(naver);
-
-  if (place.navigationCapable) {
-    const kakao = document.createElement('button');
-    kakao.type = 'button';
-    kakao.className = 'festival-card-icon-button festival-card-map-kakao';
-    kakao.textContent = '카카오내비';
-    kakao.setAttribute('aria-label', `${festival.name} 카카오내비, 새 창에서 열립니다`);
-    kakao.addEventListener('click', () => { openKakaoNaviPlace(place); });
-    wrap.appendChild(kakao);
-  }
-
-  if (isTmapHandoffAvailable()) {
-    const tmap = document.createElement('button');
-    tmap.type = 'button';
-    tmap.className = 'festival-card-icon-button festival-card-map-tmap';
-    tmap.textContent = 'TMAP';
-    tmap.setAttribute('aria-label', `${festival.name} TMAP, 새 창에서 열립니다`);
-    tmap.addEventListener('click', () => { openTmapPlace(place); });
-    wrap.appendChild(tmap);
-  }
-
-  return wrap;
+  const presentation = defaultMapProviderPresentation(mapProvider);
+  const link = document.createElement('a');
+  link.className = `festival-card-icon-button festival-card-map festival-card-map-${presentation.action}`;
+  link.href = buildDefaultMapHref(mapProvider, place);
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.dataset.mapProvider = mapProvider;
+  link.setAttribute('aria-label', `${festival.name} ${place.navigationCapable ? '길찾기' : '위치 찾기'} (${presentation.label}), 새 창에서 열립니다`);
+  const icon = el('span', 'festival-card-map-icon');
+  icon.setAttribute('aria-hidden', 'true');
+  const image = document.createElement('img');
+  image.src = `/assets/place-actions/${presentation.icon}.png?v=${MAP_ACTION_ICON_VERSION}`;
+  image.alt = '';
+  image.width = 20;
+  image.height = 20;
+  image.decoding = 'async';
+  image.addEventListener('error', () => icon.remove(), {once: true});
+  icon.appendChild(image);
+  link.append(icon, el('span', 'festival-card-map-label', presentation.label));
+  return link;
 }
 
-function buildCardActionRow(festival, {
-  onOpenProgram, onOpenRegistration, authenticated, sessionToken, guestRepository, now,
-}) {
+// [프로그램] / [접수] for a festival whose detail has been read: only the ones
+// that will actually show something. The buttons go first in the card's row.
+function addCardPrimaryActions(row, festival, detail, {onOpenProgram, onOpenRegistration}) {
+  const programs = Array.isArray(detail?.programs) ? detail.programs : [];
+  const buttons = [];
+  if (programs.length) {
+    const programButton = document.createElement('button');
+    programButton.type = 'button';
+    programButton.className = 'festival-card-icon-button festival-card-action-program';
+    programButton.textContent = '프로그램';
+    programButton.addEventListener('click', () => onOpenProgram(festival.id, festival));
+    buttons.push(programButton);
+  }
+  if (programs.some(program => Boolean(program.participationUrl))) {
+    const registrationButton = document.createElement('button');
+    registrationButton.type = 'button';
+    registrationButton.className = 'festival-card-icon-button festival-card-action-registration';
+    registrationButton.textContent = '접수';
+    registrationButton.addEventListener('click', () => onOpenRegistration(festival.id));
+    buttons.push(registrationButton);
+  }
+  if (buttons.length && !row.querySelector('.festival-card-action-program, .festival-card-action-registration')) {
+    row.prepend(...buttons);
+  }
+}
+
+function buildCardActionRow(festival, {authenticated, sessionToken, guestRepository, now}) {
   const row = el('div', 'festival-card-action-row');
   row.setAttribute('role', 'group');
   row.setAttribute('aria-label', `${festival.name} 축제 액션`);
-
-  const programButton = document.createElement('button');
-  programButton.type = 'button';
-  programButton.className = 'festival-card-icon-button festival-card-action-program';
-  programButton.textContent = '프로그램';
-  programButton.addEventListener('click', () => onOpenProgram(festival.id, festival));
-  row.appendChild(programButton);
-
-  const registrationButton = document.createElement('button');
-  registrationButton.type = 'button';
-  registrationButton.className = 'festival-card-icon-button festival-card-action-registration';
-  registrationButton.textContent = '접수';
-  registrationButton.addEventListener('click', () => onOpenRegistration(festival.id));
-  row.appendChild(registrationButton);
-
   row.appendChild(buildCalendarAddSection(row, festival, {authenticated, sessionToken, guestRepository, now}));
-  row.appendChild(buildMapActionButtons(festival));
+  row.appendChild(buildMapAction(festival));
   return row;
 }
 
 function buildCard(festival, now, {
-  showDistance = false, onOpenProgram, onOpenRegistration, authenticated, sessionToken, guestRepository,
+  showDistance = false, authenticated, sessionToken, guestRepository,
 } = {}) {
   const status = computeFestivalStatus(festival, now);
   const card = el('article', 'festival-card');
@@ -270,7 +275,7 @@ function buildCard(festival, now, {
   }
   media.appendChild(body);
   card.appendChild(media);
-  card.appendChild(buildCardActionRow(festival, {onOpenProgram, onOpenRegistration, authenticated, sessionToken, guestRepository, now}));
+  card.appendChild(buildCardActionRow(festival, {authenticated, sessionToken, guestRepository, now}));
   return card;
 }
 
@@ -586,8 +591,8 @@ function buildCalendarAddSection(root, festival, {authenticated, sessionToken, g
 
   const trigger = document.createElement('button');
   trigger.type = 'button';
-  trigger.className = 'festival-calendar-add-trigger';
-  trigger.textContent = '📅 일정 등록';
+  trigger.className = 'festival-card-icon-button festival-calendar-add-trigger';
+  trigger.textContent = '일정 등록';
   wrap.appendChild(trigger);
 
   const feedback = el('p', 'festival-calendar-add-feedback');
@@ -679,6 +684,67 @@ export async function mountFestivalManager({
   let hasMore = false;
   let regionSheetRef = null;
   let regionSheetDesktopAnchor = null;
+
+  // One public detail read per festival for this panel, shared by the card's
+  // [프로그램]/[접수] check and by opening them (no second read on click). A
+  // failed read is forgotten so the next attempt really asks again.
+  const detailById = new Map();
+  function loadFestivalDetail(festivalId) {
+    if (!detailById.has(festivalId)) {
+      const read = getPublishedFestival(festivalId, fetchImpl);
+      read.catch(() => { if (detailById.get(festivalId) === read) detailById.delete(festivalId); });
+      detailById.set(festivalId, read);
+    }
+    return detailById.get(festivalId);
+  }
+
+  // A card asks for its festival's detail when it first comes into view, two
+  // at a time, never every card of a page up front. Until the answer is in —
+  // and if it cannot be read — the card shows neither [프로그램] nor [접수].
+  const pendingCardChecks = [];
+  let runningCardChecks = 0;
+  function runCardChecks() {
+    while (runningCardChecks < 2 && pendingCardChecks.length) {
+      const check = pendingCardChecks.shift();
+      runningCardChecks += 1;
+      check().finally(() => {
+        runningCardChecks -= 1;
+        runCardChecks();
+      });
+    }
+  }
+  const cardChecks = new WeakMap();
+  const cardObserver = typeof IntersectionObserver === 'function'
+    ? new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        cardObserver.unobserve(entry.target);
+        const check = cardChecks.get(entry.target);
+        if (check) pendingCardChecks.push(check);
+      }
+      runCardChecks();
+    })
+    : null;
+  function watchCardActions(card, festival) {
+    const row = card.querySelector('.festival-card-action-row');
+    if (!row) return;
+    const check = async () => {
+      if (!card.isConnected) return;
+      try {
+        const detail = await loadFestivalDetail(festival.id);
+        if (card.isConnected) {
+          addCardPrimaryActions(row, festival, detail, {onOpenProgram: openProgramFromCard, onOpenRegistration: openRegistrationFromCard});
+        }
+      } catch {}
+    };
+    if (cardObserver) {
+      cardChecks.set(card, check);
+      cardObserver.observe(card);
+    } else {
+      pendingCardChecks.push(check);
+      runCardChecks();
+    }
+  }
 
   const container = el('div', 'festival-manager');
   const locationBanner = el('div', 'festival-location-banner');
@@ -999,8 +1065,17 @@ export async function mountFestivalManager({
 
   function selectTimeFilter(key) {
     state.time = key;
+    // A chip searches around today, so the month navigator returns to this
+    // month: it never keeps showing a month the list is not about.
+    if (key !== FESTIVAL_TIME_FILTER.MONTH) {
+      state.monthAnchor = {year: now.getFullYear(), month: now.getMonth() + 1};
+      renderMonthLabel();
+    }
     for (const [value, button] of timeButtons) button.setAttribute('aria-pressed', String(value === key));
-    monthNav.classList.toggle('is-active', key === FESTIVAL_TIME_FILTER.MONTH);
+    // With no chip lit, the navigator itself is the visible selection.
+    const monthSelected = key === FESTIVAL_TIME_FILTER.MONTH;
+    monthNav.classList.toggle('is-active', monthSelected);
+    monthNav.setAttribute('aria-label', monthSelected ? `월별 탐색, ${monthLabel.textContent} 보는 중` : '월별 탐색');
     void fetchAndRender({reset: true});
   }
 
@@ -1019,7 +1094,8 @@ export async function mountFestivalManager({
 
   // 〈 2026년 9월 〉 월별 탐색: 이전/다음 달로 계속 이동할 수 있고, 이동할
   // 때마다 그 달을 MONTH 필터로 조회한다. 빠른 필터 칩과는 별도로 항상 떠
-  // 있고, 현재 MONTH 필터가 선택되어 있을 때만 강조 표시된다.
+  // 있고, MONTH 필터일 때는 선택된 칩처럼 채워 보인다. 이번 달로 돌아오면
+  // '이번 달' 칩이 다시 켜지고, 다른 칩을 누르면 이번 달 표시로 돌아간다.
   const monthNav = el('div', 'festival-month-nav');
   monthNav.setAttribute('role', 'group');
   monthNav.setAttribute('aria-label', '월별 탐색');
@@ -1048,7 +1124,10 @@ export async function mountFestivalManager({
     while (month > 12) { month -= 12; year += 1; }
     state.monthAnchor = {year, month};
     renderMonthLabel();
-    selectTimeFilter(FESTIVAL_TIME_FILTER.MONTH);
+    // This month is exactly the 이번 달 chip: light that chip rather than an
+    // unnamed month search, so some chip or the month itself always shows.
+    const thisMonth = year === now.getFullYear() && month === now.getMonth() + 1;
+    selectTimeFilter(thisMonth ? FESTIVAL_TIME_FILTER.THIS_MONTH : FESTIVAL_TIME_FILTER.MONTH);
   }
   monthPrevButton.addEventListener('click', () => shiftMonth(-1));
   monthNextButton.addEventListener('click', () => shiftMonth(1));
@@ -1117,14 +1196,14 @@ export async function mountFestivalManager({
       }
       const showDistance = state.locationMode === 'CURRENT';
       for (const festival of result.festivals) {
-        grid.appendChild(buildCard(festival, now, {
+        const card = buildCard(festival, now, {
           showDistance,
-          onOpenProgram: openProgramFromCard,
-          onOpenRegistration: openRegistrationFromCard,
           authenticated,
           sessionToken,
           guestRepository: repository,
-        }));
+        });
+        grid.appendChild(card);
+        watchCardActions(card, festival);
       }
       hasMore = result.hasMore;
       nextOffset = result.nextOffset ?? nextOffset + result.festivals.length;
@@ -1154,6 +1233,7 @@ export async function mountFestivalManager({
     back.type = 'button';
     back.className = 'festival-back-button';
     back.textContent = onBack ? '← 목록으로' : '← 행사 정보로';
+    back.dataset.subviewBack = '';
     back.addEventListener('click', () => {
       programSurface.hidden = true;
       if (onBack) onBack();
@@ -1245,16 +1325,15 @@ export async function mountFestivalManager({
     renderProgramSurface(festival, detailToken, options);
   }
 
-  // Lazy per-card fetch: browse items never carry programs, so [프로그램]/
-  // [접수] on a list card fetch the one festival's detail on click, not for
-  // every visible card up front (no N+1 on the browse list). Keep public list
+  // [프로그램]/[접수] exist on a card only after its detail read showed them
+  // (watchCardActions), so opening reuses that same read. Keep public list
   // context on a failed read and distinguish failure from a real empty result.
   async function openProgramFromCard(festivalId, listFestival) {
     const token = ++requestToken;
     let festival = null;
     let failed = false;
     try {
-      festival = await getPublishedFestival(festivalId, fetchImpl);
+      festival = await loadFestivalDetail(festivalId);
     } catch {
       failed = true;
     }
@@ -1269,7 +1348,7 @@ export async function mountFestivalManager({
   async function openRegistrationFromCard(festivalId) {
     let festival = null;
     try {
-      festival = await getPublishedFestival(festivalId, fetchImpl);
+      festival = await loadFestivalDetail(festivalId);
     } catch {
       festival = null;
     }
@@ -1313,6 +1392,7 @@ export async function mountFestivalManager({
     back.type = 'button';
     back.className = 'festival-back-button';
     back.textContent = '← 목록으로';
+    back.dataset.subviewBack = '';
     back.addEventListener('click', showList);
     detailSurface.appendChild(back);
 
@@ -1428,6 +1508,8 @@ export async function mountFestivalManager({
       requestToken += 1;
       currentAbort?.abort();
       regionSheetRef?.close();
+      cardObserver?.disconnect();
+      pendingCardChecks.length = 0;
     },
   };
 }
