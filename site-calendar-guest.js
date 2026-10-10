@@ -1,4 +1,4 @@
-import {sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-fc6b63d90865';
+import {sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-ef0a75c6deb9';
 
 export const GUEST_CALENDAR_STORAGE_KEY = 'lotbi.guest.calendar.v1';
 const SCHEMA_VERSION = 2;

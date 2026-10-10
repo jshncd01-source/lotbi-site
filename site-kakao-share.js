@@ -1,4 +1,4 @@
-import {CORE_ORIGIN} from './site-core.js?v=aset-fc6b63d90865';
+import {CORE_ORIGIN} from './site-core.js?v=aset-ef0a75c6deb9';
 
 // LOTBI-KAKAO-SHARE-REAL-SHARE-UX-FIX-01 — Kakao Navi readiness does not
 // authorize Kakao Share. The Share action is available only when Core's

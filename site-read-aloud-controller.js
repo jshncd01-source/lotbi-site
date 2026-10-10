@@ -8,8 +8,8 @@
 //
 // See site-read-aloud-speech.js for the engine wrapper this drives, and
 // site-voice-tts.js for how a Korean voice is scored and picked.
-import {awaitVoicesReady, readVoicesSafe, speakChunk} from './site-read-aloud-speech.js?v=aset-fc6b63d90865';
-import {pickBestKoreanVoice, selectKoreanVoice, isKoreanVoice} from './site-voice-tts.js?v=aset-fc6b63d90865';
+import {awaitVoicesReady, readVoicesSafe, speakChunk} from './site-read-aloud-speech.js?v=aset-ef0a75c6deb9';
+import {pickBestKoreanVoice, selectKoreanVoice, isKoreanVoice} from './site-voice-tts.js?v=aset-ef0a75c6deb9';
 
 export const READ_ALOUD_STATE = Object.freeze({
   IDLE: 'IDLE',

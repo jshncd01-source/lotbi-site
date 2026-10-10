@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-fc6b63d90865';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-fc6b63d90865';
-import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-fc6b63d90865';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-ef0a75c6deb9';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-ef0a75c6deb9';
+import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-ef0a75c6deb9';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -281,13 +281,58 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); setView('life-news'); back.focus();
-      import('./site-life-news.js?v=aset-fc6b63d90865').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-ef0a75c6deb9').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
         mounted.focus();
       }).catch(() => {
         if (!disposed && current === generation) host.replaceChildren(node('p', 'consumer-error', '지역뉴스를 열지 못했습니다. 잠시 후 다시 열어 주세요.'));
+      });
+    }
+    // 내 아이 학교·유치원: one card, two features — 내 아이 정보 (the reader's saved
+    // schools / 유치원, its own sign-in rules) and 유치원·학교 찾기 (public lookup).
+    function openChildChoice(item) {
+      const back = action('지역정보로 돌아가기', () => {
+        root.replaceChildren(heading, grid);
+        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
+      }, {secondary: true});
+      const detail = node('section', 'consumer-life-detail');
+      detail.dataset.lifeDetail = `${item.id}-choice`;
+      const title = node('h3', '', item.label); title.tabIndex = -1;
+      const choices = node('div', 'consumer-life-choices');
+      for (const choice of item.children) {
+        const button = action(choice.label, () => {
+          if (disposed) return;
+          if (choice.id === 'education') openEducation({id: 'education', label: '유치원·학교'}, item.id);
+          else openMyChild(item);
+        });
+        button.dataset.childChoice = choice.id;
+        choices.append(button);
+      }
+      detail.append(back, title, choices);
+      root.replaceChildren(detail); title.focus();
+    }
+    // KINDERGARTEN-OFFICIAL-INFO-01: the 유치원·학교 screen is its own module,
+    // loaded on first use; it owns its reads and its "내 유치원" key.
+    function openEducation(item, cardId = item.id) {
+      const current = ++generation;
+      const back = action('지역정보로 돌아가기', () => {
+        releaseEducation?.(); releaseEducation = undefined; generation += 1;
+        root.replaceChildren(heading, grid);
+        grid.querySelector(`[data-life-shortcut="${cardId}"]`)?.focus();
+      }, {secondary: true});
+      const detail = node('section', 'consumer-life-detail');
+      detail.dataset.lifeDetail = item.id;
+      const title = node('h3', '', item.label); title.tabIndex = -1;
+      const host = node('div', 'consumer-life-education');
+      detail.append(back, title, host);
+      root.replaceChildren(detail); title.focus();
+      import('./site-life-education.js?v=aset-ef0a75c6deb9').then(({mountEducation}) => {
+        if (disposed || current !== generation) return;
+        releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
+      }).catch(() => {
+        if (!disposed && current === generation) host.replaceChildren(node('p', 'consumer-error', '유치원·학교 정보를 열지 못했습니다. 잠시 후 다시 열어 주세요.'));
       });
     }
     // MY-CHILD-SCHOOL-01: the saved schools / 유치원 screen is its own module;
