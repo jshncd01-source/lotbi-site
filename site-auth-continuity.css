@@ -58,6 +58,78 @@
   background: color-mix(in srgb, currentColor 8%, transparent);
 }
 
+/* SITE-HEADER-AUTH-QA-23-24-01 (#23) — while Account has not answered, the
+   neutral 확인 중 stays for a moment; if the wait lasts, 로그인 takes its place
+   so a signed-out visitor is never stuck. A quick answer replaces both before
+   the delay ends, so nobody sees 로그인 flash. Opacity and pointer-events
+   only: the reserved geometry does not move. */
+.account-actions[data-auth-state="checking"] {
+  position: relative;
+}
+
+.account-actions[data-auth-state="checking"] .account-login-while-checking {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  margin-block: auto;
+  height: fit-content;
+  opacity: 0;
+  pointer-events: none;
+  animation: lotbi-login-while-checking 0s linear 0.8s forwards;
+}
+
+.account-actions[data-auth-state="checking"]:has(.account-login-while-checking) .account-auth-placeholder {
+  animation: lotbi-checking-yields 0s linear 0.8s forwards;
+}
+
+@keyframes lotbi-login-while-checking {
+  to {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@keyframes lotbi-checking-yields {
+  to {
+    opacity: 0;
+  }
+}
+
+/* SITE-HEADER-AUTH-QA-23-24-01 (#24) — the phone Header's account button.
+   Only where the sidebar is folded into the drawer (≤900px) and only once the
+   Site session is signed in. */
+.mobile-header-account {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  body[data-site-authenticated="true"] .mobile-header-account {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body[data-site-authenticated="true"] .mobile-header-account:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  .mobile-header-account .sidebar-profile-avatar {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+}
+
 /* The callback must stay visually blank during the normal pending/success
    path. The existing callback card is reserved exclusively for a real error. */
 body.auth-callback-page:not(.auth-callback-error-page) {

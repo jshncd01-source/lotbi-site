@@ -1,5 +1,5 @@
-import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-492b980298bf';
-import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-492b980298bf';
+import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-872ab64dbf34';
+import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-872ab64dbf34';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
@@ -156,7 +156,19 @@ function checkingNodes(message) {
   status.className = 'sr-only';
   status.setAttribute('role', 'status');
   status.textContent = message;
-  return [placeholder, status];
+
+  // SITE-HEADER-AUTH-QA-23-24-01 (#23) — Account can take a few seconds to
+  // answer (8 s and more under load), and a signed-out visitor was left with
+  // no way to sign in until it did. 로그인 is here from the start but only
+  // shows once the wait has lasted (site-auth-continuity.css), so a quick
+  // answer never flashes it, and it is withdrawn the moment Account says the
+  // person is signed in (withdrawLoginWhileChecking).
+  const login = recoveryLoginLink('account-action account-login account-login-while-checking');
+  return [placeholder, status, login];
+}
+
+function withdrawLoginWhileChecking() {
+  for (const node of document.querySelectorAll('.account-login-while-checking')) node.remove();
 }
 
 function sidebarCheckingNodes(message) {
@@ -581,6 +593,8 @@ export async function synchronizeAccountContinuity({preserveUnknownUi = false} =
       durationMs: Math.round(Math.max(0, performanceNow() - statusStartedAt)),
       authenticated,
     });
+    // Signed in: the 로그인 offered while waiting must not show any more.
+    if (authenticated !== false) withdrawLoginWhileChecking();
 
     if (authenticated === false) {
       lastSignedOutAnswerAt = Date.now();
