@@ -23,7 +23,7 @@ import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-c0ac9
 import {resolveLifeLocationContext} from './site-life-location.js?v=aset-c0ac94b325e9';
 import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-c0ac94b325e9';
 import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-c0ac94b325e9';
-import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-c0ac94b325e9';
+import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-e0cf681ce39e';
 import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-c0ac94b325e9';
 import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-c0ac94b325e9';
 import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-c0ac94b325e9';
@@ -3961,6 +3961,35 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   };
 
+  // TRAFFIC-CCTV P0: 지역정보 → 실시간 도로 CCTV, a screen of its own (public
+  // Core reads of ITS road cameras, no conversation, no AI, no location). Its
+  // own route with backRoute 'life', like 축제·행사: the system back and the
+  // screen's ← both land on 지역정보, a second back reaches the home. The
+  // player inside adds one history entry, so one back closes the video first.
+  const openTrafficCctv = async () => {
+    // Off (owner decision 2026-10-10): no screen, no module, no player.
+    if (!TRAFFIC_CCTV_UI_ENABLED) return;
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('실시간 도로 CCTV');
+    panel.classList.add('site-traffic-cctv-modal');
+    let releaseCctvSurface = null;
+    installSurfaceBehavior(backdrop, panel, {
+      workspace: 'life', route: TRAFFIC_CCTV_UI_ENABLED ? 'traffic-cctv' : '', backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life',
+      onClose: () => { releaseCctvSurface?.(); releaseCctvSurface = null; },
+    });
+    try {
+      const {mountTrafficCctv} = await import('./site-life-traffic-cctv.js?v=aset-e0cf681ce39e');
+      const mounted = await mountTrafficCctv({root: content, showTitle: false});
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
+      releaseCctvSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'cctv-error',
+        textContent: '실시간 도로 CCTV 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+
   // ONNURI-MERCHANT-01: 생활정보 → 온누리상품권 가맹점 찾기 (public Core read).
   // LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: the same card opens
   // '온누리상품권·지역화폐' with [온누리상품권] [지역화폐] tabs (site-life-vouchers.js);
@@ -4405,6 +4434,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         askWithoutKeyboard(text);
       },
       onFestival: () => { closeSurface(); void openFestival(); },
+      onTrafficCctv: () => { closeSurface(); void openTrafficCctv(); },
       onOnnuri: () => { closeSurface(); void openOnnuri(); },
       onRealEstate: () => { closeSurface(); void openRealEstate(); },
       onEvChargers: () => { closeSurface(); void openEvChargers(); },
@@ -6006,6 +6036,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     care: () => openConsumerSection('care'),
     pets: () => openConsumerSection('care', {careTab: 'pets'}),
     life: () => openConsumerSection('life'),
+    ...(TRAFFIC_CCTV_UI_ENABLED ? {'traffic-cctv': () => openTrafficCctv()} : {}),
     festival: () => openFestival(),
     'real-estate': () => openRealEstate(),
     'real-estate-apartment': () => openRealEstate({view: 'detail'}),

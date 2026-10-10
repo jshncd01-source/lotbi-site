@@ -1,6 +1,7 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-c0ac94b325e9';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-c0ac94b325e9';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-c0ac94b325e9';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-e0cf681ce39e';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-e0cf681ce39e';
+import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-e0cf681ce39e';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-e0cf681ce39e';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -33,6 +34,11 @@ export const LIFE_MEDICAL_QUESTIONS = Object.freeze({
 // right after 약국: its own list screen (site-life-ev-chargers.js), never a
 // question to the conversation. Nine cards: the odd last card spans its row
 // (site-consumer-design.css), so the grid has no empty cell.
+// TRAFFIC-CCTV P0 adds 도로 CCTV after 온누리상품권 -- only while
+// TRAFFIC_CCTV_UI_ENABLED (off: owner decision 2026-10-10). Its own screen
+// (site-life-traffic-cctv.js): 도로 → 노선 → 방향 → 구간, no location, never a
+// question to the conversation. On, nine cards: the odd last card
+// (내 아이 학교·유치원) spans its row, so no cell is empty.
 export const LIFE_MEDICAL_CHOICES = Object.freeze([
   Object.freeze({id: 'hospital', label: '병원·의원 찾기'}),
   Object.freeze({id: 'emergency', label: '응급실 찾기'}),
@@ -56,6 +62,11 @@ export const LIFE_SHORTCUTS = Object.freeze([
   // official logo is not used before approval; brandSlot reserves its place.
   // LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: 온누리상품권 + 지역화폐 in one card.
   {id: 'onnuri', label: '온누리상품권·지역화폐', brandSlot: 'onnuri'},
+  // TRAFFIC-CCTV P0: official ITS road cameras by road, route and 구간, no chat.
+  // The screen is titled 실시간 도로 CCTV; the card says 도로 CCTV so the label
+  // stays on one line in the approved two-column grid at 360 px. Hidden while
+  // TRAFFIC_CCTV_UI_ENABLED is off.
+  ...(TRAFFIC_CCTV_UI_ENABLED ? [{id: 'traffic-cctv', label: '도로 CCTV', icon: 'cctv'}] : []),
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
   // JEONBUK-PILOT-01: 전북특별자치도·전주시 공식 음식점 공공데이터 (Core regional_food).
   {id: 'jeonbuk-food', label: '전북 맛집·음식', icon: 'food', regionalFood: true},
@@ -95,6 +106,7 @@ const ICON_PATHS = {
   building: ['M4 21V8l6-4v17', 'M10 21V9h10v12', 'M2 21h20', 'M13 12h1m3 0h1m-5 4h1m3 0h1M6.5 10h1m-1 4h1'],
   ev: ['M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16', 'M2 21h15', 'm10 7-2.5 4h4L9 15', 'M15 9h1.5a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-2.5-2.5'],
   subway: ['M7 3h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z', 'M4 11h16M8 15h.01M16 15h.01', 'm8 18-2 3m10-3 2 3'],
+  cctv: ['M3 7.5 15 3.8l2 6.2-12 3.7-2-6.2Z', 'm17 8.6 4-1.2v5.2l-3.2 1', 'M8 12.6 9 16H4.5v4.5', 'M7 8.4h.01'],
 };
 
 function node(tag, className = '', text = '') {
@@ -130,7 +142,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onRealEstate, onEvChargers, onSubway, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onRealEstate, onEvChargers, onSubway, onTrafficCctv, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -306,6 +318,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         if (disposed) return;
         if (item.ask) onAsk(item.ask);
         else if (item.choices) openMedicalChoice(item);
+        else if (item.id === 'traffic-cctv') onTrafficCctv?.();
         else if (item.id === 'festivals') onFestival();
         else if (item.id === 'ev-chargers') onEvChargers?.();
         else if (item.id === 'subway') onSubway?.();
