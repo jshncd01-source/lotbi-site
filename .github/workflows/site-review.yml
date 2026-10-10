@@ -692,10 +692,14 @@ jobs:
       # 월렛 PIN 칸은 type=password가 아닌 가린 숫자 칸(브라우저·삼성 패스가 로그인으로 저장
       # 제안하지 않게), 자료 첨부는 한 곳에서 카메라 / 내 파일 두 가지, 카메라로 다녀와도
       # 자료 추가 화면 유지(열쇠는 메모리에서 내림)를 실제 Chrome에서 확인한다.
+      # 개인통관고유부호: P+숫자 12자리 형식만 확인(관세청 확인 아님), 동의 후 암호문으로만 저장,
+      # 가린 표시·누를 때만 복사·잠기면 복사 안 됨, 변경·삭제는 PIN, 계정 분리, 백업 호환,
+      # 공식 링크는 관세청 포털만, 운영 기본값 켜짐(소유자 위험 수용)·스위치로 끄기를 확인한다.
       - name: Validate PC Web Life Wallet PIN lock
         run: |
           node scripts/validate_life_wallet_entry_lock_01.mjs
           node scripts/validate_life_wallet_pin_attachment_ux_p0.mjs
+          node scripts/validate_life_wallet_customs_code_p0.mjs
           node scripts/validate_consumer_sections_02.mjs
           node scripts/validate_surface_drag_dismiss_guard_01.mjs
 
