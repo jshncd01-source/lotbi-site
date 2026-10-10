@@ -8,7 +8,7 @@
 // response says its status: DISABLED (Core has the 공시 connection off),
 // UNAVAILABLE (the provider failed now — never "no 유치원"), OK, NOT_FOUND.
 // Values are shown as Core gives them; nothing is filled in here.
-import {CORE_ORIGIN} from './site-core.js?v=aset-2beed216ee62';
+import {CORE_ORIGIN} from './site-core.js?v=aset-40c16cdb5f6b';
 
 export const KINDERGARTEN_CONTRACT_ID = 'CORE-KINDERGARTEN-RESULT-01';
 const BASE_PATH = '/v2/life/kindergartens';

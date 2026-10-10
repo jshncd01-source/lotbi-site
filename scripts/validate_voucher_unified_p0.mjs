@@ -652,6 +652,9 @@ async function runCase(browser, origin, workDir, testCase) {
       const map = card.links.find(link => link.cls.includes('voucher-card-map'));
       check(map && map.provider === 'NAVER_MAP' && map.icon === 'naver-map' && map.iconLoaded, `${card.name}: default map app icon (${JSON.stringify(map && {p: map.provider, i: map.icon, l: map.iconLoaded})})`);
       check(map.target === '_blank', 'map opens outside');
+      // ONNURI-REMOVE-RELATION-MAP-01 rule shared by both tabs: one map button per card.
+      same(card.links.filter(link => link.action).length, 1, `${card.name}: exactly one map button`);
+      check(!card.links.some(link => /지도에서 보기/u.test(link.text || '')), `${card.name}: no separate '지도에서 보기'`);
     }
     same(new Set(v.cards.flatMap(card => card.accepts.map(a => a.source))).size, 4, 'all four source labels appear');
     check(byId.vm_cc_001.accepts.map(a => a.name).join(',') === '춘천사랑상품권,강원상품권', 'both vouchers listed on a shop that takes both');

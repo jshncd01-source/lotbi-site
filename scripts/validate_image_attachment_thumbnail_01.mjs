@@ -218,7 +218,7 @@ const chatAttachmentInputs = [...html.matchAll(/<input\b[^>]*data-attachment-inp
 assert.equal(chatAttachmentInputs.length, 3, 'ordinary chat keeps exactly three attachment inputs');
 for (const input of chatAttachmentInputs) assert.doesNotMatch(input, /image\/webp/);
 assert.match(html, /accept="image\/jpeg,image\/png" capture="environment"/);
-assert.match(html, /accept="image\/jpeg,image\/png" multiple/);
+assert.match(html, /accept="image\/\*" multiple data-attachment-input="photos"/); // PHOTO-INPUT-NO-CAMCORDER-01
 assert.match(html, /PDF·DOCX·TXT·CSV·JSON/);
 
 for (const token of [
