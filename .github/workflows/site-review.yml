@@ -859,6 +859,13 @@ jobs:
       - name: Validate 진위확인 2단계 확인 결과
         run: node scripts/validate_scam_shield_double_check_p0.mjs
 
+      # 사이트의 모든 파일 입력을 찾아 분류하고, 선택창을 띄우는 사진 입력은
+      # accept="image/*" 하나(capture 없음)라서 안드로이드 Chromium 선택창에
+      # 캠코더가 뜨지 않는지, 카메라 입력은 카메라로 바로 열리는지,
+      # 문서 입력은 PDF를 유지하는지 SelectFileDialog 판단 규칙으로 확인한다(실기기 아님).
+      - name: Validate photo inputs never offer the camcorder
+        run: node scripts/validate_photo_input_no_camcorder_01.mjs
+
       # 다크·시스템다크 입력창 안 흰 사각형(텍스트칸 포커스 링) 0건과 둥근 입력창
       # 포커스 표시, 헤더 로그인·회원가입 대비·크기·겹침·이동, 답변 공유 메뉴의
       # 카카오톡 공유하기(첫 줄·보내는 내용 안내·탭 안 SDK 호출·실패 안내)와

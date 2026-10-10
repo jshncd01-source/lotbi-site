@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-8623f528d925';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-8623f528d925';
-import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-8623f528d925';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-3d6b70866da1';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-3d6b70866da1';
+import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-3d6b70866da1';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -300,7 +300,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(host);
       root.replaceChildren(detail); setView('life-news');
-      import('./site-life-news.js?v=aset-8623f528d925').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-3d6b70866da1').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
