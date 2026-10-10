@@ -15,16 +15,16 @@ import {
   personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, personSosReceivedMessage, putHumanSightingPhoto,
   respondGuardianNotice, PERSON_FOUND_EMERGENCY_TEXT, PERSON_FOUND_FORM_NOTE, PERSON_SOS_ACTIVE_NOTE, PERSON_SOS_EMERGENCY_TEXT, PERSON_SOS_FORM_NOTE,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-4ece344d02e5';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-4ece344d02e5';
+} from './site-person.js?v=aset-a22282a16492';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-a22282a16492';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, birthYearStart, formatDate, formatMoment, foundPhotoProgress, personFoundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge, safecareEmergencyNotice,
-} from './site-safecare-common.js?v=aset-4ece344d02e5';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-4ece344d02e5';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-4ece344d02e5';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-4ece344d02e5';
-import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-4ece344d02e5';
+} from './site-safecare-common.js?v=aset-a22282a16492';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-a22282a16492';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-a22282a16492';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-a22282a16492';
+import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-a22282a16492';
 
 const RELATIONSHIPS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'], ['FAMILY', '가족'], ['DEPENDENT', '돌봄 대상'], ['OTHER', '기타']]);
 const SIGHTING_SLOT_LABELS = Object.freeze(['얼굴 정면', '얼굴 왼쪽', '얼굴 오른쪽', '상반신', '전신', '추가 사진 1', '추가 사진 2', '추가 사진 3', '추가 사진 4', '추가 사진 5']);
@@ -33,8 +33,16 @@ const STEPS = Object.freeze(['기본정보', '식별 사진', '최종 확인', '
 const el = (tag, className = '', text = '') => { const node = document.createElement(tag); if (className) node.className = className; if (text) node.textContent = text; return node; };
 const relationshipLabel = value => RELATIONSHIPS.find(([code]) => code === value)?.[1] || '기타';
 const validityLabel = days => days === 180 ? '6개월' : days === 365 ? '1년' : '';
+const prefillLocalValue = value => {
+  const date = new Date(value || '');
+  if (Number.isNaN(date.getTime()) || date.getTime() > Date.now()) return '';
+  const pad = number => String(number).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
 
-export async function mountPersonCareManager({sessionToken, root, initialSurface = 'home', onCountChange} = {}) {
+// FAMILY-LOCATION-01: [실종 신고로 이어가기] from 가족 위치 brings `missingPrefill` = {lastSeenAt,
+// lastSeenSummary} (a place in words only); the guardian picks the person and edits it before sending.
+export async function mountPersonCareManager({sessionToken, root, initialSurface = 'home', onCountChange, missingPrefill = null} = {}) {
   const surface = el('div', 'person-care-surface');
   surface.dataset.personCareSurface = '';
   root.replaceChildren(surface);
@@ -768,8 +776,9 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       content.append(box);
       return;
     }
-    const lastSeenAt = el('input'); lastSeenAt.type = 'datetime-local'; lastSeenAt.value = localNowValue(); lastSeenAt.max = localNowValue();
+    const lastSeenAt = el('input'); lastSeenAt.type = 'datetime-local'; lastSeenAt.value = prefillLocalValue(missingPrefill?.lastSeenAt) || localNowValue(); lastSeenAt.max = localNowValue();
     const location = el('input'); location.required = true; location.maxLength = 240; location.placeholder = '예: 서울시 마포구 망원한강공원 입구';
+    if (typeof missingPrefill?.lastSeenSummary === 'string') location.value = missingPrefill.lastSeenSummary.slice(0, 240);
     const description = el('textarea'); description.maxLength = 1000; description.placeholder = '옷차림, 소지품, 당시 상황 등';
     const consent = el('label', 'person-consent-check');
     const checkbox = el('input'); checkbox.type = 'checkbox'; checkbox.required = true;
@@ -1030,7 +1039,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
 
   showStatus('사람 안심케어 정보를 불러오는 중입니다.');
   content.replaceChildren(el('p', 'person-empty safecare-loading', '불러오는 중…'));
-  try { await refresh(); showStatus(''); render(); }
+  try { await refresh(); showStatus(missingPrefill ? "가족 위치 SOS에서 이어 왔어요. 사람을 골라 '실종 상태로 전환'을 누르면 마지막 장소가 채워져 있어요." : ''); render(); }
   catch (error) {
     showStatus('');
     const failed = el('div', 'person-empty person-empty-panel');

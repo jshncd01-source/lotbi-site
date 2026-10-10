@@ -3,8 +3,8 @@
 // (/v2/life/weather/regions: 시·도 → 시·군, no login), the same one Calendar
 // uses. Picking a region only hands its name back to the conversation, which
 // asks again with it; nothing is saved and no location is read.
-import {CORE_ORIGIN} from './site-core.js?v=aset-4ece344d02e5';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-4ece344d02e5';
+import {CORE_ORIGIN} from './site-core.js?v=aset-a22282a16492';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-a22282a16492';
 
 const REGION_LIST_TIMEOUT_MS = 8000;
 let regionChoicesRequest = null;
