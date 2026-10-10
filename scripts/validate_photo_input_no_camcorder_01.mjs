@@ -164,6 +164,7 @@ const KNOWN = new Map([
   ['site-person-bulk-photos.js#input@399', PHOTO_PICKER],
   ['site-pet-ui.js#petPhotoSourceInput=gallery', PHOTO_PICKER],
   ['site-pet-ui.js#petFoundInput', PHOTO_PICKER],
+  ['site-life-wallet-wifi.js#walletWifiPhotoInput', PHOTO_PICKER],
   ['index.html#attachment-camera', PHOTO_CAMERA],
   ['index.html#scam-camera', PHOTO_CAMERA],
   ['site-life-wallet.js#cameraInput@689', PHOTO_CAMERA],
