@@ -1,7 +1,7 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-ab9085df5fb8';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-ab9085df5fb8';
-import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-ab9085df5fb8';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-ab9085df5fb8';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-4087a58a9a41';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-4087a58a9a41';
+import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-4087a58a9a41';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-4087a58a9a41';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -305,7 +305,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(host);
       root.replaceChildren(detail); setView('life-news');
-      import('./site-life-news.js?v=aset-ab9085df5fb8').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-4087a58a9a41').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -326,7 +326,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(title, host);
       root.replaceChildren(detail); setView('life-education'); title.focus();
-      import('./site-life-education.js?v=aset-ab9085df5fb8').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-4087a58a9a41').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
