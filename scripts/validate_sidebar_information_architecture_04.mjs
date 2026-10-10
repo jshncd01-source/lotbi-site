@@ -78,11 +78,12 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
 
   const primaryPos = block.indexOf('consumer-primary-nav');
   const calendarPos = block.indexOf('data-calendar-view="all"');
-  const menuHooks = ['data-new-conversation', 'data-calendar-view="all"', 'data-consumer-section="wallet"', 'data-scam-open', 'data-consumer-section="care"', 'data-consumer-section="life"', 'data-consumer-section="mall"'];
+  // TROUBLE-HELPER-01: 분쟁·사고 도우미 (data-trouble-open) right after 진위확인.
+  const menuHooks = ['data-new-conversation', 'data-calendar-view="all"', 'data-consumer-section="wallet"', 'data-scam-open', 'data-trouble-open', 'data-consumer-section="care"', 'data-consumer-section="life"', 'data-consumer-section="mall"'];
   const positions = menuHooks.map(hook => primary.indexOf(hook));
-  assert.ok(positions.every(position => position >= 0), `${label} seven primary destinations required`);
+  assert.ok(positions.every(position => position >= 0), `${label} eight primary destinations required`);
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b), `${label} approved menu order must be preserved`);
-  assert.equal((primary.match(/<button\b/g) || []).length, 7, `${label} exactly seven primary menu buttons required`);
+  assert.equal((primary.match(/<button\b/g) || []).length, 8, `${label} exactly eight primary menu buttons required`);
   const recentPos = block.indexOf('sidebar-history-section');
   const accountPos = block.indexOf('sidebar-account-footer');
   assert.ok(

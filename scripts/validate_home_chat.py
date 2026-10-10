@@ -228,19 +228,21 @@ def main() -> int:
             errors.append(f"index.html: {label} connected services must be secondary, not primary")
         if primary_match:
             primary = primary_match.group(0)
-            # Approved seven-menu IA replaces separate primary/calendar groups.
+            # Approved menu IA replaces separate primary/calendar groups.
             # Check real destinations and order, not only presentation classes.
+            # TROUBLE-HELPER-01: 분쟁·사고 도우미 right after 진위확인 (eight).
             destinations = (
                 'data-new-conversation', 'data-calendar-view="all"',
                 'data-consumer-section="wallet"', 'data-scam-open',
+                'data-trouble-open',
                 'data-consumer-section="care"', 'data-consumer-section="life"',
                 'data-consumer-section="mall"',
             )
             offsets = [primary.find(destination) for destination in destinations]
             if any(offset < 0 for offset in offsets) or offsets != sorted(offsets):
-                errors.append(f"index.html: {label} must preserve all seven ordered menu destinations")
-            if primary.count('<button ') != 7:
-                errors.append(f"index.html: {label} must expose exactly seven primary menu buttons")
+                errors.append(f"index.html: {label} must preserve all eight ordered menu destinations")
+            if primary.count('<button ') != 8:
+                errors.append(f"index.html: {label} must expose exactly eight primary menu buttons")
 
         if "sidebar-secondary-nav" in block:
             errors.append(f"index.html: {label} must not reintroduce the secondary navigation region")
