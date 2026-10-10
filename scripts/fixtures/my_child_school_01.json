@@ -1,5 +1,5 @@
 {
- "note": "Produced by lotbi-core app/my_child_api.py (MY-CHILD-SCHOOL-01) on real NEIS / 유치원알리미 rows (meals, schools, 유치원 are captured rows; 학사일정 uses real event names with dates moved into the 10-11월 window); ids are re-issued by the validator.",
+ "note": "Produced by lotbi-core app/my_child_api.py (MY-CHILD-SCHOOL-01) on real NEIS / 유치원알리미 rows (meals, schools, 유치원 are captured rows; 학사일정 uses real event names with dates moved into the 10-11월 window); ids are re-issued by the validator; meal_plans blocks come from app/meal_plan_sources.py consumer_meal_plans (MY-CHILD-MEAL-LINK-PDF-01) with example links/files.",
  "listing_empty": {
   "entries": [],
   "max_entries": 10,
@@ -1166,7 +1166,14 @@
    "stale": false
   },
   "info_requests": {},
-  "requestable": []
+  "requestable": [],
+  "meal_plans": {
+   "visible": false,
+   "title": "학교 공개 급식표",
+   "items": [],
+   "allergen_checked": false,
+   "notice": "학교·유치원이 공개한 급식표를 그대로 보여 줘요. 알레르기 번호를 읽지 않아 자동 강조·알림은 되지 않으니 직접 확인해 주세요."
+  }
  },
  "overview_school_empty": {
   "entry": {
@@ -1238,7 +1245,36 @@
   "requestable": [
    "MEAL",
    "SCHEDULE"
-  ]
+  ],
+  "meal_plans": {
+   "visible": true,
+   "title": "학교 공개 급식표",
+   "items": [
+    {
+     "id": "mps_559da61b14564bf8bb8d",
+     "kind": "DOCUMENT",
+     "label": "10월 급식표",
+     "registered_at": "2026-10-06T00:30:00+00:00",
+     "source_label": "학교 공개 자료, LOTBI 직원 등록",
+     "file": {
+      "name": "10월 급식표.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 74
+     },
+     "content_path": "/v2/life/my-children/mci_8d10b8205a024990bac9/meal-plans/mps_559da61b14564bf8bb8d/content"
+    },
+    {
+     "id": "mps_e4950989ffc245169177",
+     "kind": "LINK",
+     "label": "9월 급식표",
+     "registered_at": "2026-10-02T00:30:00+00:00",
+     "source_label": "학교 공개 자료, LOTBI 직원 등록",
+     "url": "https://school.example.kr/meal/2026-09"
+    }
+   ],
+   "allergen_checked": false,
+   "notice": "학교·유치원이 공개한 급식표를 그대로 보여 줘요. 알레르기 번호를 읽지 않아 자동 강조·알림은 되지 않으니 직접 확인해 주세요."
+  }
  },
  "info_request": {
   "id": "mci_8d10b8205a024990bac9",
@@ -1296,6 +1332,28 @@
    "stale": false
   },
   "info_requests": {},
-  "requestable": []
- }
+  "requestable": [],
+  "meal_plans": {
+   "visible": true,
+   "title": "유치원 공개 급식표",
+   "items": [
+    {
+     "id": "mps_a58d40cad7a94ff7aa90",
+     "kind": "DOCUMENT",
+     "label": null,
+     "registered_at": "2026-10-05T00:30:00+00:00",
+     "source_label": "유치원 공개 자료, LOTBI 직원 등록",
+     "file": {
+      "name": "10월 식단표.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 74
+     },
+     "content_path": "/v2/life/my-children/mci_6df56210432a425790fc/meal-plans/mps_a58d40cad7a94ff7aa90/content"
+    }
+   ],
+   "allergen_checked": false,
+   "notice": "학교·유치원이 공개한 급식표를 그대로 보여 줘요. 알레르기 번호를 읽지 않아 자동 강조·알림은 되지 않으니 직접 확인해 주세요."
+  }
+ },
+ "meal_plan_pdf_base64": "JVBERi0xLjQKMSAwIG9iajw8IC9UeXBlIC9DYXRhbG9nID4+ZW5kb2JqCnRyYWlsZXI8PCAvUm9vdCAxIDAgUiA+PgolJUVPRgo="
 }

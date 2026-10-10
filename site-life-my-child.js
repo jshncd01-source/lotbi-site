@@ -15,6 +15,7 @@ import {
   NICKNAME_MAX,
   deleteAllMyChildren,
   deleteMyChild,
+  fetchMealPlanFile,
   fetchOverview,
   kindergartenSaveBody,
   listMyChildren,
@@ -24,8 +25,8 @@ import {
   searchSchools,
   telHref,
   updateMyChild,
-} from './site-my-child-client.js?v=aset-9de51f1886ba';
-import {fetchKindergartenRegions, searchKindergartens} from './site-kindergarten-client.js?v=aset-9de51f1886ba';
+} from './site-my-child-client.js?v=aset-7cd672efc640';
+import {fetchKindergartenRegions, searchKindergartens} from './site-kindergarten-client.js?v=aset-7cd672efc640';
 
 const ORDINALS = Object.freeze(['첫째', '둘째', '셋째', '넷째', '다섯째', '여섯째', '일곱째', '여덟째', '아홉째', '열째']);
 const WEEKDAYS = Object.freeze(['일', '월', '화', '수', '목', '금', '토']);
@@ -76,6 +77,15 @@ export function formatFetchedAt(value) {
     timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
   }).formatToParts(new Date(time)).map(part => [part.type, part.value]));
   return `${parts.month}.${parts.day} ${parts.hour}:${parts.minute}`;
+}
+
+/** "2026-10-06T00:30:00+00:00" → "10.6(화)" in Asia/Seoul; '' when unreadable. */
+export function formatRegisteredDay(value) {
+  const time = Date.parse(String(value || ''));
+  if (!Number.isFinite(time)) return '';
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit'})
+    .formatToParts(new Date(time)).map(part => [part.type, part.value]));
+  return formatDayLabel(`${parts.year}-${parts.month}-${parts.day}`);
 }
 
 /** The n-th saved entry suggests the n-th ordinal ("둘째" for the second), skipping names in use. */
@@ -482,6 +492,75 @@ export function mountMyChild({
     return links.length ? section : null;
   }
 
+  // MY-CHILD-MEAL-LINK-PDF-01: what the school / 유치원 itself published,
+  // registered by staff. Shown as it is; the allergen numbers are not read.
+  function mealPlanSection(overview, entry) {
+    const plans = overview.mealPlans;
+    if (!plans || !plans.visible) return null;
+    const section = node('section', 'lotbi-mychild-section lotbi-mychild-mealplans');
+    section.dataset.myChildSection = 'meal-plans';
+    section.append(node('h5', '', plans.title), node('p', 'lotbi-mychild-hint', plans.notice));
+    const list = node('ul', 'lotbi-mychild-mealplan-list');
+    for (const item of plans.items) {
+      const row = node('li', 'lotbi-mychild-mealplan');
+      row.dataset.myChildMealPlan = item.kind;
+      const name = item.label || (item.kind === 'DOCUMENT' ? item.file.name : '급식표 링크');
+      const registered = formatRegisteredDay(item.registeredAt);
+      row.append(node('strong', 'lotbi-mychild-mealplan-name', name),
+        node('span', 'lotbi-mychild-mealplan-meta', [item.sourceLabel, registered ? `${registered} 등록` : ''].filter(Boolean).join(' · ')));
+      if (item.kind === 'LINK') {
+        const link = node('a', 'consumer-action consumer-action-secondary', '급식표 열기');
+        link.href = item.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.referrerPolicy = 'no-referrer';
+        row.append(link);
+      } else {
+        const isPdf = item.file.mimeType === 'application/pdf';
+        const open = button(isPdf ? 'PDF 보기' : '이미지 보기', () => void openMealPlan(item, entry, row, open, isPdf));
+        open.dataset.myChildMealPlanOpen = item.id;
+        row.append(open);
+      }
+      list.append(row);
+    }
+    section.append(list);
+    return section;
+  }
+
+  async function openMealPlan(item, entry, row, opener, isPdf) {
+    // The tab opens inside the tap (a popup after an await is blocked) and is
+    // pointed at the file once it arrives; an image is shown in place.
+    let tab = null;
+    if (isPdf && typeof window.open === 'function') {
+      tab = window.open('', '_blank');
+      if (tab) { try { tab.opener = null; } catch { /* cross-origin guard */ } }
+    }
+    opener.disabled = true;
+    try {
+      const blob = await fetchMealPlanFile(sessionToken, entry.id, item.id, fetchImpl);
+      if (disposed) { tab?.close(); return; }
+      const url = URL.createObjectURL(blob);
+      setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+      if (!isPdf) {
+        row.querySelector('.lotbi-mychild-mealplan-image')?.remove();
+        const image = node('img', 'lotbi-mychild-mealplan-image');
+        image.src = url; image.alt = `${item.label || item.file.name} 급식표 이미지`;
+        row.append(image);
+      } else if (tab) {
+        tab.location.href = url;
+      } else {
+        // The browser refused a new tab: a link the reader taps opens it.
+        row.querySelector('.lotbi-mychild-mealplan-file')?.remove();
+        const link = node('a', 'consumer-action consumer-action-secondary lotbi-mychild-mealplan-file', 'PDF 열기');
+        link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        row.append(link);
+        say('PDF를 준비했어요. "PDF 열기"를 눌러 주세요.');
+      }
+    } catch (error) {
+      tab?.close();
+      failed(error, generation, '급식표 파일을 열지 못했어요.');
+    } finally {
+      opener.disabled = false;
+    }
+  }
+
   function scheduleSection(overview) {
     const section = node('section', 'lotbi-mychild-section');
     section.dataset.myChildSection = 'schedule';
@@ -621,6 +700,8 @@ export function mountMyChild({
       } else {
         if (overview.status === 'UNAVAILABLE') parts.push(node('p', 'lotbi-mychild-state', `NEIS 학교 정보를 ${UNAVAILABLE_NOTE}`));
         parts.push(mealsSection(overview));
+        const plans = mealPlanSection(overview, current_entry);
+        if (plans) parts.push(plans);
         const links = linksSection(overview);
         if (links) parts.push(links);
         parts.push(scheduleSection(overview));
@@ -629,7 +710,10 @@ export function mountMyChild({
       }
       parts.push(sourceLine(overview.source, '출처: NEIS'));
     } else {
-      parts.push(kindergartenSection(overview), sourceLine(overview.source, '교육부 유치원알리미'));
+      parts.push(kindergartenSection(overview));
+      const plans = mealPlanSection(overview, current_entry);
+      if (plans) parts.push(plans);
+      parts.push(sourceLine(overview.source, '교육부 유치원알리미'));
     }
     view.replaceChildren(...parts);
   }
