@@ -1,5 +1,5 @@
-// COMMON-UI-POLISH-01 — QA 일괄보고 01 공통 항목 #4·#17·#18·#19·#20·#21·#25·#26.
-// (#5 제휴몰/연결 서비스 이름은 소유자 결정 대기로 이번 범위에서 뺐다.)
+// COMMON-UI-POLISH-01 — QA 일괄보고 01 공통 항목 #4·#17·#18·#19·#20·#21·#25·#26,
+// and #5 (CONNECTED-SERVICES-NAME-01, 대표 결정 "연결서비스로 통합").
 //
 // Source contracts first, then a headless Chrome pass over a fixture that loads
 // every stylesheet index.html loads, in the same order, so the cascade that
@@ -16,8 +16,24 @@ let passed = 0;
 const check = (label, fn) => { fn(); passed += 1; };
 
 const index = read('index.html');
+const conversation = read('site-conversation.js');
 const scam = read('site-scam-shield.js');
 const wallet = read('site-life-wallet.js');
+
+// #5 — one name for one destination: the drawer entry, its surface definition
+// and the account menu all say 연결 서비스, which is also Account's page title.
+check('#5 drawer and account menu share one name', () => {
+  const mallButtons = [...index.matchAll(/<button[^>]*data-consumer-section="mall"[^>]*>[\s\S]*?<\/button>/g)].map(match => match[0]);
+  assert.equal(mallButtons.length, 2, 'desktop and mobile drawer entries');
+  for (const button of mallButtons) {
+    assert.match(button, /aria-label="연결 서비스"/);
+    assert.match(button, /<span class="nav-item-label">연결 서비스<\/span>/);
+  }
+  assert.doesNotMatch(index, /제휴몰/);
+  assert.match(conversation, /mall: \['연결 서비스', /);
+  assert.match(conversation, /connectedServices\.textContent = '연결 서비스'/);
+  assert.match(read('subscribe.html'), /<tr><th scope="row">연결 서비스<\/th>/);
+});
 
 // #4 — 진위확인 closes the mobile drawer before its dialog opens, the way every
 // other drawer item (openConsumerSection → closeMobileDrawer) already does.
