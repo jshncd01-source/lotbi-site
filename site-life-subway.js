@@ -20,10 +20,10 @@
 // (arvlMsg2), the official 진입/도착/출발 code, 막차, and the time it was
 // generated. The remaining time is Core's barvlDt minus the age; when it has
 // passed the screen says so instead of moving the train a station on its own.
-import {CORE_ORIGIN} from './site-core.js?v=aset-a3828a247dd1';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-a3828a247dd1';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-a3828a247dd1';
-import {formatDistanceMeters} from './site-navigation.js?v=aset-a3828a247dd1';
+import {CORE_ORIGIN} from './site-core.js?v=aset-cb1e2d5d19ae';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-cb1e2d5d19ae';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-cb1e2d5d19ae';
+import {formatDistanceMeters} from './site-navigation.js?v=aset-cb1e2d5d19ae';
 
 export const SUBWAY_MENU_LABEL = '지하철 정보';
 export const SUBWAY_STATION_TITLE = '지하철 도착정보';
