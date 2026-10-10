@@ -4,9 +4,10 @@
 // that was never recorded is simply missing; nothing here is estimated,
 // inferred, or filled in on the owner's behalf.
 //
-// The Calendar is not a ledger. Under the month there is one quiet line
-// (calendarAmountSummaryLine) that disappears entirely when the month holds no
-// amount, and the breakdown waits behind it (calendarAmountDetailNode). The
+// The Calendar is not a ledger. Above the month there is one quiet line
+// (calendarAmountSummaryLine) with the fixed category slots under it; a month
+// with no amount reads 0원 instead of losing the line, and the breakdown waits
+// behind it (calendarAmountDetailNode). The
 // words are "입력 금액", never "쓴 돈": the contract does not yet tell a price
 // that was booked from money that was actually spent.
 //
@@ -319,9 +320,16 @@ function recordedCurrencies(summary) {
   ));
 }
 
-export function amountSummaryLinePresentation(summary, {month = null} = {}) {
+// A month with no amount still shows its line and its 0원 slots, as the
+// Calendar did until the 2026-10-06 redesign hid them: 대표 read the missing
+// line as "가계부 표시가 사라졌다" (owner decision 2026-10-10).
+function shownCurrencies(summary) {
   const currencies = recordedCurrencies(summary);
-  if (!currencies.length) return null;
+  return currencies.length ? currencies : [EMPTY_KRW];
+}
+
+export function amountSummaryLinePresentation(summary, {month = null} = {}) {
+  const currencies = shownCurrencies(summary);
   return Object.freeze({
     label: Number.isInteger(month) ? `${month}월 입력 금액 합계` : '입력 금액 합계',
     amounts: Object.freeze(currencies.map(line => formatExpenseAmount(line.totalAmountMinor, line.currency))),
@@ -358,8 +366,8 @@ export function amountDetailPresentation(summary, {local = false} = {}) {
 }
 
 /**
- * The single line under the month. Returns null when there is nothing to say,
- * so the caller simply draws nothing.
+ * The single line above the month. Returns null only while the total is still
+ * loading; a settled month with no amount reads 0원.
  * @param {object} options
  * @param {'loading'|'ready'|'error'} options.state
  */
@@ -396,8 +404,7 @@ export function calendarAmountSummaryLine({state, summary = null, month = null, 
 }
 
 function amountCategoryOverviewNode(summary) {
-  const currencies = recordedCurrencies(summary);
-  if (!currencies.length) return null;
+  const currencies = shownCurrencies(summary);
   const overview = document.createElement('div');
   overview.className = 'calendar-amount-category-groups';
   for (const currency of currencies) {
