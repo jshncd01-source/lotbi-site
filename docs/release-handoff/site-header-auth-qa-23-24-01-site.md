@@ -2,6 +2,7 @@ READY_FOR_DEPLOY=YES
 MIGRATION=NO
 DEPLOY_ORDER=SITE 단독 (Core·Web·App 변경 없음, 같은 묶음의 Web QA #22와 순서 무관)
 USER_DECISION_NEEDED=NONE
+SUPERSEDES=279da9ec56110873766eefef4ac0226cf5d8d30f (gate FAIL: validate_accessibility.py:127 "index.html: expected one mobile menu open control")
 
 # site-header-auth-qa-23-24-01-site — release handoff
 
@@ -9,11 +10,36 @@ TASK=배포총괄방 QA #23(Header "계정 확인 중"이 오래 걸릴 때 로�
 REPO=lotbi-site (Ncloud)
 FEATURE_BRANCH=feature/site-header-auth-qa-23-24-01-site
 FEATURE_SHA=이 문서 커밋(branch HEAD, `git ls-remote origin refs/heads/feature/site-header-auth-qa-23-24-01-site`로 확인)
-CODE_SHA=24a2762c8276e0300e3bcc8b941694764aa1501e (77feafe6 기능 → 24a2762c main afb7057d 정상 merge)
+CODE_SHA=7f5c45ba01b9785c434aa1339b3696370beaefa5 (77feafe6 기능 → 24a2762c main afb7057d 정상 merge → 7f5c45ba FIX 02)
 BASE_MAIN=afb7057d1d8c149e2b46eb1d656b1049e36b831d (작업 시작 61d3ce37 → READY 직전 ls-remote에서 afb7057d로 움직여 정상 merge. 충돌은 토큰 줄과 main이 새로 넣은 import·link 줄뿐, 해당 구간은 main 쪽을 그대로 씀)
-ASSET_VERSION=aset-51bf873661d1 (LF checkout에서 `asset_cache_version.mjs --check` PASS)
+ASSET_VERSION=aset-c2ddf661acdd (LF checkout에서 `asset_cache_version.mjs --check` PASS)
 FLAG=없음
 PRODUCTION_CHANGED=NO / DB_CHANGED=NO / NEW_SECRET_CREATED=NO / LIVE_MONEY=NO / NEW_PAID_RESOURCE_CREATED=NO
+
+## FIX 02 — gate 반환 원인과 조치 (재READY)
+
+증상
+- 배포총괄방 gate에서 `validate_accessibility.py:127` 실패: `index.html: expected one mobile menu open control`.
+
+원인 [확인된 사실 — 로컬 재현, 같은 문구]
+- 검사기는 index.html의 `data-mobile-nav-open` 버튼이 정확히 1개이고 aria-controls=mobile-nav-drawer·aria-expanded=false·aria-label을 가질 것을 요구한다.
+- 279da9ec의 새 휴대폰 Header 계정 버튼이 같은 속성을 달아 2개가 되었다(기존 메뉴 버튼 + 새 계정 버튼). 내 검사기(validate_site_header_auth_qa_23_24_01)는 브라우저 시나리오 위주라 이 규칙을 보지 못했다.
+
+조치 (검사기 완화 없음)
+| 파일 | 내용 |
+|---|---|
+| index.html | 계정 버튼 속성을 `data-mobile-nav-open` → `data-mobile-account-open`으로. 메뉴 버튼이 페이지의 유일한 `data-mobile-nav-open` |
+| home-shell.js | 드로어 열기 버튼 선택을 `[data-mobile-nav-open], [data-mobile-account-open]`으로. aria-expanded 갱신·닫을 때 포커스 복귀는 두 버튼에 똑같이 적용 |
+| scripts/validate_site_header_auth_qa_23_24_01.mjs | 새 속성 단정, 계정 버튼이 두 번째 `data-mobile-nav-open`이 아니라는 단정, index.html에 `data-mobile-nav-open`이 정확히 1개라는 단정, home-shell이 두 속성 모두 연다는 단정 |
+
+- 계정 메뉴는 여전히 드로어 한 곳이고, 동작 변화는 없다(같은 드로어를 연다).
+- `scripts/validate_accessibility.py`를 포함한 기존 검사기는 한 줄도 바꾸지 않았다.
+
+재검증 (CODE_SHA 7f5c45ba, base main afb7057d — 원격 main은 아직 afb7057d, T54는 아직 main에 없음)
+- gate와 같은 python 검사기 14개 전부 PASS: validate_site, clean_urls, trusted_device_plan_limits_01, ios_social_return_01, nginx_module_mime_01, subscription_price_proration_01, home_chat, bare_white_home_skin_01, document_cache_policy_01, hardening, accessibility(LF checkout 포함), apple_app_site_association, about, consumer_predeploy_guards_01.
+- 브라우저·계약 검사기 PASS: header_auth_qa_23_24_01(5 시나리오, 새 버튼으로 드로어 열림 포함), single_profile_entry_01, home_same_url_stability_01, auth_continuity_02, sidebar_information_architecture_04, sidebar_viewports_04, scam_shield_mvp_01, consumer_sections_02, mobile_home_ux_stability_01, profile_menu_improvement_01, focus_ring_container_01, sticky_topbar_01, mobile_home_initial_scroll_01, conversation_account_sync_01.
+- asset coherence PASS(LF checkout, aset-c2ddf661acdd).
+- T54가 main에 들어오면 이 방에서 그 main을 정상 merge해 다시 알린다(요청 시).
 
 ## 확인한 것 (작업 전)
 

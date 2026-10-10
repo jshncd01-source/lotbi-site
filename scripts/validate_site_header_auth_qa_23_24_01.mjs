@@ -32,7 +32,11 @@ const authCss = read('site-auth-continuity.css');
 const headerNav = index.match(/<nav class="account-actions"[\s\S]*?<\/nav>/)?.[0] || '';
 assert.ok(headerNav.includes('계정 확인 중') && !headerNav.includes('>로그인<'), 'first paint stays neutral');
 const headerButton = index.match(/<button class="mobile-header-account"[\s\S]*?<\/button>/)?.[0] || '';
-assert.ok(headerButton.includes('data-mobile-nav-open') && headerButton.includes('aria-controls="mobile-nav-drawer"'), 'the phone Header button opens the drawer');
+assert.ok(headerButton.includes('data-mobile-account-open') && headerButton.includes('aria-controls="mobile-nav-drawer"'), 'the phone Header button opens the drawer');
+// The page keeps exactly one mobile menu open control (validate_accessibility.py).
+assert.ok(!headerButton.includes('data-mobile-nav-open'), 'the Header button is not a second [data-mobile-nav-open]');
+assert.equal((index.match(/data-mobile-nav-open/g) || []).length, 1, 'index.html has one data-mobile-nav-open');
+assert.match(read('home-shell.js'), /querySelectorAll\('\[data-mobile-nav-open\], \[data-mobile-account-open\]'\)/u, 'home-shell opens the drawer from both buttons');
 assert.ok(!headerButton.includes('data-profile-menu-trigger'), 'it is not a second account menu');
 assert.ok(index.indexOf('<button class="mobile-header-account"') > index.indexOf('<nav class="account-actions"'), 'it sits on the right of the Header');
 const checkingFn = continuity.slice(continuity.indexOf('function checkingNodes'), continuity.indexOf('function withdrawLoginWhileChecking'));
