@@ -18,10 +18,10 @@
 // Brand: the official 온누리상품권 logo is NOT used until its use is approved.
 // The slot below is reserved for it and renders nothing; labels are plain text.
 // LOTBI is not presented as an official/partner service of the issuer.
-import {CORE_ORIGIN} from './site-core.js?v=aset-6653d5239308';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-6653d5239308';
-import {isLocationUsageEnabled, readDefaultMapProvider, DEFAULT_MAP_PROVIDER_COOKIE, DEFAULT_MAP_PROVIDERS} from './site-location-preference.js?v=aset-6653d5239308';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-6653d5239308';
+import {CORE_ORIGIN} from './site-core.js?v=aset-9dd7b42df291';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-9dd7b42df291';
+import {isLocationUsageEnabled, readDefaultMapProvider, DEFAULT_MAP_PROVIDER_COOKIE, DEFAULT_MAP_PROVIDERS} from './site-location-preference.js?v=aset-9dd7b42df291';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-9dd7b42df291';
 
 export const ONNURI_MENU_LABEL = '온누리상품권';
 export const ONNURI_CARD_LABEL = '온누리 가맹점';
@@ -291,35 +291,50 @@ function placeFor(item) {
   };
 }
 
+// The real app icons used on place and medical cards (assets/place-actions).
+export const MAP_ICON_VERSION = 'place-icons-20260925';
+
+export function mapIconName(provider, {userAgent = globalThis.navigator?.userAgent || ''} = {}) {
+  const presentation = defaultMapProviderPresentation(provider, {userAgent});
+  // Desktop 티맵 opens NAVER Map web instead (said in the label): show that app's icon.
+  if (provider === 'TMAP' && /네이버지도/u.test(presentation.label)) return 'naver-map';
+  return presentation.icon;
+}
+
+export function mapAppIcon(provider, {userAgent = globalThis.navigator?.userAgent || '', className = 'onnuri-map-icon'} = {}) {
+  const iconName = mapIconName(provider, {userAgent});
+  const icon = el('img', className);
+  icon.src = `/assets/place-actions/${iconName}.png?v=${MAP_ICON_VERSION}`;
+  icon.alt = '';
+  icon.width = 22; icon.height = 22;
+  icon.decoding = 'async';
+  icon.dataset.mapIcon = iconName;
+  return icon;
+}
+
+// ONNURI-REMOVE-RELATION-MAP-01 (owner, 2026-10-10): ONE map button per card --
+// '길찾기' and '지도에서 보기' did the same thing. It opens the user's saved map app
+// with that app's icon; a market-based location is said in the card body, not on
+// the button.
 export function onnuriMapActions(item, {mapProvider, userAgent = globalThis.navigator?.userAgent || ''}) {
-  const {target, atMarket, place} = placeFor(item);
+  const {target, place} = placeFor(item);
   const app = defaultMapProviderPresentation(mapProvider, {userAgent}).label;
-  const links = [];
+  let link;
   try {
-    if (place.navigationCapable) {
-      // 길찾기 only to a point the data really has (building or market).
-      const route = el('a', 'consumer-action onnuri-card-map', `${app} ${atMarket ? '시장 길찾기' : '길찾기'}`);
-      route.href = buildDefaultMapHref(mapProvider, place, {userAgent});
-      route.dataset.mapAction = 'route';
-      route.setAttribute('aria-label', `${app}에서 ${target} 길찾기`);
-      const open = el('a', 'consumer-action consumer-action-secondary onnuri-card-open', '지도에서 보기');
-      open.href = buildDefaultMapHref(mapProvider, {...place, navigationCapable: false}, {userAgent});
-      open.dataset.mapAction = 'open';
-      open.setAttribute('aria-label', `${app}에서 ${target} 보기`);
-      links.push(route, open);
-    } else {
-      // No point: a name search in the chosen app, never a route.
-      const search = el('a', 'consumer-action consumer-action-secondary onnuri-card-map', `${app}에서 찾기`);
-      search.href = buildDefaultMapHref(mapProvider, place, {userAgent});
-      search.dataset.mapAction = 'search';
-      search.setAttribute('aria-label', `${app}에서 ${target} 이름으로 찾기`);
-      links.push(search);
-    }
+    // 길찾기 only to a point the data really has (building or market); no point:
+    // a name search in the chosen app, never a route.
+    const route = place.navigationCapable;
+    link = el('a', 'consumer-action onnuri-card-map');
+    link.href = buildDefaultMapHref(mapProvider, place, {userAgent});
+    link.dataset.mapAction = route ? 'route' : 'search';
+    link.dataset.mapProvider = mapProvider;
+    link.append(mapAppIcon(mapProvider, {userAgent}), el('span', 'onnuri-card-map-label', route ? `${app} 길찾기` : `${app}에서 찾기`));
+    link.setAttribute('aria-label', route ? `${app}에서 ${target} 길찾기` : `${app}에서 ${target} 이름으로 찾기`);
   } catch {
     return [];                                           // no map link rather than a wrong one
   }
-  for (const link of links) { link.target = '_blank'; link.rel = 'noopener noreferrer'; }
-  return links;
+  link.target = '_blank'; link.rel = 'noopener noreferrer';
+  return [link];
 }
 
 export function onnuriMerchantCard(item, {mapProvider, userAgent = globalThis.navigator?.userAgent || ''}) {

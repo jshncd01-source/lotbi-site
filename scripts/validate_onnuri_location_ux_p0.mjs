@@ -286,7 +286,8 @@ const PROBE = `(() => {
       label: card.querySelector('.onnuri-card-label')?.textContent || '', distance: card.querySelector('.onnuri-card-distance')?.textContent || '',
       address: card.querySelector('.onnuri-card-address')?.textContent || '', basis: card.querySelector('.onnuri-card-basis')?.textContent || '',
       accept: card.querySelector('.onnuri-card-accept')?.textContent || '',
-      links: [...card.querySelectorAll('a')].map(a => ({cls: a.className, action: a.dataset.mapAction || '', href: a.getAttribute('href') || '', text: a.textContent, box: box(a)})),
+      links: [...card.querySelectorAll('a')].map(a => ({cls: a.className, action: a.dataset.mapAction || '', href: a.getAttribute('href') || '', text: a.textContent, box: box(a),
+        icon: a.querySelector('img[data-map-icon]') ? {name: a.querySelector('img[data-map-icon]').dataset.mapIcon, loaded: a.querySelector('img[data-map-icon]').complete && a.querySelector('img[data-map-icon]').naturalWidth > 0, src: a.querySelector('img[data-map-icon]').getAttribute('src')} : null})),
       box: box(card), bg: style.backgroundColor, fg: style.color, titleContrast: title ? contrast(getComputedStyle(title).color, style.backgroundColor) : null,
       overflowX: card.scrollWidth - card.clientWidth, bgLum: lum(style.backgroundColor),
     };
@@ -611,6 +612,14 @@ async function runCase(browser, origin, dir, testCase) {
     assert.match(state.note, /저장하지 않아요/u);
     assert.match(state.appNote, /카카오내비\(내 설정\)/u);
     for (const card of state.cards) {
+      // ONNURI-REMOVE-RELATION-MAP-01: one map button per card, the saved app's icon on it.
+      const mapLinks = card.links.filter(link => link.action);
+      assert.equal(mapLinks.length, 1, `${card.name}: exactly one map button (no separate '지도에서 보기')`);
+      assert.ok(!card.links.some(link => /지도에서 보기/u.test(link.text)), `${card.name}: no '지도에서 보기'`);
+      assert.ok(mapLinks[0].icon && mapLinks[0].icon.name === 'kakao-map' && mapLinks[0].icon.loaded,
+        `${card.name}: the KAKAO_NAVI icon is shown and loaded (${JSON.stringify(mapLinks[0].icon)})`);
+      assert.match(mapLinks[0].icon.src, /^\/assets\/place-actions\/kakao-map\.png\?v=place-icons-20260925$/u);
+      assert.doesNotMatch(mapLinks[0].text, /시장 길찾기/u, 'the market basis is said in the card body, not on the button');
       const route = card.links.find(link => link.action === 'route');
       assert.ok(route, `${card.name}: route only with a point`);
       assert.match(route.text, /카카오내비/u, 'the chosen app is named on the button');
@@ -688,9 +697,14 @@ async function runCase(browser, origin, dir, testCase) {
       state = await waitFor(async () => {
         const v = await probe();
         const want = {GOOGLE_MAPS: /Google Maps/u, TMAP: /티맵/u, NAVER_MAP: /네이버지도/u}[provider];
-        return want.test(v.appNote) && v.cards.length && v.cards.every(card => card.links.some(link => want.test(link.text))) ? v : null;
+        return want.test(v.appNote) && v.cards.length && v.cards.every(card => card.links.some(link => want.test(link.text)))
+          && v.cards.every(card => card.links.filter(link => link.action).every(link => link.icon && link.icon.loaded)) ? v : null;
       }, `${testCase.label}: ${provider} after return`);
       const route = state.cards[0].links.find(link => link.action === 'route');
+      const wantIcon = {GOOGLE_MAPS: 'google-maps', NAVER_MAP: 'naver-map', TMAP: testCase.mobile ? 'tmap' : 'naver-map'}[provider];
+      assert.ok(state.cards.every(card => card.links.filter(link => link.action).length === 1), `${testCase.label}: ${provider}: one map button per card`);
+      assert.ok(state.cards.every(card => card.links.filter(link => link.action).every(link => link.icon && link.icon.name === wantIcon && link.icon.loaded)),
+        `${testCase.label}: ${provider}: every map button shows the ${wantIcon} icon`);
       if (provider === 'GOOGLE_MAPS') assert.match(route.href, /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&destination=/u);
       if (provider === 'TMAP') {
         if (testCase.userAgent === ANDROID_UA) assert.match(route.href, /^intent:\/\/route\?/u);
