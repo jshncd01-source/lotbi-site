@@ -14,7 +14,7 @@
 // This table is the only list of routes: the parser, the URL builder, the
 // login return allowlist (site-auth.js) and the conversation's openers
 // (site-conversation.js) all read it.
-import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-85017949fee5';
+import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-dfd9463819dc';
 
 export const SITE_ROUTES = Object.freeze([
   'calendar',
@@ -54,4 +54,34 @@ export function siteRouteHash(name) {
 // any route is written, so nothing here re-arms them.
 export function siteRouteUrl(name, locationRef = window.location) {
   return `${locationRef.pathname}${locationRef.search}${siteRouteHash(name)}`;
+}
+
+// LIFE-WALLET-SHARE-01: a share link opened from KakaoTalk, a messenger or a phone camera
+// (#wallet-share=qr.<token> | #wallet-share=invite.<token>) is kept for this tab and the
+// address becomes #wallet, so the wallet opens and — after any login round trip — picks it
+// up (site-life-wallet-share.js). The token never stays in the address or history.
+const WALLET_SHARE_INTENT_KEY = 'lotbi.wallet-share-intent';
+const WALLET_SHARE_INTENT_RE = /^#wallet-share=(qr|invite)\.([A-Za-z0-9_-]{24,64})$/u;
+const WALLET_SHARE_INTENT_TTL_MS = 30 * 60_000;
+
+export function captureWalletShareIntent(locationRef = window.location, historyRef = window.history, storage = globalThis.sessionStorage) {
+  const match = WALLET_SHARE_INTENT_RE.exec(locationRef.hash || '');
+  if (!match) return false;
+  try { storage?.setItem(WALLET_SHARE_INTENT_KEY, JSON.stringify({kind: match[1], token: match[2], at: Date.now()})); } catch {}
+  historyRef.replaceState(historyRef.state, '', `${locationRef.pathname}${locationRef.search}${siteRouteHash('wallet')}`);
+  return true;
+}
+
+export function takeWalletShareIntent(storage = globalThis.sessionStorage) {
+  let intent = null;
+  try {
+    intent = JSON.parse(storage?.getItem(WALLET_SHARE_INTENT_KEY) || 'null');
+    storage?.removeItem(WALLET_SHARE_INTENT_KEY);
+  } catch {}
+  if (!intent || !['qr', 'invite'].includes(intent.kind) || typeof intent.token !== 'string' || Date.now() - Number(intent.at) > WALLET_SHARE_INTENT_TTL_MS) return null;
+  return {kind: intent.kind, token: intent.token};
+}
+
+export function hasWalletShareIntent(storage = globalThis.sessionStorage) {
+  try { return Boolean(storage?.getItem(WALLET_SHARE_INTENT_KEY)); } catch { return false; }
 }

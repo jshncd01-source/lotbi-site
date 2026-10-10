@@ -28,8 +28,8 @@ assert.doesNotMatch(source, /공과금|고지서|납부기한/);
 assert.ok(source.includes('제휴처 찾아 연결하기'));
 for (const removed of ['사람 실종 신고', '반려동물 실종 신고', '112·119']) assert.ok(!source.includes(removed));
 assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|type = 'file'/);
-// The wallet also gets the session token (LIFE-WALLET-ENCRYPTED-BACKUP-01: server backup).
-assert.match(source, /mountLifeWallet\(\{root, authenticated, accountId, sessionExpiresAt, sessionToken\}\)/);
+// The wallet also gets the session token and plan (LIFE-WALLET-SHARE-01: sharing, Free item limit).
+assert.match(source, /mountLifeWallet\(\{root, authenticated, accountId, sessionExpiresAt, sessionToken, subscription\}\)/);
 assert.match(source, /mountPeople\(host, initialSurface, counts =>/);
 assert.match(conversation, /mountPersonCareManager\(\{sessionToken, root, initialSurface, onCountChange: reportCounts/);
 assert.match(source, /role', 'tablist'/);

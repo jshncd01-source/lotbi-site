@@ -796,6 +796,13 @@ jobs:
       - name: Validate 진위확인 login gate buttons in light and dark
         run: node scripts/validate_scam_shield_login_gate_contrast_01.mjs
 
+      # Core의 2단계 독립 확인 결과(요약 문장·2단계 확인 결과 3줄·공식 근거·
+      # 접힌 경찰청 통계)를 실제 site-core 변환을 거쳐 그리는지, 정부(.go.kr/.or.kr)
+      # https 페이지만 링크가 되는지, 옛 Core 응답·2단계 실패 응답도 그려지는지를
+      # 390·1280, 라이트·다크에서 확인한다(WCAG AA, 실기기 아님).
+      - name: Validate 진위확인 2단계 확인 결과
+        run: node scripts/validate_scam_shield_double_check_p0.mjs
+
       # 다크·시스템다크 입력창 안 흰 사각형(텍스트칸 포커스 링) 0건과 둥근 입력창
       # 포커스 표시, 헤더 로그인·회원가입 대비·크기·겹침·이동, 답변 공유 메뉴의
       # 카카오톡 공유하기(첫 줄·보내는 내용 안내·탭 안 SDK 호출·실패 안내)와

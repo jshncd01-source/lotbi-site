@@ -1,5 +1,5 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-85017949fee5';
-import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-85017949fee5';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-dfd9463819dc';
+import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-dfd9463819dc';
 
 function isoDate(value, label) {
   const text = typeof value === 'string' ? value.trim() : '';

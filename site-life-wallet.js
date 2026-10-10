@@ -1,4 +1,6 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-85017949fee5';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-dfd9463819dc';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-dfd9463819dc';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-dfd9463819dc';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -131,6 +133,7 @@ function pinAad(scope) { return `lotbi-wallet-pin:v2:${scope}`; }
 function deviceAad(scope) { return `lotbi-wallet-device:v2:${scope}`; }
 function sessionAad(scope, expiresAt) { return `lotbi-wallet-session:v1:${scope}:${expiresAt}`; }
 function cardAad(scope, id) { return `lotbi-wallet-card:v1:${scope}:${id}`; }
+function shareKeyAad(scope) { return `lotbi-wallet-share-key:v1:${scope}`; }
 function storageKey(scope, id) { return `${scope}:${id}`; }
 
 function availableSessionStorage() {
@@ -243,9 +246,17 @@ export class MemoryWalletRepository {
 export function walletCardTitle(card) {
   const memo = String(card.note || '').split(/\r?\n/u).map(line => line.trim()).find(Boolean);
   if (memo) return memo.length > 24 ? `${memo.slice(0, 24)}…` : memo;
+  return walletShareLabel(card);
+}
+
+// What a share request calls an item by default. Core keeps the label as it is and the
+// recipient sees it before accepting, so it never comes from the memo (the memo leaves the
+// device only inside the sealed original).
+export function walletShareLabel(card) {
+  const name = String(card.name || '').trim() || CARD_KINDS.find(([value]) => value === card.kind)?.[1] || '저장 자료';
   const saved = new Date(card.updatedAt);
-  if (!Number.isFinite(saved.getTime())) return card.name;
-  return `${card.name} · ${saved.getFullYear()}.${String(saved.getMonth() + 1).padStart(2, '0')}.${String(saved.getDate()).padStart(2, '0')}`;
+  if (!Number.isFinite(saved.getTime())) return name;
+  return `${name} · ${saved.getFullYear()}.${String(saved.getMonth() + 1).padStart(2, '0')}.${String(saved.getDate()).padStart(2, '0')}`;
 }
 
 function validateCard(card) {
@@ -497,6 +508,42 @@ export class LifeWalletVault {
       imported += 1;
     }
     return imported;
+  }
+
+  // LIFE-WALLET-SHARE-01: this device's key for receiving shared items. The private key is
+  // kept in the vault record, encrypted with the wallet's master key; only the public key
+  // leaves the device (registered with Core so a sharer can seal an item for it).
+  async ensureShareKey(accountId) {
+    const unlocked = await this.requireUnlocked(accountId);
+    const vault = await this.repository.getVault(unlocked.scope);
+    if (!vault) throw new Error('Life Wallet 설정을 찾지 못했습니다.');
+    if (vault.shareKey?.publicKey && vault.shareKey?.envelope) return Object.freeze({publicKey: vault.shareKey.publicKey, keyId: vault.shareKey.keyId || ''});
+    const {publicKey, privateKeyPkcs8} = await generateShareKeyPair();
+    let envelope;
+    try { envelope = await seal(unlocked.key, bytesToBase64(privateKeyPkcs8), shareKeyAad(unlocked.scope)); }
+    finally { privateKeyPkcs8.fill(0); }
+    const latest = await this.repository.getVault(unlocked.scope);
+    await this.repository.putVault({...latest, shareKey: {publicKey, envelope, keyId: ''}});
+    return Object.freeze({publicKey, keyId: ''});
+  }
+
+  async rememberShareKeyId(accountId, publicKey, keyId) {
+    const unlocked = await this.requireUnlocked(accountId);
+    const vault = await this.repository.getVault(unlocked.scope);
+    if (!vault?.shareKey || vault.shareKey.publicKey !== publicKey || typeof keyId !== 'string') return;
+    await this.repository.putVault({...vault, shareKey: {...vault.shareKey, keyId}});
+  }
+
+  // Opens an item sealed for this device's key (Core GET …/payload) and returns the item.
+  async openSharedItem(accountId, sealed) {
+    const unlocked = await this.requireUnlocked(accountId);
+    const vault = await this.repository.getVault(unlocked.scope);
+    if (!vault?.shareKey?.envelope) throw Object.assign(new Error('이 기기에서 열 수 없는 자료입니다.'), {code: 'SHARE_ITEM_UNOPENABLE'});
+    const pkcs8 = base64ToBytes(await openEnvelope(unlocked.key, vault.shareKey.envelope, shareKeyAad(unlocked.scope)));
+    let privateKey;
+    try { privateKey = await importSharePrivateKey(pkcs8); }
+    finally { pkcs8.fill(0); }
+    return openWalletShareItem(privateKey, sealed);
   }
 
   async requireUnlocked(accountId) {
@@ -994,11 +1041,30 @@ function serverBackupTime(meta) {
   return `${at.getFullYear()}.${two(at.getMonth() + 1)}.${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
 }
 
-export function mountLifeWallet({root, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = ''} = {}) {
+// Free members keep one item of their own; paid plans keep their existing (unlimited) room.
+// Items already saved are never removed: only adding one more is held back.
+export const FREE_WALLET_ITEM_LIMIT = 1;
+export function walletAddBlocked(subscription, count) {
+  return subscription?.plan === 'FREE' && count >= FREE_WALLET_ITEM_LIMIT;
+}
+
+export function mountLifeWallet({root, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
   const vault = new LifeWalletVault(new IndexedDbWalletRepository());
+  // Sharing needs the signed-in session (share requests live on LOTBI Core). An original
+  // leaves this device only sealed for the accepted recipient's key (site-life-wallet-share-crypto.js).
+  const shareWallet = Object.freeze({
+    ensureKey: () => vault.ensureShareKey(accountId),
+    rememberKeyId: (publicKey, keyId) => vault.rememberShareKeyId(accountId, publicKey, keyId),
+    open: sealed => vault.openSharedItem(accountId, sealed),
+    list: () => vault.list(accountId),
+    save: card => vault.save(accountId, card),
+    addBlocked: count => walletAddBlocked(subscription, count),
+    newId: () => randomId(),
+  });
+  const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-85017949fee5') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-dfd9463819dc') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;
@@ -1114,7 +1180,8 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     try {
       const exists = await vault.hasVault(accountId);
       if (disposed || generation !== renderGeneration) return;
-      if (!exists) renderSetup(message); else renderUnlock(message);
+      const waiting = !message && hasWalletShareIntent() ? '공유 링크를 열었습니다. 월렛 잠금을 풀면 공유 요청을 확인할 수 있습니다.' : message;
+      if (!exists) renderSetup(waiting); else renderUnlock(waiting);
     } catch (error) {
       if (!disposed && generation === renderGeneration) renderNotice('Life Wallet을 열 수 없습니다', safeMessage(error, '브라우저 보관함을 확인하지 못했습니다.'));
     }
@@ -1239,6 +1306,9 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         element('strong', '', '안전하게 이 기기에만 저장됩니다.'),
         element('span', '', 'LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다.'),
       ]));
+      // Said only once Core answers that the relay is on (it stays off until the owner turns it on).
+      const shareNote = share ? element('span', 'wallet-storage-share-note', '공유를 수락한 상대에게 암호화해 전달할 때만 서버를 거칩니다.') : null;
+      if (shareNote) { shareNote.hidden = true; shareNote.dataset.walletShareRelay = 'pending'; reassurance.append(shareNote); }
       copy.append(element('strong', 'wallet-storage-count', `저장 자료 ${cards.length}개`), reassurance);
       const settings = element('div', 'wallet-settings');
       const settingsMenu = element('div', 'wallet-settings-menu');
@@ -1272,13 +1342,23 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         settingsMenu.hidden = true; settingsToggle.setAttribute('aria-expanded', 'false'); settingsToggle.focus();
       });
       settings.append(settingsToggle, settingsMenu);
+      const openAdd = () => (walletAddBlocked(subscription, cards.length) ? renderAddLimit() : renderAdd());
       // One way to add: 첫 자료 등록하기 on an empty wallet, + 자료 추가 once something is saved.
-      toolbar.append(copy, ...(cards.length ? [button('+ 자료 추가', renderAdd)] : []), button('잠그기', () => void lockAndRender(), true), settings);
+      toolbar.append(copy, ...(cards.length ? [button('+ 자료 추가', openAdd)] : []));
+      if (share) {
+        const shareAction = button('공유', () => void share.openHub(), true); shareAction.dataset.walletShareOpen = '';
+        toolbar.append(shareAction);
+        void share.pendingCount().then(count => {
+          if (count && shareAction.isConnected) shareAction.textContent = `공유 ${count}`;
+          if (shareNote) { const on = share.transferAvailable(); shareNote.hidden = !on; shareNote.dataset.walletShareRelay = on ? 'on' : 'off'; }
+        });
+      }
+      toolbar.append(button('잠그기', () => void lockAndRender(), true), settings);
       shell.append(toolbar);
       if (message) shell.append(element('p', 'wallet-message', message));
       if (!cards.length) {
         const empty = element('section', 'wallet-empty');
-        empty.append(element('h3', '', '아직 등록한 자료가 없습니다'), element('p', '', '사용자가 직접 등록한 실제 자료만 여기에 표시됩니다.'), button('첫 자료 등록하기', renderAdd));
+        empty.append(element('h3', '', '아직 등록한 자료가 없습니다'), element('p', '', '사용자가 직접 등록한 실제 자료만 여기에 표시됩니다.'), button('첫 자료 등록하기', openAdd));
         if (backupMeta) {
           const restore = button('서버 백업 불러오기', () => renderServerRestore(backupMeta), true); restore.dataset.walletServerBackup = 'restore';
           empty.append(element('p', 'wallet-server-backup-notice', `서버에 ${serverBackupTime(backupMeta)} 백업한 월렛이 있습니다.`), restore);
@@ -1289,9 +1369,22 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       }
       shell.append(element('p', 'wallet-security-note', '화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다. 10분간 사용하지 않으면 다시 잠깁니다.'));
       root.replaceChildren(shell);
+      // A share link opened before (#wallet-share=…) continues here once the wallet is open.
+      const intent = share ? takeWalletShareIntent() : null;
+      if (intent) await share.handleIntent(intent, cards, walletCardTitle, walletShareLabel);
     } catch (error) {
       await lockAndRender(safeMessage(error, '자료를 불러오지 못해 다시 잠갔습니다.'));
     }
+  }
+
+  function renderAddLimit() {
+    const plans = element('a', 'consumer-action', '구독 안내 보기'); plans.href = '/subscribe';
+    const back = button('목록으로', () => void renderWallet(), true);
+    const actions = element('div', 'wallet-form-actions'); actions.append(back, plans);
+    const view = element('section', 'wallet-editor wallet-add-limit');
+    view.append(element('h3', '', '무료 회원은 자료를 1개까지 보관할 수 있습니다'),
+      element('p', 'wallet-share-help', '이미 저장한 자료는 그대로 남아 있습니다. 자료를 더 보관하려면 Basic·Plus·Pro 구독을 이용해 주세요.'), actions);
+    root.replaceChildren(view); back.focus(); activity();
   }
 
   function renderAdd() {
@@ -1361,6 +1454,10 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         await vault.remove(accountId, card.id); await renderWallet('자료를 삭제했습니다.');
       } catch (error) { removalStatus.textContent = safeMessage(error, '자료를 삭제하지 못했습니다.'); setBusy(removal, false); removalPin.value = ''; removalPin.focus(); }
     });
+    if (share) {
+      const shareAction = button('공유하기', () => share.openShareItem(card, walletCardTitle(card), walletShareLabel(card)), true); shareAction.dataset.walletShareItem = '';
+      detail.append(shareAction);
+    }
     detail.append(remove, removal);
     root.replaceChildren(detail); activity();
   }
@@ -1577,6 +1674,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   return {
     dispose() {
       disposed = true; unlocked = false; vault.lock({preserveSession: true}); clearTimeout(timer); clearTimeout(sessionTimer); clearTimeout(backgroundTimer); renderGeneration += 1;
+      share?.dispose();
       for (const name of activityEvents) root.removeEventListener(name, activity);
       window.removeEventListener('lotbi:site-session-state', sessionListener);
       document.removeEventListener('visibilitychange', visibilityListener);
