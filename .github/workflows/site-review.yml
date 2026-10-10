@@ -601,6 +601,11 @@ jobs:
           node --check site-safecare-common.js
           node scripts/validate_safecare_photo_easy_upload_01.mjs
 
+      - name: Validate pet photo batch upload (3 face + 2 whole-body set)
+        run: |
+          node --check site-pet-ui.js
+          node scripts/validate_safecare_pet_photo_easy_upload_01.mjs
+
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs
