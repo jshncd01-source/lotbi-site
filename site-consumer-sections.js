@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-9dd7b42df291';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-9dd7b42df291';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-9dd7b42df291';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-3286412ac33a';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-3286412ac33a';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-3286412ac33a';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -207,7 +207,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-9dd7b42df291').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-3286412ac33a').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -254,7 +254,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-9dd7b42df291').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-3286412ac33a').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {

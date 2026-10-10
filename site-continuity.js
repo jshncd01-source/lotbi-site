@@ -1,5 +1,5 @@
-import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-9dd7b42df291';
-import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-9dd7b42df291';
+import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-3286412ac33a';
+import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-3286412ac33a';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
@@ -27,6 +27,11 @@ let unknownRetryTimer;
 let unknownRetryAttempt = 0;
 let renewalInFlight;
 let lastRenewalStartedAt = 0;
+// SITE-SESSION-REQUEST-STORM-P0-01 — when the last Account answer was
+// "signed out" and the page already shows it, a repeated dead-session
+// announcement does not ask Account again within this window.
+export const ACCOUNT_STATUS_SIGNED_OUT_RECHECK_MS = 5 * 1000;
+let lastSignedOutAnswerAt = 0;
 // The installation the page's Site session belongs to, kept across a lapse so
 // coming back to the same account after 30 minutes is a renewal, not a new
 // sign-in that would close open screens.
@@ -578,6 +583,7 @@ export async function synchronizeAccountContinuity({preserveUnknownUi = false} =
     });
 
     if (authenticated === false) {
+      lastSignedOutAnswerAt = Date.now();
       clearUnknownRetry({resetAttempt: true});
       clearSiteLogoutSuppression();
       siteLogoutSuppressed = false;
@@ -672,6 +678,14 @@ function handleSiteSessionState(event) {
   // site-core.js) is not proof of a logout: the 30-minute child ran out, or a
   // background tab slept through it. On Home, Account decides — the neutral
   // "checking" state is shown, never the login button first.
+  // SITE-SESSION-REQUEST-STORM-P0-01 — Account has just answered "signed out"
+  // and the Home already shows it: another refused request on the page does
+  // not ask Account again (one tab asked ~10 times a second, 2026-10-10).
+  if (
+    rootLocation()
+    && document.body.dataset.siteAuthState === AUTH_STATE_UNAUTHENTICATED
+    && Date.now() - lastSignedOutAnswerAt < ACCOUNT_STATUS_SIGNED_OUT_RECHECK_MS
+  ) return;
   if (rootLocation()) {
     void synchronizeAccountContinuity();
     return;
