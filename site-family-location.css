@@ -1,0 +1,39 @@
+/* FAMILY-LOCATION-01 「우리 가족 위치」 (site-family-location-ui.js). Every colour comes from the
+   Site theme tokens (site-theme-tokens.css: light, dark and system-dark). Large text and buttons
+   (44px and up), the last time next to the name and the battery right under it (기획서 3). */
+.family-loc-surface{display:grid;gap:14px;color:var(--lotbi-text-primary,#212121)}
+.family-loc-surface [hidden]{display:none!important}
+.family-loc-privacy{margin:0;padding:12px 14px;border-radius:12px;background:var(--lotbi-surface-hover,#f0f0f0);color:var(--lotbi-text-primary,#212121);font-size:.9rem;line-height:1.55}
+.family-loc-status{min-height:20px;margin:0;color:var(--lotbi-text-muted,#212121);font-size:.92rem;line-height:1.5}
+.family-loc-status[role=alert]{color:var(--lotbi-error-text,#a02645)}
+.family-loc-content,.family-loc-family{display:grid;gap:12px}
+.family-loc-heading{margin:8px 0 0;font-size:1.05rem;color:var(--lotbi-text-primary,#212121)}
+.family-loc-card{display:grid;gap:8px;border:1px solid var(--lotbi-border-default,#d8dde5);border-radius:16px;padding:16px;background:var(--lotbi-surface-elevated,#fff);color:var(--lotbi-text-primary,#212121)}
+.family-loc-card-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px}
+.family-loc-name{font-size:1.1rem;color:var(--lotbi-text-primary,#212121)}
+.family-loc-presence{font-size:1.05rem;font-weight:800;color:var(--lotbi-text-primary,#212121)}
+.family-loc-battery{margin:0;font-weight:700;color:var(--lotbi-text-primary,#212121)}
+.family-loc-place,.family-loc-note,.family-loc-request,.family-loc-empty{margin:0;color:var(--lotbi-text-muted,#212121);font-size:.92rem;line-height:1.5}
+.family-loc-reason{margin:0;color:var(--lotbi-warning-text,#8a4b16);font-weight:700;line-height:1.5}
+.family-loc-actions{display:flex;flex-wrap:wrap;gap:8px}
+.family-loc-button{min-height:44px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.family-loc-primary{background:var(--lotbi-brand-solid-bg,#212121);color:var(--lotbi-brand-solid-text,#fff)}
+.family-loc-danger{border-color:var(--lotbi-error-text,#a02645);color:var(--lotbi-error-text,#a02645)}
+.family-loc-sos{border-color:var(--lotbi-error-text,#a02645)}
+.family-loc-sos-button{min-height:60px;width:100%;font-size:1.15rem;font-weight:900;background:var(--lotbi-error-text,#a02645);color:var(--lotbi-brand-solid-text,#fff);border-color:var(--lotbi-error-text,#a02645)}
+.family-loc-indicator{font-size:1.2rem;color:var(--lotbi-text-primary,#212121)}
+.family-loc-check{display:grid;gap:6px;padding:12px;border-radius:12px;background:var(--lotbi-surface-hover,#f0f0f0)}
+.family-loc-check-summary{margin:0;font-weight:700;line-height:1.5}
+.family-loc-check-items{margin:0;padding-left:0;list-style:none;display:grid;gap:4px;font-size:.9rem}
+.family-loc-check-items li[data-ok=false]{color:var(--lotbi-warning-text,#8a4b16);font-weight:700}
+.family-loc-family-row{display:grid;gap:8px;padding-top:10px;border-top:1px solid var(--lotbi-border-default,#d8dde5)}
+.family-loc-owner{display:grid;gap:10px}
+.family-loc-invite input,.family-loc-invite select,.family-loc-accept input,.family-loc-settings select{box-sizing:border-box;width:100%;min-height:48px;border:1px solid var(--lotbi-border-strong,#c9c9c9);border-radius:10px;padding:10px;background:var(--lotbi-surface-primary,#fff);color:var(--lotbi-text-primary,#212121);font:inherit}
+.family-loc-check-label{display:flex;align-items:center;gap:8px;min-height:44px;line-height:1.45}
+.family-loc-consent,.family-loc-consent-text{font-size:.88rem;line-height:1.55;color:var(--lotbi-text-muted,#212121)}
+.family-loc-code{margin:0;font-size:2rem;font-weight:900;letter-spacing:.3em;color:var(--lotbi-text-primary,#212121)}
+.family-loc-settings-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.family-loc-settings-row select{width:auto;flex:0 1 110px}
+.family-loc-footer{text-align:center}
+.family-loc-button:focus-visible,.family-loc-surface input:focus-visible,.family-loc-surface select:focus-visible{outline:3px solid var(--lotbi-focus-ring,#454545);outline-offset:2px}
+@media(max-width:640px){.family-loc-card{padding:14px}.family-loc-actions{display:grid}.family-loc-actions .family-loc-button{width:100%}}

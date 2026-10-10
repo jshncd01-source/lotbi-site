@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-40c16cdb5f6b';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-40c16cdb5f6b';
-import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-40c16cdb5f6b';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-b0c8e0368576';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-b0c8e0368576';
+import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-b0c8e0368576';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -143,13 +143,14 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onEvChargers, onRealEstate, onSubway, onTrafficCctv, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onEvChargers, onRealEstate, onSubway, onTrafficCctv, loadCareCounts, mountPeople, mountPets, mountMyChild, mountFamily, checkFamily, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
   let generation = 0;
   let releasePeople;
   let releasePets;
+  let releaseFamily;
   let releaseWallet;
   let releaseEducation;
   let releaseNews;
@@ -226,7 +227,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-40c16cdb5f6b').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-b0c8e0368576').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -273,7 +274,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-40c16cdb5f6b').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-b0c8e0368576').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -329,6 +330,14 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     const tabs = node('div', 'consumer-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '보호 대상');
     const body = node('div', 'consumer-care-body'); body.setAttribute('role', 'tabpanel');
     const panelId = `${root.parentElement.getAttribute('aria-labelledby') || 'consumer-care'}-targets`; body.id = panelId;
+    // FAMILY-LOCATION-01: with the 「가족 위치」 tab present (Core's switch on), the arrow keys move
+    // across all three tabs; with two tabs the 사람/반려동물 behaviour below is unchanged.
+    const moveAcrossTabs = (key, index) => {
+      const next = key === 'Home' ? 0 : key === 'End' ? buttons.length - 1
+        : (index + (key === 'ArrowRight' ? 1 : buttons.length - 1)) % buttons.length;
+      const target = buttons[next]; target.focus();
+      void selectTab(target.dataset.careTab); onCareTab?.(target.dataset.careTab);
+    };
     const buttons = ['people', 'pets'].map((value, index) => {
       const button = node('button', '', index ? '반려동물' : '사람'); button.type = 'button';
       button.setAttribute('role', 'tab'); button.id = `${panelId}-${value}`;
@@ -336,6 +345,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       button.addEventListener('click', () => { void selectTab(value); onCareTab?.(value); });
       button.addEventListener('keydown', event => {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        if (buttons.length > 2) { event.preventDefault(); moveAcrossTabs(event.key, index); return; }
         event.preventDefault(); const next = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : 1 - index;
         buttons[next].focus(); void selectTab(next ? 'pets' : 'people'); onCareTab?.(next ? 'pets' : 'people');
       });
@@ -347,14 +357,30 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       if (Number.isInteger(counts.people)) buttons[0].textContent = `사람 · ${counts.people}`;
       if (Number.isInteger(counts.pets)) buttons[1].textContent = `반려동물 · ${counts.pets}`;
     };
-    async function selectTab(value, initialSurface = 'pets') {
+    async function selectTab(value, initialSurface = 'pets', missingPrefill = null) {
       const current = ++generation;
       releasePeople?.(); releasePeople = undefined;
       releasePets?.(); releasePets = undefined;
+      releaseFamily?.(); releaseFamily = undefined;
       body.setAttribute('aria-labelledby', `${panelId}-${value}`);
       for (const button of buttons) {
         const active = button.dataset.careTab === value;
         button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1;
+      }
+      if (value === 'family') {
+        body.setAttribute('aria-busy', 'true');
+        const host = node('div'); body.replaceChildren(host);
+        try {
+          const mounted = await mountFamily(host, {
+            // [실종 신고로 이어가기]: the 사람 tab opens with the place in words filled in.
+            onMissingReport: prefill => { if (disposed) return; onCareTab?.('people'); void selectTab('people', 'home', prefill); },
+          });
+          if (disposed || current !== generation) { mounted?.dispose?.(); return; }
+          releaseFamily = mounted?.dispose;
+        } catch {
+          if (!disposed && current === generation) body.replaceChildren(node('p', 'consumer-error', '가족 위치를 열지 못했습니다. 잠시 후 다시 열어 주세요.'));
+        } finally { if (!disposed && current === generation) body.removeAttribute('aria-busy'); }
+        return;
       }
       if (value === 'people') {
         body.setAttribute('aria-busy', 'true');
@@ -363,7 +389,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
           const mounted = await mountPeople(host, initialSurface, counts => {
             if (disposed || current !== generation || !authenticated) return;
             applyCounts(counts);
-          });
+          }, missingPrefill ? {missingPrefill} : undefined);
           if (disposed || current !== generation) { mounted?.dispose?.(); return; }
           releasePeople = mounted?.dispose;
         } catch {
@@ -386,6 +412,24 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         if (!disposed && current === generation) body.replaceChildren(node('p', 'consumer-error', '반려동물 정보를 확인하지 못했습니다. 잠시 후 다시 열어 주세요.'));
       } finally { if (!disposed && current === generation) body.removeAttribute('aria-busy'); }
     }
+    // FAMILY-LOCATION-01: 「가족 위치」 joins as a third tab only once Core's FAMILY_LOCATION_ENABLED
+    // answers for this signed-in account; a 가족 위치 invitation (careTab 'family') opens it then.
+    if (authenticated && typeof mountFamily === 'function' && typeof checkFamily === 'function') {
+      void Promise.resolve(checkFamily()).then(available => {
+        if (disposed || available !== true) return;
+        const button = node('button', '', '가족 위치'); button.type = 'button';
+        button.setAttribute('role', 'tab'); button.id = `${panelId}-family`;
+        button.setAttribute('aria-controls', panelId); button.dataset.careTab = 'family';
+        button.setAttribute('aria-selected', 'false'); button.tabIndex = -1;
+        button.addEventListener('click', () => { void selectTab('family'); onCareTab?.('family'); });
+        button.addEventListener('keydown', event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault(); moveAcrossTabs(event.key, buttons.indexOf(button));
+        });
+        buttons.push(button); tabs.append(button);
+        if (careTab === 'family') { void selectTab('family'); onCareTab?.('family'); }
+      }).catch(() => {});
+    }
     root.append(tabs, body);
     if (authenticated && typeof loadCareCounts === 'function') {
       void Promise.resolve(loadCareCounts()).then(applyCounts).catch(() => {});
@@ -399,5 +443,5 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     for (const label of ['지역몰', '공공몰', '생활서비스', '쇼핑']) groups.append(node('span', 'consumer-category-label', label));
     root.append(state, groups, node('p', 'consumer-feature-note', '업체별 실제 연결 가능 여부와 권한은 연결 서비스에서 확인합니다. 소셜 로그인 계정과 제휴처 이용 권한은 다릅니다. 주문·배송 및 자동 주문은 연결만으로 활성화되지 않으며, 실제 결제는 진행하지 않습니다.'));
   }
-  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); releaseEducation?.(); releaseNews?.(); releaseMyChild?.(); }};
+  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseFamily?.(); releaseWallet?.dispose?.(); releaseEducation?.(); releaseNews?.(); releaseMyChild?.(); }};
 }

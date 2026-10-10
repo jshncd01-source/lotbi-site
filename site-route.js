@@ -14,7 +14,7 @@
 // This table is the only list of routes: the parser, the URL builder, the
 // login return allowlist (site-auth.js) and the conversation's openers
 // (site-conversation.js) all read it.
-import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-40c16cdb5f6b';
+import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-b0c8e0368576';
 
 export const SITE_ROUTES = Object.freeze([
   'calendar',
@@ -96,4 +96,34 @@ export function takeWalletShareIntent(storage = globalThis.sessionStorage) {
 
 export function hasWalletShareIntent(storage = globalThis.sessionStorage) {
   try { return Boolean(storage?.getItem(WALLET_SHARE_INTENT_KEY)); } catch { return false; }
+}
+
+// FAMILY-LOCATION-01: a 가족 위치 invitation (#family-invite=<token>) works the same way: kept for
+// this tab only (30 minutes), the address becomes #care, and the 가족 위치 tab — shown only when
+// Core's switch is on — picks it up after any login round trip (site-family-location-ui.js).
+const FAMILY_INVITE_INTENT_KEY = 'lotbi.family-invite-intent';
+const FAMILY_INVITE_INTENT_RE = /^#family-invite=([A-Za-z0-9_-]{24,64})$/u;
+const FAMILY_INVITE_INTENT_TTL_MS = 30 * 60_000;
+
+export function captureFamilyInviteIntent(locationRef = window.location, historyRef = window.history, storage = globalThis.sessionStorage) {
+  const match = FAMILY_INVITE_INTENT_RE.exec(locationRef.hash || '');
+  if (!match) return false;
+  try { storage?.setItem(FAMILY_INVITE_INTENT_KEY, JSON.stringify({token: match[1], at: Date.now()})); } catch {}
+  historyRef.replaceState(historyRef.state, '', `${locationRef.pathname}${locationRef.search}${siteRouteHash('care')}`);
+  return true;
+}
+
+export function takeFamilyInviteIntent(storage = globalThis.sessionStorage) {
+  let intent = null;
+  try {
+    intent = JSON.parse(storage?.getItem(FAMILY_INVITE_INTENT_KEY) || 'null');
+    storage?.removeItem(FAMILY_INVITE_INTENT_KEY);
+  } catch {}
+  if (!intent || typeof intent.token !== 'string' || !/^[A-Za-z0-9_-]{24,64}$/u.test(intent.token)
+    || Date.now() - Number(intent.at) > FAMILY_INVITE_INTENT_TTL_MS) return null;
+  return {token: intent.token};
+}
+
+export function hasFamilyInviteIntent(storage = globalThis.sessionStorage) {
+  try { return Boolean(storage?.getItem(FAMILY_INVITE_INTENT_KEY)); } catch { return false; }
 }
