@@ -1,5 +1,5 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-1208eb049bbf';
-import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-1208eb049bbf';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-fc6b63d90865';
+import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-fc6b63d90865';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;

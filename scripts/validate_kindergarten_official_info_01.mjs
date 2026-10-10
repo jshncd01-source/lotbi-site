@@ -200,13 +200,13 @@ const SCENARIO = `(async () => {
   result.choice = {count: panel.querySelectorAll('[data-child-choice]').length, edu: Boolean(panel.querySelector('.lotbi-edu'))};
   // The module, mounted in the same 지역정보 panel the card used to mount it in.
   globalThis.__asked = [];
-  const content = panel.querySelector('.consumer-section-content');
-  const detail = document.createElement('section'); detail.className = 'consumer-life-detail'; detail.dataset.lifeDetail = 'education';
-  const heading = document.createElement('h3'); heading.textContent = '유치원·학교';
-  const host = document.createElement('div'); host.className = 'consumer-life-education';
-  detail.append(heading, host); content.replaceChildren(detail);
+  const eduContent = panel.querySelector('.consumer-section-content');
+  const eduDetail = document.createElement('section'); eduDetail.className = 'consumer-life-detail'; eduDetail.dataset.lifeDetail = 'education';
+  const eduHeading = document.createElement('h3'); eduHeading.textContent = '유치원·학교';
+  const eduHost = document.createElement('div'); eduHost.className = 'consumer-life-education';
+  eduDetail.append(eduHeading, eduHost); eduContent.replaceChildren(eduDetail);
   const {mountEducation} = await import('/site-life-education.js?v=kindergartenofficial01');
-  mountEducation({root: host, onAsk: text => globalThis.__asked.push(text), accountId: ''});
+  mountEducation({root: eduHost, onAsk: text => globalThis.__asked.push(text), accountId: ''});
   const edu = await wait(() => panel.querySelector('.lotbi-edu'), 'education screen');
   result.tabs = [...edu.querySelectorAll('[data-edu-tab]')].map(t => ({id: t.dataset.eduTab, text: t.textContent.trim(), selected: t.getAttribute('aria-selected'), h: box(t).h}));
   if (${'${DISABLED}'}) {

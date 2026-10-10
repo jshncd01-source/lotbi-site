@@ -393,6 +393,24 @@ async function runCase(browser, origin, workDir, testCase) {
     await atLife('my-child: back again');
     await headerBack();
     await atHome('my-child: done');
+    // A question asked from a screen inside 지역정보 leaves no copy of 지역정보 or
+    // of that screen in the history (the existing "left by other means" rule,
+    // SITE-REFRESH-ROUTE-PAGE-CLEANUP-05); forward reopens 지역정보, then it.
+    const homeIndex = await historyIndex();
+    await openLife();
+    await tapSelector('[data-site-route="life"] [data-life-shortcut="medical"]');
+    await atScreen(CATEGORIES[0], 'medical (ask)');
+    await tapSelector('[data-site-route="life-medical"] [data-medical-choice="hospital"]');
+    await atHome('medical: asked');
+    assert.equal(await historyIndex(), homeIndex, `${label}: asking folded 지역정보 and 병원·응급실 out of the history`);
+    await go(1);
+    await atLife('forward after the ask');
+    await go(1);
+    await atScreen(CATEGORIES[0], 'forward again');
+    await go(-1);
+    await atLife('back after forward');
+    await go(-1);
+    await atHome('back to the conversation');
     // 안심케어 and Life Wallet: an empty tap keeps them; back → home.
     for (const section of ['wallet', 'care']) {
       if (testCase.mobile) {
