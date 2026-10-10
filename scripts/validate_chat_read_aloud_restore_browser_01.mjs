@@ -16,7 +16,7 @@
 //     no new answer, nothing that could count against the monthly usage)
 //   - network-only Korean voices, no Korean voice, no speech engine: a plain
 //     message and nothing spoken
-//   - layout at 320/375/390/1280px, light and dark: one row whenever the four
+//   - layout at 320/375/390/1280px, light and dark: one row whenever the
 //     tools fit (else 읽어주기 starts the next line, whole), 44px tall, no
 //     horizontal scroll, readable label contrast
 import fs from 'node:fs';
@@ -194,8 +194,8 @@ function layoutOf(button){
   const r=button.getBoundingClientRect();
   const rowRect=row.getBoundingClientRect();
   const gap=parseFloat(getComputedStyle(row).columnGap)||0;
-  // The row wraps by design (flex-wrap): the four tools must share one line
-  // whenever they fit in it, and only a row too narrow for all four may move
+  // The row wraps by design (flex-wrap): the tools must share one line
+  // whenever they fit in it, and only a row too narrow for all of them may move
   // 읽어주기 down — to the start of the next line, whole.
   const fitsOneRow=rects.reduce((sum,x)=>sum+x.width,0)+gap*(rects.length-1)<=rowRect.width+1;
   const wrappedToLineStart=Math.abs(r.left-rowRect.left)<=1&&r.top>=rects[0].bottom-1;
@@ -403,7 +403,8 @@ const IDLE = {label: '답변 읽어주기', text: '읽어주기', title: '답변
 const ACTIVE = {label: '읽기 중지', text: '중지', title: '읽기 중지', speaking: true, pressed: null};
 
 function checkLayout(label, layout, theme) {
-  check(same(layout.rowLabels, ['복사하기', '공유하기', '캘린더에 추가', '답변 읽어주기']), `${label} ${theme}: answer tools ${JSON.stringify(layout.rowLabels)}`);
+  // CONVERSATION-ANSWER-UX-01 (QA #8): these answers carry no schedule, so no 캘린더에 추가.
+  check(same(layout.rowLabels, ['복사하기', '공유하기', '답변 읽어주기']), `${label} ${theme}: answer tools ${JSON.stringify(layout.rowLabels)}`);
   check(layout.oneRow || (!layout.fitsOneRow && layout.wrappedToLineStart),
     `${label} ${theme}: the answer tools must share one row when they fit (row ${layout.rowWidth}px, fits=${layout.fitsOneRow}, wrapped to line start=${layout.wrappedToLineStart})`);
   check(layout.height >= 44, `${label} ${theme}: 읽어주기 must keep the 44px touch height (got ${layout.height})`);

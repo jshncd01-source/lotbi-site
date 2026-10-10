@@ -20,9 +20,9 @@
 // "다른 사진을 확인하는 중입니다…".
 import {
   classifyPersonIdentityPhoto, personErrorMessage, personIdentityPhotoErrorMessage, putPersonIdentityPhoto,
-} from './site-person.js?v=aset-05390c058a8d';
-import {PERSON_IDENTITY_SLOTS} from './site-person-guides.js?v=aset-05390c058a8d';
-import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-05390c058a8d';
+} from './site-person.js?v=aset-b1fc85f3461c';
+import {PERSON_IDENTITY_SLOTS} from './site-person-guides.js?v=aset-b1fc85f3461c';
+import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-b1fc85f3461c';
 
 export const PERSON_BULK_MAX_FILES = 10;
 export const PERSON_BULK_UPLOAD_ORDER = Object.freeze([1, 8, 2, 3, 9, 10, 6, 4, 5, 7]);
