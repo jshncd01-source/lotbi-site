@@ -274,7 +274,7 @@ try {
     await waitFor(() => evaluate('window.__qa.statusAnsweredAt > 0'), 'Account answered', 6000);
     const after = await evaluate(LOGIN_PROBE);
     assert.equal(after.present, false, `no 로그인 once Account said signed in: ${JSON.stringify(after)}`);
-    await waitFor(() => evaluate(`document.body.dataset.siteAuthenticated === 'true'`), 'signed in', 8000);
+    await waitFor(() => evaluate(`document.body?.dataset.siteAuthenticated === 'true'`), 'signed in', 8000);
   });
 
   await scenario(executable, origin, workDir, '#23 quick Account, signed in: 로그인 never flashes', {account: 'signed-in', statusDelay: 0}, async ({evaluate}) => {
@@ -283,7 +283,7 @@ try {
     while (Date.now() - started < 1800) {
       const value = await evaluate(`(() => {
         const visible = [...document.querySelectorAll('.account-actions .account-login')].filter(node => Number(getComputedStyle(node).opacity) > 0 && node.getClientRects().length);
-        return {visible: visible.length, signedIn: document.body.dataset.siteAuthenticated === 'true'};
+        return {visible: visible.length, signedIn: document.body?.dataset.siteAuthenticated === 'true'};
       })()`);
       if (value.visible) visibleSamples += 1;
       await delay(30);
@@ -293,7 +293,7 @@ try {
   });
 
   await scenario(executable, origin, workDir, '#24 signed-in phone: the Header shows the account avatar and opens the drawer', {account: 'signed-in'}, async ({evaluate, page}) => {
-    await waitFor(() => evaluate(`document.body.dataset.siteAuthenticated === 'true'`), 'signed in', 10000);
+    await waitFor(() => evaluate(`document.body?.dataset.siteAuthenticated === 'true'`), 'signed in', 10000);
     const header = await waitFor(async () => {
       const value = await evaluate(`(() => {
         const button = document.querySelector('.mobile-header-account');
@@ -320,7 +320,7 @@ try {
   });
 
   await scenario(executable, origin, workDir, '#24 signed-in desktop: no Header account button (the sidebar row is on screen)', {account: 'signed-in', width: 1280, height: 900, mobile: false}, async ({evaluate}) => {
-    await waitFor(() => evaluate(`document.body.dataset.siteAuthenticated === 'true'`), 'signed in', 10000);
+    await waitFor(() => evaluate(`document.body?.dataset.siteAuthenticated === 'true'`), 'signed in', 10000);
     await delay(300);
     assert.equal(await evaluate(`getComputedStyle(document.querySelector('.mobile-header-account')).display`), 'none');
   });
