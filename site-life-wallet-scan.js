@@ -1174,7 +1174,8 @@ export function framesPrintedItem(imageData,corners){
 // detail: that original photo (ImageData). A found card's print is then counted on a card
 // squared up from it, where thin lettering is still crisp; on the shrunken copy fine print of
 // a card that is small in a phone photo blurs below the ink threshold.
-export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale = 1, detail = null} = {}) {
+// allowLong: a router label (LIFE-WALLET-WIFI-CARD-01) may be longer than a receipt-like 1.85:1.
+export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale = 1, detail = null, allowLong = false} = {}) {
   if (!imageData || !Number.isInteger(imageData.width) || !Number.isInteger(imageData.height) || !imageData.data) throw new TypeError('Valid image data is required.');
   const working = workingGray(imageData, maximumEdge);
   const blurred=boxBlur(working.gray,working.width,working.height);
@@ -1218,7 +1219,7 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale
   else if(chosen&&chosenLines<(card?2:12)){chosen=null;reason='automatic-detection-uncertain'}
   // Receipts are long thin strips (about 2:1 and longer); cards are 1.59:1, A4 1.41:1, Letter
   // 1.29:1 and business cards 1.75:1. A receipt is not saved as a wallet item automatically.
-  else if(chosen&&quadAspect(chosen.corners)>=1.85){chosen=null;reason='receipt-like'}
+  else if(chosen&&!allowLong&&quadAspect(chosen.corners)>=1.85){chosen=null;reason='receipt-like'}
   // Nothing found, but the picture may itself be the card: a business card or ID saved as an
   // image file or a flat scan (its photo block or logo is no card of its own). Never for a
   // photo already refused as not a document or as a receipt.
@@ -1579,4 +1580,89 @@ export async function rectifyDocument(source, corners, {enhance=true, cornerRadi
   // A reflection over the print hides part of the item: it cannot be kept as it is.
   if(gloss&&!paper&&coveringGlare(corrected)>=GLARE_COVERS_PRINT)warnings.push('glare-covers-print');
   return {dataUrl:canvas.toDataURL('image/jpeg',0.92),width,height,warnings,enhanced:Boolean(enhance)};
+}
+
+// LIFE-WALLET-WIFI-CARD-01: a router's Wi-Fi label is a light, plain, rectangular sticker on a
+// router body that is often dark, lying on a desk or a keyboard. Rather than the outermost
+// document-like surface (which would be the router body), the label is the largest light,
+// low-colour patch that does not touch the photo edge and fills its own minimum-area rectangle.
+// Returns {corners, portrait, diagnostics} in the image's coordinates, or null.
+export function findLabelCorners(imageData, {maximumEdge = 480} = {}) {
+  if (!imageData?.data || !imageData.width || !imageData.height) return null;
+  const scale = Math.min(1, maximumEdge / Math.max(imageData.width, imageData.height));
+  const width = Math.max(8, Math.round(imageData.width * scale)); const height = Math.max(8, Math.round(imageData.height * scale));
+  const luma = new Float32Array(width * height); const chroma = new Float32Array(width * height);
+  for (let y = 0; y < height; y += 1) {
+    const sy = Math.min(imageData.height - 1, Math.floor((y + .5) / scale));
+    for (let x = 0; x < width; x += 1) {
+      const sx = Math.min(imageData.width - 1, Math.floor((x + .5) / scale)); const offset = (sy * imageData.width + sx) * 4;
+      const r = imageData.data[offset]; const g = imageData.data[offset + 1]; const b = imageData.data[offset + 2];
+      luma[y * width + x] = .299 * r + .587 * g + .114 * b; chroma[y * width + x] = Math.max(r, g, b) - Math.min(r, g, b);
+    }
+  }
+  const sorted = Float32Array.from(luma).sort(); const p95 = sorted[Math.floor(sorted.length * .95)];
+  const threshold = Math.max(150, p95 - 45);
+  const mask = new Uint8Array(width * height);
+  for (let index = 0; index < mask.length; index += 1) mask[index] = luma[index] >= threshold && chroma[index] <= 42 ? 1 : 0;
+  const labels = new Int32Array(width * height).fill(-1); const stack = new Int32Array(width * height);
+  let best = null; let component = 0;
+  for (let start = 0; start < mask.length; start += 1) {
+    if (!mask[start] || labels[start] >= 0) continue;
+    let top = 0; stack[top++] = start; labels[start] = component;
+    let area = 0; let touches = false; const points = [];
+    while (top) {
+      const index = stack[--top]; const x = index % width; const y = (index - x) / width; area += 1;
+      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) touches = true;
+      const leftEdge = x === 0 || !mask[index - 1] || x === width - 1 || !mask[index + 1] || y === 0 || !mask[index - width] || y === height - 1 || !mask[index + width];
+      if (leftEdge) points.push({x, y});
+      for (const next of [index - 1, index + 1, index - width, index + width]) {
+        if (next < 0 || next >= mask.length) continue;
+        if ((next === index - 1 && x === 0) || (next === index + 1 && x === width - 1)) continue;
+        if (mask[next] && labels[next] < 0) { labels[next] = component; stack[top++] = next; }
+      }
+    }
+    component += 1;
+    if (touches || area < width * height * .004 || points.length < 8) continue;
+    const hull = labelHull(points); if (hull.length < 4) continue;
+    const hullArea = labelPolygonArea(hull); const rect = labelMinimumRectangle(hull);
+    if (!rect || hullArea <= 0) continue;
+    const rectangular = hullArea / rect.area; const solid = area / hullArea;
+    if (rectangular < .9 || solid < .55) continue;
+    if (!best || area > best.area) best = {area, rect, rectangular, solid};
+  }
+  if (!best) return null;
+  const back = best.rect.points.map(point => ({x: Math.round(point.x / scale), y: Math.round(point.y / scale)}));
+  const corners = orderDocumentCorners(back);
+  const across = Math.hypot(corners.topRight.x - corners.topLeft.x, corners.topRight.y - corners.topLeft.y);
+  const down = Math.hypot(corners.bottomLeft.x - corners.topLeft.x, corners.bottomLeft.y - corners.topLeft.y);
+  return {corners, portrait: down > across * 1.15, diagnostics: {source: 'label-region', areaRatio: Number((best.area / (width * height)).toFixed(4)), rectangular: Number(best.rectangular.toFixed(3)), solid: Number(best.solid.toFixed(3)), threshold: Math.round(threshold)}};
+}
+
+function labelHull(points) {
+  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower = []; for (const point of sorted) { while (lower.length >= 2 && cross(lower.at(-2), lower.at(-1), point) <= 0) lower.pop(); lower.push(point); }
+  const upper = []; for (const point of sorted.reverse()) { while (upper.length >= 2 && cross(upper.at(-2), upper.at(-1), point) <= 0) upper.pop(); upper.push(point); }
+  return lower.slice(0, -1).concat(upper.slice(0, -1));
+}
+
+function labelPolygonArea(points) {
+  let sum = 0; for (let i = 0; i < points.length; i += 1) { const a = points[i]; const b = points[(i + 1) % points.length]; sum += a.x * b.y - b.x * a.y; }
+  return Math.abs(sum) / 2;
+}
+
+function labelMinimumRectangle(hull) {
+  let best = null;
+  for (let i = 0; i < hull.length; i += 1) {
+    const a = hull[i]; const b = hull[(i + 1) % hull.length]; const length = Math.hypot(b.x - a.x, b.y - a.y); if (!length) continue;
+    const ux = (b.x - a.x) / length; const uy = (b.y - a.y) / length;
+    let minU = Infinity; let maxU = -Infinity; let minV = Infinity; let maxV = -Infinity;
+    for (const point of hull) { const u = point.x * ux + point.y * uy; const v = -point.x * uy + point.y * ux; minU = Math.min(minU, u); maxU = Math.max(maxU, u); minV = Math.min(minV, v); maxV = Math.max(maxV, v); }
+    const area = (maxU - minU) * (maxV - minV);
+    if (!best || area < best.area) {
+      const at = (u, v) => ({x: u * ux - v * uy, y: u * uy + v * ux});
+      best = {area, points: [at(minU, minV), at(maxU, minV), at(maxU, maxV), at(minU, maxV)]};
+    }
+  }
+  return best;
 }

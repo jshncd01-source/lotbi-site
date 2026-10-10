@@ -748,6 +748,9 @@ body[data-site-theme="dark"] .sidebar-calendar-subnav .nav-item {
 .calendar-weather-temperature { position: relative; width: 46px; height: 30px; font-size: 11px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .calendar-weather-temperature-min { position: absolute; left: 0; bottom: 0; color: var(--lotbi-text-primary, var(--text, #212121)); }
 .calendar-weather-temperature-max { position: absolute; top: 0; right: 0; color: #d43b32; }
+/* In a month cell the max is 9-10px text on the weekend tints, where #d43b32
+   is 4.3:1; this red keeps it above 4.5:1. */
+.calendar-month-grid .calendar-weather-temperature-max { color: #c62828; }
 .calendar-weather-temperature-separator { position: absolute; top: 50%; left: 50%; color: var(--lotbi-text-primary, var(--text, #212121)); font-size: 13px; transform: translate(-50%, -50%) rotate(-8deg); }
 .calendar-weather-temperature-value { display: block; padding-top: 6px; color: var(--lotbi-text-primary, var(--text, #212121)); text-align: right; }
 /* 강수확률. 온도 칸(24px 아이콘 + 46px 온도, 암묵 1행)에 3번째 자식으로 그냥
@@ -1499,6 +1502,7 @@ body[data-site-theme="dark"] .calendar-event-chip:hover { background: #263751; }
 body[data-site-theme="dark"] .calendar-event-time,
 body[data-site-theme="dark"] .calendar-event-overflow { color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .calendar-attention-marker { color: #f2b774; }
+body[data-site-theme="dark"] .calendar-weather-temperature-max { color: #ff8a80; }
 body[data-site-theme="dark"] .calendar-toast { background: #e8edf5; color: #212121; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
 body[data-site-theme="dark"] .calendar-settings-dialog { border-color: #465162; background: #171c25; }
 body[data-site-theme="dark"] .calendar-settings-header { border-color: #39424f; }
@@ -2705,13 +2709,13 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
 
 /* The month's cells are as wide as the room beside the day rail allows, not
    as wide as the screen, so the forecast follows the grid's own width. Under
-   ~96px a cell (a small laptop, a tablet held sideways) shows the glyph
-   alone in its top-right corner; the temperatures are in the day rail. */
+   ~96px a cell (a small laptop, a tablet held sideways) keeps the glyph in
+   its top-right corner and its "min/max" line under the date; precipitation
+   is in the day rail. */
 @media (min-width: 601px) {
   .calendar-month-grid { container: calendar-month / inline-size; }
 }
 @container calendar-month (max-width: 679px) {
-  .calendar-month-grid .calendar-weather-temperature,
   .calendar-month-grid .calendar-weather-precip { display: none; }
   /* The date keeps the left; the glyph takes the corner instead of being
      pushed past the cell's edge by a 44px date button. */
@@ -2719,6 +2723,15 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   .calendar-month-grid .calendar-weather-summary { position: absolute; top: 6px; right: 5px; margin: 0; }
   .calendar-month-grid .calendar-weather-summary > .calendar-weather-icon { display: inline-flex; align-items: center; justify-content: center; }
   .calendar-month-grid .calendar-date-cell[data-lunar="true"][data-weather="true"] .calendar-date-trigger { max-width: calc(100% - 29px); padding-right: 0; }
+  /* A lunar label, or today's "10•", reaches under the glyph (to ~56px in the
+     Linux gate's wide fonts), so the min/max line sits in the free band
+     between the date line (ends 38px down) and the first record (starts 49px
+     down): one 9px line, right-aligned, top 6px + 32px = 38px. */
+  .calendar-month-grid .calendar-date-cell .calendar-weather-temperature { position: absolute; top: 32px; right: 0; display: flex; font-size: 9px; line-height: 9px; letter-spacing: -0.05em; }
+  .calendar-month-grid .calendar-date-cell .calendar-weather-temperature-separator { margin-inline: 0; }
+  /* A lunar month start (음9.1) may fold under the date into that band: that
+     one cell keeps the glyph alone, as on a phone. */
+  .calendar-month-grid .calendar-date-cell[data-lunar="true"]:has(.calendar-date-line[data-lunar-kind="month-start"]) .calendar-weather-temperature { display: none; }
 }
 @container calendar-month (max-width: 519px) {
   .calendar-month-grid .calendar-weather-summary > .calendar-weather-icon { width: 18px; height: 18px; font-size: 18px; line-height: 18px; }
@@ -2839,14 +2852,20 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   .calendar-date-lunar { font-size: 9px; }
   .calendar-date-cell[data-lunar="true"] .calendar-date-trigger { padding-left: 4px; }
   .calendar-date-cell[data-lunar="true"] .calendar-date-line { column-gap: 1px; }
-  .calendar-date-cell[data-lunar="true"] .calendar-weather-summary { top: 35px; bottom: auto; right: 3px; display: flex; line-height: 0; }
+  .calendar-date-cell[data-lunar="true"] .calendar-weather-summary { top: auto; bottom: 4px; right: 3px; display: flex; flex-direction: column; align-items: flex-end; line-height: 0; }
   .calendar-date-cell[data-lunar="true"] .calendar-attention-marker { top: 3px; bottom: auto; right: 3px; }
   .calendar-record-dots { display: flex; gap: 3px; justify-content: flex-start; min-height: 5px; }
+  /* Glyph in the top-right corner, the day's min/max on the cell's bottom
+     line under it: the one row of a phone cell nothing else uses. */
   .calendar-weather-summary {
     position: absolute;
     top: 6px;
     right: 4px;
-    display: block;
+    bottom: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: space-between;
     margin: 0;
     pointer-events: none;
   }
@@ -2862,9 +2881,38 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
     font-size: 15px;
     line-height: 15px;
   }
-  .calendar-weather-temperature,
+  /* "월 캘린더에 온도가 안 나온다": the month cell shows the day's min/max as
+     one "18°/27°" line, the max in red as on a desk. Precipitation stays in
+     the day panel; a ~44px cell has no second free line for it.
+     flex, so each number's box is the 9px line and not the font's taller
+     inline box, which would reach into the glyph above it. The tight
+     spacing keeps "-12°/-3°" inside a 43px cell in wide fonts (DejaVu). */
+  .calendar-weather-temperature {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+    width: auto;
+    height: auto;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 9px;
+    letter-spacing: -0.05em;
+    white-space: nowrap;
+    margin-right: -2px;
+  }
+  .calendar-weather-temperature > span { position: static; transform: none; }
+  .calendar-weather-temperature-separator { margin-inline: 0; font-size: 9px; }
+  .calendar-weather-temperature-value { padding-top: 0; font-size: 9px; text-align: right; }
   .calendar-weather-precip { display: none; }
   .calendar-attention-marker { top: auto; bottom: 4px; right: 4px; }
+  /* The bottom line now carries the temperature, so 확인 필요 sits at the
+     end of the record-dot row instead. */
+  .calendar-date-cell[data-weather="true"]:not([data-lunar="true"]) .calendar-attention-marker { top: 30px; bottom: auto; }
+  /* A lunar month start (음9.1, 윤5.1) may fold under the date and push the
+     record dots onto the bottom line: that one cell keeps the glyph alone,
+     where it was. */
+  .calendar-date-cell[data-lunar="true"]:has(.calendar-date-line[data-lunar-kind="month-start"]) .calendar-weather-summary { top: 35px; bottom: auto; }
+  .calendar-date-cell[data-lunar="true"]:has(.calendar-date-line[data-lunar-kind="month-start"]) .calendar-weather-temperature { display: none; }
   .calendar-day-panel[data-presentation="FLOW"] .calendar-day-event.calendar-life-row {
     grid-template-columns: 48px minmax(0, 1fr) auto;
     gap: 8px;
@@ -2899,6 +2947,8 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
 }
 @media (max-width: 357px) {
   .calendar-date-cell[data-lunar="true"] .calendar-date-line { flex-direction: column; align-items: flex-start; }
+  /* A wrapped lunar label pushes the record dots onto the bottom line. */
+  .calendar-date-cell[data-lunar="true"] .calendar-weather-temperature { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .calendar-week-day-group { scroll-behavior: auto; }
@@ -2971,6 +3021,8 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-event-overflow { color: var(--lotbi-text-primary, var(--text, #212121)); }
   body[data-site-theme="system"] .calendar-attention-marker,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-attention-marker { color: #f2b774; }
+  body[data-site-theme="system"] .calendar-weather-temperature-max,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-weather-temperature-max { color: #ff8a80; }
   body[data-site-theme="system"] .calendar-toast,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-toast { background: #e8edf5; color: #212121; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
   body[data-site-theme="system"] .calendar-settings-dialog,
