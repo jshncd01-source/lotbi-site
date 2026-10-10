@@ -1,4 +1,4 @@
-import {CORE_ORIGIN} from './site-core.js?v=aset-3d6b70866da1';
+import {CORE_ORIGIN} from './site-core.js?v=aset-7c6d3790a1a4';
 
 const status = document.getElementById('status');
 const launch = document.getElementById('launch');

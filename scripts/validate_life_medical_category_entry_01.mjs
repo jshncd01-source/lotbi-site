@@ -53,7 +53,8 @@ for (const question of Object.values(LIFE_MEDICAL_QUESTIONS)) {
 // ── Source contract ─────────────────────────────────────────────────────
 const source = read('site-consumer-sections.js');
 assert.match(source, /if \(item\.ask\) onAsk\(item\.ask\);/u, 'a medical card asks at once');
-assert.doesNotMatch(source, /mountEducation|import\('\.\/site-life-education\.js/u, '지역정보 no longer links the 유치원·학교 lookup');
+// Owner decision 2026-10-10: signed out, 내 아이 학교·유치원 links the public lookup again.
+assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/u, '유치원·학교 asks through onAsk');
 assert.match(source, /mountMyChild\(host, \{onAsk\}\)/u, '내 아이 학교·유치원 asks through the same onAsk');
 assert.doesNotMatch(source, /openMedicalDetail|data-medical-field|질문 준비하기|onDraft/u, 'no region/condition form, no draft handoff');
 assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|geolocation|getCurrentPosition/u, 'no own search engine, storage or location request');

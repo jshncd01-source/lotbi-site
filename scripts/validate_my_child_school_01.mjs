@@ -53,7 +53,9 @@ await check('지역정보: 내 아이 학교·유치원 is the last card and ope
   // screen — no 내 아이 정보 / 유치원·학교 찾기 choice in between.
   assert.equal(item.children, undefined);
   assert.match(source, /else if \(item\.id === 'my-child'\) openMyChild\(item\);/u);
-  assert.doesNotMatch(source, /openChildChoice|data-child-choice|childChoice|openEducation/u);
+  assert.doesNotMatch(source, /openChildChoice|data-child-choice|childChoice/u);
+  // Owner decision 2026-10-10: signed out only, the saved screen links the public lookup.
+  assert.match(source, /const lookup = authenticated \? null : node\('button', [^)]*'로그인 없이 학교·유치원 찾기'\);/u);
   assert.equal(sections.LIFE_VIEW_PARENT['life-my-child'], 'life');
   assert.doesNotMatch(source, /\bfetch\(|localStorage|innerHTML/u);
   const conversation = read('site-conversation.js');
@@ -296,7 +298,8 @@ const SCENARIO = `(async () => {
   const host = await wait(() => panel.querySelector('.lotbi-mychild'), 'my-child screen');
   result.choices = [...panel.querySelectorAll('[data-child-choice]')].map(n => n.dataset.childChoice + ':' + n.textContent.trim());
   result.back = panel.querySelector('.site-modal-close')?.getAttribute('aria-label') || '';
-  result.textBack = Boolean(panel.querySelector('.consumer-life-detail > .consumer-action-secondary'));
+  result.textBack = Boolean(panel.querySelector('.consumer-life-detail > .consumer-action-secondary:not([data-life-education-entry])'));
+  result.lookup = panel.querySelector('[data-life-education-entry]')?.textContent || '';
   if (!${'${SIGNED_IN}'}) {
     const notice = await wait(() => host.querySelector('[data-my-child-state="LOGIN_REQUIRED"]'), 'login notice');
     result.login = {text: notice.textContent, href: notice.querySelector('a')?.getAttribute('href'), measure: measure(host)};
@@ -586,6 +589,7 @@ try {
       assert.ok(r.card.box.h >= 44, JSON.stringify(r.card.box));
       assert.equal(r.back, '지역정보로 돌아가기');
       assert.equal(r.textBack, false, 'one back: the header ←, no second text link (QA #3)');
+      assert.equal(r.lookup, '', 'signed in: no 로그인 없이 학교·유치원 찾기 link');
       assert.match(r.empty.text, /아직 저장한 학교·유치원이 없어요/u);
       assert.match(r.empty.footer, /아이 이름·생년월일·사진·학년·반은 받지 않아요/u);
       assert.equal(r.backHome, 'my-child', 'focus returns to the card');
@@ -694,6 +698,7 @@ try {
     assert.equal(out.login.href, '/auth/start/');
     assert.equal(out.back, '지역정보로 돌아가기');
     assert.equal(out.textBack, false);
+    assert.equal(out.lookup, '로그인 없이 학교·유치원 찾기', 'signed out: the public lookup link (owner decision 2026-10-10)');
     assert.deepEqual(out.choices, []);
     assert.equal(out.calls, 0);
     assert.deepEqual(out.login.measure.small, []);

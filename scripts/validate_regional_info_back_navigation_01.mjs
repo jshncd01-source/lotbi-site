@@ -49,7 +49,7 @@ const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const {SITE_ROUTES, isSiteRoute} = await import('../site-route.js');
 const sections = await import('../site-consumer-sections.js');
 const {lifeLocationIntent} = await import('../site-life-location.js');
-const LIFE_VIEWS = ['life-medical', 'life-news', 'life-local', 'life-my-child'];
+const LIFE_VIEWS = ['life-medical', 'life-news', 'life-local', 'life-my-child', 'life-education'];
 
 await check('every screen inside 지역정보 is a route with a parent; chains end at 지역정보', () => {
   assert.deepEqual(Object.keys(sections.LIFE_VIEW_PARENT), LIFE_VIEWS);
@@ -59,7 +59,8 @@ await check('every screen inside 지역정보 is a route with a parent; chains e
     const seen = new Set();
     while (at !== 'life') { assert.ok(!seen.has(at), `${view}: loop`); seen.add(at); at = sections.LIFE_VIEW_PARENT[at]; assert.ok(at, `${view}: no parent`); }
   }
-  for (const view of LIFE_VIEWS) assert.equal(sections.lifeBackLabel(view), '지역정보로 돌아가기', view);
+  for (const view of LIFE_VIEWS) assert.equal(sections.lifeBackLabel(view), view === 'life-education' ? '내 아이 학교·유치원으로 돌아가기' : '지역정보로 돌아가기', view);
+  assert.equal(sections.LIFE_VIEW_PARENT['life-education'], 'life-my-child', '학교·유치원 찾기 steps back to 내 아이 학교·유치원');
   assert.equal(sections.LIFE_SHORTCUTS.find(item => item.id === 'my-child').children, undefined, '내 아이 학교·유치원 opens its screen at once');
   assert.ok(SITE_ROUTES.includes('onnuri'), '온누리상품권·지역화폐 has its own route');
   assert.equal(sections.LIFE_SHORTCUTS.find(item => item.id === 'onnuri').icon, 'voucher', '#12 plain icon');
@@ -68,7 +69,7 @@ await check('every screen inside 지역정보 is a route with a parent; chains e
   for (const example of sections.LIFE_DETAIL_EXAMPLES.local) {
     assert.equal(lifeLocationIntent(`${local.prompt}\n궁금한 생활정보: ${example}`), false, `${example}: no location sent`);
   }
-  assert.deepEqual(SITE_ROUTES.slice(SITE_ROUTES.indexOf('life'), SITE_ROUTES.indexOf('life') + 5), ['life', ...LIFE_VIEWS]);
+  assert.deepEqual(SITE_ROUTES.slice(SITE_ROUTES.indexOf('life'), SITE_ROUTES.indexOf('life') + 6), ['life', ...LIFE_VIEWS]);
 });
 
 await check('the conversation opens every life route and 온누리 steps back to 지역정보', () => {
@@ -207,7 +208,8 @@ const SNAPSHOT = `(() => {
   const surface = document.querySelector('[data-site-route]');
   const detail = surface?.querySelector('.consumer-life-detail');
   const grid = surface?.querySelector('.consumer-shortcuts');
-  const inner = detail?.querySelector(':scope > .consumer-action-secondary');
+  // A back-looking text link (not the signed-out 학교·유치원 찾기 link, which goes forward).
+  const inner = detail?.querySelector(':scope > .consumer-action-secondary:not([data-life-education-entry])');
   return {
     hash: location.hash,
     route: surface?.dataset.siteRoute || '',
@@ -400,8 +402,25 @@ async function runCase(browser, origin, workDir, testCase) {
     const listed = await atLife('my-child: header ←');
     assert.equal(await historyIndex(), before - 1, `${label}: my-child: ← one entry back`);
     assert.equal(listed.focusedCard, 'my-child', `${label}: focus returns to the card`);
+    // Signed out: 로그인 없이 학교·유치원 찾기 → back → 내 아이 학교·유치원 → back →
+    // 지역정보 (owner decision 2026-10-10), by the system back and by the header ←.
     await go(1);
     await atScreen(myChild, 'my-child: forward');
+    const lookup = {card: 'my-child', hash: '#life-education', detail: 'education'};
+    await tapSelector('[data-site-route="life-my-child"] [data-life-education-entry]');
+    const opened = await atScreen(lookup, 'the public lookup opens');
+    assert.equal(opened.headerBack, '내 아이 학교·유치원으로 돌아가기', `${label}: lookup ← names its step`);
+    await waitFor(() => evaluate("Boolean(document.querySelector('[data-site-route=life-education] .lotbi-edu'))"), `${label}: the lookup's tabs`);
+    await go(-1);
+    const backToChild = await atScreen(myChild, 'lookup: system back → 내 아이 학교·유치원');
+    assert.equal(await evaluate("document.activeElement?.hasAttribute('data-life-education-entry') || false"), true, `${label}: focus returns to the link`);
+    void backToChild;
+    await tapSelector('[data-site-route="life-my-child"] [data-life-education-entry]');
+    await atScreen(lookup, 'the lookup again');
+    before = await historyIndex();
+    await headerBack();
+    await atScreen(myChild, 'lookup: header ← → 내 아이 학교·유치원');
+    assert.equal(await historyIndex(), before - 1, `${label}: lookup ← one entry back`);
     await go(-1);
     await atLife('my-child: back again');
     await headerBack();

@@ -38,7 +38,7 @@ const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 // ── Route table ─────────────────────────────────────────────────────────
 const {SITE_ROUTES, isSiteRoute, parseSiteRouteHash, siteRouteHash, siteRouteUrl} = await import('../site-route.js');
 // REGIONAL-INFO-BACK-NAVIGATION-01: the screens inside 지역정보 and 온누리 have routes.
-const EXPECTED_ROUTES = ['calendar', 'wallet', 'scam', 'care', 'pets', 'life', 'life-medical', 'life-news', 'life-local', 'life-my-child', 'festival', 'onnuri', 'real-estate', 'real-estate-apartment', 'ev-chargers', 'subway', 'subway-station'];
+const EXPECTED_ROUTES = ['calendar', 'wallet', 'scam', 'care', 'pets', 'life', 'life-medical', 'life-news', 'life-local', 'life-my-child', 'life-education', 'festival', 'onnuri', 'real-estate', 'real-estate-apartment', 'ev-chargers', 'subway', 'subway-station'];
 assert.deepEqual([...SITE_ROUTES], EXPECTED_ROUTES);
 assert.ok(Object.isFrozen(SITE_ROUTES));
 for (const route of SITE_ROUTES) {

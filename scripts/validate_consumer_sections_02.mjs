@@ -58,7 +58,12 @@ const child = LIFE_SHORTCUTS.find(item => item.id === 'my-child');
 assert.equal(child.children, undefined);
 assert.match(source, /else if \(item\.id === 'my-child'\) openMyChild\(item\);/);
 assert.match(source, /else if \(name === 'life-my-child' && items\['my-child'\]\) openMyChild\(/);
-assert.doesNotMatch(source, /openChildChoice|openEducation|data-child-choice|childChoice|import\('\.\/site-life-education/);
+assert.doesNotMatch(source, /openChildChoice|data-child-choice|childChoice/);
+// Owner decision 2026-10-10 ("1링크 다시 살리"): signed out only, the saved screen
+// links "로그인 없이 학교·유치원 찾기" — the public lookup, its own route.
+assert.match(source, /const lookup = authenticated \? null : node\('button', [^)]*'로그인 없이 학교·유치원 찾기'\);/);
+assert.match(source, /else if \(name === 'life-education' && items\['my-child'\]\) openEducation\(\);/);
+assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/);
 assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 // Phones keep two columns: the later layout sheet must not turn the menu into one.
 assert.doesNotMatch(read('site-consumer-layout.css'), /\.consumer-shortcuts \{ grid-template-columns: minmax\(0, 1fr\); \}/);

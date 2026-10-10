@@ -1,13 +1,12 @@
 // KINDERGARTEN-OFFICIAL-INFO-01 — 생활정보 → 유치원·학교 → 유치원 (교육부 유치원알리미 공시).
 //
-// REGIONAL-INFO-BACK-NAVIGATION-01 (owner decision 2026-10-10): 지역정보 → 내 아이
-// 학교·유치원 opens the saved schools screen at once; this public lookup is linked
-// from nowhere. Its module stays, so its screen is checked here mounted in the
-// 지역정보 panel the way the card used to mount it (onAsk recorded, not sent).
+// Owner decision 2026-10-10 ("1링크 다시 살리"): signed out, 지역정보 → 내 아이
+// 학교·유치원 links "로그인 없이 학교·유치원 찾기" — this lookup (route
+// life-education, back → 내 아이 학교·유치원; REGIONAL-INFO-BACK-NAVIGATION-01).
 //
 // Contract checked here:
-// * no '유치원·학교 찾기' entry on 지역정보; the module opens 학교 / 유치원 tabs (the
-//   saved school key is never touched)
+// * 생활정보 shows "유치원·학교"; it opens 학교 / 유치원 tabs (no new route,
+//   no change to site-conversation.js, the saved school key is never touched)
 // * 유치원: the provider's 시도·시군구 picker → name / 설립유형 → list → one
 //   유치원: 설립유형·주소·연락처·운영시간·학급·정원·원아·홈페이지·공시 기준 first,
 //   then 8 공시 sections with their 공시차수, source + 조회일, 학비 never stated
@@ -36,13 +35,18 @@ const client = await import('../site-kindergarten-client.js');
 const education = await import('../site-life-education.js');
 const sections = await import('../site-consumer-sections.js');
 
-await check('지역정보: no 유치원·학교 찾기 entry (owner decision 2026-10-10); the module stays', () => {
+await check('지역정보: signed out, 내 아이 학교·유치원 links 로그인 없이 학교·유치원 찾기 (this lookup)', () => {
+  // No separate 유치원·학교 card, no choice screen: the card opens the saved
+  // screen; signed out it carries the link to this public lookup.
   assert.equal(sections.LIFE_SHORTCUTS.some(entry => entry.id === 'education'), false);
   const card = sections.LIFE_SHORTCUTS.find(entry => entry.id === 'my-child');
   assert.ok(card && card.children === undefined && !card.prompt);
+  assert.equal(sections.LIFE_VIEW_PARENT['life-education'], 'life-my-child');
   const source = read('site-consumer-sections.js');
-  assert.doesNotMatch(source, /import\('\.\/site-life-education\.js|openEducation|data-child-choice|childChoice/u);
-  assert.equal(typeof education.mountEducation, 'function');
+  assert.match(source, /import\('\.\/site-life-education\.js\?v=aset-[0-9a-f]{12}'\)/u);
+  assert.match(source, /const lookup = authenticated \? null : node\('button', [^)]*'로그인 없이 학교·유치원 찾기'\);/u, 'signed out only');
+  assert.match(source, /lookup\.addEventListener\('click', \(\) => \{ if \(!disposed\) showLifeView\('life-education'\); \}\);/u);
+  assert.match(source, /else if \(name === 'life-education' && items\['my-child'\]\) openEducation\(\);/u);
 });
 
 await check('Core contract normalizes and keeps the kinder code', () => {
@@ -194,19 +198,10 @@ const SCENARIO = `(async () => {
   const panel = await wait(() => document.querySelector('.consumer-section-panel'), 'life surface');
   const shortcut = await wait(() => panel.querySelector('[data-life-shortcut="my-child"]'), 'my-child shortcut');
   result.shortcut = {label: shortcut.textContent.trim(), box: box(shortcut), grid: box(shortcut.parentElement)};
-  // The card opens the saved schools screen at once (no 유치원·학교 찾기 choice).
   shortcut.click();
-  await wait(() => panel.querySelector('.lotbi-mychild'), 'my-child screen');
-  result.choice = {count: panel.querySelectorAll('[data-child-choice]').length, edu: Boolean(panel.querySelector('.lotbi-edu'))};
-  // The module, mounted in the same 지역정보 panel the card used to mount it in.
-  globalThis.__asked = [];
-  const eduContent = panel.querySelector('.consumer-section-content');
-  const eduDetail = document.createElement('section'); eduDetail.className = 'consumer-life-detail'; eduDetail.dataset.lifeDetail = 'education';
-  const eduHeading = document.createElement('h3'); eduHeading.textContent = '유치원·학교';
-  const eduHost = document.createElement('div'); eduHost.className = 'consumer-life-education';
-  eduDetail.append(eduHeading, eduHost); eduContent.replaceChildren(eduDetail);
-  const {mountEducation} = await import('/site-life-education.js?v=kindergartenofficial01');
-  mountEducation({root: eduHost, onAsk: text => globalThis.__asked.push(text), accountId: ''});
+  const choice = await wait(() => panel.querySelector('[data-life-education-entry]'), '로그인 없이 학교·유치원 찾기 link');
+  result.choice = {label: choice.textContent.trim(), h: box(choice).h};
+  choice.click();
   const edu = await wait(() => panel.querySelector('.lotbi-edu'), 'education screen');
   result.tabs = [...edu.querySelectorAll('[data-edu-tab]')].map(t => ({id: t.dataset.eduTab, text: t.textContent.trim(), selected: t.getAttribute('aria-selected'), h: box(t).h}));
   if (${'${DISABLED}'}) {
@@ -216,8 +211,11 @@ const SCENARIO = `(async () => {
     state.querySelector('[data-kinder-fallback="region"]').value = '전주시 덕진구';
     state.querySelector('[data-kinder-fallback="name"]').value = '예일';
     state.querySelector('.lotbi-kinder-fallback').requestSubmit();
-    await wait(() => globalThis.__asked.length, 'fallback question asked');
-    result.disabled.sent = globalThis.__asked.slice();
+    await wait(() => globalThis.__sent.length, 'fallback question sent');
+    await sleep(300);
+    result.disabled.composer = document.getElementById('lotbi-prompt')?.value ?? null;
+    result.disabled.composerFocused = document.activeElement === document.getElementById('lotbi-prompt');
+    result.disabled.sent = globalThis.__sent.slice();
     return result;
   }
   const sido = await wait(() => edu.querySelector('[data-kinder-sido]'), 'region picker');
@@ -276,7 +274,8 @@ const SCENARIO = `(async () => {
   await wait(() => !edu.querySelector('[data-kinder-mine]') && edu.querySelector('[data-kinder-sido]'), 'mine cleared');
   result.mineCleared = localStorage.getItem('lotbi.site.ux.v1.life-kindergarten.guest');
   result.calls = globalThis.__kinderCalls.map(c => c.credentials);
-  // 학교 tab: the question goes to onAsk at once (LIFE-DIRECT-CHAT-CARD-COMPACTION-01).
+  // 학교 tab: the question is sent to the chat right away
+  // (LIFE-DIRECT-CHAT-CARD-COMPACTION-01), not left in the composer.
   edu.querySelector('[data-edu-tab="school"]').click();
   const schoolName = await wait(() => edu.querySelector('[data-edu-school-name]'), 'school form');
   schoolName.value = '전주서원초';
@@ -284,8 +283,12 @@ const SCENARIO = `(async () => {
   result.schoolMeasure = {small: visibleSmall(edu), overflow: overflowOf(edu)};
   result.schoolButton = edu.querySelector('.lotbi-edu-school button[type=submit]')?.textContent || '';
   edu.querySelector('.lotbi-edu-school').requestSubmit();
-  await wait(() => globalThis.__asked.length, 'school question asked');
-  result.sent = globalThis.__asked.slice();
+  await wait(() => globalThis.__sent.length, 'school question sent');
+  await sleep(300);
+  result.composer = document.getElementById('lotbi-prompt')?.value ?? null;
+  result.composerFocused = document.activeElement === document.getElementById('lotbi-prompt');
+  result.sent = globalThis.__sent.slice();
+  result.surfaceOpen = Boolean(document.querySelector('.consumer-section-panel .lotbi-edu'));
   return result;
 })()`;
 
@@ -401,9 +404,10 @@ try {
   for (const testCase of CASES) {
     const r = await runCase(browser, origin, dir, testCase, 'inner.html', false);
     const label = testCase.label;
-    await check(`${label}: no 유치원·학교 찾기 on the card; the module opens 학교 / 유치원 tabs, 유치원 first`, () => {
+    await check(`${label}: 유치원·학교 opens 학교 / 유치원 tabs, 유치원 first`, () => {
       assert.equal(r.shortcut.label, '내 아이 학교·유치원');
-      assert.deepEqual(r.choice, {count: 0, edu: false}, 'the card opens the saved screen, not this lookup');
+      assert.equal(r.choice.label, '로그인 없이 학교·유치원 찾기');
+      assert.ok(r.choice.h >= 44, `choice touch target ${r.choice.h}`);
       assert.deepEqual(r.tabs.map(tab => [tab.id, tab.selected]), [['school', 'false'], ['kindergarten', 'true']]);
       assert.ok(r.tabs.every(tab => tab.h >= 44), JSON.stringify(r.tabs));
     });
@@ -449,15 +453,19 @@ try {
       }
       assert.notEqual(r.themes.light.color, r.themes.dark.color, 'the dark theme changes the text colour');
     });
-    await check(`${label}: 내 유치원 own key; the saved school untouched; school question to onAsk`, () => {
+    await check(`${label}: 내 유치원 own key; the saved school untouched; school question to chat`, () => {
       assert.equal(JSON.parse(r.mineSaved).kinderCode, YEIL);
       assert.match(r.mineCard, /내 유치원예일유치원/u);
       assert.equal(r.mineCleared, null);
       assert.deepEqual(r.schoolKeys, []);
       assert.ok(r.calls.length >= 3 && r.calls.every(value => value === 'omit'), JSON.stringify(r.calls));
-      // LIFE-DIRECT-CHAT-CARD-COMPACTION-01: one tap hands the question over once.
+      // LIFE-DIRECT-CHAT-CARD-COMPACTION-01: one tap sends the question once;
+      // the composer stays empty and unfocused (no keyboard).
       assert.equal(r.schoolButton, '롯비에게 물어보기');
       assert.deepEqual(r.sent, ['전주서원초 이번 주 급식 알려줘']);
+      assert.equal(r.composer, '');
+      assert.equal(r.composerFocused, false);
+      assert.equal(r.surfaceOpen, false);
     });
   }
   const off = await runCase(browser, origin, dir, CASES[2], 'disabled.html', true);
@@ -468,6 +476,8 @@ try {
     assert.deepEqual(off.disabled.small, []);
     assert.deepEqual(off.disabled.overflow, []);
     assert.deepEqual(off.disabled.sent, ['전주시 덕진구 예일유치원 알려줘']);
+    assert.equal(off.disabled.composer, '');
+    assert.equal(off.disabled.composerFocused, false);
   });
 } finally {
   server.kill('SIGTERM');

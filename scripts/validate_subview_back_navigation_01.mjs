@@ -66,6 +66,7 @@ await check('each in-screen layer marks its own back / close control, one per la
   for (const cls of ['calendar-day-close', 'calendar-settings-close', 'calendar-readonly-done', 'calendar-editor-close', 'calendar-delete-confirm-cancel', 'calendar-photo-confirm-close', 'calendar-amount-close']) {
     assert.match(calendar, new RegExp(`'${cls}'[^\\n]*\\n(?:[^\\n]*\\n){0,2}[^\\n]*\\.dataset\\.subviewBack = ''`, 'u'), cls);
   }
+  assert.equal(marks(read('site-life-education.js')), 1, '학교·유치원 찾기: 유치원 상세 → 유치원 목록으로');
   // 부동산's apartment is a route of its own (real-estate-apartment), not a layer.
   assert.equal(marks(read('site-life-real-estate.js')), 0);
 });

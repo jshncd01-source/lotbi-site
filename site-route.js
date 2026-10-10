@@ -14,7 +14,7 @@
 // This table is the only list of routes: the parser, the URL builder, the
 // login return allowlist (site-auth.js) and the conversation's openers
 // (site-conversation.js) all read it.
-import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-3d6b70866da1';
+import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-7c6d3790a1a4';
 
 export const SITE_ROUTES = Object.freeze([
   'calendar',
@@ -24,13 +24,15 @@ export const SITE_ROUTES = Object.freeze([
   'pets',
   'life',
   // REGIONAL-INFO-BACK-NAVIGATION-01: the screens inside 지역정보 — 병원·응급실,
-  // 지역뉴스, 지역생활정보, 내 아이 학교·유치원 (back → life) — so back steps one
-  // screen at a time and a reload reopens the same one (LIFE_VIEW_PARENT,
+  // 지역뉴스, 지역생활정보, 내 아이 학교·유치원 (back → life) and, signed out,
+  // its 학교·유치원 찾기 (back → life-my-child) — so back steps one screen at a
+  // time and a reload reopens the same one (LIFE_VIEW_PARENT,
   // site-consumer-sections.js).
   'life-medical',
   'life-news',
   'life-local',
   'life-my-child',
+  'life-education',
   // TRAFFIC-CCTV P0: 지역정보 → 실시간 도로 CCTV (back → life); no route while
   // the switch is off, so #traffic-cctv is not a screen at all.
   ...(TRAFFIC_CCTV_UI_ENABLED ? ['traffic-cctv'] : []),

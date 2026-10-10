@@ -44,7 +44,8 @@ for (const question of Object.values(LIFE_MEDICAL_QUESTIONS)) {
 const sectionsSource = read('site-consumer-sections.js');
 // REGIONAL-INFO-BACK-NAVIGATION-01 (owner decision 2026-10-10): 지역정보 no longer
 // links the 유치원·학교 lookup; 내 아이 학교·유치원 asks through the same onAsk.
-assert.doesNotMatch(sectionsSource, /mountEducation|import\('\.\/site-life-education\.js/u, '지역정보 no longer links the 유치원·학교 lookup');
+// Owner decision 2026-10-10: signed out, 내 아이 학교·유치원 links the public lookup again.
+assert.match(sectionsSource, /mountEducation\(\{root: host, onAsk, accountId\}\)/u, '유치원·학교 asks through onAsk');
 assert.match(sectionsSource, /mountMyChild\(host, \{onAsk\}\)/u, '내 아이 학교·유치원 asks through the same onAsk');
 assert.doesNotMatch(sectionsSource, /질문 준비하기|onDraft|openMedicalDetail|data-medical-field|LIFE_MEDICAL_FORMS/u, 'no medical form or draft handoff left');
 assert.doesNotMatch(sectionsSource, /\bfetch\(|geolocation|getCurrentPosition/u, 'the menu does not search or ask for a location itself');

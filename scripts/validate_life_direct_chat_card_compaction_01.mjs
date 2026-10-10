@@ -47,10 +47,7 @@ assert.match(conversation, /onAsk: text => \{[\s\S]{0,400}?surfaceRestoreFocus =
 assert.ok(conversation.includes("void requestAssistant(question, true, '', 0, {keepComposerClosed: true});"), 'a tap asks through the normal send path');
 assert.doesNotMatch(conversation, /onDraft|draft\(text\)|요청을 입력창에 넣었어요/u, 'no draft handoff left in the conversation');
 assert.doesNotMatch(sections, /onDraft|질문 준비하기|다음 화면에서 질문을 확인한 뒤 보내세요/u, 'no 생활정보 screen drafts or promises a confirmation step');
-// REGIONAL-INFO-BACK-NAVIGATION-01 (owner decision 2026-10-10): 지역정보 no longer
-// links the 유치원·학교 lookup (내 아이 학교·유치원 opens the saved screen at once);
-// the module keeps its one onAsk contract below.
-assert.doesNotMatch(sections, /mountEducation|import\('\.\/site-life-education\.js|data-child-choice/u, '지역정보 does not link the 유치원·학교 lookup');
+assert.match(sections, /mountEducation\(\{root: host, onAsk, accountId\}\)/u, '유치원·학교 gets the same onAsk');
 // 유치원·학교: 학교 form, 유치원 fallback form and 유치원 detail all ask through onAsk.
 assert.doesNotMatch(education, /onDraft|질문 준비하기|다음 화면에서 질문을 확인한 뒤 보내세요/u, '유치원·학교 promises no confirmation step');
 assert.equal((education.match(/\bonAsk\?\.\(/gu) || []).length, 3, '학교 form, 유치원 fallback and 유치원 detail ask through onAsk');
@@ -260,7 +257,8 @@ try {
       result.formContrast = {button: contrast(button), note: contrast(form.closest('.consumer-life-detail')?.querySelector('.consumer-feature-note'))};
     } else if (ITEM === 'school') {
       shortcut.click();
-      (await wait(() => document.querySelector('[data-child-choice="education"]'), '유치원·학교 찾기')).click();
+      // Signed out, 내 아이 학교·유치원 links the public lookup (owner decision 2026-10-10).
+      (await wait(() => document.querySelector('[data-life-education-entry]'), '로그인 없이 학교·유치원 찾기')).click();
       const tab = await wait(() => document.querySelector('[data-edu-tab="school"]'), 'school tab');
       tab.click();
       const name = await wait(() => document.querySelector('[data-edu-school-name]'), 'school form');
@@ -585,10 +583,9 @@ try {
         if (!map) summary.push(`${label}: photo rail ${hospital.rail.h}px → no-photo rail ${noPhoto.rail.h}px, no-photo card ${noPhotoCard.card.h}px vs photo card ${photoCard.card.h}px`);
       }
 
-      // A: 지역생활정보 sends its built question at once (유치원·학교 is no longer
-      // linked from 지역정보 — REGIONAL-INFO-BACK-NAVIGATION-01).
+      // A: 지역생활정보 and 유치원·학교 → 학교 send their built question at once.
       const light = {};
-      for (const item of ['local']) {
+      for (const item of ['local', 'school']) {
         const run = await runPhase(devtools, page(`phase=ask&item=${item}`), `${label}/${item}`);
         console.log(`LIFE_DIRECT_CHAT ${label} ${item}`, JSON.stringify({button: run.buttonLabel, requests: run.requests, focus: run.focusDetail, contrast: run.formContrast}));
         assert.equal(run.buttonLabel, '롯비에게 물어보기', `${label}/${item}: the button says it asks`);
@@ -606,7 +603,7 @@ try {
       assertCards(darkCards, `${label}/dark/hospital`, testCase, {photo: false});
       assertReadable(darkCards, `${label}/dark/hospital`, {cards: true});
       const dark = {};
-      for (const item of ['local']) {
+      for (const item of ['local', 'school']) {
         const run = await runPhase(devtools, page(`phase=ask&item=${item}&dark=1`), `${label}/dark/${item}`);
         assert.equal(run.theme, 'dark', `${label}/${item}: dark theme applied`);
         assertOneDirectAsk(run, `${label}/dark/${item}`, EXPECTED[item]);
@@ -635,4 +632,4 @@ try {
 }
 
 for (const line of summary) console.log(`LIFE_DIRECT_CHAT compact ${line}`);
-console.log('SITE-LIFE-DIRECT-CHAT-CARD-COMPACTION-01 OK — every 생활정보 question (병원·약국·응급실, 지역생활정보) asks in one tap without the keyboard; cards without a photo have no photo box; phone and the chosen map app unchanged (viewport emulation, not a device run)');
+console.log('SITE-LIFE-DIRECT-CHAT-CARD-COMPACTION-01 OK — every 생활정보 question (병원·약국·응급실, 지역생활정보, 유치원·학교) asks in one tap without the keyboard; cards without a photo have no photo box; phone and the chosen map app unchanged (viewport emulation, not a device run)');
