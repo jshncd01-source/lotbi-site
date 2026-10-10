@@ -7,8 +7,8 @@ const conversation = read('site-conversation.js');
 const css = read('site-consumer-design.css');
 // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: the approved menu — one 병원·응급실 card,
 // 약국 on its own, no 유치원·학교 card (owner decision 2026-10-10), eight cards with 전북 맛집·음식.
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권·지역화폐', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
-assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 8);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
+assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 9);
 assert.equal(LIFE_SHORTCUTS.some(item => ['hospital', 'emergency', 'education'].includes(item.id)), false);
 // 병원·응급실 asks nothing by itself: it opens 병원·의원 찾기 / 응급실 찾기, each
 // the existing medical question (LIFE-MEDICAL-AUTO-SEARCH-01). 약국 asks at once.

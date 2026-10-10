@@ -441,9 +441,9 @@ try {
       assert.deepEqual(r.medical.lines.map(line => line.state), ['REGISTRY', 'REGISTRY_NO_HOURS']);
       assert.ok(r.medical.lines.every(line => !/진료 중/u.test(line.text)));
       // 생활정보 home grid.
-      assert.deepEqual(r.life.labels, ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권·지역화폐', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
-      assertRowsFilled(`${where} eight`, r.life.withFood);
-      assertRowsFilled(`${where} seven without 전북`, r.life.withoutFood);
+      assert.deepEqual(r.life.labels, ['병원·응급실', '약국', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
+      assertRowsFilled(`${where} nine`, r.life.withFood);
+      assertRowsFilled(`${where} eight without 전북`, r.life.withoutFood);
       // 전북 맛집·음식 detail.
       assert.equal(r.detail.title, '전북 맛집·음식');
       assert.ok(r.detail.panelScroll <= 0, `${where}: the panel scrolls sideways`);

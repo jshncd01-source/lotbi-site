@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-cd3d42af9220';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-cd3d42af9220';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-cd3d42af9220';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-c0ac94b325e9';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-c0ac94b325e9';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-c0ac94b325e9';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -49,6 +49,9 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
   // REGIONAL-NEWS-SCREEN-LIST-01: lists 광역시·도 news titles itself (site-life-news.js).
   {id: 'news', label: '지역뉴스', icon: 'news'},
+  // SUBWAY-LIFE-INFO-P0: its own screen (site-life-subway.js) — nearby and
+  // searched stations, official real-time arrivals, average congestion. No chat.
+  {id: 'subway', label: '지하철 정보', icon: 'subway'},
   // ONNURI-MERCHANT-01: its own search surface (site-life-onnuri.js). The
   // official logo is not used before approval; brandSlot reserves its place.
   // LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: 온누리상품권 + 지역화폐 in one card.
@@ -91,6 +94,7 @@ const ICON_PATHS = {
   backpack: ['M9 6V5a3 3 0 0 1 6 0v1', 'M6 9a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v12H6V9Z', 'M9 13h6v4H9v-4Z'],
   building: ['M4 21V8l6-4v17', 'M10 21V9h10v12', 'M2 21h20', 'M13 12h1m3 0h1m-5 4h1m3 0h1M6.5 10h1m-1 4h1'],
   ev: ['M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16', 'M2 21h15', 'm10 7-2.5 4h4L9 15', 'M15 9h1.5a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-2.5-2.5'],
+  subway: ['M7 3h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z', 'M4 11h16M8 15h.01M16 15h.01', 'm8 18-2 3m10-3 2 3'],
 };
 
 function node(tag, className = '', text = '') {
@@ -126,7 +130,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onRealEstate, onEvChargers, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onRealEstate, onEvChargers, onSubway, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -218,7 +222,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-cd3d42af9220').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-c0ac94b325e9').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -265,7 +269,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-cd3d42af9220').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-c0ac94b325e9').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -304,6 +308,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         else if (item.choices) openMedicalChoice(item);
         else if (item.id === 'festivals') onFestival();
         else if (item.id === 'ev-chargers') onEvChargers?.();
+        else if (item.id === 'subway') onSubway?.();
         else if (item.children) openChildChoice(item);
         else item.id === 'news' ? openNewsEntry(item)
           : item.id === 'onnuri' ? onOnnuri?.()

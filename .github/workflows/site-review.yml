@@ -791,6 +791,14 @@ jobs:
       - name: Validate EV charger nearby list
         run: node scripts/validate_ev_charger_nearby_list_p0_01.mjs
 
+      # SUBWAY-LIFE-INFO-P0: 지역정보 → 지하철 정보 → 역. 챗 0건, 가까운 역(위치
+      # 설정이 켜진 경우만), 역 검색, 호선·방향, 서울시 실시간 도착(공식 문구·생성
+      # 시각·막차·열차 위치), 과거 평균 혼잡도(실시간 아님 표기), 새로고침·뒤로가기
+      # 복원을 360·375·390·412·1280, 라이트·다크에서 실제 탭으로 확인한다. Core는
+      # Core 코드가 만든 응답(scripts/fixtures/subway_life_info_p0_01.json).
+      - name: Validate subway info (지역정보 · 지하철 정보)
+        run: node scripts/validate_subway_life_info_p0_01.mjs
+
       # 진위확인 사진·스크린샷 선택은 카메라를 강제하지 않고(capture 없음),
       # 카메라로 촬영만 capture="environment"를 쓴다. 실제 Chrome 탭으로 각
       # 버튼이 자기 입력의 파일 선택 창을 여는지, 확인하기 전에는 전송되지
