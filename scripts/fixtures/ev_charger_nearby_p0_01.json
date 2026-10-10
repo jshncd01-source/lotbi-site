@@ -1,0 +1,2915 @@
+{
+ "_note": "Produced by lotbi-core app/ev_chargers.py nearby() (EV-CHARGER-NEARBY-LIST-P0) on the invented 테스트 stations of tests/test_ev_charger_nearby_list_p0_01.py; not real chargers, not a live provider answer.",
+ "jeonju_5km_all": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "OK",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [
+   {
+    "station_id": "TJJ00001",
+    "name": "테스트 전주 시청 급속",
+    "address": "테스트 전주 시청 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.825,
+    "longitude": 127.149,
+    "distance_m": 130,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "CHARGING",
+      "status_label": "충전 중",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "FAST",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 43,
+      "method": "단독",
+      "status": "COMM_ERROR",
+      "status_label": "통신 장애",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 3,
+      "checked": 3,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00005",
+    "name": "테스트 전주 NACS",
+    "address": "테스트 전주 NACS 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.826,
+    "longitude": 127.15,
+    "distance_m": 270,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": 50,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "UNKNOWN",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": null,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "UNKNOWN",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 22,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     },
+     "UNKNOWN": {
+      "total": 2,
+      "checked": 2,
+      "available": 2
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00002",
+    "name": "테스트 전주 아파트 완속",
+    "address": "테스트 전주 아파트 완속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.83,
+    "longitude": 127.155,
+    "distance_m": 900,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": true,
+    "limit_detail": "거주자외 출입제한",
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "UNKNOWN",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "SLOW": {
+      "total": 2,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00003",
+    "name": "테스트 전주 공영주차장 완속",
+    "address": "테스트 전주 공영주차장 완속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.84,
+    "longitude": 127.13,
+    "distance_m": 2390,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": null
+     }
+    ],
+    "summary": {
+     "SLOW": {
+      "total": 1,
+      "checked": 0,
+      "available": 0
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TWJ00001",
+    "name": "테스트 완주 경계 급속",
+    "address": "테스트 완주 경계 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.86,
+    "longitude": 127.17,
+    "distance_m": 4450,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52710",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   }
+  ],
+  "total_count": 5,
+  "has_more": false,
+  "next_offset": null,
+  "freshness": {
+   "status_fresh_seconds": 600,
+   "info_fetched_at": "2026-10-10T12:00:00+09:00",
+   "status_checked_at": "2026-10-10T12:00:00+09:00"
+  },
+  "without_coordinates": 2
+ },
+ "jeonju_5km_fast": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "OK",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "FAST",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [
+   {
+    "station_id": "TJJ00001",
+    "name": "테스트 전주 시청 급속",
+    "address": "테스트 전주 시청 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.825,
+    "longitude": 127.149,
+    "distance_m": 130,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "CHARGING",
+      "status_label": "충전 중",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "FAST",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 43,
+      "method": "단독",
+      "status": "COMM_ERROR",
+      "status_label": "통신 장애",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 3,
+      "checked": 3,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00005",
+    "name": "테스트 전주 NACS",
+    "address": "테스트 전주 NACS 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.826,
+    "longitude": 127.15,
+    "distance_m": 270,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": 50,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TWJ00001",
+    "name": "테스트 완주 경계 급속",
+    "address": "테스트 완주 경계 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.86,
+    "longitude": 127.17,
+    "distance_m": 4450,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52710",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   }
+  ],
+  "total_count": 3,
+  "has_more": false,
+  "next_offset": null,
+  "freshness": {
+   "status_fresh_seconds": 600,
+   "info_fetched_at": "2026-10-10T12:00:00+09:00",
+   "status_checked_at": "2026-10-10T12:00:00+09:00"
+  },
+  "without_coordinates": 2
+ },
+ "jeonju_5km_slow": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "OK",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "SLOW",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [
+   {
+    "station_id": "TJJ00002",
+    "name": "테스트 전주 아파트 완속",
+    "address": "테스트 전주 아파트 완속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.83,
+    "longitude": 127.155,
+    "distance_m": 900,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": true,
+    "limit_detail": "거주자외 출입제한",
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "UNKNOWN",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "SLOW": {
+      "total": 2,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00003",
+    "name": "테스트 전주 공영주차장 완속",
+    "address": "테스트 전주 공영주차장 완속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.84,
+    "longitude": 127.13,
+    "distance_m": 2390,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": null
+     }
+    ],
+    "summary": {
+     "SLOW": {
+      "total": 1,
+      "checked": 0,
+      "available": 0
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   }
+  ],
+  "total_count": 2,
+  "has_more": false,
+  "next_offset": null,
+  "freshness": {
+   "status_fresh_seconds": 600,
+   "info_fetched_at": "2026-10-10T12:00:00+09:00",
+   "status_checked_at": "2026-10-10T12:00:00+09:00"
+  },
+  "without_coordinates": 2
+ },
+ "jeonju_5km_available": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "OK",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": true,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [
+   {
+    "station_id": "TJJ00001",
+    "name": "테스트 전주 시청 급속",
+    "address": "테스트 전주 시청 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.825,
+    "longitude": 127.149,
+    "distance_m": 130,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "CHARGING",
+      "status_label": "충전 중",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "FAST",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 43,
+      "method": "단독",
+      "status": "COMM_ERROR",
+      "status_label": "통신 장애",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 3,
+      "checked": 3,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00005",
+    "name": "테스트 전주 NACS",
+    "address": "테스트 전주 NACS 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.826,
+    "longitude": 127.15,
+    "distance_m": 270,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": 50,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "UNKNOWN",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": null,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "UNKNOWN",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 22,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     },
+     "UNKNOWN": {
+      "total": 2,
+      "checked": 2,
+      "available": 2
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TWJ00001",
+    "name": "테스트 완주 경계 급속",
+    "address": "테스트 완주 경계 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.86,
+    "longitude": 127.17,
+    "distance_m": 4450,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52710",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   }
+  ],
+  "total_count": 3,
+  "has_more": false,
+  "next_offset": null,
+  "freshness": {
+   "status_fresh_seconds": 600,
+   "info_fetched_at": "2026-10-10T12:00:00+09:00",
+   "status_checked_at": "2026-10-10T12:00:00+09:00"
+  },
+  "without_coordinates": 2
+ },
+ "jeonju_1km_all": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "OK",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 1,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [
+   {
+    "station_id": "TJJ00001",
+    "name": "테스트 전주 시청 급속",
+    "address": "테스트 전주 시청 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.825,
+    "longitude": 127.149,
+    "distance_m": 130,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "CHARGING",
+      "status_label": "충전 중",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "FAST",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 43,
+      "method": "단독",
+      "status": "COMM_ERROR",
+      "status_label": "통신 장애",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 3,
+      "checked": 3,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00005",
+    "name": "테스트 전주 NACS",
+    "address": "테스트 전주 NACS 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.826,
+    "longitude": 127.15,
+    "distance_m": 270,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": 50,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "UNKNOWN",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": null,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "UNKNOWN",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 22,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     },
+     "UNKNOWN": {
+      "total": 2,
+      "checked": 2,
+      "available": 2
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00002",
+    "name": "테스트 전주 아파트 완속",
+    "address": "테스트 전주 아파트 완속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.83,
+    "longitude": 127.155,
+    "distance_m": 900,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": true,
+    "limit_detail": "거주자외 출입제한",
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "UNKNOWN",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "SLOW": {
+      "total": 2,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   }
+  ],
+  "total_count": 3,
+  "has_more": false,
+  "next_offset": null,
+  "freshness": {
+   "status_fresh_seconds": 600,
+   "info_fetched_at": "2026-10-10T12:00:00+09:00",
+   "status_checked_at": "2026-10-10T12:00:00+09:00"
+  },
+  "without_coordinates": 2
+ },
+ "jeonju_20km_all": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "OK",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 20,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [
+   {
+    "station_id": "TJJ00001",
+    "name": "테스트 전주 시청 급속",
+    "address": "테스트 전주 시청 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.825,
+    "longitude": 127.149,
+    "distance_m": 130,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "CHARGING",
+      "status_label": "충전 중",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "FAST",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 43,
+      "method": "단독",
+      "status": "COMM_ERROR",
+      "status_label": "통신 장애",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 3,
+      "checked": 3,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00005",
+    "name": "테스트 전주 NACS",
+    "address": "테스트 전주 NACS 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.826,
+    "longitude": 127.15,
+    "distance_m": 270,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": 50,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "UNKNOWN",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": null,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "UNKNOWN",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 22,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     },
+     "UNKNOWN": {
+      "total": 2,
+      "checked": 2,
+      "available": 2
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00002",
+    "name": "테스트 전주 아파트 완속",
+    "address": "테스트 전주 아파트 완속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.83,
+    "longitude": 127.155,
+    "distance_m": 900,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": true,
+    "limit_detail": "거주자외 출입제한",
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "UNKNOWN",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "SLOW": {
+      "total": 2,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00003",
+    "name": "테스트 전주 공영주차장 완속",
+    "address": "테스트 전주 공영주차장 완속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.84,
+    "longitude": 127.13,
+    "distance_m": 2390,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": null
+     }
+    ],
+    "summary": {
+     "SLOW": {
+      "total": 1,
+      "checked": 0,
+      "available": 0
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TWJ00001",
+    "name": "테스트 완주 경계 급속",
+    "address": "테스트 완주 경계 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.86,
+    "longitude": 127.17,
+    "distance_m": 4450,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52710",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TIS00001",
+    "name": "테스트 익산 급속",
+    "address": "테스트 익산 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.92,
+    "longitude": 127.05,
+    "distance_m": 13840,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52140",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   }
+  ],
+  "total_count": 6,
+  "has_more": false,
+  "next_offset": null,
+  "freshness": {
+   "status_fresh_seconds": 600,
+   "info_fetched_at": "2026-10-10T12:00:00+09:00",
+   "status_checked_at": "2026-10-10T12:00:00+09:00"
+  },
+  "without_coordinates": 2
+ },
+ "jeonju_region_5km_all": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "OK",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "SELECTED_REGION"
+  },
+  "stations": [
+   {
+    "station_id": "TJJ00001",
+    "name": "테스트 전주 시청 급속",
+    "address": "테스트 전주 시청 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.825,
+    "longitude": 127.149,
+    "distance_m": 130,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "CHARGING",
+      "status_label": "충전 중",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "FAST",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 43,
+      "method": "단독",
+      "status": "COMM_ERROR",
+      "status_label": "통신 장애",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 3,
+      "checked": 3,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00005",
+    "name": "테스트 전주 NACS",
+    "address": "테스트 전주 NACS 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.826,
+    "longitude": 127.15,
+    "distance_m": 270,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": 50,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "UNKNOWN",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": null,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "UNKNOWN",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 22,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     },
+     "UNKNOWN": {
+      "total": 2,
+      "checked": 2,
+      "available": 2
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00002",
+    "name": "테스트 전주 아파트 완속",
+    "address": "테스트 전주 아파트 완속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.83,
+    "longitude": 127.155,
+    "distance_m": 900,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": true,
+    "limit_detail": "거주자외 출입제한",
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "UNKNOWN",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "SLOW": {
+      "total": 2,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TJJ00003",
+    "name": "테스트 전주 공영주차장 완속",
+    "address": "테스트 전주 공영주차장 완속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.84,
+    "longitude": 127.13,
+    "distance_m": 2390,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": null
+     }
+    ],
+    "summary": {
+     "SLOW": {
+      "total": 1,
+      "checked": 0,
+      "available": 0
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TWJ00001",
+    "name": "테스트 완주 경계 급속",
+    "address": "테스트 완주 경계 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.86,
+    "longitude": 127.17,
+    "distance_m": 4450,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52710",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   }
+  ],
+  "total_count": 5,
+  "has_more": false,
+  "next_offset": null,
+  "freshness": {
+   "status_fresh_seconds": 600,
+   "info_fetched_at": "2026-10-10T12:00:00+09:00",
+   "status_checked_at": "2026-10-10T12:00:00+09:00"
+  },
+  "without_coordinates": 2
+ },
+ "page_1": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "OK",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [
+   {
+    "station_id": "TPG00000",
+    "name": "테스트 페이지 충전소 00",
+    "address": "테스트 페이지 충전소 00 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.8242,
+    "longitude": 127.148,
+    "distance_m": 0,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TPG00001",
+    "name": "테스트 페이지 충전소 01",
+    "address": "테스트 페이지 충전소 01 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.8244,
+    "longitude": 127.148,
+    "distance_m": 20,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TPG00002",
+    "name": "테스트 페이지 충전소 02",
+    "address": "테스트 페이지 충전소 02 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.8246,
+    "longitude": 127.148,
+    "distance_m": 40,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TPG00003",
+    "name": "테스트 페이지 충전소 03",
+    "address": "테스트 페이지 충전소 03 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.8248,
+    "longitude": 127.148,
+    "distance_m": 70,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TPG00004",
+    "name": "테스트 페이지 충전소 04",
+    "address": "테스트 페이지 충전소 04 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.825,
+    "longitude": 127.148,
+    "distance_m": 90,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TPG00005",
+    "name": "테스트 페이지 충전소 05",
+    "address": "테스트 페이지 충전소 05 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.8252,
+    "longitude": 127.148,
+    "distance_m": 110,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TPG00006",
+    "name": "테스트 페이지 충전소 06",
+    "address": "테스트 페이지 충전소 06 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.8254,
+    "longitude": 127.148,
+    "distance_m": 130,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TPG00007",
+    "name": "테스트 페이지 충전소 07",
+    "address": "테스트 페이지 충전소 07 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.8256,
+    "longitude": 127.148,
+    "distance_m": 160,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TPG00008",
+    "name": "테스트 페이지 충전소 08",
+    "address": "테스트 페이지 충전소 08 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.8258,
+    "longitude": 127.148,
+    "distance_m": 180,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TPG00009",
+    "name": "테스트 페이지 충전소 09",
+    "address": "테스트 페이지 충전소 09 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.826,
+    "longitude": 127.148,
+    "distance_m": 200,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   }
+  ],
+  "total_count": 14,
+  "has_more": true,
+  "next_offset": 10,
+  "freshness": {
+   "status_fresh_seconds": 600,
+   "info_fetched_at": "2026-10-10T12:00:00+09:00",
+   "status_checked_at": "2026-10-10T12:00:00+09:00"
+  },
+  "without_coordinates": 0
+ },
+ "page_2": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "OK",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 10
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [
+   {
+    "station_id": "TPG00010",
+    "name": "테스트 페이지 충전소 10",
+    "address": "테스트 페이지 충전소 10 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.8262,
+    "longitude": 127.148,
+    "distance_m": 220,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TPG00011",
+    "name": "테스트 페이지 충전소 11",
+    "address": "테스트 페이지 충전소 11 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.8264,
+    "longitude": 127.148,
+    "distance_m": 240,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TPG00012",
+    "name": "테스트 페이지 충전소 12",
+    "address": "테스트 페이지 충전소 12 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.8266,
+    "longitude": 127.148,
+    "distance_m": 270,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   },
+   {
+    "station_id": "TPG00013",
+    "name": "테스트 페이지 충전소 13",
+    "address": "테스트 페이지 충전소 13 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.8268,
+    "longitude": 127.148,
+    "distance_m": 290,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   }
+  ],
+  "total_count": 14,
+  "has_more": false,
+  "next_offset": null,
+  "freshness": {
+   "status_fresh_seconds": 600,
+   "info_fetched_at": "2026-10-10T12:00:00+09:00",
+   "status_checked_at": "2026-10-10T12:00:00+09:00"
+  },
+  "without_coordinates": 0
+ },
+ "no_results": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "NO_RESULTS",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [],
+  "total_count": 0,
+  "has_more": false,
+  "next_offset": null,
+  "freshness": {
+   "status_fresh_seconds": 600,
+   "info_fetched_at": "2026-10-10T12:00:00+09:00",
+   "status_checked_at": null
+  },
+  "without_coordinates": 0
+ },
+ "partial_border": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "PARTIAL",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [
+   {
+    "station_id": "TIS00002",
+    "name": "테스트 익산 북부 급속",
+    "address": "테스트 익산 북부 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 36.05,
+    "longitude": 127.1,
+    "distance_m": 3340,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52140",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "사용 가능",
+      "status_current": true,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 1,
+      "available": 1
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": true
+   }
+  ],
+  "total_count": 1,
+  "has_more": false,
+  "next_offset": null,
+  "freshness": {
+   "status_fresh_seconds": 600,
+   "info_fetched_at": "2026-10-10T12:00:00+09:00",
+   "status_checked_at": "2026-10-10T12:00:00+09:00"
+  },
+  "without_coordinates": 2,
+  "reason": "PROVIDER_ERROR",
+  "regions_missing": [
+   "충청남도"
+  ]
+ },
+ "preparing": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "PREPARING",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [],
+  "total_count": 0,
+  "has_more": false,
+  "next_offset": null,
+  "retry_after_seconds": 5,
+  "regions_loading": [
+   "전북특별자치도"
+  ]
+ },
+ "unavailable_quota": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "UNAVAILABLE",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [],
+  "total_count": 0,
+  "has_more": false,
+  "next_offset": null,
+  "reason": "PROVIDER_QUOTA"
+ },
+ "unavailable_access": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "UNAVAILABLE",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [],
+  "total_count": 0,
+  "has_more": false,
+  "next_offset": null,
+  "reason": "PROVIDER_ACCESS"
+ },
+ "unavailable_provider": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "UNAVAILABLE",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [],
+  "total_count": 0,
+  "has_more": false,
+  "next_offset": null,
+  "reason": "PROVIDER_ERROR"
+ },
+ "disabled": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "DISABLED",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [],
+  "total_count": 0,
+  "has_more": false,
+  "next_offset": null
+ },
+ "stale_status": {
+  "contract_id": "CORE-EV-CHARGER-NEARBY-01",
+  "schema_version": 1,
+  "status": "OK",
+  "ai_used": false,
+  "source": {
+   "provider": "한국환경공단",
+   "dataset": "전기자동차 충전소 정보",
+   "portal": "공공데이터포털",
+   "dataset_url": "https://www.data.go.kr/data/15076352/openapi.do",
+   "license": "공공누리 제1유형(출처표시)"
+  },
+  "query": {
+   "radius_km": 5,
+   "charging_speed": "ALL",
+   "available_only": false,
+   "limit": 10,
+   "offset": 0
+  },
+  "distance": {
+   "basis": "STRAIGHT_LINE",
+   "from": "CURRENT_LOCATION"
+  },
+  "stations": [
+   {
+    "station_id": "TJJ00001",
+    "name": "테스트 전주 시청 급속",
+    "address": "테스트 전주 시청 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.825,
+    "longitude": 127.149,
+    "distance_m": 130,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "CHARGING",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "FAST",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 43,
+      "method": "단독",
+      "status": "COMM_ERROR",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 3,
+      "checked": 0,
+      "available": 0
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": false
+   },
+   {
+    "station_id": "TJJ00005",
+    "name": "테스트 전주 NACS",
+    "address": "테스트 전주 NACS 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.826,
+    "longitude": 127.15,
+    "distance_m": 270,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": 50,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "UNKNOWN",
+      "type_code": "09",
+      "type_label": "NACS",
+      "output_kw": null,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "03",
+      "speed": "UNKNOWN",
+      "type_code": "07",
+      "type_label": "AC3상",
+      "output_kw": 22,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 0,
+      "available": 0
+     },
+     "UNKNOWN": {
+      "total": 2,
+      "checked": 0,
+      "available": 0
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": false
+   },
+   {
+    "station_id": "TJJ00002",
+    "name": "테스트 전주 아파트 완속",
+    "address": "테스트 전주 아파트 완속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.83,
+    "longitude": 127.155,
+    "distance_m": 900,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": true,
+    "limit_detail": "거주자외 출입제한",
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     },
+     {
+      "charger_id": "02",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "UNKNOWN",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "SLOW": {
+      "total": 2,
+      "checked": 0,
+      "available": 0
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": false
+   },
+   {
+    "station_id": "TJJ00003",
+    "name": "테스트 전주 공영주차장 완속",
+    "address": "테스트 전주 공영주차장 완속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.84,
+    "longitude": 127.13,
+    "distance_m": 2390,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52110",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "SLOW",
+      "type_code": "02",
+      "type_label": "AC완속",
+      "output_kw": 7,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": null
+     }
+    ],
+    "summary": {
+     "SLOW": {
+      "total": 1,
+      "checked": 0,
+      "available": 0
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": false
+   },
+   {
+    "station_id": "TWJ00001",
+    "name": "테스트 완주 경계 급속",
+    "address": "테스트 완주 경계 급속 테스트 주소",
+    "address_detail": null,
+    "location_detail": null,
+    "latitude": 35.86,
+    "longitude": 127.17,
+    "distance_m": 4450,
+    "use_time": "24시간 이용가능",
+    "operator": "테스트운영기관",
+    "parking_free": true,
+    "limited": false,
+    "limit_detail": null,
+    "note": null,
+    "floor": null,
+    "region_code": "52710",
+    "chargers": [
+     {
+      "charger_id": "01",
+      "speed": "FAST",
+      "type_code": "04",
+      "type_label": "DC콤보",
+      "output_kw": 100,
+      "method": "단독",
+      "status": "AVAILABLE",
+      "status_label": "현재 상태 확인 필요",
+      "status_current": false,
+      "status_changed_at": "2026-10-10T11:55:00+09:00"
+     }
+    ],
+    "summary": {
+     "FAST": {
+      "total": 1,
+      "checked": 0,
+      "available": 0
+     }
+    },
+    "status_checked_at": "2026-10-10T12:00:00+09:00",
+    "status_current": false
+   }
+  ],
+  "total_count": 5,
+  "has_more": false,
+  "next_offset": null,
+  "freshness": {
+   "status_fresh_seconds": 600,
+   "info_fetched_at": "2026-10-10T12:00:00+09:00",
+   "status_checked_at": "2026-10-10T12:00:00+09:00"
+  },
+  "without_coordinates": 2,
+  "status_refresh_error": "PROVIDER_ERROR"
+ }
+}

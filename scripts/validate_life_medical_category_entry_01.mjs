@@ -8,8 +8,9 @@
 //
 // LIFE-UTILITY-BILL-MENU-REMOVE-01: 공과금 확인 stays hidden. The life home is a
 // category picker only: no free-question bar and no saved-items/help row. It
-// has eight cards (병원·응급실, 지역뉴스, 온누리상품권, 전북 맛집·음식, 내 아이 학교·유치원
-// included); an odd last card would take its whole row, so there is no empty grid cell.
+// has ten cards (병원·응급실, 지역뉴스, 온누리상품권, 내 아이 학교·유치원 included; no
+// 전북 맛집·음식 — REGIONAL-CARDS-BUNDLE-01, owner decision 2026-10-10): five full
+// rows of two; an odd last card would take its whole row, so there is no empty grid cell.
 // LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk too, so
 // any draft handoff (onDraft) in the life cards fails.
 //
@@ -28,14 +29,14 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Shortcut list ───────────────────────────────────────────────────────
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권·지역화폐', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', '지역생활정보', '내 아이 학교·유치원']);
 // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: 약국 asks at once; 병원·응급실 is one card
 // whose 병원·의원 찾기 / 응급실 찾기 ask the hospital / emergency questions.
 assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => [item.id, item.ask]), [['pharmacy', '근처 약국 찾아줘']]);
 assert.deepEqual(LIFE_SHORTCUTS.find(item => item.id === 'medical').choices.map(choice => [choice.id, LIFE_MEDICAL_QUESTIONS[choice.id]]), [
   ['hospital', '근처 병원 찾아줘'], ['emergency', '근처 응급실 찾아줘'],
 ]);
-for (const id of ['festivals', 'news', 'local', 'onnuri', 'my-child']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
+for (const id of ['festivals', 'news', 'local', 'onnuri', 'ev-chargers', 'my-child']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
 assert.ok(LIFE_SHORTCUTS.find(item => item.id === 'my-child').children.some(choice => choice.id === 'education'), '유치원·학교 찾기 kept inside 내 아이 학교·유치원');
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills' || /공과금/u.test(item.label)), false, '공과금 확인 stays hidden');
 assert.ok(Object.isFrozen(LIFE_SHORTCUTS) && Object.isFrozen(LIFE_MEDICAL_QUESTIONS));
@@ -136,12 +137,21 @@ const PROBE = `(() => {
   const workspace = document.querySelector('.consumer-workspace');
   const panel = workspace?.querySelector('.site-modal');
   const lines = node => { const range = document.createRange(); range.selectNodeContents(node); const tops = new Set([...range.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top))); return tops.size; };
+  const lineTexts = node => { const rows = []; const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    for (let text = walker.nextNode(); text; text = walker.nextNode()) for (let i = 0; i < text.length; i += 1) {
+      const range = document.createRange(); range.setStart(text, i); range.setEnd(text, i + 1);
+      const rect = [...range.getClientRects()].find(r => r.width > 0);
+      if (!rect) { if (rows.length) rows[rows.length - 1].text += text.data[i]; continue; }
+      const top = Math.round(rect.top); const row = rows.find(item => Math.abs(item.top - top) <= 2);
+      if (row) row.text += text.data[i]; else rows.push({top, text: text.data[i]});
+    }
+    return rows.map(row => row.text); };
   const shortcuts = [...(workspace?.querySelectorAll('.consumer-shortcut') || [])].map(button => {
     const label = button.querySelector('span');
     const hit = (() => { const b = box(button); const el = document.elementFromPoint(b.cx, Math.min(Math.max(b.cy, 0), innerHeight - 1)); return el?.closest?.('.consumer-shortcut') === button; })();
     // KINDERGARTEN-OFFICIAL-INFO-01: an odd last card may take its whole row.
     const spansRow = button.getBoundingClientRect().width >= button.parentElement.getBoundingClientRect().width - 2;
-    return {id: button.dataset.lifeShortcut, label: label?.textContent || '', box: box(button), labelBox: box(label), lines: label ? lines(label) : 0,
+    return {id: button.dataset.lifeShortcut, label: label?.textContent || '', box: box(button), labelBox: box(label), lines: label ? lines(label) : 0, lineTexts: label ? lineTexts(label) : [],
       labelClipped: label ? label.scrollWidth > label.parentElement.clientWidth : true, hit, icon: Boolean(button.querySelector('svg path')), brandSlot: button.querySelector('[data-brand-logo-slot]')?.dataset.brandLogoSlot || '',
       spansRow: getComputedStyle(button).gridColumnStart === '1' && getComputedStyle(button).gridColumnEnd === '-1'};
   });
@@ -307,7 +317,7 @@ async function runCase(browser, origin, dir, testCase) {
     };
     const openLife = async () => {
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(async () => (await probe()).shortcuts.length === 8, `${testCase.label}: life shortcuts`);
+      await waitFor(async () => (await probe()).shortcuts.length === 10, `${testCase.label}: life shortcuts`);
       await sleep(250);
     };
     const tapShortcut = async id => {
@@ -318,13 +328,14 @@ async function runCase(browser, origin, dir, testCase) {
       await tap(center);
     };
 
-    // 1. Life main: eight cards (병원·응급실 one card, 약국 separate, 전북 맛집·음식,
+    // 1. Life main: ten cards (병원·응급실 one card, 약국 separate, 전기차 충전소 after
+    // 약국 — EV-CHARGER-NEARBY-LIST-P0 —, no 전북 맛집·음식,
     // 유치원·학교 inside 내 아이 학교·유치원; 공과금 확인 hidden), full rows, no empty
     // cell — an odd last card would take its whole row.
     await openLife();
     const main = await probe();
     assert.equal(main.title, '지역정보');
-    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권·지역화폐', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
+    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·응급실', '약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', '지역생활정보', '내 아이 학교·유치원']);
     assert.equal(main.billsVisible, false, `${testCase.label}: 공과금 확인 is not shown anywhere on the life surface`);
     // ONNURI-MERCHANT-01 / KINDERGARTEN-OFFICIAL-INFO-01: with an odd number of cards the
     // last one spans the row (site-life-onnuri.css, site-life-education.css), so a
@@ -338,6 +349,12 @@ async function runCase(browser, origin, dir, testCase) {
     const rows = new Map();
     for (const card of main.shortcuts) { const top = Math.round(card.box.y); rows.set(top, (rows.get(top) || 0) + (card.spansRow ? main.gridColumns : 1)); }
     assert.deepEqual([...rows.values()], Array(cells / main.gridColumns).fill(main.gridColumns), `${testCase.label}: every row is full ${JSON.stringify([...rows])}`);
+    // REGIONAL-CARDS-BUNDLE-01: ten cards, an even count — five rows of two, no
+    // card spans a row, and the last row is 지역생활정보 | 내 아이 학교·유치원.
+    assert.equal(main.shortcuts.filter(card => card.spansRow).length, 0, `${testCase.label}: no card spans a row with ten cards`);
+    assert.deepEqual([...rows.values()], [2, 2, 2, 2, 2], `${testCase.label}: five rows of two ${JSON.stringify([...rows])}`);
+    const lastRowTop = Math.round(main.shortcuts.at(-1).box.y);
+    assert.deepEqual(main.shortcuts.filter(card => Math.round(card.box.y) === lastRowTop).map(card => card.label), ['지역생활정보', '내 아이 학교·유치원'], `${testCase.label}: last row`);
     assert.equal(new Set(main.shortcuts.filter(item => !item.spansRow || main.gridColumns === 1).map(item => Math.round(item.box.w))).size, 1, `${testCase.label}: all cards share one width`);
     // Category list right under the description; nothing above or below it.
     assert.equal(main.search, false, `${testCase.label}: no free-question bar on the life home`);
@@ -363,6 +380,16 @@ async function runCase(browser, origin, dir, testCase) {
       // same card height — never a third line, never clipped (checked below).
       assert.ok(card.lines >= 1 && card.lines <= 2, `${testCase.label}: ${card.label} label on one or two lines (${card.lines})`);
       assert.equal(card.labelClipped, false, `${testCase.label}: ${card.label} label not clipped`);
+      // A name of several words that takes two lines breaks at a word gap or
+      // right after a '·' (word-break: keep-all — never inside a word; on a 360px
+      // phone 내 아이 학교·유치원 reads 내 아이 학교· / 유치원), and both lines stay
+      // inside the shared card height (grid-auto-rows: 1fr, line-height 1.25 —
+      // site-consumer-layout.css).
+      if (card.lines === 2 && card.label.includes(' ')) {
+        const rebuilt = card.lineTexts.map(text => text.trim()).reduce((text, line) => text === '' ? line : text + (text.endsWith('·') ? '' : ' ') + line, '');
+        assert.equal(rebuilt, card.label, `${testCase.label}: ${card.label} wraps only at a word gap or after '·' ${JSON.stringify(card.lineTexts)}`);
+      }
+      assert.ok(card.labelBox.y >= card.box.y - 0.5 && card.labelBox.bottom <= card.box.bottom + 0.5, `${testCase.label}: ${card.label} label inside its card ${JSON.stringify(card.labelBox)} / ${JSON.stringify(card.box)}`);
       assert.ok(card.box.h >= 44, `${testCase.label}: ${card.label} touch target ${card.box.h}px`);
       // 온누리상품권 keeps a reserved logo slot instead of an icon until the
       // official logo is approved (ONNURI-MERCHANT-01).
@@ -416,7 +443,7 @@ async function runCase(browser, origin, dir, testCase) {
     await openLife();
     await tapShortcut('festivals');
     state = await waitFor(async () => { const value = await probe(); return value.festival ? value : null; }, `${testCase.label}: festival surface`);
-    return {cards: main.shortcuts.map(item => `${item.label}:${Math.round(item.box.w)}x${Math.round(item.box.h)}`), sent: sent.map(body => body.text)};
+    return {cards: main.shortcuts.map(item => `${item.label}:${Math.round(item.box.w)}x${Math.round(item.box.h)}:${item.lineTexts.join('/')}`), sent: sent.map(body => body.text)};
   } finally {
     cdp.close();
   }

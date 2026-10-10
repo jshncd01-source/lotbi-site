@@ -756,7 +756,7 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.personPhotos.before.note, '상반신·전신 사진 2장이 더 있으면 등록을 마칠 수 있어요.');
   assert.equal(r.personPhotos.before.guideBoxPresent, false, `${label}: the duplicated explanation box must not sit above the photo cards`);
   assert.equal(r.personPhotos.before.emptyArtworkCount, 7, `${label}: every empty photo card must show its own large shooting example`);
-  assert.deepEqual(r.personPhotos.before.accept, ['image/jpeg,image/png,image/webp']);
+  assert.deepEqual(r.personPhotos.before.accept, ['image/*']);
   // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): photos go in through '사진 여러 장 선택'
   // only (one slot-free POST each); the tiles have no picker or button while registering.
   assert.equal(r.personPhotos.before.tileInputs, 0, `${label}: no per-tile picker`);

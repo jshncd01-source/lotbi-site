@@ -809,6 +809,32 @@ jobs:
       - name: Validate regional news (지역정보 · 지역뉴스)
         run: node scripts/validate_regional_news_p0_01.mjs
 
+      # 지역정보 → 부동산 실거래가: 현재 위치 → 법정동(확인된 단계까지), 시·도/시·군·구/읍·면·동
+      # 수동 선택 유지, 매매·전세·월세, 이름 검색, 빈 결과·장애 안내, 상세·기본 지도앱(핀 없음),
+      # ♡/♥ 관심 아파트(기기·계정, 계정 격리), 뒤로가기(시스템·←·Escape). Core는 mock.
+      - name: Validate real-estate prices and favorites (지역정보 · 부동산 실거래가)
+        run: node scripts/validate_real_estate_region_favorites_p0.mjs
+
+      # EV-CHARGER-NEARBY-LIST-P0: 지역정보 → 전기차 충전소는 대화가 아니라 자체 목록 화면
+      # (공공데이터 가까운 순, 급속·완속·충전 가능·반경, 저장한 지도앱 아이콘·링크, 전화 버튼 없음,
+      # 위치 거부 시 지역 선택, 뒤로가기 → 지역정보 → 홈, 360~412px·데스크톱, 라이트·다크).
+      - name: Validate EV charger nearby list
+        run: node scripts/validate_ev_charger_nearby_list_p0_01.mjs
+
+      # SUBWAY-LIFE-INFO-P0: 지역정보 → 지하철 정보 → 역. 챗 0건, 가까운 역(위치
+      # 설정이 켜진 경우만), 역 검색, 호선·방향, 서울시 실시간 도착(공식 문구·생성
+      # 시각·막차·열차 위치), 과거 평균 혼잡도(실시간 아님 표기), 새로고침·뒤로가기
+      # 복원을 360·375·390·412·1280, 라이트·다크에서 실제 탭으로 확인한다. Core는
+      # Core 코드가 만든 응답(scripts/fixtures/subway_life_info_p0_01.json).
+      - name: Validate subway info (지역정보 · 지하철 정보)
+        run: node scripts/validate_subway_life_info_p0_01.mjs
+
+      # TRAFFIC-CCTV P0: 지역정보 → 실시간 도로 CCTV는 대화가 아니라 자체 선택 화면
+      # (도로 → 노선 → 방향 → 구간 → CCTV, 위치·GPS 사용 없음, HTTPS 영상만 재생, 영상 닫으면 해제,
+      # 뒤로가기 영상 → 목록 → 지역정보 → 홈, 저장한 지도앱 아이콘, 360~412px·데스크톱, 라이트·다크).
+      - name: Validate traffic CCTV route selection
+        run: node scripts/validate_traffic_cctv_route_select_p0_01.mjs
+
       # 진위확인 사진·스크린샷 선택은 카메라를 강제하지 않고(capture 없음),
       # 카메라로 촬영만 capture="environment"를 쓴다. 실제 Chrome 탭으로 각
       # 버튼이 자기 입력의 파일 선택 창을 여는지, 확인하기 전에는 전송되지
@@ -833,6 +859,13 @@ jobs:
       # 390·1280, 라이트·다크에서 확인한다(WCAG AA, 실기기 아님).
       - name: Validate 진위확인 2단계 확인 결과
         run: node scripts/validate_scam_shield_double_check_p0.mjs
+
+      # 사이트의 모든 파일 입력을 찾아 분류하고, 선택창을 띄우는 사진 입력은
+      # accept="image/*" 하나(capture 없음)라서 안드로이드 Chromium 선택창에
+      # 캠코더가 뜨지 않는지, 카메라 입력은 카메라로 바로 열리는지,
+      # 문서 입력은 PDF를 유지하는지 SelectFileDialog 판단 규칙으로 확인한다(실기기 아님).
+      - name: Validate photo inputs never offer the camcorder
+        run: node scripts/validate_photo_input_no_camcorder_01.mjs
 
       # 다크·시스템다크 입력창 안 흰 사각형(텍스트칸 포커스 링) 0건과 둥근 입력창
       # 포커스 표시, 헤더 로그인·회원가입 대비·크기·겹침·이동, 답변 공유 메뉴의

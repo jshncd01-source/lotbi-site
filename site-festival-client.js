@@ -31,7 +31,7 @@
 // sections FESTIVAL-EVENT-08 removes) are still dropped everywhere. List
 // ordering/filtering (region, time window, distance) is Core-authoritative
 // via browseFestivals; nothing here re-sorts or re-filters a browse page.
-import {CORE_ORIGIN} from './site-core.js?v=aset-e6d9846830a1';
+import {CORE_ORIGIN} from './site-core.js?v=aset-751c11a14612';
 
 const FESTIVAL_REGIONS_PATH = '/festivals/regions';
 const FESTIVAL_BROWSE_PATH = '/festivals/browse';

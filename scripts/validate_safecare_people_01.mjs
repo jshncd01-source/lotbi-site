@@ -75,8 +75,11 @@ assert.match(ui, /missingAction\.disabled = !availability\.sos/);
 assert.doesNotMatch(ui, /SOS \/ 실종 신고/);
 // The picker formats moved into the shared photo preparation module
 // (SAFECARE-PHOTO-UPLOAD-FIX-03); every SafeCare picker uses that constant.
-assert.match(read('site-person-photo-intake.js'), /PERSON_PHOTO_ACCEPT = 'image\/jpeg,image\/png,image\/webp'/);
-assert.equal((ui.match(/input\.accept = PERSON_PHOTO_ACCEPT/g) || []).length, 2, 'identity tiles and the found picker share the formats');
+assert.match(read('site-person-photo-intake.js'), /PERSON_PHOTO_ACCEPT = 'image\/\*'/);
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): identity photos go in through the
+// batch input (site-person-bulk-photos.js); the tiles have no picker.
+assert.equal((ui.match(/input\.accept = PERSON_PHOTO_ACCEPT/g) || []).length, 1, 'the found picker uses the shared formats');
+assert.equal((read('site-person-bulk-photos.js').match(/input\.accept = PERSON_PHOTO_ACCEPT/g) || []).length, 1, 'the identity photo batch uses the shared formats');
 assert.match(css, /\.person-primary/);
 assert.match(css, /min-height:\s*44px/);
 assert.match(index, /site-person\.css\?v=aset-/);

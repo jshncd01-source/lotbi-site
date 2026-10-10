@@ -535,7 +535,7 @@ try {
       assert.equal(r.angles, ANGLES, where);
       assert.equal(r.pick, '사진 여러 장 선택', where);
       assert.equal(r.multiple, true, where);
-      assert.equal(r.accept, 'image/jpeg,image/png,image/webp', where);
+      assert.equal(r.accept, 'image/*', where);
       assert.equal(r.beforeGrid, true, `${where}: the panel sits above the tiles`);
       assert.equal(r.tiles, 10, `${where}: the ten example tiles stay`);
       assert.equal(r.artwork, 10, `${where}: every tile keeps its example picture`);

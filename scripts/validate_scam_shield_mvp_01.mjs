@@ -16,7 +16,7 @@ assert.match(html, /“롯비야, 이거 진짜야\?”/);
 assert.equal((html.match(/<button\b[^>]*data-scam-open[^>]*aria-label="진위확인"/gu) || []).length, 2, 'desktop and mobile navigation must expose one compact Scam Shield entry each');
 assert.doesNotMatch(html, /class="scam-shield-card"/, 'Scam Shield must not reintroduce a marketing section into White Home');
 assert.match(html, /name="scamCamera"[^>]*accept="image\/jpeg,image\/png,image\/webp"[^>]*capture="environment"/);
-assert.match(html, /name="scamPhoto"[^>]*accept="image\/jpeg,image\/png,image\/webp"/);
+assert.match(html, /name="scamPhoto"[^>]*accept="image\/\*"/); // PHOTO-INPUT-NO-CAMCORDER-01
 // SCAM-SHIELD-PHOTO-LIBRARY-PICKER-01 — iPhone (Safari and the KakaoTalk
 // in-app browser) opens the camera straight away for a capture input and draws
 // every file control as "파일 선택". 사진·스크린샷 선택 is the first method and
@@ -30,7 +30,7 @@ const scamInputTag = name => {
 const photoTag = scamInputTag('scamPhoto');
 const cameraTag = scamInputTag('scamCamera');
 assert.doesNotMatch(photoTag, /\bcapture\b/u, '사진·스크린샷 선택 must offer the photo library and screenshots, not force the camera');
-assert.match(photoTag, /\bid="scam-photo"[^>]*\btype="file"[^>]*accept="image\/jpeg,image\/png,image\/webp"/u);
+assert.match(photoTag, /\bid="scam-photo"[^>]*\btype="file"[^>]*accept="image\/\*"/u);
 assert.match(cameraTag, /\bid="scam-camera"[^>]*\btype="file"[^>]*accept="image\/jpeg,image\/png,image\/webp"[^>]*capture="environment"/u);
 assert.doesNotMatch(scamInputTag('scamDocument'), /\bcapture\b/u);
 assert.deepEqual(

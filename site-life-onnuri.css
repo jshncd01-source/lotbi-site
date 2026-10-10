@@ -1,6 +1,6 @@
 /* ONNURI-MERCHANT-01 — 생활정보 온누리상품권 가맹점 찾기. Theme tokens only.
    ONNURI-MERCHANT-LOCATION-UX-P0 — 내 주변/지역 선택, compact cards in a
-   responsive grid, a relation map without map tiles. */
+   responsive grid. */
 .onnuri-surface {
   display: grid;
   gap: 12px;
@@ -64,8 +64,7 @@
   color: var(--lotbi-surface-primary);
 }
 
-.onnuri-mode:focus-visible,
-.onnuri-map-pin:focus-visible {
+.onnuri-mode:focus-visible {
   outline: 2px solid var(--lotbi-border-strong);
   outline-offset: 2px;
 }
@@ -154,87 +153,6 @@
   color: var(--lotbi-error-text);
 }
 
-/* 위치 관계도 */
-.onnuri-map {
-  display: grid;
-  gap: 6px;
-  max-width: 560px;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px;
-  border: 1px solid var(--lotbi-border-default);
-  border-radius: 14px;
-  background: var(--lotbi-surface-primary);
-}
-
-.onnuri-map[hidden] {
-  display: none;
-}
-
-.onnuri-map-svg {
-  display: block;
-  width: 100%;
-  max-height: 220px;
-  aspect-ratio: 16 / 10;
-}
-
-.onnuri-map-range {
-  fill: none;
-  stroke: var(--lotbi-border-strong);
-  stroke-dasharray: 4 4;
-}
-
-.onnuri-map-me {
-  fill: var(--lotbi-text-primary);
-}
-
-.onnuri-map-hit {
-  fill: transparent;
-}
-
-.onnuri-map-dot {
-  fill: var(--lotbi-surface-primary);
-  stroke: var(--lotbi-text-primary);
-  stroke-width: 2;
-}
-
-.onnuri-map-pin.is-market .onnuri-map-dot {
-  stroke-dasharray: 3 2;
-}
-
-.onnuri-map-pin {
-  cursor: pointer;
-}
-
-.onnuri-map-pin.is-selected .onnuri-map-dot {
-  fill: var(--lotbi-text-primary);
-}
-
-.onnuri-map-count {
-  font-size: 9px;
-  font-weight: 700;
-  fill: var(--lotbi-text-primary);
-  pointer-events: none;
-}
-
-.onnuri-map-pin.is-selected .onnuri-map-count {
-  fill: var(--lotbi-surface-primary);
-}
-
-.onnuri-map-selection {
-  display: grid;
-  gap: 6px;
-}
-
-.onnuri-map-selection[hidden] {
-  display: none;
-}
-
-.onnuri-map-caption,
-.onnuri-map-app {
-  margin: 0;
-}
-
 /* Cards: a compact list on phones, two columns from 480px, three from 860px. */
 .onnuri-results {
   display: grid;
@@ -264,15 +182,6 @@
   background: var(--lotbi-surface-primary);
   color: var(--lotbi-text-primary);
   min-width: 0;
-}
-
-.onnuri-card[data-onnuri-point] {
-  cursor: pointer;
-}
-
-.onnuri-card.is-selected {
-  border-color: var(--lotbi-text-primary);
-  box-shadow: inset 0 0 0 1px var(--lotbi-text-primary);
 }
 
 .onnuri-card-head {
@@ -404,3 +313,17 @@ body.chat-home-page .consumer-workspace .consumer-shortcut .onnuri-logo-slot {
   height: 20px;
 }
 
+/* ONNURI-REMOVE-RELATION-MAP-01: one map button with the saved app's icon. */
+.onnuri-card-map {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.onnuri-map-icon {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
