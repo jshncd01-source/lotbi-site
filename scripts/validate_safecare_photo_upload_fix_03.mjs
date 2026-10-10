@@ -122,7 +122,9 @@ for (const message of Object.values(intake.PERSON_PHOTO_PREPARE_MESSAGES)) {
 assert.equal(intake.personPhotoPrepareMessage(new PersonPhotoPrepareError('PERSON_PHOTO_READ_FAILED')), intake.PERSON_PHOTO_PREPARE_MESSAGES.PERSON_PHOTO_READ_FAILED);
 
 // 7. The slot tile prepares before the PUT, never filters on file.type, and
-//    never ignores a tap silently (B: locked, C: busy).
+//    never ignores a tap silently. SAFECARE-PHOTO-EASY-UPLOAD-01: a tile that
+//    cannot take a photo now has no picker at all (B: personRetrySlots keeps
+//    the front first; validate_safecare_photo_easy_upload_01), C: busy.
 const ui = read('site-person-ui.js');
 const tile = ui.slice(ui.indexOf('const photoTile = '), ui.indexOf('const renderPhotoStep = '));
 assert.ok(ui.includes("from './site-person-photo-intake.js?v="), 'the UI imports the intake module with the asset token');
@@ -134,10 +136,11 @@ assert.ok(tryBlock.indexOf('await preparePersonPhoto(file)') >= 0 && tryBlock.in
 assert.ok(tryBlock.includes('photo.dataUri'), 'the prepared data URI is what Core receives');
 const catchBlock = tile.slice(tile.indexOf('catch (value)'), tile.indexOf('finally {', tile.indexOf('catch (value)')));
 assert.ok(catchBlock.includes('value instanceof PersonPhotoPrepareError ? personPhotoPrepareMessage(value)'), 'a file problem shows its own sentence');
-assert.match(tile, /choose\.addEventListener\('click', \(\) => \{ if \(locked \|\| busy\) notNow\(\); else input\.click\(\); \}\)/);
-assert.match(tile, /if \(busy \|\| locked\) \{ notNow\(\); return; \}/);
+assert.ok(tile.includes('if (!retry) return tile;'), 'a tile without its own picker has nothing to tap (B)');
+assert.match(ui, /const retry = personRetrySlots\(filledSlots, bulkPhotos\.attention\(\)\);/, 'the front-first rule decides which tiles offer a picker (B)');
+assert.match(tile, /choose\.addEventListener\('click', \(\) => \{ if \(busy\) notNow\(\); else input\.click\(\); \}\)/);
+assert.match(tile, /if \(busy\) \{ notNow\(\); return; \}/);
 assert.ok(tile.includes('다른 사진을 확인하는 중입니다. 끝난 뒤 다시 선택해 주세요.'));
-assert.ok(tile.includes('정면 얼굴 사진을 먼저 등록해 주세요.'));
 assert.ok(/finally \{ busy = false; \}/.test(tile), 'busy is released after every attempt (C)');
 
 // 8. Slot guidance: left/right is where the face looks in the photo, and a
@@ -164,7 +167,11 @@ for (const code of ['FACE_LEFT_PROFILE', 'FACE_RIGHT_PROFILE']) {
 assert.match(slotByCode.UPPER_BODY_FRONT.visible, /어깨/);
 assert.match(slotByCode.FULL_BODY_FRONT.visible, /발끝/);
 assert.ok(tile.includes("el('p', 'safecare-slot-visible')") && tile.includes("'보여야 하는 부분'"), 'the tile shows the visible parts');
-assert.ok(/tile\.append\(media, caption, hint, visible, choose, slotError, input\)/.test(tile));
+// SAFECARE-PHOTO-EASY-UPLOAD-01: every tile keeps its example (picture, title,
+// hint, '보여야 하는 부분'); the picker, its error line and input come after it.
+assert.ok(/tile\.append\(media, caption, hint, visible\);/.test(tile));
+assert.ok(/tile\.append\(choose, slotError, input\);/.test(tile));
+assert.ok(tile.indexOf('tile.append(media, caption, hint, visible);') < tile.indexOf('if (!retry) return tile;'), 'the example is drawn before the picker decision');
 assert.match(read('site-safecare.css'), /\.safecare-slot-visible \{/);
 
 // 9. A pose refusal says what the slot needed.

@@ -562,6 +562,16 @@ jobs:
           node --check site-person-bulk-photos.js
           node scripts/validate_safecare_photo_bulk_upload_01.mjs
 
+      # SAFECARE-PHOTO-EASY-UPLOAD-01: the ten tiles are examples and
+      # '사진 여러 장 선택' is the only way in (a tile offers its own picker only
+      # after a batch could not fill it); 112 / 182 call buttons first on the
+      # SOS and found-report screens; copy says what happens today; ending a
+      # missing-person case asks once more. 360/1280.
+      - name: Validate SafeCare photo examples, 112/182 and SOS close confirmation
+        run: |
+          node --check site-safecare-common.js
+          node scripts/validate_safecare_photo_easy_upload_01.mjs
+
 
       - name: Validate user bubble content-fit rendering
         run: node scripts/validate_user_bubble_content_fit.mjs

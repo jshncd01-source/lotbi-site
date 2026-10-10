@@ -98,6 +98,12 @@ ${STYLESHEETS.map(href => `<link rel="stylesheet" href="/${href}" />`).join('\n'
       const count = personOf(m[1])?.identity_photo_count || 0;
       return json({photos: Array.from({length: count}, (_, i) => ({slot_index: i + 1, slot_code: 'S' + (i + 1), revision: 1, width: 640, height: 640, updated_at: '2026-09-01T00:00:00Z'}))});
     }
+    if ((m = target.match(/^\/v2\/person-profiles\/([^/?]+)\/identity-photos\/classify$/)) && method === 'POST') {
+      // SAFECARE-PHOTO-EASY-UPLOAD-01: photos go in through the batch; each photo fits the next empty slot.
+      const next = Math.min(10, (personOf(m[1])?.identity_photo_count || 0) + 1);
+      const codes = ['FACE_FRONT', 'FACE_LEFT_45', 'FACE_RIGHT_45', 'FACE_LEFT_PROFILE', 'FACE_RIGHT_PROFILE', 'UPPER_BODY_FRONT', 'FULL_BODY_FRONT', 'FACE_FRONT_ALT', 'FACE_LEFT_ALT', 'FACE_RIGHT_ALT'];
+      return json({classification: {status: 'CLEAR', detected_view: 'UNKNOWN', suggested_slot_indexes: [next], suggested_slot_codes: [codes[next - 1]], rejection_code: null, identity_checked: false, stored: false}});
+    }
     if ((m = target.match(/^\/v2\/person-profiles\/([^/?]+)\/identity-photos\/(\d+)$/)) && method === 'PUT') {
       const item = personOf(m[1]);
       item.identity_photo_count = Math.min(10, Math.max(item.identity_photo_count, Number(m[2])));
@@ -264,7 +270,8 @@ const CONTRAST_SCREENS = String.raw`
   out.step2 = __audit();
   const tiles = () => [...document.querySelectorAll('[data-person-slot]')];
   for (let index = 0; index < 10; index += 1) {
-    await __put(tiles()[index].querySelector('input[type=file]'), 'slot' + (index + 1) + '.png');
+    // SAFECARE-PHOTO-EASY-UPLOAD-01: the only way in is '사진 여러 장 선택'.
+    await __put(document.querySelector('[data-person-bulk-input]'), 'slot' + (index + 1) + '.png');
     await __until(() => document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoCount === String(index + 1));
   }
   document.querySelector('[data-person-photos-next]').click();
@@ -320,7 +327,7 @@ const FLOW = String.raw`
   const list = async () => { await __until(() => document.querySelector('[data-person-list]')); await __wait(50); };
   const count = () => document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoCount;
   const tiles = () => [...document.querySelectorAll('[data-person-slot]')];
-  const upload = async (from, to) => { for (let i = from; i < to; i += 1) { await __put(tiles()[i].querySelector('input[type=file]'), 's' + i + '.png'); await __until(() => count() === String(i + 1)); } };
+  const upload = async (from, to) => { for (let i = from; i < to; i += 1) { await __put(document.querySelector('[data-person-bulk-input]'), 's' + i + '.png'); await __until(() => count() === String(i + 1)); } };
   const openCancel = async () => { document.querySelector('[data-person-registration-cancel]').click(); await __until(() => document.querySelector('[data-person-cancel-sheet]')); await __wait(80); };
   const sheet = () => document.querySelector('[data-person-cancel-sheet]');
   const deletes = () => __state.calls.filter(call => call.startsWith('DELETE '));

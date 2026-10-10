@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-f72fabb53e34';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-0880bafe40d3';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
@@ -40,6 +40,14 @@ function sosIntake(value) {
   });
 }
 export const PERSON_SOS_NOT_POLICE_NOTICE = '이 접수는 경찰 신고가 아닙니다. 긴급한 경우 112에 바로 신고해 주세요.';
+// SAFECARE-PHOTO-EASY-UPLOAD-01: say what happens today. An SOS opens an
+// administrator intake case and found reports go to the administrators' list;
+// automatic photo comparison is not switched on, so no sentence promises it.
+export const PERSON_SOS_EMERGENCY_TEXT = 'LOTBI 실종 전환은 경찰 신고가 아닙니다. 위급하거나 실종이 확실하면 먼저 112에 신고해 주세요. 아동·장애인·치매 어르신 실종은 182에서도 도와줍니다.';
+export const PERSON_SOS_FORM_NOTE = '실종 상태로 전환하면 안심케어 관리자에게 바로 접수되고, 들어온 발견 제보는 관리자가 확인합니다. AI가 같은 사람이라고 확정하지 않습니다.';
+export const PERSON_SOS_ACTIVE_NOTE = '안심케어 관리자에게 접수되었습니다. 들어온 발견 제보는 관리자가 확인합니다. 위급하면 112에 바로 신고해 주세요.';
+export const PERSON_FOUND_EMERGENCY_TEXT = '도움이 필요해 보이는 사람이 지금 위험해 보이면 먼저 112에 신고해 주세요. 길을 잃은 아동·장애인·치매 어르신은 182에서도 도와줍니다.';
+export const PERSON_FOUND_FORM_NOTE = '즉시 일치 여부를 알려드리지 않습니다. 보내 주신 제보는 안심케어 관리자가 확인합니다.';
 const SOS_ADMIN_NOTIFICATION_COPY = Object.freeze({
   DELIVERED: '담당 관리자에게 알림을 보냈습니다.',
   PENDING: '관리자 알림을 다시 보내고 있습니다. 접수는 이미 완료되었습니다.',

@@ -51,20 +51,20 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-f72fabb53e34';
+} from './site-pet.js?v=aset-0880bafe40d3';
 import {
   petPhotoSlotArtwork,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-f72fabb53e34';
+} from './site-pet-guides.js?v=aset-0880bafe40d3';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-f72fabb53e34';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-f72fabb53e34';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-f72fabb53e34';
+} from './site-pet-gate.js?v=aset-0880bafe40d3';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-0880bafe40d3';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-0880bafe40d3';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -72,7 +72,7 @@ import {
   foundReviewStateCopy,
   identityPhotoProgress,
   renewalBadge,
-} from './site-safecare-common.js?v=aset-f72fabb53e34';
+} from './site-safecare-common.js?v=aset-0880bafe40d3';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -1372,7 +1372,8 @@ export async function mountPetFamilyManager({
     submit.type = 'submit';
     form.append(
       moment.field, place.field, note.field,
-      el('p', 'pet-empty-copy', '실종 상태로 전환하면 동의한 사진으로 발견 제보와 비교합니다. AI가 같은 반려동물이라고 확정하지 않으며, 후보는 관리자가 검토한 뒤 보호자에게 확인을 요청합니다.'),
+      // SAFECARE-PHOTO-EASY-UPLOAD-01: what happens today — administrators see the active case and the found reports.
+      el('p', 'pet-empty-copy', '실종 상태로 전환하면 안심케어 관리자가 실종 목록에서 확인하고, 들어온 발견 제보도 관리자가 확인합니다. AI가 같은 반려동물이라고 확정하지 않습니다.'),
       consent, formError, submit,
     );
 
@@ -1440,7 +1441,7 @@ export async function mountPetFamilyManager({
     box.append(
       header,
       el('p', 'pet-case-safety', '위험하게 가까이 접근하거나 붙잡아 사진을 찍지 마세요.'),
-      el('p', 'pet-empty-copy', '즉시 일치 여부를 알려드리지 않습니다. 사진 5장 이상을 받은 뒤 실종 상태로 등록되고 동의된 반려동물과만 비교하고, 비교 후보는 관리자가 검토합니다.'),
+      el('p', 'pet-empty-copy', '즉시 일치 여부를 알려드리지 않습니다. 보내 주신 제보는 안심케어 관리자가 확인합니다.'),
     );
 
     const speciesField = el('fieldset', 'pet-choice-field');
