@@ -1,6 +1,7 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-cd3d42af9220';
-import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-cd3d42af9220';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-cd3d42af9220';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-5e6a0799fa34';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-5e6a0799fa34';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-5e6a0799fa34';
+import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-5e6a0799fa34';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -134,6 +135,10 @@ function deviceAad(scope) { return `lotbi-wallet-device:v2:${scope}`; }
 function sessionAad(scope, expiresAt) { return `lotbi-wallet-session:v1:${scope}:${expiresAt}`; }
 function cardAad(scope, id) { return `lotbi-wallet-card:v1:${scope}:${id}`; }
 function shareKeyAad(scope) { return `lotbi-wallet-share-key:v1:${scope}`; }
+// LIFE-WALLET-WIFI-CARD-01: Wi-Fi entries live in the same encrypted store under their own scope,
+// so listCards(scope) — the deck, the Free item count, backups and sharing — never returns them.
+function wifiScope(scope) { return `wifi:${scope}`; }
+function wifiAad(scope, id) { return `lotbi-wallet-wifi:v1:${scope}:${id}`; }
 function storageKey(scope, id) { return `${scope}:${id}`; }
 
 function availableSessionStorage() {
@@ -544,6 +549,46 @@ export class LifeWalletVault {
     try { privateKey = await importSharePrivateKey(pkcs8); }
     finally { pkcs8.fill(0); }
     return openWalletShareItem(privateKey, sealed);
+  }
+
+  // LIFE-WALLET-WIFI-CARD-01 (site-life-wallet-wifi.js). An entry that cannot be opened is
+  // reported by id so the rest still shows.
+  async listWifi(accountId) {
+    const unlocked = await this.requireUnlocked(accountId);
+    const records = await this.repository.listCards(wifiScope(unlocked.scope));
+    const entries = []; const unreadable = [];
+    for (const record of records) {
+      try { entries.push(validateWifiEntry(JSON.parse(await openEnvelope(unlocked.key, record.envelope, wifiAad(unlocked.scope, record.id))))); }
+      catch { unreadable.push(record.id); }
+    }
+    entries.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    return Object.freeze({entries: Object.freeze(entries), unreadable: Object.freeze(unreadable)});
+  }
+
+  // A new entry needs the unlocked wallet; changing a saved one asks for the PIN again.
+  async saveWifi(accountId, value, {pin = ''} = {}) {
+    const unlocked = await this.requireUnlocked(accountId);
+    const entry = validateWifiEntry(value);
+    const scope = wifiScope(unlocked.scope);
+    if (await this.repository.getCard(scope, entry.id)) await this.verifyPin(accountId, pin);
+    else if ((await this.repository.listCards(scope)).length >= WIFI_MAX_ENTRIES) throw new Error(`와이파이는 ${WIFI_MAX_ENTRIES}개까지 보관할 수 있습니다.`);
+    const envelope = await seal(unlocked.key, JSON.stringify(entry), wifiAad(unlocked.scope, entry.id));
+    await this.repository.putCard({scope, id: entry.id, envelope});
+    return entry;
+  }
+
+  async removeWifi(accountId, id, pin) {
+    const unlocked = await this.requireUnlocked(accountId);
+    await this.verifyPin(accountId, pin);
+    await this.repository.removeCard(wifiScope(unlocked.scope), id);
+  }
+
+  async removeUnreadableWifi(accountId, pin) {
+    const unlocked = await this.requireUnlocked(accountId);
+    await this.verifyPin(accountId, pin);
+    const {unreadable} = await this.listWifi(accountId);
+    for (const id of unreadable) await this.repository.removeCard(wifiScope(unlocked.scope), id);
+    return unreadable.length;
   }
 
   async requireUnlocked(accountId) {
@@ -1061,10 +1106,12 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     addBlocked: count => walletAddBlocked(subscription, count),
     newId: () => randomId(),
   });
+  // LIFE-WALLET-WIFI-CARD-01: saved Wi-Fi (device only), for every member including Free.
+  const wifi = createWalletWifi({root, vault, accountId, onBack: () => void renderWallet(), activity: () => activity(), isOpen: () => unlocked && !disposed});
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-cd3d42af9220') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-5e6a0799fa34') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;
@@ -1367,6 +1414,9 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       } else {
         shell.append(createWalletCardDeck({cards, onOpen: renderDetail}));
       }
+      const wifiSection = await wifi.section();
+      if (disposed || !unlocked || generation !== renderGeneration) return;
+      shell.append(wifiSection);
       shell.append(element('p', 'wallet-security-note', '화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다. 10분간 사용하지 않으면 다시 잠깁니다.'));
       root.replaceChildren(shell);
       // A share link opened before (#wallet-share=…) continues here once the wallet is open.

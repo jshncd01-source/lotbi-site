@@ -209,3 +209,31 @@
 .wallet-share-warning { margin: 0; font-size: 14px; line-height: 1.6; font-weight: 600; }
 .wallet-share-confirm { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 1.5; min-height: 44px; }
 .wallet-share-confirm input { width: 20px; height: 20px; margin: 2px 0 0; flex: none; }
+
+/* LIFE-WALLET-WIFI-CARD-01 — saved Wi-Fi (site-life-wallet-wifi.js) */
+.wallet-wifi { max-width: 680px; margin: 18px auto 0; display: grid; gap: 12px; min-width: 0; }
+.wallet-wifi-section-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.wallet-wifi-section-head h3 { margin: 0; font-size: 17px; }
+.wallet-wifi-card { display: grid; gap: 10px; min-width: 0; padding: 14px 16px; border: 1px solid var(--lotbi-border-default); border-radius: 14px; background: var(--lotbi-surface-primary); }
+.wallet-wifi-card-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; min-width: 0; }
+.wallet-wifi-label { font-size: 15px; color: var(--lotbi-text-primary); }
+.wallet-wifi-ssid { margin: 0; color: var(--consumer-muted); font-size: 13px; overflow-wrap: anywhere; }
+.wallet-wifi-password { margin: 0; color: var(--lotbi-text-primary); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 17px; letter-spacing: .04em; overflow-wrap: anywhere; }
+.wallet-wifi-secret-line { display: grid; gap: 8px; min-width: 0; }
+.wallet-wifi-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.wallet-wifi-actions .consumer-action, .wallet-wifi-chips .consumer-action { min-height: 40px; padding: 8px 12px; font-size: 13px; }
+.wallet-wifi-status, .wallet-wifi-hint { margin: 0; color: var(--consumer-muted); font-size: 12px; line-height: 1.65; }
+.wallet-wifi-manual { box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-subtle); color: inherit; font: inherit; font-size: 16px; }
+.wallet-wifi-header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.wallet-wifi-header h3 { margin: 0; }
+.wallet-wifi-form { display: grid; gap: 14px; min-width: 0; }
+.wallet-wifi-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -6px; }
+.wallet-wifi-password-row { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.wallet-wifi-password-row input { flex: 1 1 auto; min-width: 0; }
+.wallet-wifi-secret[data-masked="true"] { -webkit-text-security: disc; }
+.wallet-wifi-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.5; }
+.wallet-wifi-photo img { display: block; max-width: 100%; max-height: 320px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; }
+.wallet-wifi-qr { justify-self: center; box-sizing: border-box; width: min(78vw, 300px); padding: 12px; border: 1px solid var(--lotbi-border-default); border-radius: 16px; background: #ffffff; }
+.wallet-wifi-qr svg { display: block; width: 100%; height: auto; }
+.wallet-wifi-qr-ssid { text-align: center; font-size: 15px; color: var(--lotbi-text-primary); }
+.wallet-wifi [hidden], .wallet-wifi-screen [hidden] { display: none !important; }
