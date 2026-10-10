@@ -14,7 +14,7 @@
 // This table is the only list of routes: the parser, the URL builder, the
 // login return allowlist (site-auth.js) and the conversation's openers
 // (site-conversation.js) all read it.
-import {LOTBI_BOX_UI_ENABLED} from './site-feature-flags.js?v=aset-eede1e107794';
+import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-3b11e711dd22';
 
 export const SITE_ROUTES = Object.freeze([
   'calendar',
@@ -23,7 +23,21 @@ export const SITE_ROUTES = Object.freeze([
   'care',
   'pets',
   'life',
+  // TRAFFIC-CCTV P0: 지역정보 → 실시간 도로 CCTV (back → life); no route while
+  // the switch is off, so #traffic-cctv is not a screen at all.
+  ...(TRAFFIC_CCTV_UI_ENABLED ? ['traffic-cctv'] : []),
   'festival',
+  // REAL-ESTATE-REGION-FAVORITES-P0: 지역정보 → 부동산 실거래가 (back → life) and
+  // one apartment's contracts inside it (back → real-estate).
+  'real-estate',
+  'real-estate-apartment',
+  // EV-CHARGER-NEARBY-LIST-P0: 지역정보 → 전기차 충전소 (back → life).
+  'ev-chargers',
+  // SUBWAY-LIFE-INFO-P0: 지역정보 → 지하철 정보 (back → life) → one station
+  // (back → subway). The station a 'subway-station' entry shows lives in that
+  // history entry's state, so reload and back/forward reopen the same one.
+  'subway',
+  'subway-station',
   ...(LOTBI_BOX_UI_ENABLED ? ['lotbi-box'] : []),
 ]);
 
