@@ -6,9 +6,9 @@ SUPERSEDES=dd8e5b46fb2e38900bee66f71e796700e3ad58db (지시 수정 반영: 진�
 
 - REPO: lotbi-site (Ncloud)
 - FEATURE_BRANCH: feature/photo-input-no-camcorder-01-site
-- BASE: Ncloud main d4d172a5822e615749b353e90dced4f103050d21
-- CODE_SHA: b71987ffebfd52f4869643f518d41e8699f764dc
-- ASSET_VERSION: aset-0cf2e0dcb124
+- BASE: Ncloud main d4d172a5 시작 → 61d3ce37f8ab3298d65411f68b327702e4c7bf0e 정상 merge(토큰·import 줄만, rc_token_resolve 후 재생성)
+- CODE_SHA: 222155dd934335cc909622facc618e6748fc533a
+- ASSET_VERSION: aset-50d3bf5eda9c
 - CORE: 변경 없음 / MIGRATION: NONE / NEW_SECRET_CREATED=NO / NEW_PAID_RESOURCE_CREATED=NO / PRODUCTION_CHANGED=NO
 - USER_DECISION_NEEDED: NONE (배포 차단 아님. 반려동물 '파일' 버튼은 아래 "남은 것" 참고)
 
@@ -53,13 +53,12 @@ SUPERSEDES=dd8e5b46fb2e38900bee66f71e796700e3ad58db (지시 수정 반영: 진�
 - 삼성 인터넷 옛 경로의 '문서·PDF 선택하기'에 카메라·캠코더가 보이는 것도 같은 이유로 페이지에서 막을 수 없다(문서 형식은 옛 경로에서 항상 일반 선택창).
 - 실제 어느 기기·버전이 옛 경로인지는 실측하지 못했다(실기기 없음). 신고 화면(구체 형식 3개 → 캠코더 표시)은 옛 경로로만 설명된다 [추정, 근거 강함].
 
-## 전수 점검 결과 (사이트가 내보내는 파일 입력 18개, 새 검사기가 자동으로 찾음)
+## 전수 점검 결과 (사이트가 내보내는 파일 입력 19개, 새 검사기가 자동으로 찾음)
 
-- 선택창 사진 입력 8개: 위 4개 + 이미 image/*였던 캘린더 사진, 프로필 사진(출처별, 카메라만 capture), 반려동물 갤러리 → 모두 image/*, 옛·현재 경로 캠코더 없음.
+- 선택창 사진 입력 9개: 위 4개 + 이미 image/*였던 캘린더 사진, 프로필 사진(출처별, 카메라만 capture), 반려동물 갤러리, Life Wallet 와이파이 스티커(main 61d3ce37로 들어옴) → 모두 image/*, 옛·현재 경로 캠코더 없음.
 - 카메라 입력 4개(capture): 대화 카메라, 진위확인 카메라, Life Wallet 카메라, 반려동물 카메라 → 카메라 바로 열림, 변경 없음.
 - 문서 입력 3개(PDF 유지): 대화 파일 첨부, 진위확인 문서, Life Wallet 사진·PDF(image/*,application/pdf) → 변경 없음.
 - 사진 아님 1개: Life Wallet 백업 파일(.lotbiwallet).
-- 와이파이 스티커: main d4d172a5에는 아직 파일 입력이 없음(해당 branch 미병합).
 
 ## 남은 것 (이번에 바꾸지 않음)
 
@@ -70,7 +69,7 @@ SUPERSEDES=dd8e5b46fb2e38900bee66f71e796700e3ad58db (지시 수정 반영: 진�
 
 - 신규 scripts/validate_photo_input_no_camcorder_01.mjs (site-review.yml 등록): PASS — Chromium 옛·현재 경로 판단 규칙을 그대로 옮긴 모델(신고 화면 재현 포함), 18개 입력 분류·단정, video/·*/*·빈 accept 사진 선택창 금지.
 - 기대값을 새 계약으로 바꾼 기존 검사기(약화 아님, 값만 교체): image_attachment_thumbnail_01, scam_shield_mvp_01, scam_shield_photo_picker_01, safecare_people_01, safecare_photo_bulk_upload_01, safecare_web_ui_redesign_01.
-- SITE_TESTS: (HEAD b71987ffebfd52f4869643f518d41e8699f764dc) photo_input_no_camcorder_01 PASS, scam_shield_mvp_01 PASS, safecare_people_01 PASS, conversation_sidebar_ux_01 PASS, safecare_photo_upload_fix_03 PASS, safecare_sighting_photo_intake_01 PASS, asset coherence PASS; 브라우저: scam_shield_photo_picker_01 PASS, pet_photo_source_selector_01 PASS(Android·iOS·Desktop), pet_family_web_01 PASS, safecare_photo_bulk_upload_01 PASS, safecare_web_ui_redesign_01 PASS, image_attachment_thumbnail_01 PASS. NEW_FAILURES=0. 전체 Site validator 묶음은 gate가 실행.
+- SITE_TESTS: main 61d3ce37 병합 후(HEAD 222155dd934335cc909622facc618e6748fc533a): photo_input_no_camcorder_01 PASS(19개, iPhone 모델·진위확인 메뉴별 단정 포함), scam_shield_mvp_01·scam_shield_connection_01·safecare_people_01·conversation_sidebar_ux_01·safecare_photo_upload_fix_03·safecare_sighting_photo_intake_01 PASS, asset coherence PASS. 병합 직전(같은 변경, HEAD 871bd52e): 브라우저 scam_shield_photo_picker_01 PASS(Android 412·iPhone 375/390·데스크톱 실제 탭, 휴대폰 안내 보임·데스크톱 숨김 캡처 확인). 첫 READY(b71987ff)에서 pet_photo_source_selector_01·pet_family_web_01·safecare_photo_bulk_upload_01·safecare_web_ui_redesign_01·image_attachment_thumbnail_01 PASS. NEW_FAILURES=0. 전체 Site validator 묶음은 gate가 실행.
 - 실기기(삼성 인터넷·Android Chrome·iPhone): NOT TESTED.
 
 ## 롤백
