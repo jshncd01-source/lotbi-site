@@ -1,7 +1,7 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-5e6a0799fa34';
-import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-5e6a0799fa34';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-5e6a0799fa34';
-import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-5e6a0799fa34';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-530a832862c1';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-530a832862c1';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-530a832862c1';
+import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-530a832862c1';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -1111,7 +1111,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-5e6a0799fa34') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-530a832862c1') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;
@@ -1342,6 +1342,9 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       if (disposed || !unlocked || generation !== renderGeneration) return;
       const backupMeta = await describeServerBackup();
       if (disposed || !unlocked || generation !== renderGeneration) return;
+      // Read before the toolbar: its late updates (the share count) need the screen in place.
+      const wifiSection = await wifi.section();
+      if (disposed || !unlocked || generation !== renderGeneration) return;
       const shell = element('section', 'wallet-shell');
       const toolbar = element('div', 'wallet-toolbar');
       const copy = element('div', 'wallet-storage-copy');
@@ -1414,8 +1417,6 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       } else {
         shell.append(createWalletCardDeck({cards, onOpen: renderDetail}));
       }
-      const wifiSection = await wifi.section();
-      if (disposed || !unlocked || generation !== renderGeneration) return;
       shell.append(wifiSection);
       shell.append(element('p', 'wallet-security-note', '화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다. 10분간 사용하지 않으면 다시 잠깁니다.'));
       root.replaceChildren(shell);
