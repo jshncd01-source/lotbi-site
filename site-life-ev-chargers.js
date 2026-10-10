@@ -16,11 +16,11 @@
 // link (buildDefaultMapHref) and the approved icon image in
 // /assets/place-actions — the icon always shows the app that actually opens.
 // There is no phone button on a charger card.
-import {CORE_ORIGIN} from './site-core.js?v=aset-e3223bfeabf7';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-e3223bfeabf7';
-import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-e3223bfeabf7';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-e3223bfeabf7';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-e3223bfeabf7';
+import {CORE_ORIGIN} from './site-core.js?v=aset-1ff578559d08';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-1ff578559d08';
+import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-1ff578559d08';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-1ff578559d08';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-1ff578559d08';
 
 export const EV_MENU_LABEL = '전기차 충전소';
 export const EV_SCREEN_TITLE = '내 주변 전기차 충전소';
