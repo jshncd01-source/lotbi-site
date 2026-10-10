@@ -78,5 +78,10 @@ body.chat-home-page [data-scam-result] section.scam-double-check { margin-top: 1
 .scam-police-stats a { display: inline-block; margin-top: 8px; }
 @media (max-width: 560px) { .scam-double-check dl { grid-template-columns: minmax(0, 1fr); gap: 2px; } .scam-double-check dd { margin-bottom: 6px; } }
 .scam-usage-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 18px; padding: 0 16px; border: 1px solid var(--lotbi-text-primary); border-radius: 12px; background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font-weight: 800; text-decoration: none; }
+/* PHOTO-INPUT-NO-CAMCORDER-01 — 사진·스크린샷 선택 cannot remove the camera that
+   Samsung Internet's chooser and iPhone's menu add for any image input, so
+   phones (touch, no hover) get one line pointing at 파일 / 사진 보관함. */
+.scam-picker-hint { display: none; }
+@media (hover: none) and (pointer: coarse) { .scam-picker-hint { display: block; margin-top: 4px; } }
 .scam-dialog :is(button, a, input, textarea, select):focus-visible { outline: 3px solid var(--lotbi-focus-ring, #1258d8); outline-offset: 3px; }
 @media (max-width: 560px) { .scam-dialog { width: 100%; max-width: none; max-height: 92dvh; margin: auto 0 0; border-radius: 22px 22px 0 0; } .scam-incident { grid-template-columns: 1fr; } }

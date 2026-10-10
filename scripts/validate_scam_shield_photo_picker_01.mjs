@@ -294,7 +294,7 @@ async function runCase(browser, origin, workDir, files, testCase) {
     const photoChooser = await nextChooser(() => tap('[data-scam-file-pick="photo"]'), 'photo button');
     check('photo button opens the photo input', photoChooser.input.id === 'scam-photo', photoChooser);
     check('photo input never forces the camera', photoChooser.input.capture === null, photoChooser);
-    check('photo input keeps formats', photoChooser.input.accept === 'image/jpeg,image/png,image/webp' && photoChooser.mode === 'selectSingle', photoChooser);
+    check('photo input keeps formats', photoChooser.input.accept === 'image/*' && photoChooser.mode === 'selectSingle', photoChooser);
     await chooseFile(photoChooser, files.screenshot);
     const photoPreview = await waitFor(async () => { const state = await previewState(); return state.visible && state.imageShown ? state : {ok: false, state}; }, 'photo preview');
     check('screenshot previews by name', photoPreview.prompt.includes(path.basename(files.screenshot)), photoPreview);
