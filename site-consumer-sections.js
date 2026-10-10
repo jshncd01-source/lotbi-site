@@ -1,6 +1,5 @@
 import {mountLifeWallet} from './site-life-wallet.js?v=aset-8b469002a5da';
 import {savedLifeRegionLabel} from './site-life-location.js?v=aset-8b469002a5da';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-8b469002a5da';
 import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-8b469002a5da';
 
 // Presentation only. Actions delegate to the existing feature owners; this
