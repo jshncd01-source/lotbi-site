@@ -1,0 +1,58 @@
+READY_FOR_DEPLOY=YES
+
+# PHOTO-INPUT-NO-CAMCORDER-01 — Site
+
+- REPO: lotbi-site (Ncloud)
+- FEATURE_BRANCH: feature/photo-input-no-camcorder-01-site
+- BASE: Ncloud main d4d172a5822e615749b353e90dced4f103050d21
+- CODE_SHA: b71987ffebfd52f4869643f518d41e8699f764dc
+- ASSET_VERSION: aset-0cf2e0dcb124
+- CORE: 변경 없음 / MIGRATION: NONE / NEW_SECRET_CREATED=NO / NEW_PAID_RESOURCE_CREATED=NO / PRODUCTION_CHANGED=NO
+- USER_DECISION_NEEDED: NONE (배포 차단 아님. 반려동물 '파일' 버튼은 아래 "남은 것" 참고)
+
+## 신고
+
+삼성 인터넷(안드로이드)에서 진위확인 '사진·스크린샷 선택' → '작업 선택'에 카메라 / 카메라 캠코더 / 파일. 운영 입력: `accept="image/jpeg,image/png,image/webp"`, capture 없음(2026-10-10 운영 HTML로 확인).
+
+## 원인 [확인된 사실: Chromium 원본 코드]
+
+`ui/android/java/src/org/chromium/ui/base/SelectFileDialog.java`
+- `showExternalPickerDeprecated()`: `acceptsSingleType()`이 참일 때만 선택창을 사진용으로 좁힌다. 서로 다른 구체 형식 여러 개(`[image/jpeg, image/gif] -> false`, 코드 주석 그대로)는 단일 형식이 아니라서 "couldn't resolve a single accept type" → 카메라·**캠코더**·녹음기를 모두 넣은 일반 선택창으로 넘어간다. `image/*` 하나는 단일 형식 → 카메라 + 파일만.
+- 이 경로는 Chromium 121(태그 121.0.6167.0)에서 `kDeprecatedExternalPickerFunction` = ENABLED_BY_DEFAULT, 130.0.6723.0부터 DISABLED. 삼성 인터넷은 Chromium보다 늦은 판을 쓰므로 이 경로가 신고 화면과 맞다 [추정: 기기의 정확한 엔진 판은 미확인].
+- capture가 있고 형식이 모두 image/면 `captureImage()`로 선택창 없이 카메라가 바로 열린다(옛·현재 경로 모두) → 카메라 입력은 문제 없음.
+- 같은 원인은 이미 프로필 사진(validate_conversation_sidebar_ux_01)과 반려동물 갤러리(SITE-PET-PHOTO-SOURCE-01)에서 같은 방식(`image/*`)으로 고쳐져 있었다.
+
+## 바꾼 것 (선택창을 띄우는 사진 입력 → `accept="image/*"`, capture 넣지 않음)
+
+| 입력 | 전 | 후 |
+|---|---|---|
+| 진위확인 사진·스크린샷 선택 (index.html #scam-photo) | image/jpeg,image/png,image/webp | image/* |
+| 대화 사진 첨부 (index.html data-attachment-input=photos) | image/jpeg,image/png | image/* |
+| 안심케어 사람 사진 칸·발견 사진·일괄 등록 (PERSON_PHOTO_ACCEPT) | image/jpeg,image/png,image/webp | image/* |
+| 반려동물 발견 사진 (site-pet-ui.js petFoundInput) | image/jpeg,image/png | image/* |
+
+고른 뒤 형식 검사는 그대로라 지원하지 않는 사진(HEIC·GIF 등)은 지금처럼 안내 문구로 막힌다: 진위확인 allowedFileTypes+확장자, 대화 첨부 ATTACHMENT_MEDIA_TYPES+파일 머리, 사람 사진 sniffImageKind(재인코딩), 반려동물 petPhotoRejection(JPG·PNG). 화면의 형식 안내 문구("사진(JPEG·PNG·WEBP) · 최대 10MB")도 그대로.
+
+## 전수 점검 결과 (사이트가 내보내는 파일 입력 18개, 새 검사기가 자동으로 찾음)
+
+- 선택창 사진 입력 8개: 위 4개 + 이미 image/*였던 캘린더 사진, 프로필 사진(출처별, 카메라만 capture), 반려동물 갤러리 → 모두 image/*, 옛·현재 경로 캠코더 없음.
+- 카메라 입력 4개(capture): 대화 카메라, 진위확인 카메라, Life Wallet 카메라, 반려동물 카메라 → 카메라 바로 열림, 변경 없음.
+- 문서 입력 3개(PDF 유지): 대화 파일 첨부, 진위확인 문서, Life Wallet 사진·PDF(image/*,application/pdf) → 변경 없음.
+- 사진 아님 1개: Life Wallet 백업 파일(.lotbiwallet).
+- 와이파이 스티커: main d4d172a5에는 아직 파일 입력이 없음(해당 branch 미병합).
+
+## 남은 것 (이번에 바꾸지 않음)
+
+- 반려동물 '파일' 버튼(site-pet-ui.js petPhotoSourceInput=file)은 반려동물 방 설계상 accept가 비어 있음(현재 Chrome에서 사진 선택기가 아니라 파일 앱이 열리게). accept가 비면 옛·현재 경로 모두 선택창에 캠코더가 들어간다. image/*로 바꾸면 캠코더는 사라지지만 현재 Chrome에서는 '갤러리'와 같은 사진 선택기가 열린다(둘 다 만족하는 accept 값은 없음). 반려동물 방·소유자 결정 필요.
+- 문서 입력 3개와 백업 파일 입력은 여러 종류를 받으므로 옛 경로에서 캠코더가 보일 수 있다(지시대로 PDF 유지).
+
+## 테스트 (로컬 Windows)
+
+- 신규 scripts/validate_photo_input_no_camcorder_01.mjs (site-review.yml 등록): PASS — Chromium 옛·현재 경로 판단 규칙을 그대로 옮긴 모델(신고 화면 재현 포함), 18개 입력 분류·단정, video/·*/*·빈 accept 사진 선택창 금지.
+- 기대값을 새 계약으로 바꾼 기존 검사기(약화 아님, 값만 교체): image_attachment_thumbnail_01, scam_shield_mvp_01, scam_shield_photo_picker_01, safecare_people_01, safecare_photo_bulk_upload_01, safecare_web_ui_redesign_01.
+- SITE_TESTS: (HEAD b71987ffebfd52f4869643f518d41e8699f764dc) photo_input_no_camcorder_01 PASS, scam_shield_mvp_01 PASS, safecare_people_01 PASS, conversation_sidebar_ux_01 PASS, safecare_photo_upload_fix_03 PASS, safecare_sighting_photo_intake_01 PASS, asset coherence PASS; 브라우저: scam_shield_photo_picker_01 PASS, pet_photo_source_selector_01 PASS(Android·iOS·Desktop), pet_family_web_01 PASS, safecare_photo_bulk_upload_01 PASS, safecare_web_ui_redesign_01 PASS, image_attachment_thumbnail_01 PASS. NEW_FAILURES=0. 전체 Site validator 묶음은 gate가 실행.
+- 실기기(삼성 인터넷·Android Chrome·iPhone): NOT TESTED.
+
+## 롤백
+
+이전 Site 이미지로 되돌리면 끝.
