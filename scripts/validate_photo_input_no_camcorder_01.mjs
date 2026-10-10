@@ -86,6 +86,21 @@ function chooserModel(accept, capture) {
   return {deprecated, current};
 }
 
+// iPhone Safari (WebKit Source/WebKit/UIProcess/ios/forms/WKFileUploadPanel.mm):
+// `capture` with a camera opens the camera directly; otherwise a menu of
+// Photo Library / Take Photo (when the device has a camera) / Choose File is
+// shown when any image or video type is accepted (no accept = both), and the
+// Files picker opens directly when none is. Nothing in the page can drop the
+// Take Photo entry from that menu.
+function iosModel(accept, capture) {
+  const types = mimeTypesOf(accept);
+  const image = types.length === 0 || types.some(type => type.startsWith('image/'));
+  const video = types.length === 0 || types.some(type => type.startsWith('video/'));
+  if (capture) return ['camera-direct'];
+  if (!image && !video) return ['files'];
+  return ['photo-library', image && video ? 'take-photo-or-video' : video ? 'take-video' : 'take-photo', 'files'];
+}
+
 // The model reproduces the owner's screenshot and the fix.
 assert.deepEqual(chooserModel('image/jpeg,image/png,image/webp', false).deprecated, ['camera', 'camcorder', 'sound-recorder', 'files'], 'old accept list falls back to the generic chooser (the reported camcorder)');
 assert.deepEqual(chooserModel('image/*', false).deprecated, ['camera', 'files'], 'image/* is a single type: camera and files only');
@@ -202,9 +217,32 @@ for (const input of inputs) {
 }
 for (const key of KNOWN.keys()) assert.ok(inputs.some(input => keyOf(input) === key), `inventory entry ${key} no longer found — update KNOWN`);
 
+// 진위확인's own menu: each item does only its own thing where the browser
+// lets the page decide.
+const html = read('index.html');
+const scam = id => rows.find(row => row.key === `index.html#${id}`);
+const scamPhoto = scam('scam-photo');
+const scamCamera = scam('scam-camera');
+const scamDocument = scam('scam-document');
+assert.deepEqual(scamPhoto.current, ['photo-picker'], '사진·스크린샷 선택 (current Android Chrome): photo picker only, no camera');
+assert.deepEqual(scamPhoto.deprecated, ['camera', 'files'], '사진·스크린샷 선택 (older engine, e.g. Samsung Internet): camera + files — the camera entry is added by the browser and cannot be removed by any accept value');
+assert.deepEqual(iosModel(scamPhoto.accept, false), ['photo-library', 'take-photo', 'files'], '사진·스크린샷 선택 (iPhone): Photo Library / Take Photo / Choose File');
+for (const accept of ['image/*', 'image/jpeg,image/png,image/webp', '.jpg,.png', 'application/pdf', '']) {
+  assert.ok(chooserModel(accept, false).deprecated.includes('camera'), `no accept value hides the camera on the older engine (${accept || 'empty'})`);
+}
+assert.equal(scamCamera.capture, true);
+assert.deepEqual([scamCamera.deprecated, scamCamera.current, iosModel(scamCamera.accept, true)], [['camera-direct'], ['camera-direct'], ['camera-direct']], '카메라로 촬영: still photo camera only, everywhere');
+assert.deepEqual(scamDocument.current, ['files'], '문서·PDF 선택하기 (current Android Chrome): files only');
+assert.deepEqual(iosModel(scamDocument.accept, false), ['files'], '문서·PDF 선택하기 (iPhone): Files opens directly');
+// The closest the page can get on the older engine and iPhone: say which
+// entry to tap. Phones only.
+assert.match(html, /<p id="scam-photo-picker-hint" class="scam-field-help scam-picker-hint" data-scam-picker-hint>고르는 창에 카메라가 함께 보이면 ‘파일’\(iPhone은 ‘사진 보관함’\)을 눌러 사진을 골라 주세요\.<\/p>/u);
+assert.match(html, /name="scamPhoto"[^>]*aria-describedby="scam-photo-help scam-photo-picker-hint"/u);
+const scamCss = read('site-scam-shield.css');
+assert.match(scamCss, /\.scam-picker-hint \{ display: none; \}\n@media \(hover: none\) and \(pointer: coarse\) \{ \.scam-picker-hint \{ display: block;/u, 'the hint shows on phones only');
+
 // What each photo picker tells the owner about formats is unchanged; the
 // format check after choosing still decides.
-const html = read('index.html');
 assert.match(html, /사진\(JPEG·PNG·WEBP\) · 최대 10MB/u, '진위확인 still names the supported formats');
 assert.match(read('site-scam-shield.js'), /const allowedFileTypes = new Set\(\['image\/jpeg', 'image\/png', 'image\/webp'/u, '진위확인 still checks the chosen file type');
 assert.match(read('site-attachments.js'), /export const ATTACHMENT_MEDIA_TYPES = Object\.freeze\(\[\s*'image\/jpeg',\s*'image\/png',/u, 'attachments still accept only JPEG/PNG images');
@@ -212,6 +250,6 @@ assert.match(read('site-pet.js'), /if \(!PET_PHOTO_MIME_TYPES\.includes\(file\.t
 assert.match(read('site-person-photo-intake.js'), /export function sniffImageKind\(bytes\)/u, 'person photos still recognised by their bytes');
 
 for (const row of rows) {
-  console.log(`  ${row.key.padEnd(48)} accept="${row.accept}"${row.capture === true ? ' capture' : row.capture ? ` capture(${row.capture})` : ''} → old: ${row.deprecated.join('+')} · current: ${row.current.join('+')}`);
+  console.log(`  ${row.key.padEnd(48)} accept="${row.accept}"${row.capture === true ? ' capture' : row.capture ? ` capture(${row.capture})` : ''} → old: ${row.deprecated.join('+')} · current: ${row.current.join('+')} · iPhone: ${iosModel(row.accept, row.capture === true).join('+')}`);
 }
 console.log(`PHOTO-INPUT-NO-CAMCORDER-01 PASS — ${rows.length} file inputs classified, ${rows.filter(row => row.kind === PHOTO_PICKER).length} photo pickers image/* (no camcorder on the deprecated or current Android chooser), ${rows.filter(row => row.kind === PHOTO_CAMERA).length} camera inputs open the camera directly; static model of Chromium SelectFileDialog, not a device run`);

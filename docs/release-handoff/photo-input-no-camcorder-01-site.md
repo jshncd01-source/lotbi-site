@@ -1,5 +1,7 @@
 READY_FOR_DEPLOY=YES
 
+SUPERSEDES=dd8e5b46fb2e38900bee66f71e796700e3ad58db (지시 수정 반영: 진위확인 메뉴별 동작·한계·iPhone, 휴대폰 안내 한 줄)
+
 # PHOTO-INPUT-NO-CAMCORDER-01 — Site
 
 - REPO: lotbi-site (Ncloud)
@@ -32,6 +34,24 @@ READY_FOR_DEPLOY=YES
 | 반려동물 발견 사진 (site-pet-ui.js petFoundInput) | image/jpeg,image/png | image/* |
 
 고른 뒤 형식 검사는 그대로라 지원하지 않는 사진(HEIC·GIF 등)은 지금처럼 안내 문구로 막힌다: 진위확인 allowedFileTypes+확장자, 대화 첨부 ATTACHMENT_MEDIA_TYPES+파일 머리, 사람 사진 sniffImageKind(재인코딩), 반려동물 petPhotoRejection(JPG·PNG). 화면의 형식 안내 문구("사진(JPEG·PNG·WEBP) · 최대 10MB")도 그대로.
+
+## 진위확인 메뉴별 동작 (지시 수정: 사진·스크린샷 선택 = 고르기만, 카메라 = 카메라로 촬영만)
+
+| 메뉴 | 안드로이드 최신 Chrome(현재 경로) | 삼성 인터넷 등 옛 경로 | iPhone Safari |
+|---|---|---|---|
+| 사진·스크린샷 선택 (image/*, capture 없음) | Android 사진 선택기만 — 카메라·캠코더 없음 | 카메라 + 파일 (캠코더 없어짐) | 사진 보관함 / 사진 찍기 / 파일 선택 |
+| 카메라로 촬영 (capture) | 카메라 바로 열림(사진만) | 카메라 바로 열림(사진만) | 카메라 바로 열림 |
+| 문서·PDF 선택하기 | 파일만 | 카메라·캠코더·녹음기 + 파일 | 파일 앱 바로 열림 |
+
+근거 [확인된 사실: 원본 코드]
+- 안드로이드: Chromium SelectFileDialog.java. 현재 경로는 형식이 모두 image/면 `shouldUsePhotoPicker()` → 사진 선택기(Chrome이 사진 선택기를 등록한 경우). 옛 경로 `showExternalPickerDeprecated()`는 사진 형식이면 항상 카메라 intent를 넣고(`if (camera != null) extraIntents.add(camera)`), 사진·영상·소리가 아닌 형식(문서)은 "couldn't resolve a single accept type"으로 카메라·캠코더·녹음기를 모두 넣는다. 카메라 항목 유무는 브라우저 앱의 카메라 권한·기기 카메라로 정해지고(`mSupportsImageCapture`, `hasPermission(CAMERA)`), 페이지가 넘길 수 있는 값이 없다.
+- iPhone: WebKit Source/WebKit/UIProcess/ios/forms/WKFileUploadPanel.mm. capture + 카메라 있음 → `_showCamera`. 사진/영상 형식을 받으면 메뉴(사진 보관함 / "Take Photo" / 파일 선택)를 띄우며, 카메라 항목은 `UIImagePickerController isSourceTypeAvailable:Camera`일 때 항상 들어간다. 사진·영상 형식이 없으면 메뉴 없이 파일 선택기.
+
+한계와 가장 가까운 대안
+- 삼성 인터넷 옛 경로와 iPhone에서 '사진·스크린샷 선택'의 카메라 항목은 브라우저·OS가 넣는 것이라 웹 페이지로는 뺄 수 없다(어떤 accept 값도 불가 — 검사기에서 image/*·구체 목록·확장자·PDF·빈 값 모두 옛 경로에 카메라가 남는 것을 단정). 캠코더는 이번 수정으로 사라진다.
+- 대안으로 휴대폰(터치·hover 없음)에서만 사진 버튼 아래 한 줄을 보여 준다: "고르는 창에 카메라가 함께 보이면 ‘파일’(iPhone은 ‘사진 보관함’)을 눌러 사진을 골라 주세요." 데스크톱에는 보이지 않는다. 필요 없으면 index.html 한 줄 + CSS 두 줄만 지우면 된다.
+- 삼성 인터넷 옛 경로의 '문서·PDF 선택하기'에 카메라·캠코더가 보이는 것도 같은 이유로 페이지에서 막을 수 없다(문서 형식은 옛 경로에서 항상 일반 선택창).
+- 실제 어느 기기·버전이 옛 경로인지는 실측하지 못했다(실기기 없음). 신고 화면(구체 형식 3개 → 캠코더 표시)은 옛 경로로만 설명된다 [추정, 근거 강함].
 
 ## 전수 점검 결과 (사이트가 내보내는 파일 입력 18개, 새 검사기가 자동으로 찾음)
 
