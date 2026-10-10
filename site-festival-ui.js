@@ -63,21 +63,21 @@ import {
   listFestivalRegions,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-c92f297ceb1c';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-c92f297ceb1c';
+} from './site-festival-client.js?v=aset-ab9085df5fb8';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-ab9085df5fb8';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-c92f297ceb1c';
-import {isLocationUsageEnabled, LOCATION_USAGE_EVENT, readDefaultMapProvider} from './site-location-preference.js?v=aset-c92f297ceb1c';
+} from './site-current-location.js?v=aset-ab9085df5fb8';
+import {isLocationUsageEnabled, LOCATION_USAGE_EVENT, readDefaultMapProvider} from './site-location-preference.js?v=aset-ab9085df5fb8';
 // The visit-date picker inside "일정 등록" is a compact month grid, not a
 // custom date engine -- calendarMonthGrid() is the exact same pure cell
 // generator (leading/trailing days, leap years, week length) the main
 // Calendar view itself uses, reused here read-only.
-import {calendarMonthGrid} from './site-calendar-model.js?v=aset-c92f297ceb1c';
+import {calendarMonthGrid} from './site-calendar-model.js?v=aset-ab9085df5fb8';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -87,23 +87,23 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-c92f297ceb1c';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-c92f297ceb1c';
+} from './site-festival-calendar.js?v=aset-ab9085df5fb8';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-ab9085df5fb8';
 // Reuses the exact same default-map builders the chat Place Card and the
 // 온누리 card use — one link in the 지도앱 chosen in Settings (네이버지도 when
 // none is saved), no new API key, no SDK, no re-derived URL scheme.
-import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-c92f297ceb1c';
+import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-ab9085df5fb8';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-c92f297ceb1c';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-ab9085df5fb8';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-c92f297ceb1c';
+} from './site-calendar-weather.js?v=aset-ab9085df5fb8';
 
 const PAGE_SIZE = 20;
 
@@ -1233,7 +1233,7 @@ export async function mountFestivalManager({
     back.type = 'button';
     back.className = 'festival-back-button';
     back.textContent = onBack ? '← 목록으로' : '← 행사 정보로';
-    back.dataset.subviewBack = '';
+    back.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
     back.addEventListener('click', () => {
       programSurface.hidden = true;
       if (onBack) onBack();
@@ -1392,7 +1392,7 @@ export async function mountFestivalManager({
     back.type = 'button';
     back.className = 'festival-back-button';
     back.textContent = '← 목록으로';
-    back.dataset.subviewBack = '';
+    back.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
     back.addEventListener('click', showList);
     detailSurface.appendChild(back);
 

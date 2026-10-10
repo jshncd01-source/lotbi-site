@@ -43,8 +43,8 @@ const same = (actual, expected, message) => { assert.deepEqual(actual, expected,
 {
   const card = LIFE_SHORTCUTS.find(item => item.id === 'onnuri');
   check(['온누리상품권·지역화폐', '온누리·지역화폐'].includes(card.label), `menu card label (${card.label})`);
-  same(card.brandSlot, 'onnuri', 'brand slot kept, no logo');
-  same(card.icon, undefined, 'no stand-in icon');
+  same(card.brandSlot, 'onnuri', 'brand slot kept for the approved logo');
+  same(card.icon, 'voucher', 'QA 2026-10-10 #12: a plain LOTBI voucher icon until then');
   same(VOUCHER_HUB_TITLE, '온누리상품권·지역화폐');
   same(VOUCHER_PAGE_SIZE, 12);
   same(VOUCHER_SOURCE_LABELS, {
@@ -553,8 +553,8 @@ async function runCase(browser, origin, workDir, testCase) {
     check(!v.shortcut.clipped, `${testCase.label}: card label not clipped (${v.shortcut.columns} columns, ${v.shortcut.lines} line(s))`);
     check(v.shortcut.box.right <= v.viewport.w && v.shortcut.box.x >= 0, `${testCase.label}: card inside the viewport`);
     check(v.shortcut.box.h >= 44, `${testCase.label}: card touch target`);
-    same(v.shortcut.slot, 'PENDING_APPROVAL', 'logo slot kept, nothing drawn');
-    same(v.shortcut.img, false, 'no logo image');
+    same(v.shortcut.slot, '', 'the plain icon shows; no logo slot drawn');
+    same(v.shortcut.img, false, 'no official logo image');
     check(v.pageOverflowX <= 0, `${testCase.label}: life home no horizontal scroll`);
     if (testCase.dark) check(v.themeAttr === 'dark' && v.bodyBgLum < 0.2, `${testCase.label}: cookie dark theme applied (${v.themeAttr})`);
     else check(v.themeAttr !== 'dark' && v.bodyBgLum > 0.6, `${testCase.label}: light theme while the OS says dark (${v.themeAttr})`);
@@ -777,12 +777,15 @@ async function runCase(browser, origin, workDir, testCase) {
     v = await waitState(s => !s.hub && s.shortcuts.includes('onnuri'), `${testCase.label}: back to 지역정보`);
     v = await openHub();
     same(v.activeTab, 'onnuri', 'a new modal starts on 온누리상품권');
-    // Browser back/forward around the screen (same 'life' route as today).
+    // Browser back/forward around the screen. REGIONAL-INFO-BACK-NAVIGATION-01:
+    // it has its own route 'onnuri' (it used to share 'life', so the system back
+    // left 지역정보 for the home): back shows the 지역정보 list, forward the screen.
     const hashOpen = v.hash;
+    same(hashOpen, '#onnuri', 'the screen has its own route');
     await evaluate('history.back(), true');
-    v = await waitState(s => !s.hub && s.hash !== hashOpen, `${testCase.label}: browser back`);
+    v = await waitState(s => !s.hub && s.shortcuts.includes('onnuri') && s.hash === '#life', `${testCase.label}: browser back → 지역정보`);
     await evaluate('history.forward(), true');
-    v = await waitState(s => s.shortcuts.includes('onnuri') && s.hash === hashOpen, `${testCase.label}: browser forward`);
+    v = await waitState(s => s.hub && s.hash === hashOpen, `${testCase.label}: browser forward → 온누리상품권·지역화폐`);
 
     if (testCase.full) {
       // 11. Location already allowed → 가까운 순 offered; it sends the rounded point.

@@ -1,7 +1,7 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-c92f297ceb1c';
-import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-c92f297ceb1c';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-c92f297ceb1c';
-import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-c92f297ceb1c';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-ab9085df5fb8';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-ab9085df5fb8';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-ab9085df5fb8';
+import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-ab9085df5fb8';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -1318,7 +1318,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-c92f297ceb1c') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-ab9085df5fb8') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;
@@ -1645,6 +1645,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   function renderAddLimit() {
     const plans = element('a', 'consumer-action', '구독 안내 보기'); plans.href = '/subscribe';
     const back = button('목록으로', () => void renderWallet(), true);
+    back.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
     const actions = element('div', 'wallet-form-actions'); actions.append(back, plans);
     const view = element('section', 'wallet-editor wallet-add-limit');
     view.append(element('h3', '', '무료 회원은 자료를 1개까지 보관할 수 있습니다'),
@@ -1685,7 +1686,9 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
 
   function renderDetail(card) {
     const detail = element('section', 'wallet-detail');
-    const header = element('div', 'wallet-detail-header'); header.append(button('목록으로', () => void renderWallet(), true), element('h3', '', walletCardTitle(card)));
+    const toList = button('목록으로', () => void renderWallet(), true);
+    toList.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
+    const header = element('div', 'wallet-detail-header'); header.append(toList, element('h3', '', walletCardTitle(card)));
     detail.append(header);
     const images = element('div', 'wallet-detail-images');
     const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${walletCardTitle(card)} 자료 사진 원본`; front.append(frontImage); if (card.backDataUrl) front.append(element('figcaption', '', '앞면'));
@@ -1845,7 +1848,9 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
 
   function renderCustomsDetail(customs) {
     const detail = element('section', 'wallet-detail wallet-customs-detail'); detail.dataset.walletView = 'customs';
-    const header = element('div', 'wallet-detail-header'); header.append(button('목록으로', () => void renderWallet(), true), element('h3', '', '개인통관고유부호'));
+    const toList = button('목록으로', () => void renderWallet(), true);
+    toList.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
+    const header = element('div', 'wallet-detail-header'); header.append(toList, element('h3', '', '개인통관고유부호'));
     detail.append(header, customsNumber(customs));
     const facts = element('dl', 'wallet-customs-facts');
     const notice = customsRenewalNotice(customs.expiresOn);

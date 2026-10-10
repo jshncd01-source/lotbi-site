@@ -14,7 +14,7 @@
 // This table is the only list of routes: the parser, the URL builder, the
 // login return allowlist (site-auth.js) and the conversation's openers
 // (site-conversation.js) all read it.
-import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-c92f297ceb1c';
+import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-ab9085df5fb8';
 
 export const SITE_ROUTES = Object.freeze([
   'calendar',
@@ -23,10 +23,23 @@ export const SITE_ROUTES = Object.freeze([
   'care',
   'pets',
   'life',
+  // REGIONAL-INFO-BACK-NAVIGATION-01: the screens inside 지역정보 — 병원·응급실,
+  // 지역뉴스, 지역생활정보, 내 아이 학교·유치원 (back → life) and, signed out,
+  // its 학교·유치원 찾기 (back → life-my-child) — so back steps one screen at a
+  // time and a reload reopens the same one (LIFE_VIEW_PARENT,
+  // site-consumer-sections.js).
+  'life-medical',
+  'life-news',
+  'life-local',
+  'life-my-child',
+  'life-education',
   // TRAFFIC-CCTV P0: 지역정보 → 실시간 도로 CCTV (back → life); no route while
   // the switch is off, so #traffic-cctv is not a screen at all.
   ...(TRAFFIC_CCTV_UI_ENABLED ? ['traffic-cctv'] : []),
   'festival',
+  // 지역정보 → 온누리상품권·지역화폐 (back → life). It used to share 'life', so
+  // the system back from it left 지역정보 for the home.
+  'onnuri',
   // REAL-ESTATE-REGION-FAVORITES-P0: 지역정보 → 부동산 실거래가 (back → life) and
   // one apartment's contracts inside it (back → real-estate).
   'real-estate',

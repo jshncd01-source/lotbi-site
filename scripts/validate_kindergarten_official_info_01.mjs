@@ -1,5 +1,9 @@
 // KINDERGARTEN-OFFICIAL-INFO-01 — 생활정보 → 유치원·학교 → 유치원 (교육부 유치원알리미 공시).
 //
+// Owner decision 2026-10-10 ("1링크 다시 살리"): signed out, 지역정보 → 내 아이
+// 학교·유치원 links "로그인 없이 학교·유치원 찾기" — this lookup (route
+// life-education, back → 내 아이 학교·유치원; REGIONAL-INFO-BACK-NAVIGATION-01).
+//
 // Contract checked here:
 // * 생활정보 shows "유치원·학교"; it opens 학교 / 유치원 tabs (no new route,
 //   no change to site-conversation.js, the saved school key is never touched)
@@ -31,16 +35,18 @@ const client = await import('../site-kindergarten-client.js');
 const education = await import('../site-life-education.js');
 const sections = await import('../site-consumer-sections.js');
 
-await check('지역정보: 유치원·학교 찾기 opens its own screen from 내 아이 학교·유치원', () => {
-  // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: no separate 유치원·학교 card; the public
-  // lookup stays one tap inside the 내 아이 학교·유치원 card.
+await check('지역정보: signed out, 내 아이 학교·유치원 links 로그인 없이 학교·유치원 찾기 (this lookup)', () => {
+  // No separate 유치원·학교 card, no choice screen: the card opens the saved
+  // screen; signed out it carries the link to this public lookup.
   assert.equal(sections.LIFE_SHORTCUTS.some(entry => entry.id === 'education'), false);
   const card = sections.LIFE_SHORTCUTS.find(entry => entry.id === 'my-child');
-  const choice = card?.children?.find(entry => entry.id === 'education');
-  assert.ok(choice && choice.label === '유치원·학교 찾기' && !card.prompt);
+  assert.ok(card && card.children === undefined && !card.prompt);
+  assert.equal(sections.LIFE_VIEW_PARENT['life-education'], 'life-my-child');
   const source = read('site-consumer-sections.js');
   assert.match(source, /import\('\.\/site-life-education\.js\?v=aset-[0-9a-f]{12}'\)/u);
-  assert.match(source, /if \(choice\.id === 'education'\) openEducation\(\{id: 'education', label: '유치원·학교'\}, item\.id\);/u);
+  assert.match(source, /const lookup = authenticated \? null : node\('button', [^)]*'로그인 없이 학교·유치원 찾기'\);/u, 'signed out only');
+  assert.match(source, /lookup\.addEventListener\('click', \(\) => \{ if \(!disposed\) showLifeView\('life-education'\); \}\);/u);
+  assert.match(source, /else if \(name === 'life-education' && items\['my-child'\]\) openEducation\(\);/u);
 });
 
 await check('Core contract normalizes and keeps the kinder code', () => {
@@ -193,7 +199,7 @@ const SCENARIO = `(async () => {
   const shortcut = await wait(() => panel.querySelector('[data-life-shortcut="my-child"]'), 'my-child shortcut');
   result.shortcut = {label: shortcut.textContent.trim(), box: box(shortcut), grid: box(shortcut.parentElement)};
   shortcut.click();
-  const choice = await wait(() => panel.querySelector('[data-child-choice="education"]'), '유치원·학교 찾기 choice');
+  const choice = await wait(() => panel.querySelector('[data-life-education-entry]'), '로그인 없이 학교·유치원 찾기 link');
   result.choice = {label: choice.textContent.trim(), h: box(choice).h};
   choice.click();
   const edu = await wait(() => panel.querySelector('.lotbi-edu'), 'education screen');
@@ -400,7 +406,7 @@ try {
     const label = testCase.label;
     await check(`${label}: 유치원·학교 opens 학교 / 유치원 tabs, 유치원 first`, () => {
       assert.equal(r.shortcut.label, '내 아이 학교·유치원');
-      assert.equal(r.choice.label, '유치원·학교 찾기');
+      assert.equal(r.choice.label, '로그인 없이 학교·유치원 찾기');
       assert.ok(r.choice.h >= 44, `choice touch target ${r.choice.h}`);
       assert.deepEqual(r.tabs.map(tab => [tab.id, tab.selected]), [['school', 'false'], ['kindergarten', 'true']]);
       assert.ok(r.tabs.every(tab => tab.h >= 44), JSON.stringify(r.tabs));
