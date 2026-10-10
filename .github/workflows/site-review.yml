@@ -784,6 +784,11 @@ jobs:
       # ♡/♥ 관심 아파트(기기·계정, 계정 격리), 뒤로가기(시스템·←·Escape). Core는 mock.
       - name: Validate real-estate prices and favorites (지역정보 · 부동산 실거래가)
         run: node scripts/validate_real_estate_region_favorites_p0.mjs
+      # EV-CHARGER-NEARBY-LIST-P0: 지역정보 → 전기차 충전소는 대화가 아니라 자체 목록 화면
+      # (공공데이터 가까운 순, 급속·완속·충전 가능·반경, 저장한 지도앱 아이콘·링크, 전화 버튼 없음,
+      # 위치 거부 시 지역 선택, 뒤로가기 → 지역정보 → 홈, 360~412px·데스크톱, 라이트·다크).
+      - name: Validate EV charger nearby list
+        run: node scripts/validate_ev_charger_nearby_list_p0_01.mjs
 
       # 진위확인 사진·스크린샷 선택은 카메라를 강제하지 않고(capture 없음),
       # 카메라로 촬영만 capture="environment"를 쓴다. 실제 Chrome 탭으로 각

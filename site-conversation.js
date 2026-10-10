@@ -4056,6 +4056,33 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   };
 
+  // EV-CHARGER-NEARBY-LIST-P0: 지역정보 → 전기차 충전소, a list screen of its
+  // own (public Core read, no conversation, no AI). Its own route with
+  // backRoute 'life', like 축제·행사: the system back and the screen's ← both
+  // land on 지역정보, and a second back reaches the home. Opened from the URL
+  // (reload, back/forward) it never asks for the location by itself.
+  const openEvChargers = async ({askLocation = true} = {}) => {
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('내 주변 전기차 충전소');
+    panel.classList.add('site-ev-chargers-modal');
+    let releaseEvSurface = null;
+    installSurfaceBehavior(backdrop, panel, {
+      workspace: 'life', route: 'ev-chargers', backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life',
+      onClose: () => { releaseEvSurface?.(); releaseEvSurface = null; },
+    });
+    try {
+      const {mountEvChargers} = await import('./site-life-ev-chargers.js?v=aset-dfd9463819dc');
+      const mounted = await mountEvChargers({root: content, showTitle: false, askLocationOnOpen: askLocation});
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
+      releaseEvSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'ev-error',
+        textContent: '전기차 충전소 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+
   const openRenameThread = id => {
     const record = state.threads.find(item => item.id === id); if (!record) return;
     const {backdrop, panel, content} = modalShell('대화 이름 바꾸기', conversationSync?.onAccount(record)
@@ -4317,6 +4344,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const [{listPeople}, {listPets}] = await Promise.all([
           import('./site-person.js?v=aset-cd3d42af9220'),
           import('./site-pet.js?v=aset-cd3d42af9220'),
+      onEvChargers: () => { closeSurface(); void openEvChargers(); },
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -5912,6 +5940,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     festival: () => openFestival(),
     'real-estate': () => openRealEstate(),
     'real-estate-apartment': () => openRealEstate({view: 'detail'}),
+    'ev-chargers': () => openEvChargers({askLocation: false}),
     ...(LOTBI_BOX_UI_ENABLED ? {'lotbi-box': () => openLotbiBox()} : {}),
   };
   const applySiteRoute = target => {

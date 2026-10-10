@@ -308,9 +308,9 @@ try {
   reading.food.darkColor = getComputedStyle(food).color;
   document.body.dataset.siteTheme = 'light';
 
-  // 지역정보 home (REGIONAL-INFO-APPROVED-UX-RESTORE-P0 menu + 전북): eight
-  // shortcuts, no empty cell in any row (and still none with seven, i.e. if
-  // the 전북 card were ever taken out).
+  // 지역정보 home (REGIONAL-INFO-APPROVED-UX-RESTORE-P0 menu + 전북 + 전기차 충전소,
+  // EV-CHARGER-NEARBY-LIST-P0): nine shortcuts, no empty cell in any row (and
+  // still none with eight, i.e. if the 전북 card were ever taken out).
   document.querySelector('[data-consumer-section="life"]').click();
   const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 9 ? g : null; }, 'life grid');
   await sleep(300);

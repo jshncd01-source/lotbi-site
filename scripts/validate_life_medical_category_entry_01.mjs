@@ -35,7 +35,7 @@ assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => [item.id, i
 assert.deepEqual(LIFE_SHORTCUTS.find(item => item.id === 'medical').choices.map(choice => [choice.id, LIFE_MEDICAL_QUESTIONS[choice.id]]), [
   ['hospital', '근처 병원 찾아줘'], ['emergency', '근처 응급실 찾아줘'],
 ]);
-for (const id of ['festivals', 'news', 'local', 'onnuri', 'my-child']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
+for (const id of ['festivals', 'news', 'local', 'onnuri', 'ev-chargers', 'my-child']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
 assert.ok(LIFE_SHORTCUTS.find(item => item.id === 'my-child').children.some(choice => choice.id === 'education'), '유치원·학교 찾기 kept inside 내 아이 학교·유치원');
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills' || /공과금/u.test(item.label)), false, '공과금 확인 stays hidden');
 assert.ok(Object.isFrozen(LIFE_SHORTCUTS) && Object.isFrozen(LIFE_MEDICAL_QUESTIONS));
@@ -318,7 +318,8 @@ async function runCase(browser, origin, dir, testCase) {
       await tap(center);
     };
 
-    // 1. Life main: eight cards (병원·응급실 one card, 약국 separate, 전북 맛집·음식,
+    // 1. Life main: nine cards (병원·응급실 one card, 약국 separate, 전기차 충전소 after
+    // 약국 — EV-CHARGER-NEARBY-LIST-P0 —, 전북 맛집·음식,
     // 유치원·학교 inside 내 아이 학교·유치원; 공과금 확인 hidden), full rows, no empty
     // cell — an odd last card would take its whole row.
     await openLife();

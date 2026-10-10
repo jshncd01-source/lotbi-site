@@ -29,6 +29,10 @@ export const LIFE_MEDICAL_QUESTIONS = Object.freeze({
 // REAL-ESTATE-REGION-FAVORITES-P0 adds 부동산 실거래가 after 온누리상품권: its own
 // list screen (site-life-real-estate.js, route real-estate), never a question
 // to the conversation. Nine cards: the odd last card spans its row.
+// Eight cards with 전북 맛집·음식. EV-CHARGER-NEARBY-LIST-P0 adds 전기차 충전소
+// right after 약국: its own list screen (site-life-ev-chargers.js), never a
+// question to the conversation. Nine cards: the odd last card spans its row
+// (site-consumer-design.css), so the grid has no empty cell.
 export const LIFE_MEDICAL_CHOICES = Object.freeze([
   Object.freeze({id: 'hospital', label: '병원·의원 찾기'}),
   Object.freeze({id: 'emergency', label: '응급실 찾기'}),
@@ -40,6 +44,8 @@ export const LIFE_CHILD_CHOICES = Object.freeze([
 export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'medical', label: '병원·응급실', icon: 'hospital', choices: LIFE_MEDICAL_CHOICES},
   {id: 'pharmacy', label: '약국', icon: 'pharmacy', ask: LIFE_MEDICAL_QUESTIONS.pharmacy},
+  // EV-CHARGER-NEARBY-LIST-P0: nearest stations from 한국환경공단 data, no chat.
+  {id: 'ev-chargers', label: '전기차 충전소', icon: 'ev'},
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
   // REGIONAL-NEWS-SCREEN-LIST-01: lists 광역시·도 news titles itself (site-life-news.js).
   {id: 'news', label: '지역뉴스', icon: 'news'},
@@ -84,6 +90,7 @@ const ICON_PATHS = {
   school: ['m2 9 10-5 10 5-10 5L2 9Z', 'M6 11v5c3 2.5 9 2.5 12 0v-5', 'M22 9v6'],
   backpack: ['M9 6V5a3 3 0 0 1 6 0v1', 'M6 9a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v12H6V9Z', 'M9 13h6v4H9v-4Z'],
   building: ['M4 21V8l6-4v17', 'M10 21V9h10v12', 'M2 21h20', 'M13 12h1m3 0h1m-5 4h1m3 0h1M6.5 10h1m-1 4h1'],
+  ev: ['M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16', 'M2 21h15', 'm10 7-2.5 4h4L9 15', 'M15 9h1.5a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-2.5-2.5'],
 };
 
 function node(tag, className = '', text = '') {
@@ -119,7 +126,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onRealEstate, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onRealEstate, onEvChargers, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -296,6 +303,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         if (item.ask) onAsk(item.ask);
         else if (item.choices) openMedicalChoice(item);
         else if (item.id === 'festivals') onFestival();
+        else if (item.id === 'ev-chargers') onEvChargers?.();
         else if (item.children) openChildChoice(item);
         else item.id === 'news' ? openNewsEntry(item)
           : item.id === 'onnuri' ? onOnnuri?.()

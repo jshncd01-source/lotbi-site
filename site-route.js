@@ -28,6 +28,8 @@ export const SITE_ROUTES = Object.freeze([
   // one apartment's contracts inside it (back → real-estate).
   'real-estate',
   'real-estate-apartment',
+  // EV-CHARGER-NEARBY-LIST-P0: 지역정보 → 전기차 충전소 (back → life).
+  'ev-chargers',
   ...(LOTBI_BOX_UI_ENABLED ? ['lotbi-box'] : []),
 ]);
 

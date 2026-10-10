@@ -698,7 +698,7 @@ async function runCase(browser, origin, dir, testCase) {
     }
 
 
-    // 7. Desktop: eight categories (병원·응급실 … 전북 맛집·음식, 내 아이 학교·유치원)
+    // 7. Desktop: nine categories (병원·응급실, 약국, 전기차 충전소 … 전북 맛집·음식, 내 아이 학교·유치원)
     //    fill every row of two — no empty cell. With an odd count the last card
     //    takes its whole row and the row before it is full.
     if (!testCase.mobile) {
