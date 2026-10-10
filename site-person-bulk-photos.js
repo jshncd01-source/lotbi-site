@@ -13,13 +13,16 @@
 //   - a stored photo stays stored when a later one is refused (each PUT is its
 //     own save; nothing is deleted or rolled back),
 //   - no sentence says or implies that the photos show the same person.
-// The single-slot tiles keep working unchanged; while a run is active the
-// shared `busy` flag makes them answer "다른 사진을 확인하는 중입니다…".
+// SAFECARE-PHOTO-EASY-UPLOAD-01: this panel is the only way to add photos.
+// The ten tiles are examples; a tile offers its own picker only after a batch
+// could not fill it or could not save its photo (personRetrySlots). While a
+// run is active the shared `busy` flag makes such a picker answer
+// "다른 사진을 확인하는 중입니다…".
 import {
   classifyPersonIdentityPhoto, personErrorMessage, personIdentityPhotoErrorMessage, putPersonIdentityPhoto,
-} from './site-person.js?v=aset-cd3d42af9220';
-import {PERSON_IDENTITY_SLOTS} from './site-person-guides.js?v=aset-cd3d42af9220';
-import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-cd3d42af9220';
+} from './site-person.js?v=aset-d5c6e0c08567';
+import {PERSON_IDENTITY_SLOTS} from './site-person-guides.js?v=aset-d5c6e0c08567';
+import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-d5c6e0c08567';
 
 export const PERSON_BULK_MAX_FILES = 10;
 export const PERSON_BULK_UPLOAD_ORDER = Object.freeze([1, 8, 2, 3, 9, 10, 6, 4, 5, 7]);
@@ -137,6 +140,22 @@ export function personBulkReplacementPlan({intendedSlot = 0, status, suggested =
   return {action: 'PUT', slot};
 }
 
+// SAFECARE-PHOTO-EASY-UPLOAD-01: which example tiles offer their own picker.
+// None on an empty registration before its first batch. After a batch, or
+// when the person already has photos: every empty tile — while 정면 얼굴 is
+// empty only that tile — plus any tile whose photo a batch could not save.
+// None while a batch is running.
+export function personRetrySlots(filledSlots, {ran = false, running = false, failed = []} = {}) {
+  const filled = new Set([...(typeof filledSlots?.keys === 'function' ? filledSlots.keys() : (filledSlots || []))].map(Number));
+  const retry = new Set();
+  if (running) return retry;
+  const frontReady = slot => slot === 1 || filled.has(1);
+  for (const slot of failed) if (frontReady(slot)) retry.add(slot);
+  if (!ran && !filled.size) return retry;
+  for (let slot = 1; slot <= PERSON_IDENTITY_SLOTS.length; slot += 1) if (!filled.has(slot) && frontReady(slot)) retry.add(slot);
+  return retry;
+}
+
 export function personBulkSummary(items) {
   const stored = items.filter(item => item.state === 'STORED').length;
   const failed = items.filter(item => FAILED_STATES.has(item.state)).length;
@@ -186,6 +205,7 @@ export function createPersonBulkPhotos({
   let uploadLog = [];
   let anchorSuspect = false;
   let running = false;
+  let ran = false;  // a batch was started on this screen (personRetrySlots)
   let progress = {text: '', done: 0, total: 0};
   let focusSummary = false;
   let announcement = '';  // read out by the status line once an action has finished
@@ -289,6 +309,7 @@ export function createPersonBulkPhotos({
     batchStored.clear();
     const profileWasEmpty = filled.size === 0;
     focusSummary = true;
+    ran = true;
     await act(async () => {
       // 2-3. Prepare exactly like the single-slot tile, then classify one by one.
       for (const [index, item] of items.entries()) {
@@ -650,5 +671,10 @@ export function createPersonBulkPhotos({
     return section;
   }
 
-  return Object.freeze({personId, render});
+  // Slots of photos a batch could not save: their tiles offer '사진 바꾸기'.
+  const attention = () => Object.freeze({
+    ran, running, failed: items.filter(item => item.state === 'PUT_FAILED' && item.slot).map(item => item.slot),
+  });
+
+  return Object.freeze({personId, render, attention});
 }

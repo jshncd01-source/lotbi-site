@@ -224,7 +224,7 @@ for (const [label, text] of [['site-person-bulk-photos.js', bulkSource], ['site-
   for (const phrase of POLICE) assert.ok(!copyOf(text).includes(phrase), `${label} must not render "${phrase}"`);
 }
 assert.ok(bulkSource.includes(`'${WARNING}'`), 'the warning sentence is exact');
-assert.match(ui, /import \{createPersonBulkPhotos\} from '\.\/site-person-bulk-photos\.js\?v=aset-[0-9a-f]{12}';/);
+assert.match(ui, /import \{createPersonBulkPhotos, personRetrySlots\} from '\.\/site-person-bulk-photos\.js\?v=aset-[0-9a-f]{12}';/);
 const photoStep = ui.slice(ui.indexOf('const renderPhotoStep = '), ui.indexOf('const renderReviewStep = '));
 assert.ok(photoStep.indexOf('bulkPhotos.render({filledSlots})') > 0 && photoStep.indexOf('bulkPhotos.render({filledSlots})') < photoStep.indexOf("const grid = el('div', 'safecare-slot-grid')"), 'the bulk panel sits above the ten tiles');
 assert.ok(photoStep.includes('isBusy: () => busy') && photoStep.includes('setBusy: value => { busy = value; }'), 'the bulk run shares the tiles\' busy flag');
@@ -534,6 +534,12 @@ try {
           multiple: input.multiple, accept: input.accept, type: input.type,
           beforeGrid: Boolean(panel.compareDocumentPosition(document.querySelector('[data-person-slot-grid]')) & Node.DOCUMENT_POSITION_FOLLOWING),
           tiles: document.querySelectorAll('[data-person-slot]').length,
+          tileArtwork: document.querySelectorAll('[data-person-slot] .person-slot-guide-image').length,
+          tileVisible: [...document.querySelectorAll('[data-person-slot] .safecare-slot-visible')].filter(node => node.textContent.startsWith('보여야 하는 부분')).length,
+          tilePickers: document.querySelectorAll('[data-person-slot] .safecare-slot-choose, [data-person-slot-input]').length,
+          tileRetry: [...document.querySelectorAll('[data-person-slot]')].map(tile => tile.dataset.safecareSlotRetry),
+          lockText: document.querySelector('[data-person-slot-grid]').textContent.includes('먼저 등록하면 선택할 수 있습니다'),
+          examples: document.querySelector('[data-person-slot-examples]')?.textContent || '',
           statusRole: panel.querySelector('[data-person-bulk-status]').getAttribute('role'),
         };
       `);
@@ -543,7 +549,13 @@ try {
       assert.equal(r.multiple, true, where);
       assert.equal(r.accept, 'image/jpeg,image/png,image/webp', where);
       assert.equal(r.beforeGrid, true, `${where}: the panel sits above the tiles`);
-      assert.equal(r.tiles, 10, `${where}: the ten single-slot tiles stay`);
+      assert.equal(r.tiles, 10, `${where}: the ten example tiles stay`);
+      assert.equal(r.tileArtwork, 10, `${where}: every tile keeps its example picture`);
+      assert.equal(r.tileVisible, 10, `${where}: every tile keeps '보여야 하는 부분'`);
+      assert.equal(r.tilePickers, 0, `${where}: no per-tile picker before the first batch (SAFECARE-PHOTO-EASY-UPLOAD-01)`);
+      assert.deepEqual(r.tileRetry, Array(10).fill('false'), where);
+      assert.equal(r.lockText, false, `${where}: no per-tile lock sentence`);
+      assert.equal(r.examples, '아래 10칸은 어떤 사진이 필요한지 보여 주는 예시예요. 사진은 위의 ‘사진 여러 장 선택’으로 한 번에 올려 주세요.', where);
       assert.equal(r.statusRole, 'status', where);
     }
 
@@ -552,15 +564,12 @@ try {
       const {result: r, where} = await scenario('a-ten-clear', {delay: 25}, `
         await __openPhotos();
         await __pick(__panel().querySelector('[data-person-bulk-input]'), ${JSON.stringify(TEN)});
-        // While the batch runs the single-slot tiles say why they do not open.
+        // While the batch runs no tile offers its own picker.
         const running = document.querySelector('[data-person-care-surface]').dataset.personBulkRunning;
-        const tile = document.querySelector('[data-person-slot="FACE_FRONT"]');
-        tile.querySelector('.safecare-slot-choose').click();
-        const tileError = tile.querySelector('.safecare-slot-error');
-        const tileMessage = tileError.hidden ? '' : tileError.textContent;
+        const pickersDuringRun = document.querySelectorAll('[data-person-slot] .safecare-slot-choose').length;
         await __done();
         return {
-          running, tileMessage, puts: [...__core.puts], classifies: __core.calls.filter(c => c.startsWith('CLASSIFY')).length,
+          running, pickersDuringRun, pickersAfter: document.querySelectorAll('[data-person-slot] .safecare-slot-choose').length, puts: [...__core.puts], classifies: __core.calls.filter(c => c.startsWith('CLASSIFY')).length,
           maxInflight: __core.maxInflight, summary: __panel().querySelector('[data-person-bulk-summary]')?.textContent,
           items: __items(), statusLog: [...__statusLog], counter: document.querySelector('[data-safecare-photo-count]').textContent,
           next: document.querySelector('[data-person-photos-next]')?.disabled, anchor: Boolean(document.querySelector('[data-person-bulk-anchor-hint]')),
@@ -569,7 +578,8 @@ try {
         };
       `);
       assert.equal(r.running, 'true', `${where}: the surface marks the run`);
-      assert.equal(r.tileMessage, '다른 사진을 확인하는 중입니다. 끝난 뒤 다시 선택해 주세요.', `${where}: a tile tap during the run says why`);
+      assert.equal(r.pickersDuringRun, 0, `${where}: no tile picker while the batch runs`);
+      assert.equal(r.pickersAfter, 0, `${where}: all ten stored, no tile asks for another photo`);
       assert.deepEqual(r.puts, [1, 8, 2, 3, 9, 10, 6, 4, 5, 7], `${where}: upload order`);
       assert.equal(r.classifies, 10, where);
       assert.equal(r.maxInflight, 1, `${where}: one request at a time`);
@@ -595,7 +605,8 @@ try {
         await __openPhotos();
         await __pick(__panel().querySelector('[data-person-bulk-input]'), ['front1', 'dog', 'car', 'other', 'left45', 'upper']);
         await __done();
-        const first = {puts: [...__core.puts], items: __items(), summary: __panel().querySelector('[data-person-bulk-summary]').textContent, anchor: Boolean(document.querySelector('[data-person-bulk-anchor-hint]'))};
+        const first = {puts: [...__core.puts], items: __items(), summary: __panel().querySelector('[data-person-bulk-summary]').textContent, anchor: Boolean(document.querySelector('[data-person-bulk-anchor-hint]')),
+          tiles: [...document.querySelectorAll('[data-person-slot]')].map(tile => [tile.dataset.safecareSlotRetry, tile.querySelector('.safecare-slot-choose')?.textContent || ''])};
         const row = id => document.querySelector('[data-person-bulk-item="' + id + '"]');
         // The other person's photo (meant for 추가 정면) replaced by an upper-body photo: wrong slot, kept pending.
         await __pick(row(4).querySelector('[data-person-bulk-replace-input]'), ['upper2']);
@@ -625,6 +636,9 @@ try {
       assert.ok(first[2].replace && first[3].replace && first[4].replace, `${where}: every failed photo has 다른 사진으로 교체`);
       assert.equal(first[5].slot, 2); assert.equal(first[6].slot, 6);
       assert.equal(r.first.anchor, false, `${where}: one different-person refusal followed by successes is no anchor warning`);
+      const again = ['true', '이 칸 다시 고르기'], none = ['false', ''];
+      assert.deepEqual(r.first.tiles, [none, none, again, again, again, none, again, again, again, again],
+        `${where}: after the batch only the tiles still missing a photo (추가 정면 refused) offer '이 칸 다시 고르기'`);
       assert.deepEqual(r.mismatch.puts, [1, 8, 2, 6], `${where}: a replacement for the wrong slot is not uploaded`);
       assert.equal(r.mismatch.item.state, 'PUT_FAILED');
       assert.equal(r.mismatch.item.note, '새 사진은 추가 정면 칸에 맞지 않아요. 추가 정면 칸에 맞는 사진을 선택해 주세요.', where);
@@ -715,7 +729,8 @@ try {
         await __pick(__panel().querySelector('[data-person-bulk-input]'), ['left45', 'upper']);
         await __done();
         const before = {puts: [...__core.puts], items: __items(), notices: [...document.querySelectorAll('[data-person-bulk-notice]')].map(n => n.textContent),
-          summary: __panel().querySelector('[data-person-bulk-summary]').textContent, front: Boolean(document.querySelector('[data-person-bulk-front-pick]'))};
+          summary: __panel().querySelector('[data-person-bulk-summary]').textContent, front: Boolean(document.querySelector('[data-person-bulk-front-pick]')),
+          tiles: [...document.querySelectorAll('[data-person-slot]')].map(tile => [tile.dataset.safecareSlotRetry, tile.querySelector('.safecare-slot-choose')?.textContent || ''])};
         // A held photo cannot be replaced into its slot before the front.
         document.querySelector('[data-person-bulk-item="1"] [data-person-bulk-replace]').click();
         const blocked = document.querySelector('[data-person-bulk-item="1"] [data-person-bulk-note]')?.textContent || '';
@@ -733,6 +748,7 @@ try {
       assert.deepEqual(r.before.items.map(item => [item.state, item.slot, item.badge]), [['HELD', 2, '확인 필요'], ['HELD', 6, '확인 필요']], where);
       assert.equal(r.before.summary, '등록 성공 0장 · 실패 0장 · 확인 필요 2장', where);
       assert.equal(r.before.front, true, `${where}: a front photo can be picked right here`);
+      assert.deepEqual(r.before.tiles, [['true', '이 칸 다시 고르기'], ...Array(9).fill(['false', ''])], `${where}: without a front only the 정면 얼굴 tile offers a picker`);
       assert.equal(r.blocked, '정면 얼굴 사진을 먼저 등록해 주세요.', where);
       assert.deepEqual(r.wrongFront.puts, [], where);
       assert.equal(r.wrongFront.note, '새 사진은 정면 얼굴 칸에 맞지 않아요. 정면 얼굴 칸에 맞는 사진을 선택해 주세요.', where);
@@ -776,16 +792,22 @@ try {
         await __pick(__panel().querySelector('[data-person-bulk-input]'), ['front1', 'left45']);
         await __done();
         const notices = [...document.querySelectorAll('[data-person-bulk-notice]')].map(n => n.textContent);
+        const pickers = () => [...document.querySelectorAll('[data-person-slot]')].filter(tile => tile.querySelector('.safecare-slot-choose')).map(tile => tile.dataset.personSlot);
+        const before = pickers();
         const tile = document.querySelector('[data-person-slot="FACE_FRONT"]');
+        const label = tile.querySelector('.safecare-slot-choose').textContent;
         const transfer = new DataTransfer(); transfer.items.add(await __file('front2'));
         const input = tile.querySelector('[data-person-slot-input]'); input.files = transfer.files; input.dispatchEvent(new Event('change', {bubbles: true}));
         await __until(() => __core.puts.length === 1 && document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoCount === '1');
-        return {notices, puts: [...__core.puts], classifies: __core.calls.filter(c => c.startsWith('CLASSIFY')).length, items: __items().length};
+        return {notices, before, label, after: pickers(), puts: [...__core.puts], classifies: __core.calls.filter(c => c.startsWith('CLASSIFY')).length, items: __items().length};
       `);
       assert.deepEqual(r.notices, [bulk.PERSON_BULK_UNAVAILABLE], where);
       assert.equal(r.classifies, 1, `${where}: the run stops at the first answer`);
       assert.equal(r.items, 0, where);
-      assert.deepEqual(r.puts, [1], `${where}: the single-slot tile still saves`);
+      assert.deepEqual(r.before, ['FACE_FRONT'], `${where}: after the stopped batch the 정면 얼굴 tile offers its picker`);
+      assert.equal(r.label, '이 칸 다시 고르기', where);
+      assert.deepEqual(r.puts, [1], `${where}: the tile's own picker still saves`);
+      assert.equal(r.after.length, 9, `${where}: with the front stored the other nine empty tiles offer their picker`);
     }
 
     // (l) The reporter's own found reports never disclose a comparison result,

@@ -411,8 +411,8 @@ async function run() {
           counter: document.querySelector('[data-safecare-photo-count]').textContent,
           guideBoxPresent: Boolean(document.querySelector('[data-safecare-guide="person"]')),
           emptyArtworkCount: tiles().filter(tile => tile.dataset.safecareSlotFilled === 'false' && tile.querySelector('.person-slot-guide-image')).length,
-          accept: [...new Set(tiles().map(tile => tile.querySelector('input[type=file]').accept))],
-          buttons: [...new Set(tiles().map(tile => tile.querySelector('.safecare-slot-choose').textContent))],
+          accept: [...new Set(tiles().map(tile => tile.querySelector('input[type=file]')?.accept).filter(Boolean))],
+          buttons: tiles().map(tile => [tile.dataset.safecareSlotFilled, tile.querySelector('.safecare-slot-choose')?.textContent || '']),
           nextDisabled: document.querySelector('[data-person-photos-next]').disabled,
         };
         await __put(tiles()[3].querySelector('input[type=file]'), 'slot4.png');
@@ -502,8 +502,10 @@ async function run() {
         document.querySelector('[data-safecare-renewal-confirm]').click();
         await __until(() => document.querySelector('[data-person-slot-grid]'));
         const create = __calls.find(call => call === 'POST /v2/person-profiles');
-        const locked = [...document.querySelectorAll('[data-person-slot]')].map(tile => tile.dataset.safecareSlotLocked);
-        return {create: Boolean(create), active: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent, locked};
+        const retry = [...document.querySelectorAll('[data-person-slot]')].map(tile => tile.dataset.safecareSlotRetry);
+        const pickers = document.querySelectorAll('[data-person-slot] .safecare-slot-choose, [data-person-slot-input]').length;
+        const bulkPick = document.querySelector('[data-person-bulk-pick]')?.textContent || '';
+        return {create: Boolean(create), active: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent, retry, pickers, bulkPick};
       `);
       await shoot('person-05-register-step2');
 
@@ -730,7 +732,9 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.personPhotos.before.guideBoxPresent, false, `${label}: the duplicated explanation box must not sit above the photo cards`);
   assert.equal(r.personPhotos.before.emptyArtworkCount, 7, `${label}: every empty photo card must show its own large shooting example`);
   assert.deepEqual(r.personPhotos.before.accept, ['image/jpeg,image/png,image/webp']);
-  assert.ok(r.personPhotos.before.buttons.every(text => ['사진 선택', '다른 사진 선택'].includes(text)), `${label}: web wording must be 사진 선택`);
+  // SAFECARE-PHOTO-EASY-UPLOAD-01: photos go in through '사진 여러 장 선택'; with some
+  // photos already stored, only the empty tiles offer '이 칸 다시 고르기'.
+  assert.deepEqual(r.personPhotos.before.buttons, [...Array(3).fill(['true', '']), ...Array(7).fill(['false', '이 칸 다시 고르기'])], `${label}: per-tile pickers only on the empty tiles`);
   assert.equal(r.personPhotos.before.nextDisabled, true, `${label}: 3/10 must not move on`);
   assert.equal(r.personPhotos.after, '등록 완료 4 / 10남은 사진 6장');
 
@@ -769,8 +773,11 @@ for (const [label, r] of Object.entries(results)) {
   assert.ok(r.personRenewalNotice.renewalNotice.text.includes('만료 30일·7일·1일 전'));
   assert.ok(r.personRenewalNotice.renewalNotice.text.includes('안심케어 등록 및 실종 시 후보 검색'));
   assert.ok(r.personRenewalNotice.renewalNotice.text.includes('등록을 삭제하면 관련 식별 사진과 생성된 식별정보도 삭제'));
-  assert.deepEqual(r.personRegisterFlow.locked, ['false', 'true', 'true', 'true', 'true', 'true', 'true', 'true', 'true', 'true'],
-    `${label}: registration starts from the front face`);
+  // SAFECARE-PHOTO-EASY-UPLOAD-01: a new registration has one way in, '사진 여러 장 선택';
+  // the ten tiles are examples without their own picker.
+  assert.deepEqual(r.personRegisterFlow.retry, Array(10).fill('false'), `${label}: no tile offers a picker on a new registration`);
+  assert.equal(r.personRegisterFlow.pickers, 0, `${label}: no per-tile picker on a new registration`);
+  assert.equal(r.personRegisterFlow.bulkPick, '사진 여러 장 선택', label);
 
   // person SOS: expired photos blocked, only Core's fields
   assert.ok(r.personSos.blocked.includes('유효기간'), `${label}: expired photos must block a new SOS with a reason`);
