@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-638626da58cd';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-638626da58cd';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-638626da58cd';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-c0ac94b325e9';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-c0ac94b325e9';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-c0ac94b325e9';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -45,7 +45,8 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'subway', label: '지하철 정보', icon: 'subway'},
   // ONNURI-MERCHANT-01: its own search surface (site-life-onnuri.js). The
   // official logo is not used before approval; brandSlot reserves its place.
-  {id: 'onnuri', label: '온누리상품권', brandSlot: 'onnuri'},
+  // LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: 온누리상품권 + 지역화폐 in one card.
+  {id: 'onnuri', label: '온누리상품권·지역화폐', brandSlot: 'onnuri'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
   // JEONBUK-PILOT-01: 전북특별자치도·전주시 공식 음식점 공공데이터 (Core regional_food).
   {id: 'jeonbuk-food', label: '전북 맛집·음식', icon: 'food', regionalFood: true},
@@ -210,7 +211,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-638626da58cd').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-c0ac94b325e9').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -257,7 +258,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-638626da58cd').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-c0ac94b325e9').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {

@@ -32,7 +32,7 @@ const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 // ── Static contract ─────────────────────────────────────────────────────
 // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: one 병원·응급실 card (병원·의원 찾기 / 응급실
 // 찾기 ask the same questions), 약국 its own card, eight cards with 전북 맛집·음식.
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
 assert.deepEqual(LIFE_SHORTCUTS.find(item => item.id === 'medical').choices.map(choice => choice.id), ['hospital', 'emergency']);
 assert.deepEqual(LIFE_MEDICAL_QUESTIONS, {hospital: '근처 병원 찾아줘', pharmacy: '근처 약국 찾아줘', emergency: '근처 응급실 찾아줘'});
 for (const question of Object.values(LIFE_MEDICAL_QUESTIONS)) {

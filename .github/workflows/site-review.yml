@@ -752,6 +752,13 @@ jobs:
       - name: Validate Onnuri location UX P0
         run: node scripts/validate_onnuri_location_ux_p0.mjs
 
+      # LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: '온누리상품권·지역화폐' 한 화면 —
+      # [온누리상품권] 탭은 기존 화면 그대로, [지역화폐] 탭은 시·도→시·군·구→광역·기초 상품권→
+      # 가맹점 12곳+더 보기, 이름·업종·결제유형, 등록자료 없음 문구·공식 조회 링크, 출처 문구 4종,
+      # 지도앱 4종 아이콘, 위치는 이미 허용된 경우만 — 360·375·390·412·1280, 라이트·다크(쿠키).
+      - name: Validate voucher unified merchant search
+        run: node scripts/validate_voucher_unified_p0.mjs
+
       # 기본 지도앱 쿠키 계약(Account 저장값 ↔ Site 읽기).
       - name: Validate default map preference
         run: node scripts/validate_default_map_preference_01.mjs
