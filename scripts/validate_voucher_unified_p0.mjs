@@ -293,7 +293,9 @@ const PROBE = `(() => {
       tabIndex: t.tabIndex, focused: document.activeElement === t, controls: t.getAttribute('aria-controls'), box: box(t),
       contrast: contrast(getComputedStyle(t).color, bgOf(t))})),
     panels: [...(hub?.querySelectorAll('[data-voucher-panel]') || [])].map(p => ({key: p.dataset.voucherPanel, id: p.id, role: p.getAttribute('role'), hidden: p.hidden, labelledby: p.getAttribute('aria-labelledby')})),
-    onnuri: {visible: visible(hub?.querySelector('.onnuri-surface')), cards: [...(hub?.querySelectorAll('.onnuri-card') || [])].map(c => ({label: c.querySelector('.onnuri-card-label')?.textContent || '', text: c.textContent})),
+    onnuri: {visible: visible(hub?.querySelector('.onnuri-surface')), status: hub?.querySelector('.onnuri-status')?.textContent || '',
+      awaitingRegion: hub?.querySelector('.onnuri-surface')?.dataset.onnuriAwaitingRegion === 'true',
+      sidoOptions: [...(hub?.querySelector('[data-onnuri-region="sido"]')?.options || [])].map(o => o.value), cards: [...(hub?.querySelectorAll('.onnuri-card') || [])].map(c => ({label: c.querySelector('.onnuri-card-label')?.textContent || '', text: c.textContent})),
       requests: (globalThis.__onnuri?.requests || []).slice()},
     local: Boolean(local), localVisible: visible(local), regions,
     schemes: [...(local?.querySelectorAll('[data-voucher-scheme]') || [])].map(s => ({id: s.dataset.voucherScheme, name: s.querySelector('.voucher-scheme-name')?.textContent || '',
@@ -309,7 +311,8 @@ const PROBE = `(() => {
     empty: empty ? {reason: empty.dataset.emptyReason, title: empty.querySelector('.voucher-empty-title')?.textContent || '', text: empty.textContent,
       official: empty.querySelector('[data-voucher-official]')?.getAttribute('href') || ''} : null,
     error: local?.querySelector('.voucher-error:not([hidden])')?.textContent || '',
-    more: (() => { const m = local?.querySelector('.voucher-more'); return m && !m.hidden ? box(m) : null; })(),
+    // QA-02 E1: rendered visibility, not only the hidden attribute.
+    more: (() => { const m = local?.querySelector('.voucher-more'); if (!m) return null; const r = m.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(m).display !== 'none' ? box(m) : null; })(),
     chips: [...(local?.querySelectorAll('[data-voucher-filter]') || [])].map(c => ({key: c.dataset.voucherFilter, value: c.dataset.value, pressed: c.getAttribute('aria-pressed') === 'true', h: c.getBoundingClientRect().height})),
     cards, columns: (() => { const l = local?.querySelector('.voucher-results'); return l ? getComputedStyle(l).gridTemplateColumns.split(' ').filter(Boolean).length : 0; })(),
     requests: (globalThis.__voucher?.requests || []).slice(), credentials: globalThis.__voucher?.credentials || '',
@@ -510,7 +513,14 @@ async function runCase(browser, origin, workDir, testCase) {
     };
     const openHub = async () => {
       await tap(await reveal('.consumer-workspace [data-life-shortcut="onnuri"]'));
-      return await waitState(v => v.hub && v.onnuri.visible && v.onnuri.cards.length === 3, `${testCase.label}: hub with onnuri tab`, 30000);
+      // ONNURI-REGION-FIRST-UX-01 (QA #16): without location the 온누리 tab asks for a
+      // 시·도 first and lists nothing; with location already allowed it starts at 내 주변.
+      const first = await waitState(v => v.hub && v.onnuri.visible && (v.onnuri.cards.length === 3
+        || (v.onnuri.awaitingRegion && v.onnuri.sidoOptions.includes('강원특별자치도'))), `${testCase.label}: hub with onnuri tab`, 30000);
+      if (first.onnuri.cards.length === 3) return first;
+      check(first.onnuri.cards.length === 0 && /시·도를 고르거나/u.test(first.onnuri.status), 'onnuri tab asks for a region before listing');
+      await evaluate(`(() => { const s = document.querySelector('[data-onnuri-region="sido"]'); s.value = '강원특별자치도'; s.dispatchEvent(new Event('change', {bubbles: true})); return true; })()`);
+      return await waitState(v => v.hub && v.onnuri.visible && v.onnuri.cards.length === 3, `${testCase.label}: onnuri 강원 list`, 30000);
     };
     const openLocal = async () => {
       const at = await reveal('[data-voucher-tab="local"]');
@@ -601,6 +611,7 @@ async function runCase(browser, origin, workDir, testCase) {
 
     // 4. 지역화폐: 시·도 → 시·군·구 → both vouchers (광역 + 기초).
     v = await openLocal();
+    check(v.more === null, `${testCase.label}: no 더 보기 before a region (QA-02 E1)`);
     check(v.regions.sido.visible && !v.regions.sigungu.visible && !v.regions.dong.visible, 'only 시·도 before a choice');
     check(/실시간 결제 가능 여부가 아니니/u.test(v.notice), `notice: ${v.notice}`);
     check(/공식·제휴 서비스가 아니에요/u.test(v.notPartner), 'not a partner service');
