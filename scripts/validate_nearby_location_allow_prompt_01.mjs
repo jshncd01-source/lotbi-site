@@ -288,6 +288,8 @@ try {
     await shot('after');
   }
   if (params.get('then')) {
+    // Typed by hand next (a PC puts focus back in the composer after a typed send).
+    result.beforeThen = snapshot();
     prompt.value = params.get('then'); prompt.dispatchEvent(new Event('input', {bubbles: true}));
     await wait(() => !document.querySelector('.send-button').disabled, 'composer ready');
     document.querySelector('.send-button').click();
@@ -501,7 +503,7 @@ try {
         assert.equal(picked.final.saved, null, `${label}: a phone uses the pick once and saves nothing`);
         assert.equal(picked.afterRow.note, '');
       }
-      assertQuiet(picked.final, `${label}/picked`);
+      assertQuiet(picked.beforeThen, `${label}/picked`);
 
       // 7. A saved region is offered as "<지역>에서 찾기".
       const chip = await runPhase(devtools, page(`phase=typed&usage=off&saved=1&text=${encodeURIComponent('약국 찾아줘')}&action=saved&expect=send`), `${label}/saved`);
