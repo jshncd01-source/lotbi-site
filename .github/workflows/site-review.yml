@@ -586,6 +586,11 @@ jobs:
       - name: Validate Site session restore and renewal in place
         run: node scripts/validate_auth_session_continuity_p0_02.mjs
 
+      # SITE-SESSION-REQUEST-STORM-P0-01 — a refused Site bearer never turns the
+      # signed-in Home into a /v2/life/today and Account status request storm.
+      - name: Validate signed-in Home request rate stays bounded
+        run: node scripts/validate_site_session_request_storm_p0_01.mjs
+
       - name: Validate HTML document cache policy
         run: python scripts/validate_document_cache_policy_01.py
 
