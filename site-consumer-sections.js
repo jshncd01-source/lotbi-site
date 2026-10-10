@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-7f4cb5861069';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-7f4cb5861069';
-import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-7f4cb5861069';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-7b6506082b65';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-7b6506082b65';
+import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-7b6506082b65';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -75,6 +75,29 @@ export const LIFE_SHORTCUTS = Object.freeze([
   {id: 'my-child', label: '내 아이 학교·유치원', icon: 'backpack', children: LIFE_CHILD_CHOICES},
 ]);
 
+// REGIONAL-INFO-BACK-NAVIGATION-01 — the screens inside 지역정보, each a route of
+// site-route.js, and the screen each one steps back to: 하위 → 카테고리 →
+// 지역정보 → home, one screen per back (the system/browser back, the header ←,
+// Escape and the '…로 돌아가기' button alike).
+export const LIFE_VIEW_PARENT = Object.freeze({
+  'life-medical': 'life',
+  'life-news': 'life',
+  'life-local': 'life',
+  'life-my-child': 'life',
+  'life-my-child-info': 'life-my-child',
+  'life-education': 'life-my-child',
+});
+// The 지역정보 card a screen was opened from (focus returns to it).
+const LIFE_VIEW_CARD = Object.freeze({
+  'life-medical': 'medical', 'life-news': 'news', 'life-local': 'local',
+  'life-my-child': 'my-child', 'life-my-child-info': 'my-child', 'life-education': 'my-child',
+});
+// The choice on 내 아이 학교·유치원 a sub-screen was opened from.
+const LIFE_VIEW_CHILD_CHOICE = Object.freeze({'life-my-child-info': 'my-child', 'life-education': 'education'});
+export function lifeBackLabel(view) {
+  return LIFE_VIEW_PARENT[view] === 'life-my-child' ? '내 아이 학교·유치원으로 돌아가기' : '지역정보로 돌아가기';
+}
+
 // Each existing request form should show examples that belong to that service,
 // not a mixed café/grant example repeated across every detail page.
 const LIFE_DETAIL_FIELDS = Object.freeze({
@@ -143,7 +166,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onEvChargers, onRealEstate, onSubway, onTrafficCctv, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onEvChargers, onRealEstate, onSubway, onTrafficCctv, lifeView = 'life', onLifeView, requestLifeBack, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -154,17 +177,61 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
   let releaseEducation;
   let releaseNews;
   let releaseMyChild;
+  let lifeApi = null;
 
   if (section === 'life') {
     // The life home only picks a category: free questions belong to the main
     // chat, and saved items are not duplicated here.
+    //
+    // REGIONAL-INFO-BACK-NAVIGATION-01 — each screen below is a view with a
+    // route (LIFE_VIEW_PARENT). A change is reported (onLifeView) so the
+    // conversation names it in the URL and history; a step back is handed to
+    // requestLifeBack, which goes back in history first (leaveSiteRoute) and
+    // then shows the parent, so the screen and the URL change together.
+    // showLifeView is how back/forward or a reload of a 'life-*' URL shows a
+    // screen in this surface.
     const grid = node('div', 'consumer-shortcuts');
+    const items = Object.fromEntries(LIFE_SHORTCUTS.map(item => [item.id, item]));
+    let view = 'life';
+    const setView = name => { view = name; onLifeView?.(name); };
+    // Leaving a screen releases the module it mounted (뉴스, 유치원·학교, 내 아이 정보).
+    const releaseDetail = () => {
+      generation += 1;
+      releaseNews?.(); releaseNews = undefined;
+      releaseEducation?.(); releaseEducation = undefined;
+      releaseMyChild?.(); releaseMyChild = undefined;
+    };
+    const stepBack = (from = view) => {
+      const parent = LIFE_VIEW_PARENT[from];
+      if (!parent || disposed) return false;
+      const apply = () => { if (!disposed && view === from) showLifeView(parent, {from}); };
+      if (typeof requestLifeBack === 'function') requestLifeBack(parent, apply); else apply();
+      return true;
+    };
+    const backAction = from => action(lifeBackLabel(from), () => stepBack(from), {secondary: true});
+    function showGrid(from = '') {
+      releaseDetail();
+      root.replaceChildren(heading, grid);
+      setView('life');
+      if (LIFE_VIEW_CARD[from]) grid.querySelector(`[data-life-shortcut="${LIFE_VIEW_CARD[from]}"]`)?.focus();
+    }
+    function showLifeView(name, {from = ''} = {}) {
+      if (disposed) return;
+      if (name === 'life-medical' && items.medical) openMedicalChoice(items.medical);
+      else if (name === 'life-news' && items.news) openNewsEntry(items.news);
+      else if (name === 'life-local' && items.local) openLifeDetail(items.local);
+      else if (name === 'life-my-child' && items['my-child']) openChildChoice(items['my-child'], from);
+      else if (name === 'life-my-child-info' && items['my-child']) openMyChild(items['my-child']);
+      else if (name === 'life-education' && items['my-child']) openEducation({id: 'education', label: '유치원·학교'});
+      else showGrid(from);
+    }
+    lifeApi = {view: () => view, show: name => showLifeView(name, {from: view}), back: () => stepBack()};
     function openLifeDetail(item) {
-      const back = action('지역정보로 돌아가기', () => {
-        root.replaceChildren(heading, grid);
-        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
-      }, {secondary: true});
+      releaseDetail();
+      const viewName = `life-${item.id}`;
+      const back = backAction(viewName);
       const detail = node('section', 'consumer-life-detail');
+      detail.dataset.lifeDetail = item.id;
       const title = node('h3', '', item.label); title.tabIndex = -1;
       const queryForm = node('form', 'consumer-life-form');
       const controls = [];
@@ -185,15 +252,13 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       });
       const note = '누르면 바로 롯비에게 물어봐요. 현재 위치는 자동으로 수집하지 않습니다.';
       detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
-      root.replaceChildren(detail); title.focus();
+      root.replaceChildren(detail); setView(viewName); title.focus();
     }
     // 병원·응급실: nothing is asked until the reader picks 병원·의원 or 응급실;
     // the pick sends that existing medical question once.
     function openMedicalChoice(item) {
-      const back = action('지역정보로 돌아가기', () => {
-        root.replaceChildren(heading, grid);
-        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
-      }, {secondary: true});
+      releaseDetail();
+      const back = backAction('life-medical');
       const detail = node('section', 'consumer-life-detail');
       detail.dataset.lifeDetail = item.id;
       const title = node('h3', '', item.label); title.tabIndex = -1;
@@ -209,24 +274,21 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         choices.append(button);
       }
       detail.append(back, title, choices);
-      root.replaceChildren(detail); title.focus();
+      root.replaceChildren(detail); setView('life-medical'); title.focus();
     }
     // 지역뉴스: its own module lists the 광역시·도 news titles in this screen
     // (current location, saved region or a picked 시·도; 오늘 / 1주일). Nothing
     // goes to the conversation.
     function openNewsEntry(item) {
+      releaseDetail();
       const current = ++generation;
-      const back = action('지역정보로 돌아가기', () => {
-        releaseNews?.(); releaseNews = undefined; generation += 1;
-        root.replaceChildren(heading, grid);
-        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
-      }, {secondary: true});
+      const back = backAction('life-news');
       const detail = node('section', 'consumer-life-detail');
       detail.dataset.lifeDetail = item.id;
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
-      root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-7f4cb5861069').then(({mountRegionalNews}) => {
+      root.replaceChildren(detail); setView('life-news'); back.focus();
+      import('./site-life-news.js?v=aset-7b6506082b65').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -237,11 +299,9 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     }
     // 내 아이 학교·유치원: one card, two features — 내 아이 정보 (the reader's saved
     // schools / 유치원, its own sign-in rules) and 유치원·학교 찾기 (public lookup).
-    function openChildChoice(item) {
-      const back = action('지역정보로 돌아가기', () => {
-        root.replaceChildren(heading, grid);
-        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
-      }, {secondary: true});
+    function openChildChoice(item, from = '') {
+      releaseDetail();
+      const back = backAction('life-my-child');
       const detail = node('section', 'consumer-life-detail');
       detail.dataset.lifeDetail = `${item.id}-choice`;
       const title = node('h3', '', item.label); title.tabIndex = -1;
@@ -249,31 +309,31 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       for (const choice of item.children) {
         const button = action(choice.label, () => {
           if (disposed) return;
-          if (choice.id === 'education') openEducation({id: 'education', label: '유치원·학교'}, item.id);
-          else openMyChild(item);
+          if (choice.id === 'education') showLifeView('life-education');
+          else showLifeView('life-my-child-info');
         });
         button.dataset.childChoice = choice.id;
         choices.append(button);
       }
       detail.append(back, title, choices);
-      root.replaceChildren(detail); title.focus();
+      root.replaceChildren(detail); setView('life-my-child');
+      // Back from 내 아이 정보 / 유치원·학교 찾기: focus the choice it came from.
+      const returned = LIFE_VIEW_CHILD_CHOICE[from] ? choices.querySelector(`[data-child-choice="${LIFE_VIEW_CHILD_CHOICE[from]}"]`) : null;
+      (returned || title).focus();
     }
     // KINDERGARTEN-OFFICIAL-INFO-01: the 유치원·학교 screen is its own module,
     // loaded on first use; it owns its reads and its "내 유치원" key.
-    function openEducation(item, cardId = item.id) {
+    function openEducation(item) {
+      releaseDetail();
       const current = ++generation;
-      const back = action('지역정보로 돌아가기', () => {
-        releaseEducation?.(); releaseEducation = undefined; generation += 1;
-        root.replaceChildren(heading, grid);
-        grid.querySelector(`[data-life-shortcut="${cardId}"]`)?.focus();
-      }, {secondary: true});
+      const back = backAction('life-education');
       const detail = node('section', 'consumer-life-detail');
       detail.dataset.lifeDetail = item.id;
       const title = node('h3', '', item.label); title.tabIndex = -1;
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
-      root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-7f4cb5861069').then(({mountEducation}) => {
+      root.replaceChildren(detail); setView('life-education'); title.focus();
+      import('./site-life-education.js?v=aset-7b6506082b65').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -284,18 +344,15 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     // the conversation owns the session and mounts it (mountMyChild). Its
     // "대화로 더 물어보기" asks through the same onAsk as every life card.
     function openMyChild(item) {
+      releaseDetail();
       const current = ++generation;
-      const back = action('지역정보로 돌아가기', () => {
-        releaseMyChild?.(); releaseMyChild = undefined; generation += 1;
-        root.replaceChildren(heading, grid);
-        grid.querySelector(`[data-life-shortcut="${item.id}"]`)?.focus();
-      }, {secondary: true});
+      const back = backAction('life-my-child-info');
       const detail = node('section', 'consumer-life-detail');
       detail.dataset.lifeDetail = item.id;
       const title = node('h3', '', item.label); title.tabIndex = -1;
       const host = node('div', 'consumer-life-my-child');
       detail.append(back, title, host);
-      root.replaceChildren(detail); title.focus();
+      root.replaceChildren(detail); setView('life-my-child-info'); title.focus();
       Promise.resolve(typeof mountMyChild === 'function' ? mountMyChild(host, {onAsk}) : null).then(mounted => {
         if (disposed || current !== generation) { mounted?.dispose?.(); return; }
         releaseMyChild = mounted?.dispose;
@@ -323,6 +380,8 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     }
     const heading = node('h3', 'consumer-section-label', '생활에 필요한 정보');
     root.append(heading, grid);
+    // A reload or back/forward of a 'life-*' URL opens that screen directly.
+    if (lifeView !== 'life' && LIFE_VIEW_PARENT[lifeView]) showLifeView(lifeView);
   } else if (section === 'wallet') {
     releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt, sessionToken, subscription});
   } else if (section === 'care') {
@@ -399,5 +458,12 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     for (const label of ['지역몰', '공공몰', '생활서비스', '쇼핑']) groups.append(node('span', 'consumer-category-label', label));
     root.append(state, groups, node('p', 'consumer-feature-note', '업체별 실제 연결 가능 여부와 권한은 연결 서비스에서 확인합니다. 소셜 로그인 계정과 제휴처 이용 권한은 다릅니다. 주문·배송 및 자동 주문은 연결만으로 활성화되지 않으며, 실제 결제는 진행하지 않습니다.'));
   }
-  return {dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); releaseEducation?.(); releaseNews?.(); releaseMyChild?.(); }};
+  return {
+    dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseWallet?.dispose?.(); releaseEducation?.(); releaseNews?.(); releaseMyChild?.(); },
+    // REGIONAL-INFO-BACK-NAVIGATION-01 (지역정보 only): the screen on view, show
+    // one by its route, and one step back (false on the 지역정보 list itself).
+    get lifeView() { return lifeApi ? lifeApi.view() : ''; },
+    showLifeView(name) { lifeApi?.show(name); },
+    back() { return lifeApi ? lifeApi.back() : false; },
+  };
 }

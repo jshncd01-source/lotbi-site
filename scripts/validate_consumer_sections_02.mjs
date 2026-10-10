@@ -54,7 +54,11 @@ assert.doesNotMatch(source, /onDraft/);
 const child = LIFE_SHORTCUTS.find(item => item.id === 'my-child');
 assert.deepEqual(child.children.map(choice => [choice.id, choice.label]), [['my-child', '내 아이 정보'], ['education', '유치원·학교 찾기']]);
 assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/);
-assert.match(source, /if \(choice\.id === 'education'\) openEducation\(/);
+// REGIONAL-INFO-BACK-NAVIGATION-01: the choice opens 유치원·학교 찾기 through its
+// route ('life-education'), which mounts the education module.
+assert.match(source, /if \(choice\.id === 'education'\) showLifeView\('life-education'\);\s*else showLifeView\('life-my-child-info'\);/);
+assert.match(source, /else if \(name === 'life-education' && items\['my-child'\]\) openEducation\(/);
+assert.match(source, /else if \(name === 'life-my-child-info' && items\['my-child'\]\) openMyChild\(/);
 assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 // Phones keep two columns: the later layout sheet must not turn the menu into one.
 assert.doesNotMatch(read('site-consumer-layout.css'), /\.consumer-shortcuts \{ grid-template-columns: minmax\(0, 1fr\); \}/);

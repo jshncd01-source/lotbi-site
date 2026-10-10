@@ -81,6 +81,14 @@ jobs:
       - name: Validate refresh keeps the current Site screen
         run: node scripts/validate_site_refresh_route_restore_01.mjs
 
+      # REGIONAL-INFO-BACK-NAVIGATION-01 — 지역정보 안의 화면(병원·응급실 ·
+      # 지역뉴스 · 지역생활정보 · 내 아이 학교·유치원과 그 하위 · 축제 · 전기차 ·
+      # 지하철 · 온누리 · 부동산)에서 시스템 뒤로가기 · 화면 위 ← · '…로
+      # 돌아가기' · Escape 가 한 단계씩(하위 → 카테고리 → 지역정보 → 홈)
+      # 돌아가고, 새로고침해도 같은 화면인지 360 · 390 · 1280px 에서 확인한다.
+      - name: Validate 지역정보 back steps one screen at a time
+        run: node scripts/validate_regional_info_back_navigation_01.mjs
+
       # Run feature-owned profile regressions before unrelated Site gates so
       # active logo/main work cannot hide whether this branch is executable.
       - name: Validate conversation, profile and thread UX contracts

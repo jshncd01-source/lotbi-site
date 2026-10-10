@@ -37,7 +37,8 @@ const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Route table ─────────────────────────────────────────────────────────
 const {SITE_ROUTES, isSiteRoute, parseSiteRouteHash, siteRouteHash, siteRouteUrl} = await import('../site-route.js');
-const EXPECTED_ROUTES = ['calendar', 'wallet', 'scam', 'care', 'pets', 'life', 'festival', 'real-estate', 'real-estate-apartment', 'ev-chargers', 'subway', 'subway-station'];
+// REGIONAL-INFO-BACK-NAVIGATION-01: the screens inside 지역정보 and 온누리 have routes.
+const EXPECTED_ROUTES = ['calendar', 'wallet', 'scam', 'care', 'pets', 'life', 'life-medical', 'life-news', 'life-local', 'life-my-child', 'life-my-child-info', 'life-education', 'festival', 'onnuri', 'real-estate', 'real-estate-apartment', 'ev-chargers', 'subway', 'subway-station'];
 assert.deepEqual([...SITE_ROUTES], EXPECTED_ROUTES);
 assert.ok(Object.isFrozen(SITE_ROUTES));
 for (const route of SITE_ROUTES) {
@@ -62,7 +63,7 @@ assert.ok(openersStart > 0 && openersEnd > openersStart, 'siteRouteOpeners table
 const openerKeys = [...conversation.slice(openersStart, openersEnd).matchAll(/^\s*'?([a-z-]+)'?: \(\) =>/gmu)].map(match => match[1]);
 assert.deepEqual(openerKeys, EXPECTED_ROUTES, 'one opener per route, same order as site-route.js');
 const surfaceRoutes = [...conversation.matchAll(/route: '([a-z-]+)'/gu)].map(match => match[1]);
-assert.deepEqual([...new Set(surfaceRoutes)].sort(), ['calendar', 'ev-chargers', 'festival', 'pets', 'real-estate', 'subway', 'subway-station'].sort());
+assert.deepEqual([...new Set(surfaceRoutes)].sort(), ['calendar', 'ev-chargers', 'festival', 'onnuri', 'pets', 'real-estate', 'subway', 'subway-station'].sort());
 for (const route of surfaceRoutes) assert.ok(isSiteRoute(route), route);
 assert.match(conversation, /installSurfaceBehavior\(backdrop, panel, \{workspace: section, route, onClose/u, 'wallet/care/life surfaces carry their section route');
 assert.match(conversation, /const route = section === 'care' && careTab === 'pets' \? 'pets' : section;/u);
@@ -763,7 +764,8 @@ async function runCase(browser, origin, workDir, testCase) {
     // in the composer for a second tap.
     left = await leaveLifeByOtherMeans('질문 바로 전송', `(() => {
       document.querySelector('[data-site-route="life"] [data-life-shortcut="local"]').click();
-      const form = document.querySelector('[data-site-route="life"] .consumer-life-form');
+      // 지역생활정보 is the 'life-local' screen of the same 지역정보 surface.
+      const form = document.querySelector('[data-workspace="life"] .consumer-life-form');
       for (const field of form.querySelectorAll('input, textarea')) field.value = '전주';
       form.requestSubmit();
       return true;

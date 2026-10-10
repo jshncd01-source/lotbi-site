@@ -1,33 +1,33 @@
-import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-7f4cb5861069';
-import * as siteCore from './site-core.js?v=aset-7f4cb5861069';
-import './site-scam-shield.js?v=aset-7f4cb5861069';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-7f4cb5861069';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl, captureWalletShareIntent} from './site-route.js?v=aset-7f4cb5861069';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-7f4cb5861069';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-7f4cb5861069';
-import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-7f4cb5861069';
-import * as siteAttachments from './site-attachments.js?v=aset-7f4cb5861069';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-7f4cb5861069';
-import {deterministicReply} from './site-deterministic.js?v=aset-7f4cb5861069';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-7f4cb5861069';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-7f4cb5861069';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-7f4cb5861069';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-7f4cb5861069';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-7f4cb5861069';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-7f4cb5861069';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-7f4cb5861069';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-7f4cb5861069';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-7f4cb5861069';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-7f4cb5861069';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-7f4cb5861069';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-7f4cb5861069';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-7f4cb5861069';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-7f4cb5861069';
-import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-7f4cb5861069';
-import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-7f4cb5861069';
-import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-7f4cb5861069';
-import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-7f4cb5861069';
-import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-7f4cb5861069';
+import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-7b6506082b65';
+import * as siteCore from './site-core.js?v=aset-7b6506082b65';
+import './site-scam-shield.js?v=aset-7b6506082b65';
+import {LIFE_VIEW_PARENT, lifeBackLabel, mountConsumerSection} from './site-consumer-sections.js?v=aset-7b6506082b65';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl, captureWalletShareIntent} from './site-route.js?v=aset-7b6506082b65';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-7b6506082b65';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-7b6506082b65';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-7b6506082b65';
+import * as siteAttachments from './site-attachments.js?v=aset-7b6506082b65';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-7b6506082b65';
+import {deterministicReply} from './site-deterministic.js?v=aset-7b6506082b65';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-7b6506082b65';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-7b6506082b65';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-7b6506082b65';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-7b6506082b65';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-7b6506082b65';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-7b6506082b65';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-7b6506082b65';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-7b6506082b65';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-7b6506082b65';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-7b6506082b65';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-7b6506082b65';
+import {resolveLifeLocationContext} from './site-life-location.js?v=aset-7b6506082b65';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-7b6506082b65';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-7b6506082b65';
+import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-7b6506082b65';
+import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-7b6506082b65';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-7b6506082b65';
+import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-7b6506082b65';
+import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-7b6506082b65';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
 
@@ -204,7 +204,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-7f4cb5861069';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-7b6506082b65';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -297,7 +297,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-7f4cb5861069');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-7b6506082b65');
   return shareWithKakaoTalk(options);
 }
 
@@ -306,7 +306,7 @@ async function shareMessageWithKakao(options) {
 // already has the SDK loaded, so choosing it shares within the same tap.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-7f4cb5861069');
+    const module = await import('./site-kakao-share.js?v=aset-7b6506082b65');
     return Boolean(await module.prepareKakaoShare());
   } catch {
     return false;
@@ -1013,8 +1013,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (conversationSync) return Promise.resolve(conversationSync);
     if (!conversationSyncLoading) {
       conversationSyncLoading = Promise.all([
-        import('./site-conversation-sync.js?v=aset-7f4cb5861069'),
-        import('./site-conversation-sync-ui.js?v=aset-7f4cb5861069'),
+        import('./site-conversation-sync.js?v=aset-7b6506082b65'),
+        import('./site-conversation-sync-ui.js?v=aset-7b6506082b65'),
       ]).then(([engine, ui]) => {
         conversationSyncUi = ui;
         ui.ensureConversationSyncStyles();
@@ -3920,7 +3920,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-7f4cb5861069');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-7b6506082b65');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -3948,7 +3948,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-7f4cb5861069');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-7b6506082b65');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3981,7 +3981,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseCctvSurface?.(); releaseCctvSurface = null; },
     });
     try {
-      const {mountTrafficCctv} = await import('./site-life-traffic-cctv.js?v=aset-7f4cb5861069');
+      const {mountTrafficCctv} = await import('./site-life-traffic-cctv.js?v=aset-7b6506082b65');
       const mounted = await mountTrafficCctv({root: content, showTitle: false});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseCctvSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -3997,20 +3997,20 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: the same card opens
   // '온누리상품권·지역화폐' with [온누리상품권] [지역화폐] tabs (site-life-vouchers.js);
   // the 온누리상품권 tab is the unchanged onnuri module.
-  // It stays on the existing 'life' route, so a reload lands on 생활정보.
+  // REGIONAL-INFO-BACK-NAVIGATION-01: its own route 'onnuri' with backRoute
+  // 'life', like 축제·행사 — the system back and ← land on 지역정보 (it used to
+  // share 'life', so the system back went to the home), and a reload reopens it.
   const openOnnuri = async () => {
     closeMobileDrawer();
     const {backdrop, panel, content} = modalShell('온누리상품권·지역화폐', '공식 자료에 등록된 가맹점을 지역이나 현재 위치로 찾아보세요.');
     panel.classList.add('site-onnuri-modal');
     let releaseOnnuriSurface = null;
-    // Same route as the 생활정보 section it belongs to (openConsumerSection).
-    const route = 'life';
     installSurfaceBehavior(backdrop, panel, {
-      workspace: 'life', route, backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'),
+      workspace: 'life', route: 'onnuri', backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life',
       onClose: () => { releaseOnnuriSurface?.(); releaseOnnuriSurface = null; },
     });
     try {
-      const {mountVoucherHub} = await import('./site-life-vouchers.js?v=aset-7f4cb5861069');
+      const {mountVoucherHub} = await import('./site-life-vouchers.js?v=aset-7b6506082b65');
       const mounted = await mountVoucherHub({root: content});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseOnnuriSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -4060,7 +4060,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       event.preventDefault(); event.stopPropagation(); backToList();
     }, true);
     try {
-      const {mountRealEstate} = await import('./site-life-real-estate.js?v=aset-7f4cb5861069');
+      const {mountRealEstate} = await import('./site-life-real-estate.js?v=aset-7b6506082b65');
       if (!backdrop.isConnected || realEstateSurface !== entry) return;
       entry.controller = mountRealEstate({
         root: content,
@@ -4103,7 +4103,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseEvSurface?.(); releaseEvSurface = null; },
     });
     try {
-      const {mountEvChargers} = await import('./site-life-ev-chargers.js?v=aset-7f4cb5861069');
+      const {mountEvChargers} = await import('./site-life-ev-chargers.js?v=aset-7b6506082b65');
       const mounted = await mountEvChargers({root: content, showTitle: false, askLocationOnOpen: askLocation});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseEvSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -4142,7 +4142,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseSubwaySurface?.(); releaseSubwaySurface = null; },
     });
     try {
-      const {mountSubwayHome} = await import('./site-life-subway.js?v=aset-7f4cb5861069');
+      const {mountSubwayHome} = await import('./site-life-subway.js?v=aset-7b6506082b65');
       const mounted = await mountSubwayHome({
         root: content, askLocationOnOpen: askLocation, initialState,
         onState: value => { if (backdrop.isConnected) rememberSubwayState('subway', 'lotbiSubwayHome', value); },
@@ -4171,7 +4171,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     // A station picked on #subway is written into the entry pushed for it.
     queueMicrotask(() => { if (backdrop.isConnected) rememberSubwayState('subway-station', 'lotbiSubwayStation', saved); });
     try {
-      const {mountSubwayStation} = await import('./site-life-subway.js?v=aset-7f4cb5861069');
+      const {mountSubwayStation} = await import('./site-life-subway.js?v=aset-7b6506082b65');
       const mounted = await mountSubwayStation({
         root: content, initialState: saved,
         onState: value => { if (backdrop.isConnected) rememberSubwayState('subway-station', 'lotbiSubwayStation', value); },
@@ -4390,7 +4390,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const openSettings = () => { window.location.assign(ACCOUNT_MANAGE_URL); };
   // Keep feature ownership in the existing managers. These entry points never
   // submit a request or imply that an unconnected feature is available.
-  const openConsumerSection = async (section, {careTab = 'people'} = {}) => {
+  // REGIONAL-INFO-BACK-NAVIGATION-01: the last 지역정보 surface, so a back/forward
+  // between its screens (life ↔ life-*) changes the screen in place while it is
+  // the one open (openLifeView checks openSurface).
+  let lifeSurface = null;
+  const openConsumerSection = async (section, {careTab = 'people', lifeView = 'life'} = {}) => {
     closeMobileDrawer();
     // The provider catalogue already owns connection state, permissions and
     // disconnect. Enter it directly instead of adding an extra menu-board.
@@ -4419,10 +4423,35 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     panel.classList.add('consumer-section-panel');
     let mounted;
     const route = section === 'care' && careTab === 'pets' ? 'pets' : section;
+    const life = section === 'life' ? {backdrop, mounted: null} : null;
     installSurfaceBehavior(backdrop, panel, {workspace: section, route, onClose: () => mounted?.dispose()});
+    if (life) {
+      lifeSurface = life;
+      // A screen inside 지역정보: the header ← and Escape step back to its parent
+      // (the same history step as the system back) instead of leaving 지역정보.
+      const stepBackInside = event => {
+        if (!mounted || mounted.lifeView === 'life' || !LIFE_VIEW_PARENT[mounted.lifeView]) return;
+        event.preventDefault(); event.stopPropagation(); mounted.back();
+      };
+      panel.addEventListener('click', event => {
+        if (event.target instanceof Element && event.target.closest('.site-modal-close')) stepBackInside(event);
+      }, true);
+      panel.addEventListener('keydown', event => { if (event.key === 'Escape') stepBackInside(event); }, true);
+    }
     mounted = mountConsumerSection({
       section, root: content, authenticated: Boolean(sessionToken),
       careTab,
+      lifeView,
+      // The 지역정보 screen on view names the route (URL + history entry).
+      onLifeView: name => {
+        if (openSurface !== backdrop) return;
+        backdrop.dataset.siteRoute = name;
+        const back = panel.querySelector('.site-modal-close');
+        const label = name === 'life' ? '대화로 돌아가기' : lifeBackLabel(name);
+        if (back) { back.title = label; back.setAttribute('aria-label', label); }
+        queueSiteRouteSync();
+      },
+      requestLifeBack: (parent, apply) => leaveSiteRoute(parent, () => { if (openSurface === backdrop) apply(); }),
       onCareTab: tab => {
         if (openSurface !== backdrop) return;
         backdrop.dataset.siteRoute = tab === 'pets' ? 'pets' : 'care';
@@ -4449,8 +4478,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-7f4cb5861069'),
-          import('./site-pet.js?v=aset-7f4cb5861069'),
+          import('./site-person.js?v=aset-7b6506082b65'),
+          import('./site-pet.js?v=aset-7b6506082b65'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -4459,11 +4488,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         };
       },
       mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-7f4cb5861069');
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-7b6506082b65');
         return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-7f4cb5861069');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-7b6506082b65');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -4471,10 +4500,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       // only). It asks through the onAsk handed over by the life section, so a
       // question is sent at once without the keyboard, like every life card.
       mountMyChild: async (root, {onAsk: askFromMyChild} = {}) => {
-        const {mountMyChild} = await import('./site-life-my-child.js?v=aset-7f4cb5861069');
+        const {mountMyChild} = await import('./site-life-my-child.js?v=aset-7b6506082b65');
         return mountMyChild({sessionToken, root, authenticated: Boolean(sessionToken), onAsk: askFromMyChild});
       },
     });
+    if (life) life.mounted = mounted;
   };
   const openCalendar = async (view, {deepOpen, initialDraft = null} = {}) => {
     const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
@@ -6077,15 +6107,28 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // SITE-REFRESH-ROUTE-RESTORE-01 — URL → screen. Every route of site-route.js
   // has exactly one opener here (validate_site_refresh_route_restore_01.mjs
   // checks the two lists match).
+  // REGIONAL-INFO-BACK-NAVIGATION-01: 지역정보 already open → change its screen
+  // in place (back/forward between its screens); otherwise open it on that screen.
+  const openLifeView = view => {
+    if (lifeSurface?.mounted && openSurface === lifeSurface.backdrop) { lifeSurface.mounted.showLifeView(view); return undefined; }
+    return openConsumerSection('life', {lifeView: view});
+  };
   const siteRouteOpeners = {
     calendar: () => openCalendar('all'),
     wallet: () => openConsumerSection('wallet'),
     scam: () => openScamShield(),
     care: () => openConsumerSection('care'),
     pets: () => openConsumerSection('care', {careTab: 'pets'}),
-    life: () => openConsumerSection('life'),
+    life: () => openLifeView('life'),
+    'life-medical': () => openLifeView('life-medical'),
+    'life-news': () => openLifeView('life-news'),
+    'life-local': () => openLifeView('life-local'),
+    'life-my-child': () => openLifeView('life-my-child'),
+    'life-my-child-info': () => openLifeView('life-my-child-info'),
+    'life-education': () => openLifeView('life-education'),
     ...(TRAFFIC_CCTV_UI_ENABLED ? {'traffic-cctv': () => openTrafficCctv()} : {}),
     festival: () => openFestival(),
+    onnuri: () => openOnnuri(),
     'real-estate': () => openRealEstate(),
     'real-estate-apartment': () => openRealEstate({view: 'detail'}),
     'ev-chargers': () => openEvChargers({askLocation: false}),
