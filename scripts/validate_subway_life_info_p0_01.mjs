@@ -601,7 +601,7 @@ async function runCase(browser, origin, workDir, testCase) {
 
     // 8. System back: station → 지하철 정보 → 지역정보 → home.
     await back();
-    s = await settled(st => st.hash === '#subway' && st.which === 'home', 'back → 지하철 정보');
+    s = await settled(st => st.hash === '#subway' && st.which === 'home' && st.groups.length === 2, 'back → 지하철 정보');
     await check(`${label}: back → /#subway (지하철 정보), its search kept`, () => {
       assert.equal(s.title, '지하철 정보');
       assert.deepEqual(s.groups.map(group => group.name), ['강남', '강남구청']);
