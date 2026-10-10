@@ -11,7 +11,11 @@
 // measured on), and a photo that cannot be used says why. Nothing here judges
 // what the photo shows.
 
-export const PERSON_PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
+// PHOTO-INPUT-NO-CAMCORDER-01 — one generic image type. A list of several exact
+// image types is not a "single type" to Android's Chromium file chooser, which
+// then falls back to a generic chooser with a camcorder entry (Samsung
+// Internet). The bytes above still decide what is accepted.
+export const PERSON_PHOTO_ACCEPT = 'image/*';
 // Sent unchanged up to this size: base64 of 8 MB stays well inside Core's
 // 14 MB request body and 10 MB image limits.
 export const PERSON_PHOTO_PASS_MAX_BYTES = 8 * 1024 * 1024;
