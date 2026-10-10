@@ -1,4 +1,6 @@
 READY_FOR_DEPLOY=YES
+SUPERSEDES=07ceeeabc300fcbbe57ea9965538cf705ab98b6a
+GATE_RETURN_FIX=SITE-T55 validate_social_signup_profile_ux_01 실패 → 부팅 즉시 import를 첫 사용 시 로드로 변경(아래 'SITE-T55 반환 수정')
 MIGRATION=NO
 DEPLOY_ORDER=CORE → SITE → APP (Core feature/trouble-helper-01-core 78ecd8e8가 먼저. Core가 없으면 이 화면은 "안내를 불러오지 못했어요" + 112·119·132 전화로 끝나고 다른 화면에는 영향 없음)
 USER_DECISION_NEEDED=NONE
@@ -8,10 +10,17 @@ USER_DECISION_NEEDED=NONE
 REPO=lotbi-site
 FEATURE_BRANCH=feature/trouble-helper-01-site
 FEATURE_SHA=이 문서 커밋(branch HEAD). `git ls-remote`로 확인한다.
-CODE_SHA=52c8b4981 (코드 커밋 15780404f 기능·검사기 → b1c78b2bb asset 토큰 → 667f26121 검사기 보강 → 52c8b4981 fixture 문구)
+CODE_SHA=29636838c (SITE-T55 반환 수정 + asset 토큰. 그 앞 15780404f 기능·검사기 → b1c78b2bb asset 토큰 → 667f26121 검사기 보강 → 52c8b4981 fixture 문구)
 AUTHORITATIVE_MAIN_AT_DEVELOPMENT=afb7057d1d8c149e2b46eb1d656b1049e36b831d (착수 = push 직전 ls-remote 값, merge 필요 없음)
-ASSET_VERSION=aset-139d310e4843 (`node scripts/asset_cache_version.mjs --check` PASS, targets=162 refs=197)
+ASSET_VERSION=aset-aa70e560957f (`node scripts/asset_cache_version.mjs --check` PASS, targets=162 refs=197)
 PAIRED=lotbi-core feature/trouble-helper-01-core 78ecd8e8 · lotbi-app feature/trouble-helper-01-app
+
+## SITE-T55 반환 수정 (2026-10-11 새벽)
+
+- 반환 원인(배포총괄방 실측): `site-conversation.js` 최상단 `void import('./site-trouble-helper.js?v=…')`가 부팅 때 모듈을 하나 더 불러와 시점이 당겨지면서, 로그인 상태의 `/v2/conversation-history/settings` 요청이 `validate_social_signup_profile_ux_01`의 검사 창 안으로 들어왔다.
+- 수정: 부팅 때 불러오지 않는다. `data-trouble-open` 버튼을 처음 누를 때(문서 click 위임) 모듈을 불러와 새로 export한 `openTroubleHelper(trigger)`로 그 탭을 이어서 연다. 창을 연 채 새로고침한 경우(sessionStorage 표시)에만 부팅 때 불러온다. 실패해도 대화 모듈은 그대로.
+- 검사기 `validate_trouble_helper_01`: "부팅 import 없음, 첫 사용 로드, export 존재"를 소스에서 확인하고, 브라우저에서 첫 화면 시점에 `site-trouble-helper.js`가 resource 목록에 없음을 단언(완화 아님 — 새 동작을 고정).
+- 확인(CHROME_BIN 지정, Windows): `validate_trouble_helper_01` 43 checks PASS, `validate_social_signup_profile_ux_01` PASS(2회 연속), `validate_auth_continuity_02` PASS. 바뀐 84개 파일 중 실제 내용 변경은 3개(`site-conversation.js`, `site-trouble-helper.js`, 검사기), 나머지 81개는 asset 토큰 문자열만.
 
 ## 변경
 

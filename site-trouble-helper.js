@@ -39,8 +39,8 @@ import {
   visibleQuestions,
   visibleSteps,
   cleanAnswers,
-} from './site-trouble-helper-model.js?v=aset-ac377caccc90';
-import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-ac377caccc90';
+} from './site-trouble-helper-model.js?v=aset-8e7302d78490';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-8e7302d78490';
 
 const OPEN_FLAG_KEY = 'lotbi.trouble-helper.open.v1';
 const ROUTE_HASH_RE = /^#[a-z][a-z-]{1,30}$/u;
@@ -614,7 +614,7 @@ function printSummary(situation, record) {
 }
 
 async function loadKakaoShare() {
-  try { return await import('./site-kakao-share.js?v=aset-ac377caccc90'); } catch { return null; }
+  try { return await import('./site-kakao-share.js?v=aset-8e7302d78490'); } catch { return null; }
 }
 
 // Opening the 정리표 readies the KakaoTalk SDK, so the tap on 카카오로 보내기
@@ -801,6 +801,13 @@ function bindTroubleHelper() {
     node.dataset.troubleBound = 'true';
     node.addEventListener('click', openDialog);
   });
+}
+
+// site-conversation.js loads this module on the first tap of a menu button
+// (not at boot), then hands that tap over here.
+export function openTroubleHelper(trigger) {
+  bindTroubleHelper();
+  openDialog(trigger instanceof HTMLElement ? {currentTarget: trigger} : undefined);
 }
 
 function reopenAfterReload() {
