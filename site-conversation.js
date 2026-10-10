@@ -676,6 +676,9 @@ function userFacingErrorMessage(error) {
 // firing instantly would put the wrong question to LOTBI. A short window lets
 // the person stop it, and any move toward the textarea stops it too.
 const VOICE_AUTOSEND_DELAY_MS = 2500;
+// SITE-SESSION-REQUEST-STORM-P0-01 — the Calendar badge is a side read; asks
+// that arrive closer together than this fold into one follow-up read.
+const NAVIGATION_CALENDAR_MIN_INTERVAL_MS = 1500;
 const VOICE_AUTOSEND_PENDING_MESSAGE = '곧 보낼게요.';
 const VOICE_AUTOSEND_CANCELLED_MESSAGE = '보내지 않았습니다. 고친 뒤 전송을 눌러 주세요.';
 const VOICE_NOTHING_HEARD_MESSAGE = '잘 못 들었어요. 다시 말씀해 주시거나 입력해 주세요.';
@@ -4599,8 +4602,43 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       void refreshNavigationCalendarStatus();
     }, millisecondsUntilNextLocalMidnight() + 100);
   };
+  // SITE-SESSION-REQUEST-STORM-P0-01 — this badge read must never multiply.
+  // Core refusing the Site bearer (401) makes getLifeToday announce a dead
+  // session synchronously, and that announcement (lotbi:site-session-state,
+  // then the anonymous sidebar repaint) asked for this badge again. The new
+  // read went out with the same refused bearer before the failed one could drop
+  // it — the newer generation skipped the drop — so it answered 401 and
+  // announced again: ~200 /v2/life/today a second from one tab after an
+  // Account logout elsewhere (2026-10-10). Now one read runs at a time, asks
+  // that arrive meanwhile (or within the minimum interval) fold into a single
+  // follow-up, and a refused bearer is dropped by whichever read saw it.
+  let navigationCalendarReadInFlight = false;
+  let navigationCalendarFollowUpWanted = false;
+  let navigationCalendarFollowUpTimer;
+  let navigationCalendarLastStartedAt = 0;
+  const queueNavigationCalendarFollowUp = () => {
+    navigationCalendarFollowUpWanted = true;
+    if (navigationCalendarReadInFlight || navigationCalendarFollowUpTimer !== undefined) return;
+    const wait = Math.max(0, navigationCalendarLastStartedAt + NAVIGATION_CALENDAR_MIN_INTERVAL_MS - Date.now());
+    navigationCalendarFollowUpTimer = window.setTimeout(() => {
+      navigationCalendarFollowUpTimer = undefined;
+      if (!navigationCalendarFollowUpWanted) return;
+      navigationCalendarFollowUpWanted = false;
+      void refreshNavigationCalendarStatus();
+    }, wait);
+  };
   const refreshNavigationCalendarStatus = async () => {
     if (navigationCalendarEntries().length === 0) return;
+    if (
+      navigationCalendarReadInFlight
+      || Date.now() - navigationCalendarLastStartedAt < NAVIGATION_CALENDAR_MIN_INTERVAL_MS
+    ) {
+      queueNavigationCalendarFollowUp();
+      return;
+    }
+    navigationCalendarReadInFlight = true;
+    navigationCalendarFollowUpWanted = false;
+    navigationCalendarLastStartedAt = Date.now();
     const generation = ++navigationCalendarStatusGeneration;
     const tokenAtStart = sessionToken;
     const namespaceAtStart = namespace;
@@ -4613,12 +4651,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       ) return;
       renderNavigationCalendarStatus(status);
     } catch (error) {
+      // Drop the refused bearer whatever generation is current: it is never
+      // sent again, and site-continuity.js renews (at most every 20 s).
+      if (error instanceof SiteCoreError && isSessionError(error) && tokenAtStart && tokenAtStart === sessionToken) {
+        dropSessionToken();
+      }
       if (generation === navigationCalendarStatusGeneration) {
         renderNavigationCalendarStatus({count: 0, hasReminder: false});
-        if (error instanceof SiteCoreError && isSessionError(error)) dropSessionToken();
       }
     } finally {
+      navigationCalendarReadInFlight = false;
       if (generation === navigationCalendarStatusGeneration) scheduleNavigationCalendarMidnightRefresh();
+      if (navigationCalendarFollowUpWanted) queueNavigationCalendarFollowUp();
     }
   };
   const onNavigationCalendarRefresh = () => void refreshNavigationCalendarStatus();
