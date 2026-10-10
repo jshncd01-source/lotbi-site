@@ -16,10 +16,10 @@
 // ciphertext only, hands it only to the recipient, and deletes it when the share is revoked,
 // when the recipient has saved it, or after 30 days. Without the switch every screen says the
 // original is not sent.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-d4272459e325';
-import {loadKakaoShareConfig, shareWithKakaoTalk} from './site-kakao-share.js?v=aset-d4272459e325';
-import {captureWalletShareIntent, hasWalletShareIntent, takeWalletShareIntent} from './site-route.js?v=aset-d4272459e325';
-import {sealWalletShareItem, shareSafetyCode} from './site-life-wallet-share-crypto.js?v=aset-d4272459e325';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-97cbf5fb98f4';
+import {loadKakaoShareConfig, shareWithKakaoTalk} from './site-kakao-share.js?v=aset-97cbf5fb98f4';
+import {captureWalletShareIntent, hasWalletShareIntent, takeWalletShareIntent} from './site-route.js?v=aset-97cbf5fb98f4';
+import {sealWalletShareItem, shareSafetyCode} from './site-life-wallet-share-crypto.js?v=aset-97cbf5fb98f4';
 
 const BASE = '/v2/life-wallet/share';
 const QR_VALUE_RE = /^https:\/\/lotbiai\.com\/#wallet-share=qr\.([A-Za-z0-9_-]{24,64})$/u;
