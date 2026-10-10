@@ -11,7 +11,7 @@
 //   POST   /v2/life/my-children/{id}/info-requests      ask staff to fill an empty item
 // Stored per entry: the institution code, the reader's name for it, NEIS
 // allergen numbers. Nothing else about a child is ever sent.
-import {CORE_ORIGIN} from './site-core.js?v=aset-2f488deffc2a';
+import {CORE_ORIGIN} from './site-core.js?v=aset-5d1ce4a940be';
 
 const BASE_PATH = '/v2/life/my-children';
 const ENTRY_RE = /^mci_[0-9a-f]{20}$/u;
