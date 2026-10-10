@@ -8,6 +8,10 @@
 // masked until 비밀번호 보기 and masked again after 30 seconds; 비밀번호 복사; 와이파이 QR is the
 // same matrix as the encoder; the sticker photo opens from 관리; changing and deleting ask for
 // the PIN (a wrong PIN changes nothing); an open network; no browser reader → typed by hand.
+// The photo is never kept: router-label photos on a keyboard, a desk and the router body
+// (scripts/fixtures/wifi-label-scenes.mjs, tilted and on its side) are cut to the label by the
+// wallet scanner, trimmed inside its edge, and the kept image's border holds no background pixel
+// and stays within the label's size; a photo with no label opens the corner adjustment at once.
 // Kept sealed (no plaintext in IndexedDB), never in a backup, never fetched anywhere, and gone
 // from the page once the wallet locks. Layout at 360 px, light and dark. All data is synthetic.
 import assert from 'node:assert/strict';
@@ -46,6 +50,33 @@ try {
   const wifi = await import('/site-life-wallet-wifi.js?test=wifi-01');
   const qr = await import('/site-qr-encode.js?test=wifi-01');
   const wallet = await import('/site-life-wallet.js?test=wifi-01');
+  const scenes = await import('/scripts/fixtures/wifi-label-scenes.mjs?test=wifi-01');
+  const scanUi = await import('/site-life-wallet-scan-ui.js?test=wifi-01');
+  const decodeData = async dataUrl => {
+    const image = new Image(); await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; image.src = dataUrl; });
+    const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+    return context.getImageData(0, 0, canvas.width, canvas.height);
+  };
+  const scanLabel = async options => {
+    const scene = await scenes.routerLabelScene(options);
+    let confirmed = '';
+    const scanner = scanUi.createWalletDocumentScanner({file: new File([scene.blob], 'synthetic-router.jpg', {type: 'image/jpeg'}), purpose: 'label', onConfirm: value => { confirmed = value; }});
+    document.body.append(scanner.element);
+    await wait(() => ['review', 'error'].includes(scanner.element.dataset.scanState), 'label review');
+    const button = scanner.element.querySelector('[data-wallet-scan-confirm]');
+    const row = {mode: scanner.element.dataset.scanMode, reason: scanner.element.dataset.scanReason, adjusting: scanner.element.dataset.scanAdjusting,
+      sourceShown: !scanner.element.querySelector('.wallet-scan-source-pane').hidden, confirmEnabled: !button.disabled,
+      status: scanner.element.querySelector('.wallet-scan-status').textContent, scene};
+    if (!button.disabled) {
+      button.click();
+      const kept = await wifi.insetLabelImage(confirmed);
+      const pixels = await decodeData(kept);
+      row.kept = {width: pixels.width, height: pixels.height, border: scenes.borderBackgroundShare(pixels, 3).share};
+    }
+    scanner.destroy(); scanner.element.remove();
+    return row;
+  };
 
   // ── pure parts ───────────────────────────────────────────────────────────
   const tricky = {kind: 'wifi', id: 'w1', label: '집', ssid: '우리집;5G:"A"', security: 'WPA', password: 'a\\\\b,c:d"e;f!', hidden: true, photo: '', createdAt: '2026-10-10T00:00:00Z', updatedAt: '2026-10-10T00:00:00Z'};
@@ -79,6 +110,25 @@ try {
   const none = await wifi.readWifiSticker(document.createElement('canvas'), {BarcodeDetectorImpl: null, TextDetectorImpl: null});
   results.readers = readers.source === 'text' && readers.ssid === 'Text_Net' && readers.password === 'textpass99' && none.source === 'none';
 
+  // ── the label, not the photo ─────────────────────────────────────────────
+  const side = scene => {
+    const [a, b, c] = scene.corners; const one = Math.hypot(b.x - a.x, b.y - a.y); const two = Math.hypot(c.x - b.x, c.y - b.y);
+    return {long: Math.max(one, two), short: Math.min(one, two)};
+  };
+  const cut = [];
+  for (const options of [{seed: 3}, {seed: 5, rotation: -6}, {seed: 7, turned: true}, {seed: 11, body: false}]) {
+    const row = await scanLabel(options); const size = side(row.scene);
+    const ok = row.mode === 'automatic' && row.reason === 'label-region' && !row.sourceShown && row.kept
+      && row.kept.border === 0 && row.kept.width > row.kept.height
+      && Math.abs(row.kept.width / row.kept.height - row.scene.aspect) / row.scene.aspect < 0.06
+      && row.kept.width <= size.long && row.kept.height <= size.short;
+    cut.push({options, ok, mode: row.mode, reason: row.reason, kept: row.kept, aspect: row.scene.aspect, label: size});
+  }
+  results.labelOnly = cut.every(row => row.ok);
+  results.labelCutDetail = JSON.stringify(cut);
+  const missing = await scanLabel({seed: 13, label: false});
+  results.noLabelAdjust = missing.mode === 'manual' && missing.adjusting === 'true' && missing.sourceShown && !missing.confirmEnabled && missing.status.includes('공유기 스티커를 가까이 찍어 주세요');
+
   // ── a Free wallet with one card ──────────────────────────────────────────
   const account = 'wifi-card-test-account';
   const vault = new wallet.LifeWalletVault(new wallet.IndexedDbWalletRepository());
@@ -95,18 +145,24 @@ try {
   detectorCalls = 0;
   act('add');
   const form = await wait(() => q('form[data-wallet-wifi-form="add"]'), 'add form');
-  const sticker = Object.assign(document.createElement('canvas'), {width: 640, height: 400});
-  const ctx = sticker.getContext('2d'); ctx.fillStyle = '#f4f4f4'; ctx.fillRect(0, 0, 640, 400); ctx.fillStyle = '#222'; ctx.font = '28px sans-serif';
-  ctx.fillText('SSID: LOTBI_Home_5G', 30, 120); ctx.fillText('PW: Synthetic#Pass,1', 30, 180);
-  const blob = await new Promise(resolve => sticker.toBlob(resolve, 'image/png'));
-  const transfer = new DataTransfer(); transfer.items.add(new File([blob], 'synthetic-sticker.png', {type: 'image/png'}));
+  const routerPhoto = await scenes.routerLabelScene({seed: 3});
+  const transfer = new DataTransfer(); transfer.items.add(new File([routerPhoto.blob], 'synthetic-router.jpg', {type: 'image/jpeg'}));
   const input = form.querySelector('[data-wallet-wifi-photo-input]'); input.files = transfer.files; input.dispatchEvent(new Event('change', {bubbles: true}));
   await wait(() => form.querySelector('.wallet-wifi-status[data-read]'), 'sticker read');
   const inputs = [...form.querySelectorAll('input[type=text], input[type=password]')];
   const ssidInput = inputs.find(el => el.getAttribute('aria-label') === '와이파이 이름(SSID)');
   const passwordInput = form.querySelector('.wallet-wifi-secret');
+  // The label is cut in the form; nothing of the photo is shown outside the scanner's own preview.
+  const formScanner = await wait(() => form.querySelector('[data-wallet-wifi-scanner][data-scan-state="review"]'), 'label scanner');
+  const scannerAutomatic = formScanner.dataset.scanMode === 'automatic' && formScanner.querySelector('.wallet-scan-source-pane').hidden;
+  formScanner.querySelector('[data-wallet-scan-confirm]').click();
+  await wait(() => form.querySelector('[data-wallet-wifi-crop][data-crop="kept"]'), 'label kept');
+  const keptPreview = form.querySelector('.wallet-wifi-photo img');
+  const keptPixels = await decodeData(keptPreview.src);
   results.stickerFilled = form.querySelector('.wallet-wifi-status').dataset.read === 'qr' && ssidInput.value === 'LOTBI_Home_5G' && passwordInput.value === 'Synthetic#Pass,1'
-    && detectorCalls === 1 && Boolean(form.querySelector('.wallet-wifi-photo img')?.src.startsWith('data:image/jpeg;base64,'));
+    && detectorCalls === 1 && scannerAutomatic && !form.querySelector('[data-wallet-wifi-scanner]') && !form.querySelector('canvas')
+    && keptPreview.src.startsWith('data:image/jpeg;base64,') && scenes.borderBackgroundShare(keptPixels, 3).share === 0
+    && keptPixels.width < routerPhoto.width * 0.6 && keptPixels.width > keptPixels.height;
   results.passwordMaskedField = passwordInput.dataset.masked === 'true' && passwordInput.getAttribute('autocomplete') === 'off' && passwordInput.dataset.lpignore === 'true';
   form.querySelector('[data-wallet-wifi-label="부모님 댁"]').click();
   act('save');
@@ -137,7 +193,12 @@ try {
 
   // 관리: the sticker photo; 수정 with a wrong PIN changes nothing, with the PIN it does.
   act('manage'); await wait(() => q('[data-wallet-wifi-action="photo"]'), 'manage');
-  act('photo'); results.photo = Boolean(q('.wallet-wifi-photo img')?.src.startsWith('data:image/jpeg;base64,'));
+  act('photo');
+  const shownLabel = q('.wallet-wifi-photo img');
+  const stored = (await vault.listWifi(account)).entries[0].photo;
+  const storedPixels = await decodeData(stored);
+  results.photo = Boolean(shownLabel?.src === stored) && scenes.borderBackgroundShare(storedPixels, 3).share === 0
+    && storedPixels.width < routerPhoto.width * 0.6 && storedPixels.height < routerPhoto.height * 0.5;
   act('edit');
   const edit = await wait(() => q('form[data-wallet-wifi-form="edit"]'), 'edit form');
   const labelInput = [...edit.querySelectorAll('input')].find(el => el.getAttribute('aria-label') === '이름');
@@ -155,10 +216,18 @@ try {
   delete window.BarcodeDetector;
   act('add');
   const open = await wait(() => q('form[data-wallet-wifi-form="add"]'), 'add open');
-  const t2 = new DataTransfer(); t2.items.add(new File([blob], 'synthetic-sticker-2.png', {type: 'image/png'}));
+  const noLabelPhoto = await scenes.routerLabelScene({seed: 17, label: false});
+  const t2 = new DataTransfer(); t2.items.add(new File([noLabelPhoto.blob], 'synthetic-router-2.jpg', {type: 'image/jpeg'}));
   const input2 = open.querySelector('[data-wallet-wifi-photo-input]'); input2.files = t2.files; input2.dispatchEvent(new Event('change', {bubbles: true}));
   await wait(() => open.querySelector('.wallet-wifi-status[data-read]'), 'no reader');
   results.noReader = open.querySelector('.wallet-wifi-status').dataset.read === 'none' && open.textContent.includes('기기 안에서 읽지 못합니다');
+  // No label in this photo: the corners open at once, nothing can be kept; 취소 keeps no image.
+  const openScanner = await wait(() => open.querySelector('[data-wallet-wifi-scanner][data-scan-state="review"]'), 'no-label scanner');
+  results.noLabelInForm = openScanner.dataset.scanAdjusting === 'true' && openScanner.querySelector('[data-wallet-scan-confirm]').disabled
+    && openScanner.textContent.includes('공유기 스티커를 가까이 찍어 주세요');
+  [...openScanner.querySelectorAll('button')].find(b => b.textContent.trim() === '취소').click();
+  await wait(() => open.querySelector('[data-wallet-wifi-crop][data-crop="none"]'), 'no image kept');
+  results.noLabelInForm = results.noLabelInForm && !open.querySelector('.wallet-wifi-photo img') && !open.querySelector('[data-wallet-wifi-scanner]');
   const openInputs = [...open.querySelectorAll('input')];
   openInputs.find(el => el.getAttribute('aria-label') === '이름').value = '카페';
   openInputs.find(el => el.getAttribute('aria-label') === '와이파이 이름(SSID)').value = 'Cafe Guest';
@@ -168,7 +237,7 @@ try {
   await wait(() => host.querySelectorAll('[data-wallet-wifi-entry]').length === 2, 'two entries');
   const listed = (await vault.listWifi(account)).entries;
   const cafe = listed.find(item => item.ssid === 'Cafe Guest');
-  results.openNetwork = cafe.security === 'nopass' && cafe.password === '' && wifi.wifiQrPayload(cafe) === 'WIFI:T:nopass;S:Cafe Guest;;' && text().includes('비밀번호 없음');
+  results.openNetwork = cafe.security === 'nopass' && cafe.password === '' && cafe.photo === '' && wifi.wifiQrPayload(cafe) === 'WIFI:T:nopass;S:Cafe Guest;;' && text().includes('비밀번호 없음');
 
   // Stored sealed: nothing readable in IndexedDB.
   const rows = await new Promise((resolve, reject) => {
@@ -221,7 +290,7 @@ assert.equal(result.ok, true, result.error);
 const r = result.results;
 for (const key of ['payload', 'roundTrip', 'openPayload', 'vendorOrder', 'rules', 'stickerText', 'qrReference', 'qrVersions', 'qrTooLong', 'readers',
   'freeHasWifi', 'stickerFilled', 'passwordMaskedField', 'savedShown', 'revealed', 'maskedAgain', 'copied', 'qrMatches', 'photo', 'wrongPinKeeps', 'editedWithPin',
-  'noReader', 'nopassHidesPassword', 'openNetwork', 'sealedAtRest', 'notInDeck', 'notInBackup', 'wrongPinNoDelete', 'deletedWithPin', 'lockedGone', 'noNetwork']) {
+  'labelOnly', 'noLabelAdjust', 'noLabelInForm', 'noReader', 'nopassHidesPassword', 'openNetwork', 'sealedAtRest', 'notInDeck', 'notInBackup', 'wrongPinNoDelete', 'deletedWithPin', 'lockedGone', 'noNetwork']) {
   assert.equal(r[key], true, `${key}: ${JSON.stringify(r)} network=${JSON.stringify(result.network)}`);
 }
 
@@ -269,4 +338,4 @@ for (const theme of ['light', 'dark']) {
   assert.ok(view.qrSquare && view.qrSize >= 200, `${theme}: the QR is square and big enough to scan (${view.qrSize}px)`);
 }
 
-console.log('LIFE_WALLET_WIFI_CARD_01 PASS — WIFI: code escaping/reading, entry rules, sticker text, QR encoder = Python qrcode (v1-20, masks 0-7), sticker QR read on the device fills the form, masked password + 30 s reveal, copy, on-screen QR = encoder, sticker photo, PIN for change/delete, open network, no reader → typed by hand, sealed at rest, not in the deck or a backup, no network, gone once locked, 360 px light/dark');
+console.log('LIFE_WALLET_WIFI_CARD_01 PASS — WIFI: code escaping/reading, entry rules, sticker text, QR encoder = Python qrcode (v1-20, masks 0-7), sticker QR read on the device fills the form, only the label kept (keyboard/desk/router body: 0 background pixels on the kept border, tilted and on its side, within the label size), no label → corners open, masked password + 30 s reveal, copy, on-screen QR = encoder, PIN for change/delete, open network, no reader → typed by hand, sealed at rest, not in the deck or a backup, no network, gone once locked, 360 px light/dark');

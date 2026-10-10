@@ -7,11 +7,17 @@
 // * Reading the sticker happens in this browser only: a Wi-Fi QR printed on the sticker through
 //   BarcodeDetector, printed text through TextDetector where the browser has one. Nothing is sent
 //   to a server or an outside OCR. Without either, the owner types the name and password while
-//   looking at the photo, which is kept too (encrypted) so the letters can be checked later.
+//   looking at the photo.
+// * The photo itself is never kept or shown: the wallet's scanner (purpose 'label') cuts the
+//   router label out of it — outline, perspective, turned upright, corners adjustable, the
+//   adjustment opening at once when no label is found — and the cut is trimmed a little further
+//   inside its edges (LABEL_INSET) so no desk, keyboard or router body survives. Only that label
+//   image is sealed with the entry, so the letters can be checked later.
 // * Using it: the password stays masked until 비밀번호 보기 (30 seconds), 비밀번호 복사 works only
 //   while the wallet is open, and 와이파이 QR shows the standard WIFI: code (drawn on this device
 //   by site-qr-encode.js) for a guest's phone camera. Changing or deleting asks for the PIN.
-import {encodeQr, qrSvgElement} from './site-qr-encode.js?v=aset-530a832862c1';
+import {encodeQr, qrSvgElement} from './site-qr-encode.js?v=aset-0716333c2f93';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-0716333c2f93';
 
 export const WIFI_REVEAL_MS = 30_000;
 export const WIFI_QR_SHOW_MS = 60_000;
@@ -133,8 +139,6 @@ export function wifiReadersAvailable({BarcodeDetectorImpl = globalThis.BarcodeDe
   return {qr: typeof BarcodeDetectorImpl === 'function', text: typeof TextDetectorImpl === 'function'};
 }
 
-// The sticker photo is re-drawn as a JPEG at most 1600 px on the long side: smaller to keep and
-// without the camera's metadata (place, device).
 async function sniffImage(file) {
   const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
   const jpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
@@ -143,7 +147,9 @@ async function sniffImage(file) {
   return jpeg || png || webp;
 }
 
-export async function prepareStickerPhoto(file, {doc = globalThis.document} = {}) {
+// A copy of the photo for reading its QR or printed text on this device (at most 1600 px on the
+// long side). It is dropped after reading: the photo is never kept.
+export async function stickerReadingCanvas(file, {doc = globalThis.document} = {}) {
   if (!file || !(await sniffImage(file))) throw new Error('JPG·PNG·WEBP 사진을 골라 주세요.');
   let bitmap;
   try { bitmap = await createImageBitmap(file, {imageOrientation: 'from-image'}); }
@@ -153,9 +159,27 @@ export async function prepareStickerPhoto(file, {doc = globalThis.document} = {}
   canvas.width = Math.max(1, Math.round(bitmap.width * scale)); canvas.height = Math.max(1, Math.round(bitmap.height * scale));
   canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close?.();
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-  if (dataUrl.length > PHOTO_MAX_LENGTH) throw new Error('사진이 너무 큽니다. 스티커만 가까이 찍어 주세요.');
-  return {dataUrl, canvas};
+  return canvas;
+}
+
+// The label as kept: the scanner's squared-up cut, trimmed LABEL_INSET of each side further in
+// (at least 2 px) so nothing outside the label edge — a desk, a keyboard, the router body — is
+// left even when the outline sat a little outside it. Re-encoded as a JPEG without metadata.
+export const LABEL_INSET = 0.035;
+export async function insetLabelImage(dataUrl, {inset = LABEL_INSET, doc = globalThis.document} = {}) {
+  const image = doc.createElement('img');
+  await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error('잘라낸 스티커를 열지 못했습니다.')); image.src = dataUrl; });
+  const width = image.naturalWidth; const height = image.naturalHeight;
+  const dx = Math.max(2, Math.round(width * inset)); const dy = Math.max(2, Math.round(height * inset));
+  const innerWidth = width - dx * 2; const innerHeight = height - dy * 2;
+  if (innerWidth < 24 || innerHeight < 24) throw new Error('잘라낸 스티커가 너무 작습니다. 스티커를 가까이 찍어 주세요.');
+  const scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(innerWidth, innerHeight));
+  const canvas = doc.createElement('canvas');
+  canvas.width = Math.round(innerWidth * scale); canvas.height = Math.round(innerHeight * scale);
+  canvas.getContext('2d').drawImage(image, dx, dy, innerWidth, innerHeight, 0, 0, canvas.width, canvas.height);
+  const out = canvas.toDataURL('image/jpeg', 0.88);
+  if (out.length > PHOTO_MAX_LENGTH) throw new Error('잘라낸 스티커가 너무 큽니다.');
+  return out;
 }
 
 // Copies on the owner's press. The outcome is what the browser reported; 'manual' shows the
@@ -362,10 +386,10 @@ export function createWalletWifi({root, vault, accountId, onBack, activity = () 
   function renderManage(entry) {
     const photoBox = element('div', 'wallet-wifi-photo');
     if (entry.photo) {
-      const show = button('스티커 사진 보기', () => {
+      const show = button('스티커 라벨 보기', () => {
         if (!open(photoBox)) return;
         activity();
-        const image = element('img'); image.src = entry.photo; image.alt = `${entry.label} 공유기 스티커 사진`;
+        const image = element('img'); image.src = entry.photo; image.alt = `${entry.label} 공유기 스티커 라벨`;
         photoBox.replaceChildren(image);
       }, true);
       show.dataset.walletWifiAction = 'photo';
@@ -440,54 +464,78 @@ export function createWalletWifi({root, vault, accountId, onBack, activity = () 
     const hidden = element('input'); hidden.type = 'checkbox'; hidden.checked = existing?.hidden === true;
     const hiddenField = element('label', 'wallet-wifi-check'); hiddenField.append(hidden, element('span', '', '숨은 네트워크(이름이 목록에 안 보이는 와이파이)'));
 
-    // The sticker photo: read on this device, kept encrypted with the entry.
+    // The sticker photo: read on this device, then only the label cut out of it is kept.
     let photo = existing?.photo || '';
     const photoStatus = statusRegion('wallet-wifi-status');
+    const cropStatus = statusRegion('wallet-wifi-status'); cropStatus.dataset.walletWifiCrop = '';
+    const scannerHost = element('div', 'wallet-wifi-scanner');
+    let scanner = null;
+    const closeScanner = () => { scanner?.destroy(); scanner = null; scannerHost.replaceChildren(); };
     const preview = element('div', 'wallet-wifi-photo');
     const fileInput = element('input'); fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.hidden = true;
     fileInput.dataset.walletWifiPhotoInput = '';
-    const pick = button(photo ? '스티커 사진 바꾸기' : '공유기 스티커 사진 찍기·고르기', () => fileInput.click(), true); pick.dataset.walletWifiAction = 'photo-pick';
-    const drop = button('사진 빼기', () => { photo = ''; preview.replaceChildren(); drop.hidden = true; photoStatus.textContent = ''; }, true);
+    const pick = button(photo ? '스티커 다시 찍기·고르기' : '공유기 스티커 사진 찍기·고르기', () => fileInput.click(), true); pick.dataset.walletWifiAction = 'photo-pick';
+    const drop = button('라벨 빼기', () => { closeScanner(); photo = ''; preview.replaceChildren(); drop.hidden = true; photoStatus.textContent = ''; cropStatus.textContent = ''; }, true);
     drop.hidden = !photo; drop.dataset.walletWifiAction = 'photo-drop';
-    const paint = () => { preview.replaceChildren(); if (photo) { const image = element('img'); image.src = photo; image.alt = '공유기 스티커 사진'; preview.append(image); } };
+    const paint = () => { preview.replaceChildren(); if (photo) { const image = element('img'); image.src = photo; image.alt = '공유기 스티커 라벨'; preview.append(image); } };
     const available = wifiReadersAvailable(readers);
     fileInput.addEventListener('change', async () => {
       const file = fileInput.files?.[0]; fileInput.value = '';
       if (!file) return;
+      closeScanner(); cropStatus.textContent = ''; delete cropStatus.dataset.crop; delete photoStatus.dataset.read;
       photoStatus.textContent = '사진을 이 기기에서 읽는 중입니다.';
       try {
-        const prepared = await prepareStickerPhoto(file);
-        if (!form.isConnected) return;
-        photo = prepared.dataUrl; paint(); drop.hidden = false; pick.textContent = '스티커 사진 바꾸기';
-        const found = await readWifiSticker(prepared.canvas, readers);
+        const reading = await stickerReadingCanvas(file);
+        const found = await readWifiSticker(reading, readers);
+        reading.width = 0; reading.height = 0;
         if (!form.isConnected) return;
         activity();
         if (found.source === 'none') {
           photoStatus.dataset.read = 'none';
           photoStatus.textContent = available.qr || available.text
-            ? '사진에서 와이파이 정보를 찾지 못했습니다. 사진을 보며 이름과 비밀번호를 직접 입력해 주세요.'
-            : '이 브라우저는 사진 속 글자를 기기 안에서 읽지 못합니다. 사진을 보며 이름과 비밀번호를 직접 입력해 주세요.';
-          return;
+            ? '사진에서 와이파이 정보를 찾지 못했습니다. 아래 라벨을 보며 이름과 비밀번호를 직접 입력해 주세요.'
+            : '이 브라우저는 사진 속 글자를 기기 안에서 읽지 못합니다. 아래 라벨을 보며 이름과 비밀번호를 직접 입력해 주세요.';
+        } else {
+          if (found.ssid) ssid.value = found.ssid;
+          if (found.security) security.value = found.security;
+          if (found.password || found.security === 'nopass') password.value = found.password;
+          hidden.checked = found.hidden === true;
+          syncSecurity();
+          photoStatus.dataset.read = found.source;
+          photoStatus.textContent = found.source === 'qr'
+            ? '스티커의 와이파이 QR에서 이름과 비밀번호를 읽었습니다. 라벨과 맞는지 확인해 주세요.'
+            : '사진 글자에서 읽은 내용을 넣었습니다. 틀린 글자가 없는지 라벨과 꼭 비교해 주세요.';
         }
-        if (found.ssid) ssid.value = found.ssid;
-        if (found.security) security.value = found.security;
-        if (found.password || found.security === 'nopass') password.value = found.password;
-        hidden.checked = found.hidden === true;
-        syncSecurity();
-        photoStatus.dataset.read = found.source;
-        photoStatus.textContent = found.source === 'qr'
-          ? '스티커의 와이파이 QR에서 이름과 비밀번호를 읽었습니다. 사진과 맞는지 확인해 주세요.'
-          : '사진 글자에서 읽은 내용을 넣었습니다. 틀린 글자가 없는지 사진과 꼭 비교해 주세요.';
       } catch (error) {
         photoStatus.dataset.read = 'error';
         photoStatus.textContent = error?.message || '사진을 읽지 못했습니다.';
+        return;
       }
+      // Cut the label out (the wallet's scanner: outline, perspective, upright, corners).
+      scanner = createWalletDocumentScanner({
+        file,
+        purpose: 'label',
+        async onConfirm(dataUrl) {
+          try { photo = await insetLabelImage(dataUrl); }
+          catch (error) { cropStatus.dataset.crop = 'error'; cropStatus.textContent = error?.message || '라벨을 자르지 못했습니다.'; return; }
+          if (!form.isConnected) return;
+          closeScanner(); paint(); drop.hidden = false; pick.textContent = '스티커 다시 찍기·고르기';
+          cropStatus.dataset.crop = 'kept'; cropStatus.textContent = '스티커의 라벨 부분만 잘라 보관합니다. 찍은 사진 전체는 보관하지 않습니다.';
+          activity();
+        },
+        onCancel() {
+          closeScanner();
+          cropStatus.dataset.crop = 'none'; cropStatus.textContent = '라벨 이미지는 보관하지 않습니다.';
+        },
+      });
+      scanner.element.dataset.walletWifiScanner = '';
+      scannerHost.append(scanner.element);
     });
     paint();
     const photoField = element('div', 'wallet-field wallet-wifi-photo-field');
     const photoActions = element('div', 'wallet-wifi-actions'); photoActions.append(pick, drop);
-    photoField.append(element('span', '', '공유기 스티커 사진 (선택)'), photoActions, fileInput, preview, photoStatus,
-      element('small', 'wallet-wifi-hint', '사진은 이 기기 안에서만 읽고, 글자 확인용으로 암호화해 함께 보관합니다. 서버나 외부 글자 인식 서비스로 보내지 않습니다.'));
+    photoField.append(element('span', '', '공유기 스티커 사진 (선택)'), photoActions, fileInput, photoStatus, scannerHost, preview, cropStatus,
+      element('small', 'wallet-wifi-hint', '사진은 이 기기 안에서만 읽습니다. 보관하는 것은 스티커의 아이디·비밀번호 라벨 부분뿐이며(암호화), 찍은 사진 전체와 배경은 보관하지 않습니다. 서버나 외부 글자 인식 서비스로 보내지 않습니다.'));
 
     const pin = existing ? pinField('월렛 PIN 4자리') : null;
     const status = statusRegion();

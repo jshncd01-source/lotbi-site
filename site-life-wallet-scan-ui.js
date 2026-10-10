@@ -1,5 +1,5 @@
-import {detectDocumentCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-530a832862c1';
-import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-530a832862c1';
+import {detectDocumentCorners, findLabelCorners, framesPrintedItem, rectifyDocument} from './site-life-wallet-scan.js?v=aset-0716333c2f93';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-0716333c2f93';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -163,7 +163,10 @@ function detectionPixels(source) {
 
 // kind: what the file's bytes are (sniffWalletFile); read here when the caller did not.
 // onReplace: a 다시 선택 button only when given (the wallet's own 파일 변경 changes the file instead).
-export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCancel=()=>{},onReplace=null}={}) {
+// purpose 'label': a router's Wi-Fi label (LIFE-WALLET-WIFI-CARD-01) — long labels are fine, and
+// when no label is found the corner adjustment opens at once instead of a refusal.
+export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCancel=()=>{},onReplace=null,purpose='item'}={}) {
+  const label=purpose==='label';
   const shell=node('section','wallet-scan-editor'); shell.dataset.scanState='analysing'; shell.dataset.scanEnhanced='true'; shell.dataset.scanAdjusting='false';
   const heading=node('h3',''); heading.hidden=true;
   const status=node('p','wallet-scan-status','확인하고 있습니다'); status.setAttribute('role','status'); status.setAttribute('aria-live','polite');
@@ -181,6 +184,7 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
   const actions=node('div','wallet-scan-actions');
   const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,...(typeof onReplace==='function'?[replace]:[]),confirm);
   shell.append(heading,status,workspace,warnings,choices,actions);
+  if(label){confirm.textContent='라벨 부분만 보관';resultImage.alt='잘라낸 공유기 스티커 라벨 미리보기'}
 
   const resources={bitmap:null,url:''}; let source=null; let corners=null; let fallbackCorners=null; let detectedCorners=null; let cornerRadius=0; let paperPage=false; let pdfDocument=null; let pdfSource=false; let notDocument=false; let detectionImage=null; let detectionScale=1; let detailImage=null; let flatPicture=false; let glareCovers=false; let manualFramesItem=false; let rotation=0; let latest=''; let enhanced=true; let destroyed=false; let renderVersion=0; let activePointer=null;
   const handles=new Map();
@@ -225,12 +229,13 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
       // the photo is retaken at another angle.
       glareCovers=manualFramesItem&&result.warnings.includes('glare-covers-print'); shell.dataset.scanGlare=String(glareCovers);
       const advice=result.warnings.filter(code=>code!=='glare-covers-print');
-      heading.textContent=glareCovers?'다시 촬영해 주세요':manualFramesItem?'':notDocument?'등록할 수 없는 사진입니다':'자료를 찾지 못했습니다'; heading.hidden=!heading.textContent;
+      heading.textContent=glareCovers?'다시 촬영해 주세요':manualFramesItem?'':label?'공유기 스티커를 찾지 못했습니다':notDocument?'등록할 수 없는 사진입니다':'자료를 찾지 못했습니다'; heading.hidden=!heading.textContent;
       warnings.replaceChildren(); if(manualFramesItem&&!glareCovers&&advice.length){warnings.append(node('strong','', '다시 촬영 권장'));for(const code of advice)warnings.append(node('p','',WARNING_COPY[code]||'사진 상태를 확인해 주세요.'))}
       status.textContent=glareCovers?'빛 반사 때문에 자료의 일부가 보이지 않습니다. 빛이 비치지 않게 각도를 바꿔 다시 찍어 주세요.'
         :manualFramesItem?''
         // Every item is a 자료 (IDs, certificates, contracts, business cards, bankbooks): the copy
         // never asks for an ID in particular; the heading already says nothing was found.
+        :label?'공유기 스티커를 가까이 찍어 주세요. 또는 아래 사진에서 스티커의 네 모서리를 맞춰 주세요.'
         :receipt?'영수증은 등록하지 않습니다. 다른 사진을 선택해 주세요.'
         :notDocument?'등록할 수 있는 자료로 보이지 않습니다. 다른 사진을 선택해 주세요.'
         :adjusted?'모서리 안에 자료가 보이지 않습니다. 자료에 맞춰 모서리를 조정해 주세요.'
@@ -259,10 +264,15 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
     // hand-placed outline; the 1200-pixel copy finds the outline.
     const detection=detectionPixels(source); detectionImage=detection.imageData; detectionScale=detection.scale;
     detailImage=detection.scale<1?canvas.getContext('2d').getImageData(0,0,size.width,size.height):null;
-    const found=detectDocumentCorners(detection.imageData,{sourceScale:detection.scale,detail:detailImage}); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
+    // A router label: the light sticker itself (not the router body around it) when it can be told
+    // apart; otherwise the wallet's own detection, which also allows long labels.
+    const labelRegion=label?findLabelCorners(detection.imageData):null;
+    const found=labelRegion?{corners:labelRegion.corners,mode:'automatic',reason:'label-region',rotation:labelRegion.portrait?90:0,cornerRadius:0,paper:false,diagnostics:labelRegion.diagnostics}
+      :detectDocumentCorners(detection.imageData,{sourceScale:detection.scale,detail:detailImage,allowLong:label}); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
     let mode=found.mode; let reason=found.reason||'';
     // A photo without printed text (a pet, a person) is not a wallet item: no adjusting, no saving.
-    notDocument=reason==='not-a-document'||reason==='receipt-like'; adjust.hidden=notDocument; rotate.hidden=notDocument;
+    // A label that was not found is placed by hand instead (its corners open at once).
+    notDocument=!label&&(reason==='not-a-document'||reason==='receipt-like'); adjust.hidden=notDocument; rotate.hidden=notDocument;
     // A card or page found lying on its side is turned upright; the 회전 button corrects it.
     rotation=mode==='automatic'?found.rotation||0:0;
     if(mode==='manual'&&pdfSource&&!notDocument&&reason!=='receipt-like'){
@@ -272,7 +282,9 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
     }else if(mode==='manual')fallbackCorners=copy(corners);
     else{detectedCorners=copy(corners);cornerRadius=found.cornerRadius||0;paperPage=Boolean(found.paper)}
     flatPicture=found.diagnostics?.source==='full-frame-card';
-    shell.dataset.scanMode=mode; shell.dataset.scanReason=reason; shell.dataset.scanDiagnostics=JSON.stringify(found.diagnostics||{}); updateOverlay(); await renderPreview();
+    shell.dataset.scanMode=mode; shell.dataset.scanReason=reason; shell.dataset.scanDiagnostics=JSON.stringify(found.diagnostics||{}); updateOverlay();
+    if(label&&mode==='manual'&&!notDocument)openAdjustment();
+    await renderPreview();
   }
 
   function showError(error){if(!destroyed){status.textContent=error instanceof Error?error.message:'사진을 분석하지 못했습니다.';shell.dataset.scanState='error'}}
