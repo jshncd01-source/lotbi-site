@@ -76,7 +76,16 @@ const {normalizeOnnuriMerchant, normalizeOnnuriSearch, onnuriMerchantCard} = awa
   assert.match(card.byClass('onnuri-card-basis').textContent, /소속 시장 기준/u);
   const link = card.byClass('onnuri-card-map');
   // ONNURI-MERCHANT-LOCATION-UX-P0: the chosen map app is named on the button.
-  assert.equal(link.textContent, '네이버지도 시장 길찾기');
+  // ONNURI-REMOVE-RELATION-MAP-01: one button with the app icon; the market basis
+  // is said in the card body (onnuri-card-basis), not on the button.
+  assert.equal(link.textContent, '네이버지도 길찾기');
+  assert.equal(card.all().filter(node => node.dataset.mapAction).length, 1, 'one map button per card');
+  assert.equal(card.all().some(node => node.textContent === '지도에서 보기'), false, "no separate '지도에서 보기'");
+  assert.equal(link.byClass('onnuri-map-icon').dataset.mapIcon, 'naver-map', 'the saved app icon on the button');
+  assert.equal(link.byClass('onnuri-map-icon').src, '/assets/place-actions/naver-map.png?v=place-icons-20260925');
+  const kakao = onnuriMerchantCard(item, {mapProvider: 'KAKAO_NAVI'}).byClass('onnuri-card-map');
+  assert.equal(kakao.byClass('onnuri-map-icon').dataset.mapIcon, 'kakao-map', 'KAKAO setting: KAKAO icon');
+  assert.equal(kakao.textContent, '카카오내비 길찾기');
   assert.match(link.getAttribute('aria-label'), /중부시장 길찾기$/u, 'navigation goes to the market');
   assert.ok(link.href && !link.href.includes(encodeURIComponent('제일상회')), 'the shop name is not sent as the destination');
 

@@ -37,7 +37,7 @@ const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Route table ─────────────────────────────────────────────────────────
 const {SITE_ROUTES, isSiteRoute, parseSiteRouteHash, siteRouteHash, siteRouteUrl} = await import('../site-route.js');
-const EXPECTED_ROUTES = ['calendar', 'wallet', 'scam', 'care', 'pets', 'life', 'festival'];
+const EXPECTED_ROUTES = ['calendar', 'wallet', 'scam', 'care', 'pets', 'life', 'festival', 'real-estate', 'real-estate-apartment', 'ev-chargers', 'subway', 'subway-station'];
 assert.deepEqual([...SITE_ROUTES], EXPECTED_ROUTES);
 assert.ok(Object.isFrozen(SITE_ROUTES));
 for (const route of SITE_ROUTES) {
@@ -62,7 +62,7 @@ assert.ok(openersStart > 0 && openersEnd > openersStart, 'siteRouteOpeners table
 const openerKeys = [...conversation.slice(openersStart, openersEnd).matchAll(/^\s*'?([a-z-]+)'?: \(\) =>/gmu)].map(match => match[1]);
 assert.deepEqual(openerKeys, EXPECTED_ROUTES, 'one opener per route, same order as site-route.js');
 const surfaceRoutes = [...conversation.matchAll(/route: '([a-z-]+)'/gu)].map(match => match[1]);
-assert.deepEqual([...new Set(surfaceRoutes)].sort(), ['calendar', 'festival', 'pets'].sort());
+assert.deepEqual([...new Set(surfaceRoutes)].sort(), ['calendar', 'ev-chargers', 'festival', 'pets', 'real-estate', 'subway', 'subway-station'].sort());
 for (const route of surfaceRoutes) assert.ok(isSiteRoute(route), route);
 assert.match(conversation, /installSurfaceBehavior\(backdrop, panel, \{workspace: section, route, onClose/u, 'wallet/care/life surfaces carry their section route');
 assert.match(conversation, /const route = section === 'care' && careTab === 'pets' \? 'pets' : section;/u);

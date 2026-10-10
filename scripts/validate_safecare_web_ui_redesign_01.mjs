@@ -729,7 +729,7 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.personPhotos.before.counter, '등록 완료 3 / 10남은 사진 7장');
   assert.equal(r.personPhotos.before.guideBoxPresent, false, `${label}: the duplicated explanation box must not sit above the photo cards`);
   assert.equal(r.personPhotos.before.emptyArtworkCount, 7, `${label}: every empty photo card must show its own large shooting example`);
-  assert.deepEqual(r.personPhotos.before.accept, ['image/jpeg,image/png,image/webp']);
+  assert.deepEqual(r.personPhotos.before.accept, ['image/*']);
   assert.ok(r.personPhotos.before.buttons.every(text => ['사진 선택', '다른 사진 선택'].includes(text)), `${label}: web wording must be 사진 선택`);
   assert.equal(r.personPhotos.before.nextDisabled, true, `${label}: 3/10 must not move on`);
   assert.equal(r.personPhotos.after, '등록 완료 4 / 10남은 사진 6장');

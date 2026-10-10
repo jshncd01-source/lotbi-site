@@ -15,11 +15,11 @@
 // LOTBI does not issue, sell or take payment for any voucher and is not the
 // issuer's partner. The list is the official/staff-checked data, not real-time
 // payment availability.
-import {CORE_ORIGIN} from './site-core.js?v=aset-492b980298bf';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-492b980298bf';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-492b980298bf';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-492b980298bf';
-import {mountOnnuriMerchants, readMapPreference, mapPreferenceNote} from './site-life-onnuri.js?v=aset-492b980298bf';
+import {CORE_ORIGIN} from './site-core.js?v=aset-40c16cdb5f6b';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-40c16cdb5f6b';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-40c16cdb5f6b';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-40c16cdb5f6b';
+import {mountOnnuriMerchants, readMapPreference, mapPreferenceNote, mapIconName, MAP_ICON_VERSION} from './site-life-onnuri.js?v=aset-40c16cdb5f6b';
 
 export const VOUCHER_HUB_TITLE = '온누리상품권·지역화폐';
 export const VOUCHER_TABS = Object.freeze([['onnuri', '온누리상품권'], ['local', '지역화폐']]);
@@ -42,8 +42,9 @@ export const VOUCHER_NO_DATA_TEXT = '현재 LOTBI에 등록된 가맹점 정보�
 export const VOUCHER_NO_DATA_NOTE = '가맹점이 없다는 뜻은 아니에요. 공식 조회 페이지에서 확인해 주세요.';
 export const VOUCHER_SETTINGS_URL = 'https://account.lotbiai.com/account#privacy';
 export const VOUCHER_MAP_SETTINGS_URL = 'https://account.lotbiai.com/account#personalization';
-// The real app icons used on place cards (assets/place-actions, PLACE icons).
-export const MAP_ICON_VERSION = 'place-icons-20260925';
+// The real app icons used on place cards: MAP_ICON_VERSION / mapIconName come from
+// site-life-onnuri.js so both tabs draw the same icon for the same saved app.
+export {MAP_ICON_VERSION};
 
 const TIMEOUT_MS = 12_000;
 const PAYMENT_NAMES = Object.freeze([['paper', '지류'], ['mobile', '모바일'], ['card', '카드']]);
@@ -291,12 +292,7 @@ function externalLink(label, href, className = '') {
 
 // ── Map app ──────────────────────────────────────────────────────────────
 
-export function mapIconName(provider, {userAgent = globalThis.navigator?.userAgent || ''} = {}) {
-  const presentation = defaultMapProviderPresentation(provider, {userAgent});
-  // Desktop 티맵 opens NAVER Map web instead (said in the label): show that app's icon.
-  if (provider === 'TMAP' && /네이버지도/u.test(presentation.label)) return 'naver-map';
-  return presentation.icon;
-}
+export {mapIconName};
 
 export function voucherMapAction(item, {mapProvider, userAgent = globalThis.navigator?.userAgent || ''}) {
   const located = item.latitude !== null && item.longitude !== null;
