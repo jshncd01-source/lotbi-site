@@ -65,6 +65,9 @@ body.chat-home-page .site-modal-backdrop:has(> .consumer-section-panel) { paddin
 .consumer-action:not(:disabled):hover { filter: brightness(.95); }
 .consumer-section-content :is(button, input, a):focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
 .consumer-shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+/* An odd last 지역정보 card takes its whole row, so a 4-, 2- or 1-column grid
+   never shows an empty cell. The only copy of this rule. */
+.consumer-shortcuts > .consumer-shortcut:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .consumer-shortcut { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; min-height: 104px; padding: 16px; border: 0; border-radius: 12px; background: transparent; color: inherit; text-align: left; font: inherit; font-size: 14px; cursor: pointer; }
 .consumer-shortcut svg { color: var(--lotbi-text-secondary); }
 .consumer-shortcut:hover { background: var(--lotbi-surface-hover); }
@@ -276,5 +279,11 @@ body.chat-home-page .consumer-workspace[data-workspace='calendar'] > .site-modal
 .consumer-life-detail h3 { margin: 8px 0 0; font-size: 24px; font-weight: 600; letter-spacing: -.035em; }
 .consumer-life-form { display: grid; gap: 20px; }
 .consumer-life-field { display: grid; gap: 10px; color: inherit; font-size: 14px; font-weight: 500; }
-.consumer-life-field input { box-sizing: border-box; width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-primary); color: inherit; font: inherit; font-size: 16px; }
+.consumer-life-field input,
+.consumer-life-field select { box-sizing: border-box; width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-primary); color: inherit; font: inherit; font-size: 16px; }
+/* 병원·응급실 choice and 지역뉴스 period buttons: side by side, 48px targets. */
+.consumer-life-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.consumer-life-choices > .consumer-action { min-height: 48px; }
+.consumer-life-status { margin: 0; min-height: 1.4em; color: var(--lotbi-text-secondary); font-size: 14px; }
+.consumer-life-status:empty { display: none; }
 .consumer-life-form > .consumer-action { justify-self: start; }

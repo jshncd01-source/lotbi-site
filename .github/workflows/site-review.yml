@@ -756,6 +756,13 @@ jobs:
       - name: Validate Onnuri location UX P0
         run: node scripts/validate_onnuri_location_ux_p0.mjs
 
+      # LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: '온누리상품권·지역화폐' 한 화면 —
+      # [온누리상품권] 탭은 기존 화면 그대로, [지역화폐] 탭은 시·도→시·군·구→광역·기초 상품권→
+      # 가맹점 12곳+더 보기, 이름·업종·결제유형, 등록자료 없음 문구·공식 조회 링크, 출처 문구 4종,
+      # 지도앱 4종 아이콘, 위치는 이미 허용된 경우만 — 360·375·390·412·1280, 라이트·다크(쿠키).
+      - name: Validate voucher unified merchant search
+        run: node scripts/validate_voucher_unified_p0.mjs
+
       # 기본 지도앱 쿠키 계약(Account 저장값 ↔ Site 읽기).
       - name: Validate default map preference
         run: node scripts/validate_default_map_preference_01.mjs
@@ -793,6 +800,13 @@ jobs:
       # 모바일 헤더 로그인 대비를 확인한다(실기기 아님).
       - name: Validate 진위확인 login gate buttons in light and dark
         run: node scripts/validate_scam_shield_login_gate_contrast_01.mjs
+
+      # Core의 2단계 독립 확인 결과(요약 문장·2단계 확인 결과 3줄·공식 근거·
+      # 접힌 경찰청 통계)를 실제 site-core 변환을 거쳐 그리는지, 정부(.go.kr/.or.kr)
+      # https 페이지만 링크가 되는지, 옛 Core 응답·2단계 실패 응답도 그려지는지를
+      # 390·1280, 라이트·다크에서 확인한다(WCAG AA, 실기기 아님).
+      - name: Validate 진위확인 2단계 확인 결과
+        run: node scripts/validate_scam_shield_double_check_p0.mjs
 
       # 다크·시스템다크 입력창 안 흰 사각형(텍스트칸 포커스 링) 0건과 둥근 입력창
       # 포커스 표시, 헤더 로그인·회원가입 대비·크기·겹침·이동, 답변 공유 메뉴의
