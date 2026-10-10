@@ -8,9 +8,10 @@ USER_DECISION_NEEDED=NONE (배포 차단 없음. 실기기 확인은 소유자 �
 TASK=LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0
 REPO=lotbi-site
 SITE_BRANCH=feature/voucher-unified-merchant-admin-p0-site
-CODE_SHA=1fe9d43e
-BASE_MAIN=b6dc768d (READY 시점 site main = SITE-T46 지역정보 UX 복구 포함, 정상 merge 42f6e452·98f05147)
-ASSET_VERSION=aset-09b342bc554e
+CODE_SHA=17330ac2
+SUPERSEDES=2d56565697d00a1c8071ed374c99e4552d6ee843 (배포총괄방 요청 09:38: SITE-T47·T48 반영 main으로 재병합)
+BASE_MAIN=7b555600 (SITE-T47 진위확인 + SITE-T48 Life Wallet 공유 반영 main, 정상 merge 17330ac2 — main import·스타일 유지 확인)
+ASSET_VERSION=aset-cd3d42af9220
 DEPLOY_ORDER=CORE → ADMIN → SITE (Site 지역화폐 탭은 Core /v2/life/vouchers/* 를 씀. Core 없이 먼저 나가면 지역화폐 탭만 "불러오지 못했어요"+다시 시도, 온누리 탭은 정상)
 REQUIRED_ENV_CHANGES=NONE
 NEW_SECRET_CREATED=NO
@@ -39,11 +40,15 @@ NEW_PAID_RESOURCE=NO
 | `validate_onnuri_merchant_search_01` | PASS (병합 뒤 재실행) |
 | `validate_life_info_cleanup_final_01` | PASS (병합 뒤 재실행) |
 | `validate_onnuri_location_ux_p0`, `validate_onnuri_market_location_02`, `validate_life_medical_category_entry_01`, `validate_life_medical_auto_search_card_01`, `validate_jeonbuk_real_world_pilot_01`, `validate_default_map_preference_01` | PASS (병합 전) |
-| `asset_cache_version.mjs --check` | PASS aset-09b342bc554e |
+| `asset_cache_version.mjs --check` | PASS aset-cd3d42af9220 |
 | Site fixture ↔ 실제 Core 응답 키 대조 | 일치(시·도 merchant_count는 Core에 추가해 맞춤) |
 
 - 기존 검사기 수정: 카드 라벨 목록의 `'온누리상품권'` → `'온누리상품권·지역화폐'`(consumer_sections_02, jeonbuk_real_world_pilot_01, life_medical_auto_search_card_01, life_medical_category_entry_01), onnuri_merchant_search_01의 메뉴·모달 제목 기대값. 다른 판정은 약화하지 않음.
 - 새 검사기: 프로필 `mkdtempSync(...'profile-')`, 작업 폴더 `scripts/.voucher-unified-*`, 포트 0, 브라우저 후보 CHROME_BIN → Windows Chrome → /opt/pw-browsers/chromium → PATH.
+
+## 7b555600 병합 뒤 재검사
+
+validate_voucher_unified_p0(3,363) · consumer_sections_02 · regional_news_p0_01 · life_medical_category_entry_01 · onnuri_merchant_search_01 · life_info_cleanup_final_01 · life_wallet_share_01 · life_wallet_share_transfer_01 · scam_shield_double_check_p0 모두 PASS, asset --check PASS. main 대비 실제 변경 파일은 아래 목록과 동일(토큰 제외 내용 대조).
 
 ## 확인 못 한 것
 
