@@ -8,8 +8,8 @@
 //
 // LIFE-UTILITY-BILL-MENU-REMOVE-01: 공과금 확인 stays hidden. The life home is a
 // category picker only: no free-question bar and no saved-items/help row. It
-// has nine cards (응급실, 지역뉴스, 온누리상품권, 유치원·학교, 내 아이 학교·유치원 included); an odd last card
-// would take its whole row, so there is no empty grid cell.
+// has eight cards (병원·응급실, 지역뉴스, 온누리상품권, 전북 맛집·음식, 내 아이 학교·유치원
+// included); an odd last card would take its whole row, so there is no empty grid cell.
 // LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk too, so
 // any draft handoff (onDraft) in the life cards fails.
 //
@@ -28,7 +28,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Shortcut list ───────────────────────────────────────────────────────
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권', '도로 CCTV', '지역생활정보', '내 아이 학교·유치원']);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권', '도로 CCTV', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
 // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: 약국 asks at once; 병원·응급실 is one card
 // whose 병원·의원 찾기 / 응급실 찾기 ask the hospital / emergency questions.
 assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => [item.id, item.ask]), [['pharmacy', '근처 약국 찾아줘']]);
@@ -307,7 +307,7 @@ async function runCase(browser, origin, dir, testCase) {
     };
     const openLife = async () => {
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(async () => (await probe()).shortcuts.length === 8, `${testCase.label}: life shortcuts`);
+      await waitFor(async () => (await probe()).shortcuts.length === 9, `${testCase.label}: life shortcuts`);
       await sleep(250);
     };
     const tapShortcut = async id => {
@@ -318,14 +318,14 @@ async function runCase(browser, origin, dir, testCase) {
       await tap(center);
     };
 
-    // 1. Life main: eight cards (병원·응급실 one card, 약국 separate, 실시간 도로 CCTV
-    // after 온누리상품권 — TRAFFIC-CCTV P0 —, 유치원·학교 inside
-    // 내 아이 학교·유치원; 공과금 확인 hidden), full rows, no empty cell — the odd last
-    // card takes its whole row.
+    // 1. Life main: nine cards (병원·응급실 one card, 약국 separate, 도로 CCTV after
+    // 온누리상품권 — TRAFFIC-CCTV P0 —, 전북 맛집·음식,
+    // 유치원·학교 inside 내 아이 학교·유치원; 공과금 확인 hidden), full rows, no empty
+    // cell — an odd last card would take its whole row.
     await openLife();
     const main = await probe();
     assert.equal(main.title, '지역정보');
-    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권', '도로 CCTV', '지역생활정보', '내 아이 학교·유치원']);
+    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·응급실', '약국', '축제·행사', '지역뉴스', '온누리상품권', '도로 CCTV', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
     assert.equal(main.billsVisible, false, `${testCase.label}: 공과금 확인 is not shown anywhere on the life surface`);
     // ONNURI-MERCHANT-01 / KINDERGARTEN-OFFICIAL-INFO-01: with an odd number of cards the
     // last one spans the row (site-life-onnuri.css, site-life-education.css), so a
@@ -359,7 +359,10 @@ async function runCase(browser, origin, dir, testCase) {
     for (const card of main.shortcuts) {
       assert.ok(card.box.x >= main.panel.x - 0.5 && card.box.right <= main.panel.right + 0.5, `${testCase.label}: ${card.label} inside the panel ${JSON.stringify(card.box)} / ${JSON.stringify(main.panel)}`);
       assert.ok(card.box.x >= 0 && card.box.right <= main.viewport.w, `${testCase.label}: ${card.label} inside the viewport`);
-      assert.equal(card.lines, 1, `${testCase.label}: ${card.label} label stays on one line`);
+      // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: in the phone two-column menu a long
+      // name (내 아이 학교·유치원) wraps at a word gap to a second line inside the
+      // same card height — never a third line, never clipped (checked below).
+      assert.ok(card.lines >= 1 && card.lines <= 2, `${testCase.label}: ${card.label} label on one or two lines (${card.lines})`);
       assert.equal(card.labelClipped, false, `${testCase.label}: ${card.label} label not clipped`);
       assert.ok(card.box.h >= 44, `${testCase.label}: ${card.label} touch target ${card.box.h}px`);
       // 온누리상품권 keeps a reserved logo slot instead of an icon until the
@@ -438,4 +441,4 @@ try {
   }
 }
 
-console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국/응급실 send one nearby question at once (no form, nothing left in the composer, composer not focused); 공과금 확인 hidden, eight life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');
+console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국/응급실 send one nearby question at once (no form, nothing left in the composer, composer not focused); 공과금 확인 hidden, ten life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');

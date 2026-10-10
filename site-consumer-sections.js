@@ -1,4 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-be904c626601';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-7fe01f2dc380';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-7fe01f2dc380';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-7fe01f2dc380';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -22,10 +24,12 @@ export const LIFE_MEDICAL_QUESTIONS = Object.freeze({
 // separate 유치원·학교 card is gone (owner decision 2026-10-10): 내 아이 학교·유치원
 // is the one education card and opens 내 아이 정보 (signed-in, MY-CHILD-SCHOOL-01)
 // or 유치원·학교 찾기 (the public lookup, KINDERGARTEN-OFFICIAL-INFO-01).
-// Seven cards: the odd last card spans its row, so the grid has no empty cell.
-// TRAFFIC-CCTV P0 adds 실시간 도로 CCTV after 온누리상품권: its own screen
+// Eight cards with 전북 맛집·음식: every row of two is full (an odd count would
+// let the last card span its row, site-consumer-design.css).
+// TRAFFIC-CCTV P0 adds 도로 CCTV after 온누리상품권: its own screen
 // (site-life-traffic-cctv.js) where the reader picks 도로 → 노선 → 방향 → 구간;
-// no location, never a question to the conversation. Eight cards fill every row.
+// no location, never a question to the conversation. Nine cards: the odd
+// last card (내 아이 학교·유치원) spans its row, so no cell is empty.
 export const LIFE_MEDICAL_CHOICES = Object.freeze([
   Object.freeze({id: 'hospital', label: '병원·의원 찾기'}),
   Object.freeze({id: 'emergency', label: '응급실 찾기'}),
@@ -48,6 +52,8 @@ export const LIFE_SHORTCUTS = Object.freeze([
   // stays on one line in the approved two-column grid at 360 px.
   {id: 'traffic-cctv', label: '도로 CCTV', icon: 'cctv'},
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
+  // JEONBUK-PILOT-01: 전북특별자치도·전주시 공식 음식점 공공데이터 (Core regional_food).
+  {id: 'jeonbuk-food', label: '전북 맛집·음식', icon: 'food', regionalFood: true},
   // MY-CHILD-SCHOOL-01 + KINDERGARTEN-OFFICIAL-INFO-01 behind one card. Last.
   {id: 'my-child', label: '내 아이 학교·유치원', icon: 'backpack', children: LIFE_CHILD_CHOICES},
 ]);
@@ -78,6 +84,7 @@ const ICON_PATHS = {
   pharmacy: ['M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7l7-7Z', 'm7 10 7 7'],
   emergency: ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z', 'M12 8v8M8 12h8'],
   news: ['M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V5Z', 'M17 9h3v10a2 2 0 0 1-2 2', 'M7 9h7M7 12h7M7 15h4'],
+  food: ['M6 2v7a2 2 0 0 0 4 0V2M8 2v20', 'M18 22V2c-2.2 1.4-3.5 4.2-3.5 7.5V14H18'],
   school: ['m2 9 10-5 10 5-10 5L2 9Z', 'M6 11v5c3 2.5 9 2.5 12 0v-5', 'M22 9v6'],
   backpack: ['M9 6V5a3 3 0 0 1 6 0v1', 'M6 9a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v12H6V9Z', 'M9 13h6v4H9v-4Z'],
   cctv: ['M3 7.5 15 3.8l2 6.2-12 3.7-2-6.2Z', 'm17 8.6 4-1.2v5.2l-3.2 1', 'M8 12.6 9 16H4.5v4.5', 'M7 8.4h.01'],
@@ -116,7 +123,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onTrafficCctv, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = ''} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onTrafficCctv, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -139,6 +146,15 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       }, {secondary: true});
       const detail = node('section', 'consumer-life-detail');
       const title = node('h3', '', item.label); title.tabIndex = -1;
+      if (item.regionalFood) {
+        // The question goes through the same life handoff (onAsk) as every
+        // other 생활정보 form; Core answers it from the official 전북 data.
+        const {form: foodForm, note} = createJeonbukFoodForm(document, {onSubmit: text => { if (!disposed) onAsk(text); }});
+        detail.dataset.lifeDetail = item.id;
+        detail.append(back, title, foodForm, node('p', 'consumer-feature-note', note));
+        root.replaceChildren(detail); title.focus();
+        return;
+      }
       const queryForm = node('form', 'consumer-life-form');
       const controls = [];
       const fields = LIFE_DETAIL_FIELDS[item.id];
@@ -199,7 +215,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-be904c626601').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-7fe01f2dc380').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -246,7 +262,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-be904c626601').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-7fe01f2dc380').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -294,7 +310,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     const heading = node('h3', 'consumer-section-label', '생활에 필요한 정보');
     root.append(heading, grid);
   } else if (section === 'wallet') {
-    releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt});
+    releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt, sessionToken, subscription});
   } else if (section === 'care') {
     const tabs = node('div', 'consumer-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '보호 대상');
     const body = node('div', 'consumer-care-body'); body.setAttribute('role', 'tabpanel');

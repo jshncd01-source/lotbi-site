@@ -1,23 +1,33 @@
 // ONNURI-MERCHANT-01 — 생활정보 '온누리상품권' 가맹점 찾기.
+// ONNURI-MERCHANT-LOCATION-UX-P0 — two ways to search, compact cards, a
+// relation map, the user's own map app and verified phone numbers only.
 //
 // Reads only Core's public, guest-safe GET /v2/life/onnuri/merchants|regions
-// (the PUBLISHED copy of 소상공인시장진흥공단 「전국 온누리상품권 가맹점 현황」).
-// No credentials, nothing stored. The current location is asked for only when
-// the user presses "현재 위치로 찾기", goes through the shared location layer
-// and is sent for that one request; without it the screen falls back to
-// 시·도 / 시·군·구 / 동 selection and never shows a made-up distance.
+// (the PUBLISHED copy of 소상공인시장진흥공단 「전국 온누리상품권 가맹점 현황」,
+// placed through 전국전통시장표준데이터 when the shop's own address is only its
+// 시·도). No credentials, nothing stored.
+//
+// 내 주변: the location is asked for only on a user action, goes through the
+// shared location layer, is rounded to ~100 m and sent for that one search,
+// within the radius the user picked (1/3/5/10/25 km). 지역 선택: 시·도 →
+// 시·군·구 → 읍·면·동 (and 시장·상점가), only names the data supports; a level
+// the data cannot fill says why instead of showing an empty picker.
 //
 // Brand: the official 온누리상품권 logo is NOT used until its use is approved.
 // The slot below is reserved for it and renders nothing; labels are plain text.
 // LOTBI is not presented as an official/partner service of the issuer.
-import {CORE_ORIGIN} from './site-core.js?v=aset-be904c626601';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-be904c626601';
-import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-be904c626601';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-be904c626601';
+import {CORE_ORIGIN} from './site-core.js?v=aset-7fe01f2dc380';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-7fe01f2dc380';
+import {isLocationUsageEnabled, readDefaultMapProvider, DEFAULT_MAP_PROVIDER_COOKIE, DEFAULT_MAP_PROVIDERS} from './site-location-preference.js?v=aset-7fe01f2dc380';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-7fe01f2dc380';
 
 export const ONNURI_MENU_LABEL = '온누리상품권';
 export const ONNURI_CARD_LABEL = '온누리 가맹점';
-export const ONNURI_PAGE_SIZE = 3;
+// 12 per page: two or three rows of compact cards; measured in
+// scripts/validate_onnuri_location_ux_p0.mjs (render + Core time per page).
+export const ONNURI_PAGE_SIZE = 12;
+export const ONNURI_RADII = Object.freeze([1000, 3000, 5000, 10000, 25000]);
+export const ONNURI_DEFAULT_RADIUS = 5000;
 export const ONNURI_CATEGORIES = Object.freeze([
   ['', '전체'], ['FOOD', '식당'], ['CAFE', '카페·간식'], ['GROCERY', '장보기'], ['CLOTHING', '의류·잡화'], ['LIVING', '생활'],
 ]);
@@ -26,18 +36,52 @@ export const ONNURI_DISCLAIMER = '공공데이터에 등록된 가맹점 정보�
   + 'LOTBI는 공공데이터를 안내할 뿐, 온누리상품권 발행기관의 공식·제휴 서비스가 아니에요.';
 export const ONNURI_DIGITAL_NOTE = '2025년 3월부터 모바일·카드형이 디지털 온누리로 통합돼, 공식 자료는 모바일과 카드를 따로 구분하지 않아요.';
 export const ONNURI_SETTINGS_URL = 'https://account.lotbiai.com/account#privacy';
+export const ONNURI_MAP_SETTINGS_URL = 'https://account.lotbiai.com/account#personalization';
 // Reserved for the approved official logo file. Empty until approval: no
 // image, no emoji, no look-alike icon is drawn in its place.
 export const ONNURI_LOGO_ASSET = '';
 
 const TIMEOUT_MS = 12_000;
+const SVG_NS = 'http://www.w3.org/2000/svg';
 const text = value => (typeof value === 'string' ? value.trim() : '');
 const bool = value => (value === true ? true : value === false ? false : null);
+const count = value => (Number.isInteger(value) && value >= 0 ? value : null);
+const won = value => value.toLocaleString('ko-KR');
 
 function inKorea(latitude, longitude) {
   return Number.isFinite(latitude) && Number.isFinite(longitude)
     && latitude >= 33 && latitude <= 38.7 && longitude >= 124.5 && longitude <= 131;
 }
+
+export function radiusLabel(meters) {
+  return meters >= 1000 ? `${meters / 1000}km` : `${meters}m`;
+}
+
+// ── 지도앱 설정 ───────────────────────────────────────────────────────────
+// The Account setting is the cookie lotbi_default_map_provider_v1 (Domain=lotbiai.com).
+// readDefaultMapProvider() keeps its contract (no / several / unknown value →
+// NAVER_MAP); this says *why*, so the screen never switches the app silently.
+export function readMapPreference(cookieHeader = '') {
+  const provider = readDefaultMapProvider(cookieHeader);
+  const values = String(cookieHeader || '').split(';').map(part => part.trim())
+    .filter(part => part.startsWith(`${DEFAULT_MAP_PROVIDER_COOKIE}=`))
+    .map(part => part.slice(DEFAULT_MAP_PROVIDER_COOKIE.length + 1));
+  let state = 'SAVED';
+  if (!values.length) state = 'DEFAULT';
+  else if (new Set(values).size > 1) state = 'CONFLICT';
+  else if (!DEFAULT_MAP_PROVIDERS.includes(values[0])) state = 'UNKNOWN';
+  return Object.freeze({provider, state});
+}
+
+export function mapPreferenceNote(preference, {userAgent = globalThis.navigator?.userAgent || ''} = {}) {
+  const label = defaultMapProviderPresentation(preference.provider, {userAgent}).label;
+  if (preference.state === 'CONFLICT') return `지도앱 설정이 둘 이상 저장돼 있어 ${label}로 열어요. 설정에서 다시 골라 주세요.`;
+  if (preference.state === 'UNKNOWN') return `저장된 지도앱 설정을 읽지 못해 ${label}로 열어요. 설정에서 다시 골라 주세요.`;
+  if (preference.state === 'DEFAULT') return `지도앱: ${label}(기본값). 설정에서 바꿀 수 있어요.`;
+  return `지도앱: ${label}(내 설정).`;
+}
+
+// ── Core responses ───────────────────────────────────────────────────────
 
 export function normalizeOnnuriMerchant(value) {
   if (!value || typeof value !== 'object') return null;
@@ -49,12 +93,14 @@ export function normalizeOnnuriMerchant(value) {
   // becomes a coordinate or a "0m" distance.
   const latitude = typeof value.latitude === 'number' ? value.latitude : Number.NaN;
   const longitude = typeof value.longitude === 'number' ? value.longitude : Number.NaN;
-  // ONNURI-IMPORT-QUALITY-FIX-02: the 2026 official file has no street address,
-  // so Core places most shops at their market (geo_state MARKET). That point is
-  // the market's, never presented as the shop's own building.
+  // The 2026 official file has no street address, so Core places most shops at
+  // their market (geo_state MARKET). That point is the market's, never
+  // presented as the shop's own building.
   const basis = value.geo_state === 'VERIFIED' ? 'BUILDING' : value.geo_state === 'MARKET' ? 'MARKET' : '';
   const verified = basis !== '' && inKorea(latitude, longitude);
   const distance = typeof value.distance_meters === 'number' ? value.distance_meters : Number.NaN;
+  const phone = /^(?:0\d{1,2}|1[5-9]\d{2})-\d{3,4}(?:-\d{4})?$/u.test(text(value.phone)) && value.phone_source === 'STAFF_VERIFIED'
+    ? text(value.phone) : '';
   return Object.freeze({
     id,
     name,
@@ -62,13 +108,37 @@ export function normalizeOnnuriMerchant(value) {
     marketName: text(value.market_name),
     marketAddress: text(value.market_address),
     items: text(value.items),
+    sido: text(value.sido),
+    sigungu: text(value.sigungu),
+    dong: text(value.dong),
     paper: bool(value.paper),
     digital: bool(value.digital),
     latitude: verified ? latitude : null,
     longitude: verified ? longitude : null,
     locationBasis: verified ? basis : '',
+    locationSource: verified ? text(value.location_source) : '',
     // A distance only for a verified coordinate; never computed here.
     distanceMeters: verified && Number.isInteger(distance) && distance >= 0 && distance <= 300000 ? distance : null,
+    phone,
+    phoneVerifiedOn: phone && /^\d{4}-\d{2}-\d{2}$/u.test(text(value.phone_verified_on)) ? text(value.phone_verified_on) : '',
+  });
+}
+
+function normalizeCoverage(value) {
+  if (!value || typeof value !== 'object') return null;
+  const total = count(value.total_merchants);
+  const located = count(value.located_merchants);
+  if (total === null || located === null) return null;
+  return Object.freeze({
+    total,
+    located,
+    building: count(value.located_building) ?? 0,
+    market: count(value.located_market) ?? 0,
+    unlocated: count(value.unlocated_merchants) ?? Math.max(0, total - located),
+    regionKnown: count(value.region_known_merchants),
+    withRegion: count(value.with_region),
+    withoutRegion: count(value.without_region),
+    referenceDate: /^\d{4}-\d{2}-\d{2}$/u.test(text(value.market_reference?.source_date)) ? text(value.market_reference.source_date) : '',
   });
 }
 
@@ -82,6 +152,8 @@ export function normalizeOnnuriSearch(value) {
     seen.add(item.id); items.push(item);
   }
   const source = value.data_source && typeof value.data_source === 'object' ? value.data_source : {};
+  const radius = ONNURI_RADII.includes(value.radius_meters) ? value.radius_meters : null;
+  const nearest = count(value.nearest_distance_meters);
   return Object.freeze({
     availability: value.availability === 'AVAILABLE' ? 'AVAILABLE' : 'NOT_READY',
     mode: text(value.mode),
@@ -89,21 +161,49 @@ export function normalizeOnnuriSearch(value) {
     totalCount: Number.isInteger(value.total_count) ? value.total_count : items.length,
     hasMore: value.has_more === true,
     nextOffset: Number.isInteger(value.next_offset) ? value.next_offset : null,
+    // Core pages up to offset 600; past that it asks to narrow down instead.
+    pageLimitReached: value.page_limit_reached === true,
+    radiusMeters: radius,
+    radiusFixed: value.radius_mode === 'FIXED',
+    coverage: normalizeCoverage(value.coverage),
+    emptyReason: ['LOCATION_DATA_UNAVAILABLE', 'NONE_WITHIN_RADIUS', 'NO_MATCH'].includes(value.empty_reason) ? value.empty_reason : '',
+    nearestDistanceMeters: nearest,
+    suggestedRadiusMeters: ONNURI_RADII.includes(value.suggested_radius_meters) ? value.suggested_radius_meters : null,
     sourceDate: /^\d{4}-\d{2}-\d{2}$/u.test(text(source.source_date)) ? text(source.source_date) : '',
     syncedAt: text(source.synced_at).slice(0, 16).replace('T', ' '),
     sourceLabel: text(source.label) || '소상공인시장진흥공단 전국 온누리상품권 가맹점 현황',
   });
 }
 
-export function onnuriSearchUrl({latitude, longitude, sido = '', sigungu = '', dong = '', category = '', accept = '', limit = ONNURI_PAGE_SIZE, offset = 0} = {}, origin = CORE_ORIGIN) {
+export function normalizeOnnuriRegions(value) {
+  if (!value || value.contract_id !== 'CORE-ONNURI-MERCHANT-REGIONS-01' || !Array.isArray(value.regions)) return null;
+  const regions = [];
+  for (const region of value.regions) {
+    const name = text(region?.name);
+    if (!name || regions.some(item => item.name === name)) continue;
+    regions.push(Object.freeze({name, count: count(region.count), sigungu: text(region.sigungu), located: region.located === true}));
+  }
+  return Object.freeze({
+    level: text(value.level),
+    regions,
+    noSigunguLevel: value.no_sigungu_level === true,
+    emptyReason: text(value.empty_reason),
+    coverage: normalizeCoverage(value.coverage),
+  });
+}
+
+export function onnuriSearchUrl({latitude, longitude, radius = ONNURI_DEFAULT_RADIUS, sido = '', sigungu = '', dong = '', market = '', category = '', accept = '', limit = ONNURI_PAGE_SIZE, offset = 0} = {}, origin = CORE_ORIGIN) {
   const params = new URLSearchParams();
   if (inKorea(Number(latitude), Number(longitude))) {
+    // ~100 m: enough for "근처", not a precise position.
     params.set('latitude', String(Math.round(Number(latitude) * 1000) / 1000));
     params.set('longitude', String(Math.round(Number(longitude) * 1000) / 1000));
+    params.set('radius_meters', String(ONNURI_RADII.includes(radius) ? radius : ONNURI_DEFAULT_RADIUS));
   } else {
     if (text(sido)) params.set('sido', text(sido));
-    if (text(sigungu)) params.set('sigungu', text(sigungu));
-    if (text(dong)) params.set('dong', text(dong));
+    if (text(sido) && text(sigungu)) params.set('sigungu', text(sigungu));
+    if (text(sido) && text(dong)) params.set('dong', text(dong));
+    if (text(sido) && text(market)) params.set('market', text(market));
   }
   if (category) params.set('category', category);
   if (accept) params.set('accept', accept);
@@ -112,10 +212,11 @@ export function onnuriSearchUrl({latitude, longitude, sido = '', sigungu = '', d
   return `${origin}/v2/life/onnuri/merchants?${params}`;
 }
 
-export function onnuriRegionsUrl({sido = '', sigungu = ''} = {}, origin = CORE_ORIGIN) {
+export function onnuriRegionsUrl({sido = '', sigungu = '', level = ''} = {}, origin = CORE_ORIGIN) {
   const params = new URLSearchParams();
   if (text(sido)) params.set('sido', text(sido));
   if (text(sido) && text(sigungu)) params.set('sigungu', text(sigungu));
+  if (text(sido) && ['DONG', 'MARKET'].includes(level)) params.set('level', level);
   const query = params.toString();
   return `${origin}/v2/life/onnuri/regions${query ? `?${query}` : ''}`;
 }
@@ -171,9 +272,59 @@ export function createOnnuriLogoSlot(documentRef = document) {
   return slot;
 }
 
-export function onnuriMerchantCard(item, {mapProvider}) {
+// Where a pin/route goes: the shop's building, or its market (said so).
+function placeFor(item) {
+  const atMarket = item.locationBasis === 'MARKET';
+  const target = atMarket && item.marketName ? item.marketName : item.name;
+  const located = item.latitude !== null;
+  return {
+    target,
+    atMarket,
+    place: {
+      name: target, address: item.marketAddress || item.address, placeId: `onnuri:${item.id}`,
+      latitude: item.latitude, longitude: item.longitude,
+      coordinateSystem: located ? 'WGS84' : '',
+      coordinateAuthority: located ? (item.locationSource === 'PUBLIC_MARKET_STANDARD' ? 'PUBLIC_MARKET_STANDARD' : 'NAVER_MAPS_GEOCODING') : '',
+      navigationCapable: located,
+    },
+  };
+}
+
+export function onnuriMapActions(item, {mapProvider, userAgent = globalThis.navigator?.userAgent || ''}) {
+  const {target, atMarket, place} = placeFor(item);
+  const app = defaultMapProviderPresentation(mapProvider, {userAgent}).label;
+  const links = [];
+  try {
+    if (place.navigationCapable) {
+      // 길찾기 only to a point the data really has (building or market).
+      const route = el('a', 'consumer-action onnuri-card-map', `${app} ${atMarket ? '시장 길찾기' : '길찾기'}`);
+      route.href = buildDefaultMapHref(mapProvider, place, {userAgent});
+      route.dataset.mapAction = 'route';
+      route.setAttribute('aria-label', `${app}에서 ${target} 길찾기`);
+      const open = el('a', 'consumer-action consumer-action-secondary onnuri-card-open', '지도에서 보기');
+      open.href = buildDefaultMapHref(mapProvider, {...place, navigationCapable: false}, {userAgent});
+      open.dataset.mapAction = 'open';
+      open.setAttribute('aria-label', `${app}에서 ${target} 보기`);
+      links.push(route, open);
+    } else {
+      // No point: a name search in the chosen app, never a route.
+      const search = el('a', 'consumer-action consumer-action-secondary onnuri-card-map', `${app}에서 찾기`);
+      search.href = buildDefaultMapHref(mapProvider, place, {userAgent});
+      search.dataset.mapAction = 'search';
+      search.setAttribute('aria-label', `${app}에서 ${target} 이름으로 찾기`);
+      links.push(search);
+    }
+  } catch {
+    return [];                                           // no map link rather than a wrong one
+  }
+  for (const link of links) { link.target = '_blank'; link.rel = 'noopener noreferrer'; }
+  return links;
+}
+
+export function onnuriMerchantCard(item, {mapProvider, userAgent = globalThis.navigator?.userAgent || ''}) {
   const card = el('article', 'onnuri-card');
   card.dataset.onnuriMerchant = item.id;
+  if (item.latitude !== null) card.dataset.onnuriPoint = `${item.latitude.toFixed(6)},${item.longitude.toFixed(6)}`;
   const head = el('div', 'onnuri-card-head');
   const label = el('span', 'onnuri-card-label', ONNURI_CARD_LABEL);
   label.prepend(createOnnuriLogoSlot());
@@ -182,42 +333,136 @@ export function onnuriMerchantCard(item, {mapProvider}) {
   const atMarket = item.locationBasis === 'MARKET';
   if (distance) head.append(el('span', 'onnuri-card-distance', atMarket ? `시장까지 ${distance}` : distance));
   const title = el('h4', 'onnuri-card-title', item.name);
-  const meta = el('p', 'onnuri-card-meta', [item.marketName, item.items].filter(Boolean).join(' · '));
+  title.title = item.name;
+  const meta = el('p', 'onnuri-card-meta', [item.items, item.marketName].filter(Boolean).join(' · '));
   // The official 소재지 may be only "서울"; the market's address says where to go.
   const address = el('p', 'onnuri-card-address', item.marketAddress ? `시장 주소 ${item.marketAddress}` : item.address);
   const accept = el('p', 'onnuri-card-accept', acceptanceLabel(item));
   card.append(head, title);
   if (meta.textContent) card.append(meta);
   card.append(address);
-  if (atMarket) card.append(el('p', 'onnuri-card-basis', '위치·거리는 소속 시장 기준이에요. 가게 위치는 시장 안에서 확인해 주세요.'));
-  card.append(accept);
-  const target = atMarket && item.marketName ? item.marketName : item.name;
-  const place = {
-    name: target, address: item.marketAddress || item.address, placeId: `onnuri:${item.id}`,
-    latitude: item.latitude, longitude: item.longitude,
-    coordinateSystem: item.latitude !== null ? 'WGS84' : '', coordinateAuthority: item.latitude !== null ? 'NAVER_MAPS_GEOCODING' : '',
-    navigationCapable: item.latitude !== null,
-  };
-  try {
-    const href = buildDefaultMapHref(mapProvider, place);
-    const presentation = defaultMapProviderPresentation(mapProvider);
-    const action = item.latitude !== null ? (atMarket ? '시장 길찾기' : '길찾기') : '지도에서 찾기';
-    const link = el('a', 'consumer-action consumer-action-secondary onnuri-card-map', action);
-    link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer';
-    link.setAttribute('aria-label', `${presentation?.label || '지도'}에서 ${target} ${item.latitude !== null ? '길찾기' : '찾기'}`);
-    card.append(link);
-  } catch {
-    // No map link rather than a wrong one.
+  if (atMarket) {
+    const basis = el('p', 'onnuri-card-basis', '위치·거리는 소속 시장 기준');
+    basis.title = '가게 위치는 시장 안에서 확인해 주세요.';
+    card.append(basis);
+  } else if (item.latitude === null) {
+    card.append(el('p', 'onnuri-card-basis', '공식 자료에 상세 위치 없음'));
   }
+  card.append(accept);
+  const actions = el('div', 'onnuri-card-actions');
+  if (item.phone) {
+    const call = el('a', 'consumer-action consumer-action-secondary onnuri-card-phone', `전화 ${item.phone}`);
+    call.href = `tel:${item.phone.replaceAll('-', '')}`;
+    call.setAttribute('aria-label', `${item.name}에 전화 걸기 ${item.phone}`);
+    actions.append(call);
+  }
+  actions.append(...onnuriMapActions(item, {mapProvider, userAgent}));
+  if (actions.children.length) card.append(actions);
   return card;
 }
 
-export async function mountOnnuriMerchants({root, fetchImpl = globalThis.fetch, documentRef = document, resolveCurrent = resolveSharedBrowserCurrentLocation, locationUsageEnabled = isLocationUsageEnabled, permissionState = getBrowserLocationPermissionState} = {}) {
+// ── 위치 관계도: no map tiles, no provider SDK, no key ─────────────────────
+// A north-up sketch of the points the data really has, around the search
+// centre (내 주변) or the shown shops (지역). Shops without a point are counted,
+// never drawn.
+function pointGroups(items) {
+  const groups = new Map();
+  for (const item of items) {
+    if (item.latitude === null) continue;
+    const key = `${item.latitude.toFixed(6)},${item.longitude.toFixed(6)}`;
+    const group = groups.get(key) || {key, latitude: item.latitude, longitude: item.longitude, items: [], atMarket: item.locationBasis === 'MARKET'};
+    group.items.push(item);
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+}
+
+export function onnuriRelationMap({items, center = null, radiusMeters = null, documentRef = document}) {
+  const groups = pointGroups(items);
+  const width = 320; const height = 200; const pad = 18;
+  let cLat; let cLng; let span;
+  const k = lat => Math.cos(lat * Math.PI / 180);
+  if (center) {
+    cLat = center.latitude; cLng = center.longitude;
+    span = (radiusMeters || ONNURI_DEFAULT_RADIUS) * 1.1;
+  } else if (groups.length) {
+    const lats = groups.map(group => group.latitude); const lngs = groups.map(group => group.longitude);
+    cLat = (Math.min(...lats) + Math.max(...lats)) / 2; cLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+    const dy = (Math.max(...lats) - Math.min(...lats)) * 111_000 / 2;
+    const dx = (Math.max(...lngs) - Math.min(...lngs)) * 111_000 * k(cLat) / 2;
+    span = Math.max(400, dy, dx) * 1.25;
+  } else {
+    return null;
+  }
+  const scale = Math.min(width - 2 * pad, height - 2 * pad) / (2 * span);
+  const project = (lat, lng) => ({
+    x: width / 2 + (lng - cLng) * 111_000 * k(cLat) * scale,
+    y: height / 2 - (lat - cLat) * 111_000 * scale,
+  });
+  const svg = documentRef.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.setAttribute('class', 'onnuri-map-svg');
+  svg.setAttribute('role', 'group');
+  svg.setAttribute('aria-label', center ? `현재 위치 기준 반경 ${radiusLabel(radiusMeters || ONNURI_DEFAULT_RADIUS)} 위치 관계도` : '검색 결과 위치 관계도');
+  const shape = (tag, attrs) => {
+    const node = documentRef.createElementNS(SVG_NS, tag);
+    for (const [name, value] of Object.entries(attrs)) node.setAttribute(name, String(value));
+    return node;
+  };
+  if (center) {
+    svg.append(shape('circle', {cx: width / 2, cy: height / 2, r: (radiusMeters || ONNURI_DEFAULT_RADIUS) * scale, class: 'onnuri-map-range'}));
+    svg.append(shape('circle', {cx: width / 2, cy: height / 2, r: 5, class: 'onnuri-map-me'}));
+  }
+  // Farthest first, so where two points touch the nearer one is on top and tappable.
+  const drawOrder = groups.slice().sort((left, right) => (right.items[0].distanceMeters ?? 0) - (left.items[0].distanceMeters ?? 0));
+  for (const group of drawOrder) {
+    const {x, y} = project(group.latitude, group.longitude);
+    if (x < 0 || x > width || y < 0 || y > height) continue;
+    const pin = shape('g', {class: `onnuri-map-pin${group.atMarket ? ' is-market' : ''}`, tabindex: 0, role: 'button'});
+    pin.dataset.onnuriPoint = group.key;
+    const first = group.items[0];
+    const where = group.atMarket && first.marketName ? first.marketName : first.name;
+    const distance = first.distanceMeters !== null ? ` ${group.atMarket ? '시장까지 ' : ''}${formatDistanceMeters(first.distanceMeters)}` : '';
+    pin.setAttribute('aria-label', `${where} ${group.items.length}곳${distance}`);
+    pin.append(shape('circle', {cx: x, cy: y, r: 13, class: 'onnuri-map-hit'}));
+    pin.append(shape('circle', {cx: x, cy: y, r: group.items.length > 1 ? 8 : 6, class: 'onnuri-map-dot'}));
+    if (group.items.length > 1) {
+      const label = shape('text', {x, y: y + 3.5, 'text-anchor': 'middle', class: 'onnuri-map-count'});
+      label.textContent = String(group.items.length);
+      pin.append(label);
+    }
+    svg.append(pin);
+  }
+  return svg;
+}
+
+// ── 화면 ─────────────────────────────────────────────────────────────────
+
+function locationFailureText(outcome) {
+  const code = outcome?.error?.code || '';
+  if (outcome?.permission === LOCATION_PERMISSION.DENIED || code === 'BROWSER_LOCATION_DENIED') {
+    return '브라우저의 위치 권한이 꺼져 있어 현재 위치를 쓸 수 없어요. 브라우저 설정에서 허용하거나 지역을 골라 찾아 주세요.';
+  }
+  if (code === 'BROWSER_LOCATION_UNSUPPORTED') return '이 브라우저에서는 현재 위치를 쓸 수 없어요. 지역을 골라 찾아 주세요.';
+  if (code === 'BROWSER_LOCATION_TIMEOUT') return '현재 위치 확인 시간이 지나 위치를 받지 못했어요. 다시 시도하거나 지역을 골라 찾아 주세요.';
+  if (code === 'OUTSIDE_KOREA') return '현재 위치가 국내가 아니라 근처 가맹점을 찾을 수 없어요. 지역을 골라 찾아 주세요.';
+  return '현재 위치를 확인하지 못했어요. 다시 시도하거나 지역을 골라 찾아 주세요.';
+}
+
+export async function mountOnnuriMerchants({
+  root, fetchImpl = globalThis.fetch, documentRef = document, windowRef = globalThis.window,
+  resolveCurrent = resolveSharedBrowserCurrentLocation, locationUsageEnabled = isLocationUsageEnabled,
+  permissionState = getBrowserLocationPermissionState,
+} = {}) {
   let disposed = false;
   let requestToken = 0;
   let controller = null;
-  const state = {mode: 'region', location: null, sido: '', sigungu: '', dong: '', category: '', accept: '', offset: 0, items: []};
-  const mapProvider = readDefaultMapProvider(documentRef.cookie || '');
+  const regionTokens = {sigungu: 0, dong: 0, market: 0};
+  const state = {
+    mode: 'region', location: null, radius: ONNURI_DEFAULT_RADIUS, sido: '', sigungu: '', dong: '', market: '',
+    category: '', accept: '', offset: 0, items: [], result: null, selectedPoint: '', noSigungu: false,
+  };
+  let preference = readMapPreference(documentRef.cookie || '');
 
   root.classList.add('onnuri-surface');
   const intro = el('div', 'onnuri-intro');
@@ -225,19 +470,44 @@ export async function mountOnnuriMerchants({root, fetchImpl = globalThis.fetch, 
   brand.append(createOnnuriLogoSlot(documentRef), el('strong', 'onnuri-brand-label', `${ONNURI_MENU_LABEL} 가맹점 찾기`));
   intro.append(brand, el('p', 'consumer-feature-note onnuri-disclaimer', ONNURI_DISCLAIMER));
 
+  // Mode switch: 내 주변 / 지역 선택.
+  const modes = el('div', 'onnuri-modes'); modes.setAttribute('role', 'tablist'); modes.setAttribute('aria-label', '찾는 방법');
+  const modeButtons = {};
+  for (const [key, labelText] of [['location', '내 주변'], ['region', '지역 선택']]) {
+    const tab = button(labelText, 'onnuri-mode'); tab.dataset.onnuriMode = key; tab.setAttribute('role', 'tab');
+    modes.append(tab); modeButtons[key] = tab;
+  }
+
+  const nearbyPanel = el('div', 'onnuri-nearby-panel');
   const locate = button('현재 위치로 찾기', 'consumer-action onnuri-locate');
+  const radiusRow = el('div', 'festival-chip-row onnuri-chip-row onnuri-radius-row');
+  radiusRow.setAttribute('role', 'group'); radiusRow.setAttribute('aria-label', '검색 반경');
+  for (const meters of ONNURI_RADII) {
+    const chip = button(radiusLabel(meters), 'festival-chip'); chip.dataset.onnuriRadius = String(meters);
+    chip.addEventListener('click', () => {
+      if (state.radius === meters) return;
+      state.radius = meters; paintRadius();
+      if (state.mode === 'location' && state.location) void search({reset: true});
+    });
+    radiusRow.append(chip);
+  }
   const locationNote = el('p', 'consumer-feature-note onnuri-location-note');
   locationNote.setAttribute('role', 'status');
+  nearbyPanel.append(locate, radiusRow, locationNote);
 
+  const regionPanel = el('div', 'onnuri-region-panel');
   const regionRow = el('div', 'onnuri-region-row');
   const selects = {};
-  for (const [key, labelText] of [['sido', '시·도'], ['sigungu', '시·군·구'], ['dong', '동·읍·면']]) {
+  const fields = {};
+  for (const [key, labelText] of [['sido', '시·도'], ['sigungu', '시·군·구'], ['dong', '읍·면·동'], ['market', '시장·상점가']]) {
     const label = el('label', 'consumer-life-field onnuri-region-field', labelText);
     const select = el('select'); select.dataset.onnuriRegion = key; select.setAttribute('aria-label', labelText);
     select.append(new Option('전체', ''));
-    if (key !== 'sido') select.disabled = true;
-    label.append(select); regionRow.append(label); selects[key] = select;
+    label.append(select); regionRow.append(label); selects[key] = select; fields[key] = label;
+    if (key !== 'sido') label.hidden = true;               // shown only with real choices
   }
+  const regionNote = el('p', 'consumer-feature-note onnuri-region-note'); regionNote.setAttribute('role', 'status');
+  regionPanel.append(regionRow, regionNote);
 
   const chipGroup = (items, key, labelText) => {
     const row = el('div', 'festival-chip-row onnuri-chip-row');
@@ -260,38 +530,171 @@ export async function mountOnnuriMerchants({root, fetchImpl = globalThis.fetch, 
   const categoryRow = chipGroup(ONNURI_CATEGORIES, 'category', '업종');
   const acceptRow = chipGroup(ONNURI_ACCEPTS, 'accept', '상품권 종류');
 
+  const scopeLine = el('p', 'onnuri-scope');
   const status = el('p', 'onnuri-status'); status.setAttribute('role', 'status');
+  const coverageNote = el('p', 'consumer-feature-note onnuri-coverage');
+  const emptyActions = el('div', 'onnuri-empty-actions'); emptyActions.hidden = true;
   const error = el('div', 'onnuri-error'); error.setAttribute('role', 'alert'); error.hidden = true;
+  const mapBox = el('section', 'onnuri-map'); mapBox.setAttribute('aria-label', '위치 관계도'); mapBox.hidden = true;
+  const mapCanvas = el('div', 'onnuri-map-canvas');
+  const mapCaption = el('p', 'consumer-feature-note onnuri-map-caption');
+  const mapSelection = el('div', 'onnuri-map-selection'); mapSelection.hidden = true;
+  mapBox.append(mapCanvas, mapSelection, mapCaption);
+  const appNote = el('p', 'consumer-feature-note onnuri-map-app');
   const list = el('div', 'onnuri-results');
   const more = button('더 보기', 'consumer-action consumer-action-secondary onnuri-more'); more.hidden = true;
   const source = el('p', 'consumer-feature-note onnuri-source');
 
-  root.replaceChildren(intro, locate, locationNote, regionRow, categoryRow, acceptRow, digitalNote, status, error, list, more, source);
+  root.replaceChildren(intro, modes, nearbyPanel, regionPanel, categoryRow, acceptRow, digitalNote, scopeLine, status,
+    coverageNote, emptyActions, error, mapBox, appNote, list, more, source);
 
-  async function loadRegions(level) {
-    const target = level === 'sido' ? selects.sido : level === 'sigungu' ? selects.sigungu : selects.dong;
-    target.replaceChildren(new Option('전체', ''));
-    const response = await getJson(onnuriRegionsUrl({sido: level === 'sido' ? '' : state.sido, sigungu: level === 'dong' ? state.sigungu : ''}), {fetchImpl});
-    if (disposed || !response.ok || !Array.isArray(response.data?.regions)) { target.disabled = level !== 'sido'; return; }
-    for (const region of response.data.regions) {
-      const name = text(region?.name);
-      if (name) target.append(new Option(name, name));
+  function paintMode() {
+    for (const [key, tab] of Object.entries(modeButtons)) {
+      const on = state.mode === key;
+      tab.setAttribute('aria-selected', String(on));
+      tab.classList.toggle('is-active', on);
     }
-    target.disabled = target.options.length <= 1 && level !== 'sido';
+    nearbyPanel.hidden = state.mode !== 'location';
+    regionPanel.hidden = state.mode !== 'region';
+  }
+
+  function paintRadius() {
+    for (const chip of radiusRow.children) chip.setAttribute('aria-pressed', String(Number(chip.dataset.onnuriRadius) === state.radius));
+  }
+
+  function paintAppNote() {
+    appNote.replaceChildren(mapPreferenceNote(preference));
+    if (preference.state !== 'SAVED') {
+      const link = el('a', '', ' 지도앱 설정'); link.href = ONNURI_MAP_SETTINGS_URL; link.rel = 'noopener';
+      appNote.append(link);
+    }
+  }
+
+  function scopeText() {
+    if (state.mode === 'location') return `내 주변 · 반경 ${radiusLabel(state.radius)} · 가까운 순`;
+    const parts = [state.sido, state.sigungu, state.dong].filter(Boolean);
+    const where = parts.length ? parts.join(' ') : '전국';
+    return state.market ? `${where} · ${state.market}` : `${where} 전체`;
+  }
+
+  function selectPoint(key, {scroll = false} = {}) {
+    state.selectedPoint = key || '';
+    for (const card of list.querySelectorAll('.onnuri-card')) {
+      card.classList.toggle('is-selected', Boolean(key) && card.dataset.onnuriPoint === key);
+    }
+    for (const pin of mapCanvas.querySelectorAll('.onnuri-map-pin')) {
+      const on = Boolean(key) && pin.dataset.onnuriPoint === key;
+      pin.classList.toggle('is-selected', on);
+      pin.setAttribute('aria-pressed', String(on));
+    }
+    const items = state.items.filter(item => item.latitude !== null && `${item.latitude.toFixed(6)},${item.longitude.toFixed(6)}` === key);
+    mapSelection.replaceChildren();
+    mapSelection.hidden = !items.length;
+    if (!items.length) return;
+    const first = items[0];
+    const where = first.locationBasis === 'MARKET' && first.marketName ? first.marketName : first.name;
+    const distance = first.distanceMeters !== null ? ` · ${first.locationBasis === 'MARKET' ? '시장까지 ' : ''}${formatDistanceMeters(first.distanceMeters)}` : '';
+    mapSelection.append(el('strong', 'onnuri-map-selection-title', `${where} · 가맹점 ${items.length}곳${distance}`));
+    const actions = el('div', 'onnuri-card-actions');
+    actions.append(...onnuriMapActions(first, {mapProvider: preference.provider}));
+    mapSelection.append(actions);
+    if (scroll) {
+      const card = list.querySelector(`.onnuri-card[data-onnuri-point="${key}"]`);
+      card?.scrollIntoView?.({block: 'nearest', behavior: 'smooth'});
+    }
+  }
+
+  function paintMap() {
+    const center = state.mode === 'location' && state.location ? state.location : null;
+    // A whole-country list has nothing to relate; the sketch starts at a 시·도.
+    const svg = center || state.sido ? onnuriRelationMap({items: state.items, center, radiusMeters: state.radius, documentRef}) : null;
+    mapCanvas.replaceChildren();
+    const unplaced = state.items.filter(item => item.latitude === null).length;
+    if (!svg) { mapBox.hidden = true; return; }
+    mapCanvas.append(svg);
+    mapBox.hidden = false;
+    for (const pin of svg.querySelectorAll('.onnuri-map-pin')) {
+      const choose = () => selectPoint(pin.dataset.onnuriPoint === state.selectedPoint ? '' : pin.dataset.onnuriPoint, {scroll: true});
+      pin.addEventListener('click', choose);
+      pin.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); } });
+    }
+    const parts = ['배경 지도 없이 위치 관계만 보여 드려요(위쪽이 북쪽). 점을 누르면 그 위치의 가맹점을 표시해요.'];
+    if (state.items.some(item => item.locationBasis === 'MARKET')) parts.push('시장 점은 시장 위치예요.');
+    if (unplaced) parts.push(`위치가 확인되지 않은 ${unplaced}곳은 지도에 표시하지 않아요.`);
+    mapCaption.textContent = parts.join(' ');
+    if (state.selectedPoint) selectPoint(state.selectedPoint);
+  }
+
+  function renderCards() {
+    list.replaceChildren(...state.items.map(item => onnuriMerchantCard(item, {mapProvider: preference.provider})));
+    for (const card of list.querySelectorAll('.onnuri-card[data-onnuri-point]')) {
+      card.addEventListener('click', event => {
+        if (event.target.closest('a,button')) return;                  // links keep their own job
+        selectPoint(card.dataset.onnuriPoint === state.selectedPoint ? '' : card.dataset.onnuriPoint);
+      });
+    }
+    paintMap();
+  }
+
+  function paintCoverage(result) {
+    const coverage = result?.coverage;
+    if (!coverage) { coverageNote.textContent = ''; return; }
+    if (state.mode === 'location') {
+      coverageNote.textContent = coverage.unlocated
+        ? `공식 자료에 위치가 없는 가맹점 ${won(coverage.unlocated)}곳은 거리로 찾을 수 없어 빠져요. 지역 선택으로 찾아 주세요.`
+        : '';
+      return;
+    }
+    const known = coverage.regionKnown;
+    if (known !== null && known < coverage.total) {
+      coverageNote.textContent = `${state.sido || '전국'} 가맹점 ${won(coverage.total)}곳 중 시·군·구를 확인한 곳은 ${won(known)}곳이에요. `
+        + '확인되지 않은 곳은 시·도 전체나 시장·상점가로 찾을 수 있어요.';
+    } else {
+      coverageNote.textContent = '';
+    }
+  }
+
+  function showEmpty(result) {
+    emptyActions.replaceChildren(); emptyActions.hidden = true;
+    const scope = scopeText();
+    if (state.mode === 'location' && result.emptyReason === 'LOCATION_DATA_UNAVAILABLE') {
+      status.textContent = '위치가 확인된 가맹점 자료가 아직 없어 거리로 찾을 수 없어요. 주변에 가맹점이 없다는 뜻은 아니에요.';
+      const toRegion = button('지역 선택으로 찾기'); toRegion.addEventListener('click', () => switchMode('region'));
+      emptyActions.append(toRegion); emptyActions.hidden = false;
+      return;
+    }
+    if (state.mode === 'location') {
+      const nearest = result.nearestDistanceMeters !== null ? ` 가장 가까운 확인된 곳은 약 ${formatDistanceMeters(result.nearestDistanceMeters)}예요.` : '';
+      status.textContent = `반경 ${radiusLabel(state.radius)} 안에서 위치가 확인된 가맹점을 찾지 못했어요.${nearest} 위치가 없는 가맹점은 거리 검색에서 빠지니, 없다고 단정하지는 말아 주세요.`;
+      const wider = result.suggestedRadiusMeters ?? ONNURI_RADII.find(radius => radius > state.radius);
+      if (wider) {
+        const expand = button(`${radiusLabel(wider)}로 넓히기`); expand.dataset.onnuriExpand = String(wider);
+        expand.addEventListener('click', () => { state.radius = wider; paintRadius(); void search({reset: true}); });
+        emptyActions.append(expand);
+      }
+      const toRegion = button('지역 선택으로 찾기'); toRegion.addEventListener('click', () => switchMode('region'));
+      emptyActions.append(toRegion); emptyActions.hidden = false;
+      return;
+    }
+    status.textContent = `${scope}에서 조건에 맞는 가맹점을 공공데이터에서 찾지 못했어요. 공공데이터에 없다고 해서 가맹점이 아니라는 뜻은 아니에요.`;
   }
 
   async function search({reset = false} = {}) {
     if (disposed) return;
-    if (reset) { state.offset = 0; state.items = []; list.replaceChildren(); }
+    if (reset) { state.offset = 0; state.items = []; state.selectedPoint = ''; list.replaceChildren(); mapBox.hidden = true; }
     controller?.abort(); controller = new AbortController();
     const token = ++requestToken;
-    status.textContent = '찾는 중…'; error.hidden = true; more.hidden = true;
+    scopeLine.textContent = scopeText();
+    status.textContent = '찾는 중…'; error.hidden = true; more.hidden = true; emptyActions.hidden = true;
     const useLocation = state.mode === 'location' && state.location;
+    if (state.mode === 'location' && !state.location) { status.textContent = ''; return; }
+    const startedAt = globalThis.performance?.now?.() ?? 0;
     const response = await getJson(onnuriSearchUrl({
-      ...(useLocation ? state.location : {sido: state.sido, sigungu: state.sigungu, dong: state.dong}),
+      ...(useLocation ? {...state.location, radius: state.radius}
+        : {sido: state.sido, sigungu: state.sigungu, dong: state.dong, market: state.market}),
       category: state.category, accept: state.accept, limit: ONNURI_PAGE_SIZE, offset: state.offset,
     }), {fetchImpl, signal: controller.signal});
-    if (disposed || token !== requestToken) return;
+    if (disposed || token !== requestToken) return;             // a newer search owns the screen
     const result = response.ok ? normalizeOnnuriSearch(response.data) : null;
     if (!result) {
       status.textContent = '';
@@ -305,42 +708,110 @@ export async function mountOnnuriMerchants({root, fetchImpl = globalThis.fetch, 
       source.textContent = '';
       return;
     }
+    state.result = result;
     const known = new Set(state.items.map(item => item.id));
     const fresh = result.items.filter(item => !known.has(item.id));
     state.items.push(...fresh);
-    for (const item of fresh) list.append(onnuriMerchantCard(item, {mapProvider}));
+    renderCards();
+    root.dataset.onnuriRenderMs = String(Math.round((globalThis.performance?.now?.() ?? 0) - startedAt));
     state.offset = result.nextOffset ?? state.offset + fresh.length;
     more.hidden = !result.hasMore;
-    const scope = useLocation ? '현재 위치 근처' : ([state.sido, state.sigungu, state.dong].filter(Boolean).join(' ') || '전국');
+    paintCoverage(result);
     if (!state.items.length) {
-      status.textContent = `${scope}에서 조건에 맞는 가맹점을 공공데이터에서 찾지 못했어요. 공공데이터에 없다고 해서 가맹점이 아니라는 뜻은 아니에요.`;
+      showEmpty(result);
+    } else if (useLocation) {
+      status.textContent = `가까운 순으로 ${state.items.length}곳을 보여 드려요(반경 안 ${won(result.totalCount)}곳). `
+        + '거리는 확인된 가게 위치 또는 소속 시장 위치까지예요.';
     } else {
-      status.textContent = useLocation
-        ? `${scope} 가맹점 ${state.items.length}곳을 가까운 순서로 보여 드려요.`
-        : `${scope} 가맹점 ${result.totalCount.toLocaleString('ko-KR')}곳 중 ${state.items.length}곳을 보여 드려요. 거리는 현재 위치를 쓸 때만 표시해요.`;
+      status.textContent = `가맹점 ${won(result.totalCount)}곳 중 ${state.items.length}곳을 보여 드려요. 거리는 내 주변 검색에서만 표시해요.`;
     }
-    source.textContent = `출처: ${result.sourceLabel}${result.sourceDate ? `(${result.sourceDate} 기준)` : ''}${result.syncedAt ? ` · LOTBI 반영 ${result.syncedAt}` : ''}`;
+    if (result.pageLimitReached && state.items.length) {
+      status.textContent += ' 목록은 여기까지 보여 드려요. 지역·시장·업종으로 좁혀 찾아 주세요.';
+    }
+    const reference = result.coverage?.referenceDate ? ` · 시장 위치: 소상공인시장진흥공단 전국전통시장표준데이터(${result.coverage.referenceDate} 기준)` : '';
+    source.textContent = `출처: ${result.sourceLabel}${result.sourceDate ? `(${result.sourceDate} 기준)` : ''}${result.syncedAt ? ` · LOTBI 반영 ${result.syncedAt}` : ''}${reference}`;
+  }
+
+  async function loadRegions(level) {
+    // level: 'sido' | 'sigungu' | 'dong' | 'market'
+    const target = selects[level];
+    const token = level === 'sido' ? 0 : ++regionTokens[level];
+    target.replaceChildren(new Option('전체', ''));
+    if (level !== 'sido') fields[level].hidden = true;
+    const response = await getJson(onnuriRegionsUrl({
+      sido: level === 'sido' ? '' : state.sido,
+      sigungu: level === 'dong' || level === 'market' ? state.sigungu : '',
+      level: level === 'dong' && state.noSigungu ? 'DONG' : level === 'market' ? 'MARKET' : '',
+    }), {fetchImpl});
+    if (disposed || (level !== 'sido' && token !== regionTokens[level])) return null;
+    const regions = response.ok ? normalizeOnnuriRegions(response.data) : null;
+    if (!regions) return null;
+    for (const region of regions.regions) {
+      const suffix = region.count !== null ? ` (${won(region.count)})` : '';
+      target.append(new Option(`${region.name}${suffix}`, region.name));
+    }
+    if (level !== 'sido') fields[level].hidden = target.options.length <= 1;
+    return regions;
+  }
+
+  async function afterSido() {
+    regionNote.textContent = '';
+    for (const key of ['sigungu', 'dong', 'market']) { selects[key].replaceChildren(new Option('전체', '')); fields[key].hidden = true; }
+    state.noSigungu = false;
+    if (!state.sido) return;
+    const cities = await loadRegions('sigungu');
+    if (disposed || !cities) return;
+    state.noSigungu = cities.noSigunguLevel;
+    const notes = [];
+    if (cities.noSigunguLevel) {
+      notes.push(`${state.sido}는 시·군·구 없이 읍·면·동으로 나뉘어요.`);
+      await loadRegions('dong');
+    } else if (!cities.regions.length) {
+      notes.push(`${state.sido}는 공식 자료에 시·군·구가 확인된 가맹점이 없어 시·군·구로 나눠 볼 수 없어요. 시·도 전체나 시장·상점가로 찾아 주세요.`);
+    }
+    const coverage = cities.coverage;
+    if (coverage && coverage.withoutRegion) {
+      notes.push(`시·군·구 확인 ${won(coverage.withRegion ?? 0)}곳 · 확인 안 됨 ${won(coverage.withoutRegion)}곳(공식 자료가 시·도까지만 있고 시장 위치도 찾지 못한 곳).`);
+    }
+    regionNote.textContent = notes.join(' ');
+    await loadRegions('market');
+  }
+
+  function switchMode(mode) {
+    if (state.mode === mode && (mode === 'region' || state.location)) return;
+    if (mode === 'location') { void useCurrentLocation(); return; }
+    state.mode = 'region';
+    paintMode();
+    void search({reset: true});
   }
 
   async function useCurrentLocation() {
     locationNote.replaceChildren();
+    state.mode = 'location'; paintMode();
     let enabled = false;
     try { enabled = locationUsageEnabled() === true; } catch { enabled = false; }
     if (!enabled) {
-      locationNote.append('위치 사용이 꺼져 있어 지역을 골라 찾아 드려요. ');
+      state.location = null;
+      locationNote.append('LOTBI 설정에서 위치 사용이 꺼져 있어 현재 위치를 쓰지 않아요. ');
       const link = el('a', '', '설정에서 위치 켜기'); link.href = ONNURI_SETTINGS_URL; link.rel = 'noopener';
       locationNote.append(link);
-      state.mode = 'region';
-      return search({reset: true});
+      const toRegion = button('지역 선택으로 찾기', 'consumer-action consumer-action-secondary onnuri-to-region');
+      toRegion.addEventListener('click', () => switchMode('region'));
+      locationNote.append(toRegion);
+      list.replaceChildren(); mapBox.hidden = true; more.hidden = true; status.textContent = ''; scopeLine.textContent = '';
+      coverageNote.textContent = ''; emptyActions.hidden = true;
+      return undefined;
     }
     locate.disabled = true;
     locationNote.textContent = '현재 위치를 확인하고 있어요…';
     let location = null;
+    let outcome = null;
     try {
-      const outcome = await resolveCurrent({allowPrompt: true});
+      outcome = await resolveCurrent({allowPrompt: true});
       const latitude = Number(outcome?.location?.latitude);
       const longitude = Number(outcome?.location?.longitude);
       if (inKorea(latitude, longitude)) location = {latitude, longitude};
+      else if (Number.isFinite(latitude) && Number.isFinite(longitude)) outcome = {error: {code: 'OUTSIDE_KOREA'}};
     } catch {
       location = null;
     } finally {
@@ -348,42 +819,71 @@ export async function mountOnnuriMerchants({root, fetchImpl = globalThis.fetch, 
     }
     if (disposed) return undefined;
     if (!location) {
-      state.mode = 'region'; state.location = null;
-      locationNote.textContent = '현재 위치를 확인하지 못해 지역을 골라 찾아 드려요. 거리는 표시하지 않아요.';
-      return search({reset: true});
+      // Never a guessed region: say why and offer the region picker.
+      state.location = null;
+      locationNote.replaceChildren(locationFailureText(outcome));
+      const toRegion = button('지역 선택으로 찾기', 'consumer-action consumer-action-secondary onnuri-to-region');
+      toRegion.addEventListener('click', () => switchMode('region'));
+      locationNote.append(toRegion);
+      list.replaceChildren(); mapBox.hidden = true; more.hidden = true; status.textContent = ''; scopeLine.textContent = '';
+      coverageNote.textContent = ''; emptyActions.hidden = true; state.items = [];
+      return undefined;
     }
-    state.mode = 'location'; state.location = location;
-    locationNote.textContent = '현재 위치 기준으로 가까운 가맹점을 찾았어요. 위치는 이번 검색에만 쓰고 저장하지 않아요.';
+    state.location = location;
+    locationNote.textContent = '현재 위치 기준으로 찾아요. 위치는 이번 검색에만 쓰고 저장하지 않아요.';
     return search({reset: true});
   }
 
+  // The Account setting may change while this screen is open (another tab):
+  // read it again whenever the page comes back and redraw the map links.
+  function refreshPreference() {
+    if (disposed) return;
+    const next = readMapPreference(documentRef.cookie || '');
+    if (next.provider === preference.provider && next.state === preference.state) return;
+    preference = next;
+    paintAppNote();
+    if (state.items.length) renderCards();
+  }
+  const onVisible = () => { if (documentRef.visibilityState !== 'hidden') refreshPreference(); };
+  documentRef.addEventListener('visibilitychange', onVisible);
+  windowRef?.addEventListener?.('focus', refreshPreference);
+  windowRef?.addEventListener?.('pageshow', refreshPreference);
+
+  modeButtons.location.addEventListener('click', () => switchMode('location'));
+  modeButtons.region.addEventListener('click', () => switchMode('region'));
   locate.addEventListener('click', () => void useCurrentLocation());
   selects.sido.addEventListener('change', () => {
-    state.mode = 'region'; state.sido = selects.sido.value; state.sigungu = ''; state.dong = '';
-    selects.sigungu.replaceChildren(new Option('전체', '')); selects.dong.replaceChildren(new Option('전체', '')); selects.dong.disabled = true;
-    locationNote.textContent = '';
-    if (state.sido) void loadRegions('sigungu'); else selects.sigungu.disabled = true;
+    state.mode = 'region'; state.sido = selects.sido.value; state.sigungu = ''; state.dong = ''; state.market = '';
+    void afterSido();
     void search({reset: true});
   });
   selects.sigungu.addEventListener('change', () => {
-    state.mode = 'region'; state.sigungu = selects.sigungu.value; state.dong = '';
-    selects.dong.replaceChildren(new Option('전체', ''));
-    if (state.sigungu) void loadRegions('dong'); else selects.dong.disabled = true;
+    state.mode = 'region'; state.sigungu = selects.sigungu.value; state.dong = ''; state.market = '';
+    selects.dong.replaceChildren(new Option('전체', '')); fields.dong.hidden = true;
+    if (state.sigungu) void loadRegions('dong');
+    void loadRegions('market');
     void search({reset: true});
   });
   selects.dong.addEventListener('change', () => { state.mode = 'region'; state.dong = selects.dong.value; void search({reset: true}); });
+  selects.market.addEventListener('change', () => { state.mode = 'region'; state.market = selects.market.value; void search({reset: true}); });
   more.addEventListener('click', () => void search());
 
+  paintMode(); paintRadius(); paintAppNote();
   await loadRegions('sido');
   // Like the festival screen: only an already-granted permission starts with
-  // the current location; otherwise nothing is asked until the button is pressed.
+  // the current location; otherwise nothing is asked until a button is pressed.
   let granted = false;
   try { granted = locationUsageEnabled() === true && (await permissionState()) === LOCATION_PERMISSION.GRANTED; } catch { granted = false; }
   if (disposed) return {dispose() {}, state};
   if (granted) await useCurrentLocation();
   else await search({reset: true});
   return {
-    dispose() { disposed = true; controller?.abort(); },
+    dispose() {
+      disposed = true; controller?.abort();
+      documentRef.removeEventListener('visibilitychange', onVisible);
+      windowRef?.removeEventListener?.('focus', refreshPreference);
+      windowRef?.removeEventListener?.('pageshow', refreshPreference);
+    },
     state,
   };
 }

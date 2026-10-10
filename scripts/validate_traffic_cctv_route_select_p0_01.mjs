@@ -2,8 +2,8 @@
 //
 // Contract checked here:
 // * 지역정보 shows '도로 CCTV' (screen title 실시간 도로 CCTV) right after 온누리상품권; the other cards
-//   and their order stay; phones keep the approved two-column grid with every
-//   row full (eight cards)
+//   and their order stay; phones keep the approved two-column grid with no
+//   empty cell (nine cards: the odd last card spans its row)
 // * the card opens its own screen (/#traffic-cctv), never the conversation:
 //   no chat request, nothing typed, no AI; no location is asked for or read
 //   (no geolocation call, no geolocation permission query)
@@ -44,7 +44,7 @@ const FIXTURE = JSON.parse(read('scripts/fixtures/traffic_cctv_route_select_p0_0
 let passed = 0;
 const check = async (name, fn) => { await fn(); passed += 1; console.log(`ok - ${name}`); };
 
-const EXPECTED_CARDS = ['medical', 'pharmacy', 'festivals', 'news', 'onnuri', 'traffic-cctv', 'local', 'my-child'];
+const EXPECTED_CARDS = ['medical', 'pharmacy', 'festivals', 'news', 'onnuri', 'traffic-cctv', 'local', 'jeonbuk-food', 'my-child'];
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36';
 const SAMSUNG_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/28.0 Chrome/130.0 Mobile Safari/537.36';
