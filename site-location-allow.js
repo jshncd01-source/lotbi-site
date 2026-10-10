@@ -11,8 +11,11 @@
 //   - The person says no: the region list (지역 고르기).
 //   - Allowed but no position (a PC with its location service off): one line
 //     on turning it on (Windows 설정 → 개인 정보 및 보안 → 위치).
-//   - A position too rough to trust (over 3 km, usual for a PC that guesses
-//     from its network): it is used, with a line suggesting 지역 고르기.
+//   - A position too rough to trust on a PC (over 3 km: a PC without GPS
+//     guesses from its network): it is not used at once. One line says so and
+//     the person picks [이 위치로 찾기] or [지역 고르기] — the line stays on
+//     screen beside the two choices instead of scrolling away under results
+//     that may be 5 km off. Phones use a rough position as before.
 // Nothing is asked before the tap; the position goes only to the lookup the
 // tap was for (the shared layer keeps it two minutes in memory, as before).
 //
@@ -20,9 +23,9 @@
 // picked there is saved as the person's region (the same 저장 지역 Calendar
 // weather and every 지역정보 screen already read), so it is used next time.
 // Phones keep their behavior: a picked region is used once, nothing saved.
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-50858d6cd533';
-import {isLocationUsageEnabled, setLocationUsageEnabled} from './site-location-preference.js?v=aset-50858d6cd533';
-import {readCalendarManualWeatherRegion, saveChosenWeatherRegion} from './site-calendar-weather-region.js?v=aset-50858d6cd533';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-6ef9a88b1caf';
+import {isLocationUsageEnabled, setLocationUsageEnabled} from './site-location-preference.js?v=aset-6ef9a88b1caf';
+import {readCalendarManualWeatherRegion, saveChosenWeatherRegion} from './site-calendar-weather-region.js?v=aset-6ef9a88b1caf';
 
 export const LOCATION_ALLOW_OUTCOME = Object.freeze({
   LOCATED: 'LOCATED',
@@ -122,7 +125,7 @@ export function locationOutcomeMessage(value, {platform = devicePlatform(), wide
       if (!wide) return '';
       const meters = Number(value?.accuracyMeters);
       const about = Number.isFinite(meters) ? `(오차 약 ${Math.max(1, Math.round(meters / 1000))}km)` : '';
-      return `PC 위치는 정확하지 않을 수 있어요${about}. 결과가 멀면 지역 고르기로 찾아 주세요.`;
+      return `PC 위치는 정확하지 않을 수 있어요${about}. 이 위치로 찾거나 지역을 골라 주세요.`;
     }
     default:
       return '';
@@ -142,7 +145,7 @@ export async function chooseRegion({
   onPick,
   save = prefersRegionChoice(),
   saveRegion = saveChosenWeatherRegion,
-  loadPicker = () => import('./site-region-picker.js?v=aset-50858d6cd533'),
+  loadPicker = () => import('./site-region-picker.js?v=aset-6ef9a88b1caf'),
 } = {}) {
   const {openRegionPicker} = await loadPicker();
   return openRegionPicker({
@@ -201,6 +204,8 @@ export function createLocationAllowRow({
     return button;
   };
   const allow = add(isLocationUsageEnabled() ? '현재 위치로 찾기' : LOCATION_ALLOW_LABEL, 'current');
+  // A rough PC position waiting for the person's choice.
+  let roughResult = null;
   const region = add(REGION_CHOICE_LABEL, 'region');
   const savedLabel = showSaved ? savedRegionChoice() : '';
   if (savedLabel) add(`${savedLabel}에서 찾기`, 'saved').addEventListener('click', () => { say(''); onRegion?.(savedLabel); });
@@ -215,6 +220,13 @@ export function createLocationAllowRow({
 
   allow.addEventListener('click', async () => {
     if (allow.dataset.busy === 'true') return;
+    if (roughResult) {
+      const chosen = roughResult;
+      roughResult = null;
+      say('');
+      onLocated?.(chosen);
+      return;
+    }
     allow.dataset.busy = 'true';
     allow.setAttribute('aria-busy', 'true');
     say('위치를 확인하는 중…');
@@ -224,6 +236,11 @@ export function createLocationAllowRow({
     allow.removeAttribute('aria-busy');
     row.dataset.locationOutcome = result?.outcome || '';
     say(locationOutcomeMessage(result));
+    if (result?.outcome === LOCATION_ALLOW_OUTCOME.COARSE && prefersRegionChoice()) {
+      roughResult = result;
+      allow.textContent = '이 위치로 찾기';
+      return;
+    }
     if (result?.outcome === LOCATION_ALLOW_OUTCOME.LOCATED || result?.outcome === LOCATION_ALLOW_OUTCOME.COARSE) {
       allow.textContent = '현재 위치로 찾기';
       onLocated?.(result);

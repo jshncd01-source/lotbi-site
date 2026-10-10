@@ -12,7 +12,8 @@
 //     nothing sent.
 //   - "no" at the prompt: one line and the region list opens.
 //   - allowed but no position: Windows 위치 설정 on a PC, 위치 서비스 on a phone.
-//   - a rough PC position (5 km): used, with "PC 위치는 정확하지 않을 수 있어요".
+//   - a rough PC position (5 km): not used at once — "PC 위치는 정확하지 않을 수
+//     있어요" stays beside [이 위치로 찾기] [지역 고르기]; a phone uses it as before.
 //   - 지역 고르기 on a PC saves the region (Calendar's 저장 지역, MANUAL) and the
 //     next nearby question uses it without asking the browser; a phone uses
 //     the pick once and saves nothing.
@@ -57,7 +58,7 @@ const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8').replace(/\r\
   assert.match(locationOutcomeMessage('POSITION_UNAVAILABLE', {platform: 'WINDOWS'}), /Windows 설정 → 개인 정보 및 보안 → 위치/u);
   assert.match(locationOutcomeMessage('POSITION_UNAVAILABLE', {platform: 'MAC'}), /시스템 설정 → 개인정보 보호 및 보안 → 위치 서비스/u);
   assert.match(locationOutcomeMessage('BLOCKED', {}), /자물쇠 아이콘 → 위치 → 허용/u);
-  assert.match(locationOutcomeMessage({outcome: 'COARSE', accuracyMeters: 5200}, {wide: true}), /PC 위치는 정확하지 않을 수 있어요\(오차 약 5km\)/u);
+  assert.match(locationOutcomeMessage({outcome: 'COARSE', accuracyMeters: 5200}, {wide: true}), /^PC 위치는 정확하지 않을 수 있어요\(오차 약 5km\)\. 이 위치로 찾거나 지역을 골라 주세요\.$/u);
   assert.equal(locationOutcomeMessage({outcome: 'COARSE', accuracyMeters: 5200}, {wide: false}), '', 'a phone says nothing about a rough position');
   assert.equal(locationOutcomeMessage('LOCATED', {}), '');
 }
@@ -272,7 +273,16 @@ try {
   const action = params.get('action') || '';
   if (action) {
     await tap(rowOf(answer).querySelector(\`[data-location-request="\${action}"]\`));
-    if (params.get('expect') === 'send') {
+    if (params.get('expect') === 'confirm') {
+      // A rough PC position: the line and the two choices wait for the person.
+      await wait(() => readRow(answer).note.startsWith('PC 위치는'), 'rough position line');
+      await sleep(400);
+      result.waiting = {row: readRow(answer), sent: sent.length};
+      await shot('rough');
+      await tap(rowOf(answer).querySelector('[data-location-request="current"]'));
+      await wait(() => sent.length >= 2, 'second question');
+      await settle(2);
+    } else if (params.get('expect') === 'send') {
       await wait(() => sent.length >= 2, 'second question');
       await settle(2);
     } else if (params.get('expect') === 'picker') {
@@ -481,12 +491,19 @@ try {
       else assert.match(unavailable.afterRow.note, /기기의 위치 서비스를 켜거나 지역을 골라 주세요/u, `${label}: phone 위치 서비스 (${unavailable.afterRow.note})`);
       assert.deepEqual(unavailable.final.sent.map(item => item.text), [PHARMACY], `${label}: nothing more is sent`);
 
-      // 5. A rough position (5 km): used; a PC is told it may be off.
-      const coarse = await runPhase(devtools, page('phase=menu&usage=off&perm=prompt&geo=allow&acc=5000&action=current&expect=send'), `${label}/coarse`);
-      assert.deepEqual(coarse.final.sent.map(item => item.text), [PHARMACY, PHARMACY], `${label}: a rough position still answers`);
-      if (pc) assert.match(coarse.afterRow.note, /^PC 위치는 정확하지 않을 수 있어요\(오차 약 5km\)\. 결과가 멀면 지역 고르기로 찾아 주세요\.$/u, `${label}: PC accuracy note (${coarse.afterRow.note})`);
-      else assert.equal(coarse.afterRow.note, '', `${label}: phones keep their behavior`);
-      if (pc) scenarios.push({label, name: 'PC 위치 오차 큼 → 안내 + 지역 고르기 권함', taps: coarse.taps + 1, result: coarse.afterRow.note});
+      // 5. A rough position (5 km): a PC says so and waits for the choice; a phone uses it.
+      const coarse = await runPhase(devtools, page(`phase=menu&usage=off&perm=prompt&geo=allow&acc=5000&action=current&expect=${pc ? 'confirm' : 'send'}`), `${label}/coarse`);
+      if (pc) {
+        assert.equal(coarse.waiting.sent, 1, `${label}: a rough PC position is not used before the choice`);
+        assert.equal(coarse.waiting.row.note, 'PC 위치는 정확하지 않을 수 있어요(오차 약 5km). 이 위치로 찾거나 지역을 골라 주세요.', `${label}: PC accuracy line`);
+        assert.deepEqual(coarse.waiting.row.buttons.map(button => button.text), ['이 위치로 찾기', '지역 고르기'], `${label}: the two choices`);
+        assert.equal(coarse.final.geoAsks, 1, `${label}: 이 위치로 찾기 uses the position already read`);
+        scenarios.push({label, name: 'PC 위치 오차 큼 → 안내 → 이 위치로 찾기', taps: coarse.taps + 1, result: coarse.final.lastAnswer});
+      } else {
+        assert.equal(coarse.afterRow.note, '', `${label}: phones keep their behavior`);
+      }
+      assert.deepEqual(coarse.final.sent.map(item => item.text), [PHARMACY, PHARMACY], `${label}: then the same question with the position`);
+      assert.equal(coarse.afterRow.note, '', `${label}: the line goes once the choice is made`);
 
       // 6. 지역 고르기: a PC keeps the region and uses it next time without asking the browser.
       const picked = await runPhase(devtools, page(`phase=menu&perm=granted&geo=unavailable&action=region&expect=picker&then=${encodeURIComponent('근처 병원 찾아줘')}`), `${label}/picked`);
@@ -498,7 +515,7 @@ try {
         assert.match(picked.afterRow.note, /전북특별자치도 전주시을\(를\) 내 지역으로 저장했어요/u);
         assert.deepEqual(picked.final.sent[2].location, {latitude: 35.82, longitude: 127.15, source: 'SAVED_REGION', label: '전북특별자치도 전주시'}, `${label}: next time the saved region goes, not a PC guess`);
         assert.equal(picked.final.geoAsks, picked.first.geoAsks, `${label}: the browser is not asked again on a PC with a picked region`);
-        scenarios.push({label, name: 'PC 지역 고르기 → 저장 → 다음 질문 자동', taps: picked.taps + 1, result: picked.final.lastAnswer});
+        scenarios.push({label, name: 'PC 지역 고르기 → 저장 → 다음 질문 자동', taps: picked.taps, result: picked.final.lastAnswer});
       } else {
         assert.equal(picked.final.saved, null, `${label}: a phone uses the pick once and saves nothing`);
         assert.equal(picked.afterRow.note, '');
@@ -510,7 +527,7 @@ try {
       assertButtons(chip, `${label}/saved`, testCase, [['current', '위치 허용하고 찾기'], ['region', '지역 고르기'], ['saved', '전북특별자치도 전주시에서 찾기']]);
       assert.deepEqual(chip.final.sent.map(item => item.text), ['약국 찾아줘', '전북특별자치도 전주시 약국 찾아줘'], `${label}: the saved region asks at once`);
       assert.equal(chip.final.geoAsks, 0, `${label}: no browser prompt for the saved region`);
-      scenarios.push({label, name: '저장 지역 칩 → 바로 찾기', taps: chip.taps + 1, result: chip.final.lastAnswer});
+      scenarios.push({label, name: '저장 지역 칩 → 바로 찾기', taps: chip.taps, result: chip.final.lastAnswer});
 
       // Dark: the row and its line stay readable.
       const dark = await runPhase(devtools, page('phase=menu&usage=off&perm=denied&action=current&dark=1'), `${label}/dark`);
@@ -531,5 +548,6 @@ try {
   }
 }
 
+// Taps count the person's own taps; the browser's 허용 / 차단 answer counts as one where it asks.
 for (const scenario of scenarios) console.log(`NLA scenario ${scenario.label} ${scenario.name}: ${scenario.taps} taps → ${scenario.result}`);
 console.log('NEARBY-LOCATION-ALLOW-PROMPT-01 OK — a "where?" answer offers 위치 허용하고 찾기 even with location use off (tap → setting on → browser → same question with the position), blocked → 자물쇠, denied → region list, PC: Windows 위치 / accuracy line / a picked region saved and used next time; 48px buttons; dark ≥4.5 (viewport emulation, not a device run)');
