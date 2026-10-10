@@ -12,6 +12,7 @@ FEATURE_SHA=이 문서 커밋(branch HEAD). `git ls-remote`로 확인.
 BASE=REGIONAL-CARDS-BUNDLE-01 d020a8d6062315ca1a04f2db95db24e61a5f6783 (= site main d4d172a5 + 지역카드 묶음) + site main 61d3ce37f8ab3298d65411f68b327702e4c7bf0e(SITE-T53, 18:02 ls-remote) 정상 merge ae2a82b0(충돌은 asset 토큰과 import 줄뿐 — 이 branch 쪽 import, main의 findLabelCorners). push 직전 site main ls-remote 확인.
 CODE_SHA=cedf6f43a
 ASSET_TOKEN=aset-1d4521c105ad (asset_cache_version --check PASS)
+HISTORY_NOTE=커밋 442b0c4f가 중간에 끊긴 로컬 검사기의 임시 폴더 scripts/.life-medical-auto-oPN5Gn/(headless Chrome 프로필 1,861개·53MB)를 실수로 함께 담았다. 155c895c에서 트리에서 뺐다(배포 트리 깨끗 — HEAD의 scripts/.* 는 원래 있던 .placecard-inner.html뿐). reset·rebase로 기록을 고치지 않았으므로 그 53MB는 branch 기록에 남아 push된다. 배포 이미지에는 들어가지 않는다(트리 기준).
 MERGE_CHECK=T53 merge(ae2a82b0)가 site-consumer-sections.js에서 지운 '내 아이 선택' 코드(openChildChoice/openEducation — 호출하는 곳 없는 죽은 코드)를 되살렸다(main은 그 파일에서 토큰만 바꿈). 토큰을 지운 3-way merge를 94개 파일 전부 다시 계산해 비교 — 다른 파일은 이것 하나뿐 → cedf6f43에서 branch 쪽 내용으로 바로잡음.
 OWNER=개발 · 부동산 실거래가 P0 방(배포총괄방 지정). 같은 기능을 맡은 다른 방·branch 없음(원격 feature/regional-info-back* 없음 확인).
 
