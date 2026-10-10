@@ -1,7 +1,7 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-e0cf681ce39e';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-e0cf681ce39e';
-import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-e0cf681ce39e';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-e0cf681ce39e';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-d4272459e325';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-d4272459e325';
+import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-d4272459e325';
+import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-d4272459e325';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -25,20 +25,18 @@ export const LIFE_MEDICAL_QUESTIONS = Object.freeze({
 // separate 유치원·학교 card is gone (owner decision 2026-10-10): 내 아이 학교·유치원
 // is the one education card and opens 내 아이 정보 (signed-in, MY-CHILD-SCHOOL-01)
 // or 유치원·학교 찾기 (the public lookup, KINDERGARTEN-OFFICIAL-INFO-01).
-// Eight cards with 전북 맛집·음식: every row of two is full (an odd count would
-// let the last card span its row, site-consumer-design.css).
-// REAL-ESTATE-REGION-FAVORITES-P0 adds 부동산 실거래가 after 온누리상품권: its own
-// list screen (site-life-real-estate.js, route real-estate), never a question
-// to the conversation. Nine cards: the odd last card spans its row.
-// Eight cards with 전북 맛집·음식. EV-CHARGER-NEARBY-LIST-P0 adds 전기차 충전소
-// right after 약국: its own list screen (site-life-ev-chargers.js), never a
-// question to the conversation. Nine cards: the odd last card spans its row
-// (site-consumer-design.css), so the grid has no empty cell.
-// TRAFFIC-CCTV P0 adds 도로 CCTV after 온누리상품권 -- only while
-// TRAFFIC_CCTV_UI_ENABLED (off: owner decision 2026-10-10). Its own screen
-// (site-life-traffic-cctv.js): 도로 → 노선 → 방향 → 구간, no location, never a
-// question to the conversation. On, nine cards: the odd last card
-// (내 아이 학교·유치원) spans its row, so no cell is empty.
+// REGIONAL-CARDS-BUNDLE-01 (four feature screens, one card list):
+// * 전기차 충전소 right after 약국 (EV-CHARGER-NEARBY-LIST-P0, site-life-ev-chargers.js)
+// * 지하철 정보 right after 지역뉴스 (SUBWAY-LIFE-INFO-P0, site-life-subway.js)
+// * 부동산 실거래가 right after 온누리상품권·지역화폐 (REAL-ESTATE-REGION-FAVORITES-P0,
+//   site-life-real-estate.js)
+// * 도로 CCTV after it only while TRAFFIC_CCTV_UI_ENABLED (off: owner decision
+//   2026-10-10, TRAFFIC-CCTV P0, site-life-traffic-cctv.js)
+// Each is a screen of its own, never a question to the conversation. Eleven
+// cards (CCTV off): the odd last card (내 아이 학교·유치원) spans its row
+// (site-consumer-design.css), every other row holds two, so no cell is empty.
+// Turning CCTV on makes twelve: the card list and the card-count validators
+// are revisited then.
 export const LIFE_MEDICAL_CHOICES = Object.freeze([
   Object.freeze({id: 'hospital', label: '병원·의원 찾기'}),
   Object.freeze({id: 'emergency', label: '응급실 찾기'}),
@@ -62,6 +60,8 @@ export const LIFE_SHORTCUTS = Object.freeze([
   // official logo is not used before approval; brandSlot reserves its place.
   // LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: 온누리상품권 + 지역화폐 in one card.
   {id: 'onnuri', label: '온누리상품권·지역화폐', brandSlot: 'onnuri'},
+  // REAL-ESTATE-REGION-FAVORITES-P0: 국토교통부 실거래가 list + 관심 아파트, no chat.
+  {id: 'real-estate', label: '부동산 실거래가', icon: 'building'},
   // TRAFFIC-CCTV P0: official ITS road cameras by road, route and 구간, no chat.
   // The screen is titled 실시간 도로 CCTV; the card says 도로 CCTV so the label
   // stays on one line in the approved two-column grid at 360 px. Hidden while
@@ -234,7 +234,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-c0ac94b325e9').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-d4272459e325').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -281,7 +281,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-c0ac94b325e9').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-d4272459e325').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {

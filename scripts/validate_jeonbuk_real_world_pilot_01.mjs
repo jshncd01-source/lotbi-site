@@ -312,7 +312,7 @@ try {
   // EV-CHARGER-NEARBY-LIST-P0): nine shortcuts, no empty cell in any row (and
   // still none with eight, i.e. if the 전북 card were ever taken out).
   document.querySelector('[data-consumer-section="life"]').click();
-  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 9 ? g : null; }, 'life grid');
+  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 11 ? g : null; }, 'life grid');
   await sleep(300);
   const rows = () => {
     const g = box(grid), byRow = new Map();
@@ -441,9 +441,9 @@ try {
       assert.deepEqual(r.medical.lines.map(line => line.state), ['REGISTRY', 'REGISTRY_NO_HOURS']);
       assert.ok(r.medical.lines.every(line => !/진료 중/u.test(line.text)));
       // 생활정보 home grid.
-      assert.deepEqual(r.life.labels, ['병원·응급실', '약국', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
-      assertRowsFilled(`${where} nine`, r.life.withFood);
-      assertRowsFilled(`${where} eight without 전북`, r.life.withoutFood);
+      assert.deepEqual(r.life.labels, ['병원·응급실', '약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
+      assertRowsFilled(`${where} eleven`, r.life.withFood);
+      assertRowsFilled(`${where} ten without 전북`, r.life.withoutFood);
       // 전북 맛집·음식 detail.
       assert.equal(r.detail.title, '전북 맛집·음식');
       assert.ok(r.detail.panelScroll <= 0, `${where}: the panel scrolls sideways`);

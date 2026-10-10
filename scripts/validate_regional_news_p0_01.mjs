@@ -709,7 +709,7 @@ async function runCase(browser, origin, dir, testCase) {
       const beforeLast = state.shortcuts.at(-2).box;
       const pair = state.shortcuts.at(-3).box;
       const rowRight = Math.max(...state.shortcuts.slice(0, -1).map(item => item.box.right));
-      assert.equal(state.shortcuts.length, 9);
+      assert.equal(state.shortcuts.length, 11);
       assert.equal(state.shortcuts.at(-1).id, 'my-child');
       if (state.shortcuts.length % 2 === 0) {
         assert.ok(Math.abs(last.w - first.w) <= 1, `${testCase.label}: last card keeps the column width (${Math.round(last.w)} vs ${Math.round(first.w)})`);
