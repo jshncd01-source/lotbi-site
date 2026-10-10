@@ -7,6 +7,8 @@
 //  - 행정기관 연락처는 공개 사무실 번호만(휴대전화 번호는 보이지 않는다).
 //  - 전북 의료기관 등록정보만 있는 카드는 "진료시간 정보 없음"이라고 쓰고, "진료 중"이라고 하지 않는다.
 //  - 생활정보 홈 바로가기는 개수가 바뀌어도 마지막 줄에 빈칸이 없다.
+//  - 지역정보 홈에는 전북 맛집·음식 카드도, 그 입력 화면도 없다(REGIONAL-CARDS-BUNDLE-01,
+//    소유자 결정 2026-10-10: LOTBI는 전국 대상). 대화 답변의 전북 공식 기록 카드는 그대로다.
 //  - 360/375/390/412px 모바일과 데스크톱에서 넘치지 않고 44px 이상 누를 수 있다.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -185,10 +187,13 @@ await check('registry-only medical card says there are no hours and never "진�
   assert.equal(normalizePlaceResult(forged).results[0].medicalRegistry, null);
 });
 
-await check('the 전북 맛집·음식 entry builds the sentence Core reads; location only for 내 주변', async () => {
-  // Right after 지역생활정보, before 내 아이 학교·유치원 (REGIONAL-INFO-APPROVED-UX-RESTORE-P0:
-  // 유치원·학교 now opens from inside 내 아이 학교·유치원).
-  assert.deepEqual(LIFE_SHORTCUTS.slice(-3).map(item => item.label), ['지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
+await check('no 전북 맛집·음식 card or entry on 지역정보; the sentence builder Core reads is unchanged; location only for 내 주변', async () => {
+  // REGIONAL-CARDS-BUNDLE-01 (owner decision 2026-10-10): 지역생활정보 is followed
+  // directly by 내 아이 학교·유치원; no card, entry form or 전북 label on the menu.
+  assert.deepEqual(LIFE_SHORTCUTS.slice(-2).map(item => item.label), ['지역생활정보', '내 아이 학교·유치원']);
+  assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'jeonbuk-food' || item.regionalFood || /전북/u.test(item.label)), false);
+  const sectionsSource = fs.readFileSync(path.join(ROOT, 'site-consumer-sections.js'), 'utf8');
+  assert.doesNotMatch(sectionsSource, /createJeonbukFoodForm|regionalFood|site-life-regional/);
   assert.equal(regional.buildJeonbukFoodPrompt({}), '전북 맛집 알려줘');
   assert.equal(regional.buildJeonbukFoodPrompt({region: '전주', food: '비빔밥'}), '전북 전주 비빔밥 맛집 알려줘');
   assert.equal(regional.buildJeonbukFoodPrompt({region: '완산구에서'}), '전북 완산구 맛집 알려줘');
@@ -308,38 +313,30 @@ try {
   reading.food.darkColor = getComputedStyle(food).color;
   document.body.dataset.siteTheme = 'light';
 
-  // 지역정보 home (REGIONAL-INFO-APPROVED-UX-RESTORE-P0 menu + 전북 + 전기차 충전소,
-  // EV-CHARGER-NEARBY-LIST-P0): nine shortcuts, no empty cell in any row (and
-  // still none with eight, i.e. if the 전북 card were ever taken out).
+  // 지역정보 home (REGIONAL-CARDS-BUNDLE-01): ten shortcuts, no empty cell in any
+  // row, and no 전북 맛집·음식 card, entry form or 전북 label anywhere on it.
   document.querySelector('[data-consumer-section="life"]').click();
-  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 11 ? g : null; }, 'life grid');
+  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 10 ? g : null; }, 'life grid');
   await sleep(300);
   const rows = () => {
     const g = box(grid), byRow = new Map();
     for (const button of grid.children) { const b = box(button); const key = Math.round(b.y); const row = byRow.get(key) || {x:Infinity,right:-Infinity,count:0}; row.x = Math.min(row.x, b.x); row.right = Math.max(row.right, b.right); row.count += 1; byRow.set(key, row); }
     return {grid:g, rows:[...byRow.values()]};
   };
-  reading.life = {labels:[...grid.children].map(button => button.textContent.trim()), withFood:rows()};
-  const foodShortcut = grid.querySelector('[data-life-shortcut="jeonbuk-food"]');
-  foodShortcut.remove();
-  await sleep(100);
-  reading.life.withoutFood = rows();
-  grid.insertBefore(foodShortcut, grid.querySelector('[data-life-shortcut="my-child"]'));
-  // 전북 맛집·음식 detail: chips inside the panel; 전주 + 비빔밥 asks the right sentence.
-  grid.querySelector('[data-life-shortcut="jeonbuk-food"]').click();
-  const detail = await wait(() => document.querySelector('.consumer-life-detail[data-life-detail="jeonbuk-food"]'), 'food detail');
-  await sleep(200);
-  const panel = document.querySelector('.consumer-workspace .site-modal');
-  reading.detail = {title:detail.querySelector('h3')?.textContent||'', panel:box(panel), panelScroll:panel.scrollWidth-panel.clientWidth,
-    chips:[...detail.querySelectorAll('[data-regional-chip]')].map(chip => ({label:chip.textContent, ...box(chip)})),
-    submit:box(detail.querySelector('form button[type=submit]')), note:detail.querySelector('.consumer-feature-note')?.textContent||''};
-  detail.querySelector('[data-regional-chips="area"] [data-regional-chip="전주"]').click();
-  detail.querySelector('[data-regional-chips="food"] [data-regional-chip="비빔밥"]').click();
-  reading.detail.pressed = [...detail.querySelectorAll('[aria-pressed="true"]')].map(chip => chip.textContent);
+  const workspace = document.querySelector('.consumer-workspace');
+  reading.life = {labels:[...grid.children].map(button => button.textContent.trim()), rows:rows(),
+    foodShortcut:Boolean(workspace.querySelector('[data-life-shortcut="jeonbuk-food"]')),
+    foodForm:Boolean(document.querySelector('[data-regional-food-form]')),
+    jeonbukText:/전북/u.test(workspace.textContent)};
+  // Every card that opens an in-panel form (지역생활정보) still opens it, and none
+  // of them is the 전북 food form.
   const before = sent.length;
-  detail.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
-  await sleep(600);
-  reading.handoff = {composer:document.getElementById('lotbi-prompt').value, sent:sent.slice(before)};
+  grid.querySelector('[data-life-shortcut="local"]').click();
+  const detail = await wait(() => document.querySelector('.consumer-life-detail'), 'local detail');
+  await sleep(100);
+  reading.detail = {title:detail.querySelector('h3')?.textContent||'', foodForm:Boolean(document.querySelector('[data-regional-food-form]')),
+    chips:detail.querySelectorAll('[data-regional-chip]').length};
+  reading.handoff = {sent:sent.slice(before)};
   out.textContent = JSON.stringify(reading);
 } catch(e) { fail(e); }
 </script><pre id="jeonbuk-result">pending</pre>`;
@@ -401,7 +398,7 @@ try {
   server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
   waitServer();
   for (const testCase of CASES) {
-    await check(`${testCase.label}${testCase.mobile ? 'px' : ''}: compact official cards fit, tap targets 44px, map app, life grid without gaps, food entry hands off`, async () => {
+    await check(`${testCase.label}${testCase.mobile ? 'px' : ''}: compact official cards fit, tap targets 44px, map app, life grid without gaps, no 전북 맛집·음식 entry`, async () => {
       const r = run(browser, testCase, path.join(ROOT, wrapperRel), wrapperRel, innerRel);
       const where = testCase.label;
       assert.ok(r.viewport.scroll <= r.viewport.w, `${where}: page scrolls sideways ${r.viewport.scroll} > ${r.viewport.w}`);
@@ -440,24 +437,18 @@ try {
       // Registry-only medical card.
       assert.deepEqual(r.medical.lines.map(line => line.state), ['REGISTRY', 'REGISTRY_NO_HOURS']);
       assert.ok(r.medical.lines.every(line => !/진료 중/u.test(line.text)));
-      // 생활정보 home grid.
-      assert.deepEqual(r.life.labels, ['병원·응급실', '약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', '지역생활정보', '전북 맛집·음식', '내 아이 학교·유치원']);
-      assertRowsFilled(`${where} eleven`, r.life.withFood);
-      assertRowsFilled(`${where} ten without 전북`, r.life.withoutFood);
-      // 전북 맛집·음식 detail.
-      assert.equal(r.detail.title, '전북 맛집·음식');
-      assert.ok(r.detail.panelScroll <= 0, `${where}: the panel scrolls sideways`);
-      for (const chip of r.detail.chips) {
-        assert.ok(chip.x >= r.detail.panel.x - 0.5 && chip.right <= r.detail.panel.right + 0.5, `${where}: chip ${chip.label} outside the panel`);
-        assert.ok(chip.h >= 32, `${where}: chip ${chip.label} height ${chip.h}`);
-      }
-      assert.ok(r.detail.submit.h >= 44, `${where}: submit height ${r.detail.submit.h}`);
-      assert.deepEqual(r.detail.pressed, ['전주', '비빔밥']);
-      assert.match(r.detail.note, /공식 공공데이터/u);
-      const prompt = '전북 전주 비빔밥 맛집 알려줘';
-      // Like every life form but 유치원·학교 (LIFE-MEDICAL-AUTO-SEARCH-01): sent
-      // at once, nothing left in the composer to send again.
-      assert.ok(r.handoff.sent.includes(prompt) && r.handoff.composer === '', `${where}: handoff ${JSON.stringify(r.handoff)}`);
+      // 생활정보 home grid: ten cards, full rows, no 전북 맛집·음식 card, form or label.
+      assert.deepEqual(r.life.labels, ['병원·응급실', '약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', '지역생활정보', '내 아이 학교·유치원']);
+      assertRowsFilled(`${where} ten`, r.life.rows);
+      assert.equal(r.life.rows.rows.length, 5, `${where}: five rows of two`);
+      assert.equal(r.life.foodShortcut, false, `${where}: a 전북 맛집·음식 card is on 지역정보`);
+      assert.equal(r.life.foodForm, false, `${where}: a 전북 맛집·음식 form is on the page`);
+      assert.equal(r.life.jeonbukText, false, `${where}: 전북 appears on the 지역정보 home`);
+      // 지역생활정보 opens its own form, not the 전북 food form, and asks nothing yet.
+      assert.equal(r.detail.title, '지역생활정보');
+      assert.equal(r.detail.foodForm, false, `${where}: the 전북 food form opened`);
+      assert.equal(r.detail.chips, 0, `${where}: 전북 chips in the 지역생활정보 form`);
+      assert.deepEqual(r.handoff.sent, [], `${where}: opening 지역생활정보 sent ${JSON.stringify(r.handoff)}`);
     });
   }
 } finally {

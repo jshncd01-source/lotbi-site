@@ -1,7 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-97cbf5fb98f4';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-97cbf5fb98f4';
-import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-97cbf5fb98f4';
-import {createJeonbukFoodForm} from './site-life-regional.js?v=aset-97cbf5fb98f4';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-795f98ba8b58';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-795f98ba8b58';
+import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-795f98ba8b58';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -32,11 +31,12 @@ export const LIFE_MEDICAL_QUESTIONS = Object.freeze({
 //   site-life-real-estate.js)
 // * 도로 CCTV after it only while TRAFFIC_CCTV_UI_ENABLED (off: owner decision
 //   2026-10-10, TRAFFIC-CCTV P0, site-life-traffic-cctv.js)
-// Each is a screen of its own, never a question to the conversation. Eleven
-// cards (CCTV off): the odd last card (내 아이 학교·유치원) spans its row
-// (site-consumer-design.css), every other row holds two, so no cell is empty.
-// Turning CCTV on makes twelve: the card list and the card-count validators
-// are revisited then.
+// Each is a screen of its own, never a question to the conversation. Ten
+// cards (CCTV off; no 전북 맛집·음식 — owner decision 2026-10-10): five full rows
+// of two. On a 360px phone 내 아이 학교·유치원 wraps at its word gap inside the
+// shared card height (site-consumer-layout.css: grid-auto-rows 1fr). Turning
+// CCTV on makes eleven: the odd last card then spans its row
+// (site-consumer-design.css), so no cell is empty either way.
 export const LIFE_MEDICAL_CHOICES = Object.freeze([
   Object.freeze({id: 'hospital', label: '병원·의원 찾기'}),
   Object.freeze({id: 'emergency', label: '응급실 찾기'}),
@@ -68,8 +68,9 @@ export const LIFE_SHORTCUTS = Object.freeze([
   // TRAFFIC_CCTV_UI_ENABLED is off.
   ...(TRAFFIC_CCTV_UI_ENABLED ? [{id: 'traffic-cctv', label: '도로 CCTV', icon: 'cctv'}] : []),
   {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
-  // JEONBUK-PILOT-01: 전북특별자치도·전주시 공식 음식점 공공데이터 (Core regional_food).
-  {id: 'jeonbuk-food', label: '전북 맛집·음식', icon: 'food', regionalFood: true},
+  // REGIONAL-CARDS-BUNDLE-01: no 전북 맛집·음식 card or entry form (owner decision
+  // 2026-10-10 — LOTBI serves the whole country, not 전북 only). The 전북 official
+  // record cards shown in a conversation answer stay.
   // MY-CHILD-SCHOOL-01 + KINDERGARTEN-OFFICIAL-INFO-01 behind one card. Last.
   {id: 'my-child', label: '내 아이 학교·유치원', icon: 'backpack', children: LIFE_CHILD_CHOICES},
 ]);
@@ -165,15 +166,6 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       }, {secondary: true});
       const detail = node('section', 'consumer-life-detail');
       const title = node('h3', '', item.label); title.tabIndex = -1;
-      if (item.regionalFood) {
-        // The question goes through the same life handoff (onAsk) as every
-        // other 생활정보 form; Core answers it from the official 전북 data.
-        const {form: foodForm, note} = createJeonbukFoodForm(document, {onSubmit: text => { if (!disposed) onAsk(text); }});
-        detail.dataset.lifeDetail = item.id;
-        detail.append(back, title, foodForm, node('p', 'consumer-feature-note', note));
-        root.replaceChildren(detail); title.focus();
-        return;
-      }
       const queryForm = node('form', 'consumer-life-form');
       const controls = [];
       const fields = LIFE_DETAIL_FIELDS[item.id];
@@ -234,7 +226,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(back, host);
       root.replaceChildren(detail); back.focus();
-      import('./site-life-news.js?v=aset-97cbf5fb98f4').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-795f98ba8b58').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -281,7 +273,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(back, title, host);
       root.replaceChildren(detail); title.focus();
-      import('./site-life-education.js?v=aset-97cbf5fb98f4').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-795f98ba8b58').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {

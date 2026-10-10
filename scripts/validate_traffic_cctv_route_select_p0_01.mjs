@@ -4,11 +4,11 @@
 // * shipped switch TRAFFIC_CCTV_UI_ENABLED (site-feature-flags.js) off — owner
 //   decision 2026-10-10: no card, no #traffic-cctv route, no module, no player,
 //   no CCTV request, even when the URL names #traffic-cctv; the 지역정보 grid is
-//   the 지역정보 bundle's eleven cards. Everything below runs with the switch served on by
+//   the 지역정보 bundle's ten cards. Everything below runs with the switch served on by
 //   this validator's own server (the shipped file is not changed).
 // * on: 지역정보 shows '도로 CCTV' (screen title 실시간 도로 CCTV) right after 부동산 실거래가 (REGIONAL-CARDS-BUNDLE-01); the other cards
 //   and their order stay; phones keep the approved two-column grid with no
-//   empty cell (nine cards: the odd last card spans its row)
+//   empty cell (eleven cards: the odd last card spans its row)
 // * the card opens its own screen (/#traffic-cctv), never the conversation:
 //   no chat request, nothing typed, no AI; no location is asked for or read
 //   (no geolocation call, no geolocation permission query)
@@ -49,7 +49,7 @@ const FIXTURE = JSON.parse(read('scripts/fixtures/traffic_cctv_route_select_p0_0
 let passed = 0;
 const check = async (name, fn) => { await fn(); passed += 1; console.log(`ok - ${name}`); };
 
-const EXPECTED_CARDS = ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'traffic-cctv', 'local', 'jeonbuk-food', 'my-child'];
+const EXPECTED_CARDS = ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'traffic-cctv', 'local', 'my-child'];
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36';
 const SAMSUNG_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/28.0 Chrome/130.0 Mobile Safari/537.36';
@@ -64,9 +64,9 @@ const sections = await import('../site-consumer-sections.js');
 const cctv = await import('../site-life-traffic-cctv.js');
 const {SITE_ROUTES} = await import('../site-route.js');
 const {TRAFFIC_CCTV_UI_ENABLED} = await import('../site-feature-flags.js');
-const CARDS_OFF = ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'local', 'jeonbuk-food', 'my-child'];
+const CARDS_OFF = ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'local', 'my-child'];
 
-await check(`switch ${TRAFFIC_CCTV_UI_ENABLED ? 'on' : 'off'}: ${TRAFFIC_CCTV_UI_ENABLED ? '도로 CCTV right after 부동산 실거래가' : 'no card and no #traffic-cctv route (the bundle\'s eleven cards)'}`, () => {
+await check(`switch ${TRAFFIC_CCTV_UI_ENABLED ? 'on' : 'off'}: ${TRAFFIC_CCTV_UI_ENABLED ? '도로 CCTV right after 부동산 실거래가' : 'no card and no #traffic-cctv route (the bundle\'s ten cards)'}`, () => {
   const ids = sections.LIFE_SHORTCUTS.map(item => item.id);
   if (!TRAFFIC_CCTV_UI_ENABLED) {
     assert.deepEqual(ids, CARDS_OFF);
@@ -633,7 +633,7 @@ async function runCase(browser, origin, workDir, testCase) {
         const columns = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
         return {ids: cards.map(card => card.dataset.lifeShortcut), columns};
       })()`);
-      await check(`${label}: switch off — 지역정보 is the bundle's eleven cards, no 도로 CCTV`, () => {
+      await check(`${label}: switch off — 지역정보 is the bundle's ten cards, no 도로 CCTV`, () => {
         assert.deepEqual(offGrid.ids, CARDS_OFF);
         if (testCase.mobile) assert.equal(offGrid.columns, 2);
       });
