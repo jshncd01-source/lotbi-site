@@ -89,6 +89,11 @@ const syncBody = continuity.slice(continuity.indexOf('export async function sync
 assert.ok(syncBody.indexOf("restoreSiteSessionInPlace('restore')") < syncBody.indexOf("restoreSiteSessionInPlace('restore-retry')"), 'one more in-place restore');
 assert.ok(syncBody.indexOf("restoreSiteSessionInPlace('restore-retry')") < syncBody.indexOf('await beginSiteHandoff()'), 'before the redirect fallback');
 assert.match(syncBody, /if \(retried === 'SIGNED_OUT'\) \{\s*showAccountSignedOut\(\);\s*return;\s*\}/u);
+// An ordinary load's pageshow does not ask Account a second time; a page back
+// from the back/forward cache still does.
+const pageshowHandler = continuity.slice(continuity.indexOf("window.addEventListener('pageshow'"), continuity.indexOf("window.addEventListener('online'"));
+assert.ok(pageshowHandler.indexOf('if (!event?.persisted) return;') > 0
+  && pageshowHandler.indexOf('if (!event?.persisted) return;') < pageshowHandler.indexOf('void synchronizeAccountContinuity();'), 'pageshow re-checks only a bfcache restore');
 
 // ── Browser part ──────────────────────────────────────────────────────────
 function browserPath() {
@@ -337,11 +342,15 @@ try {
     assert.deepEqual(navigations, [], 'still no Account round trip');
   });
 
-  await scenario(executable, origin, workDir, 'revisit: the first in-place renewal fails on a phone network, the second restores — no Account round trip', {account: 'signed-in', renewal: 'fail-once', path: '/'}, async ({snapshot, navigations}) => {
+  await scenario(executable, origin, workDir, 'revisit: the first in-place renewal fails on a phone network, the second restores — no Account round trip', {account: 'signed-in', renewal: 'fail-once', path: '/'}, async ({evaluate, snapshot, navigations}) => {
     const state = await signedInHome(snapshot);
     assert.deepEqual(navigations, [], 'no redirect fallback after one miss');
     assert.equal(state.renewals, 2);
     assert.equal(state.redeems, 1);
+    // One load, one Account check: the ordinary pageshow after load does not
+    // start a second one.
+    await delay(1500);
+    assert.equal(await evaluate(`Number(localStorage.getItem('__rpStatus') || 0)`), 1, 'Account is asked once per load');
   });
 } finally {
   await new Promise(resolve => server.close(resolve));

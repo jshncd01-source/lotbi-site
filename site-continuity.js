@@ -1,5 +1,5 @@
-import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-5d1ce4a940be';
-import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-5d1ce4a940be';
+import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-75fe321dfd37';
+import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-75fe321dfd37';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
@@ -712,6 +712,12 @@ window.addEventListener('pageshow', event => {
     checking = false;
   }
   if (!rootLocation()) return;
+  // SITE-LOGIN-HANDOFF-REPEAT-01 — an ordinary load also fires pageshow, right
+  // after load. The check started at DOMContentLoaded already covers that
+  // load; when it had already finished, this asked Account (and renewed) a
+  // second time for the same page. Only a page brought back from the
+  // back/forward cache needs a fresh check here.
+  if (!event?.persisted) return;
   clearUnknownRetry({resetAttempt: true});
   void synchronizeAccountContinuity();
 });
