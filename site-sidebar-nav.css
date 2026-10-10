@@ -230,6 +230,13 @@
   box-shadow: 0 10px 28px rgba(25, 36, 56, .14);
 }
 
+/* COMMON-UI-POLISH-01 (QA #18) — a closed ⋯ menu must not leave 상단에 고정·
+   이름 바꾸기·삭제 laid out and reachable by Tab or a screen reader. Tied to
+   the open attribute itself, so it changes in the same frame as the toggle. */
+.conversation-history-actions:not([open]) > .conversation-history-menu {
+  display: none;
+}
+
 .nav-history-list .conversation-history-menu button {
   inline-size: 100%;
   min-height: 34px;
