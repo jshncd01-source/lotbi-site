@@ -110,7 +110,7 @@ await check('hls.js: the sealed vendor file is the documented one and the page p
 
 await check('Core answers: routes in official order, sections by direction, cameras without URLs', () => {
   const roads = cctv.normalizeRoads(FIXTURE.roads);
-  assert.deepEqual(roads.roads.map(item => [item.roadType, item.routeCount, item.cameraCount]), [['expressway', 5, 16], ['national', 3, 6]]);
+  assert.deepEqual(roads.roads.map(item => [item.roadType, item.routeCount, item.cameraCount]), [['expressway', 5, 16], ['national', 6, 12]]);
   const routes = cctv.normalizeRoutes(FIXTURE.routes_expressway);
   assert.deepEqual(routes.routes.map(item => item.name), ['경부선', '남해선', '중부선', '수도권제1순환선', '서울외곽순환선', '노선 미확인 CCTV']);
   const gyeongbu = routes.routes[0];
@@ -184,7 +184,7 @@ const PROVIDER_EXPECT = {
 
 await check('map app: the icon is the approved image of the app the link really opens; no coordinate, no link', async () => {
   const {JSDOM} = await import('jsdom').catch(() => ({JSDOM: null}));
-  const camera = cctv.normalizeCameras(FIXTURE.cameras[`expressway|${EX['경부선']}|${FIXTURE.sections[`expressway|${EX['경부선']}|forward`].sections.find(s => s.name === '양재IC').section_id}`]).cameras[0];
+  const camera = cctv.normalizeCameras(FIXTURE.cameras[`expressway|${EX['경부선']}|${FIXTURE.sections[`expressway|${EX['경부선']}|forward`].sections.find(s => s.name === '양재IC').section_id}|`]).cameras[0];
   assert.equal(camera.latitude, 37.469);
   for (const [provider, expect] of Object.entries(PROVIDER_EXPECT)) {
     assert.equal(cctv.cctvMapIcon(provider, {userAgent: ANDROID_UA}).icon, expect.icon);
@@ -283,7 +283,15 @@ const MOCK = `(() => {
     if (endpoint === 'roads') return F.roads;
     if (endpoint === 'routes') return p.road_type === 'national' ? F.routes_national : F.routes_expressway;
     if (endpoint === 'sections') return F.sections[[p.road_type, p.route_id, p.direction || ''].join('|')] || {status: 'NOT_FOUND', code: 'CCTV_ROUTE_NOT_FOUND', message: '이 노선의 CCTV를 지금은 찾을 수 없습니다. 노선을 다시 골라 주세요.'};
-    if (endpoint === 'cameras') return F.cameras[[p.road_type, p.route_id, p.section_id].join('|')] || {status: 'NOT_FOUND', code: 'CCTV_SECTION_NOT_FOUND', message: '이 구간을 찾을 수 없습니다. 구간을 다시 골라 주세요.'};
+    if (endpoint === 'cameras') {
+      const body = F.cameras[[p.road_type, p.route_id, p.section_id, p.direction || ''].join('|')] || F.cameras[[p.road_type, p.route_id, p.section_id, ''].join('|')];
+      if (!body) return {status: 'OK', provider: F.roads.provider, road_type: p.road_type, section: {section_id: p.section_id, name: '', unmapped: false}, cameras: []};
+      if (scenario !== 'many_cameras') return body;
+      // Five copies of every camera (new ids): a long 구간 미확인 list.
+      const many = [];
+      body.cameras.forEach((camera, index) => { for (let copy = 0; copy < 5; copy += 1) many.push({...camera, camera_id: (index * 5 + copy).toString(16).padStart(16, 'a'), name: camera.name + ' ' + copy, location: camera.location + ' ' + copy}); });
+      return {...body, cameras: many};
+    }
     if (endpoint === 'playback') return F.playback[[p.road_type, p.camera_id].join('|')] || {status: 'NOT_FOUND', code: 'CCTV_CAMERA_NOT_FOUND', message: '이 CCTV를 지금은 찾을 수 없습니다.'};
     return {status: 'UNAVAILABLE'};
   };
@@ -385,7 +393,9 @@ const SNAPSHOT = `(() => {
     cameras: all('[data-cctv-camera]').map(node => ({id: node.dataset.cctvCamera, kind: node.dataset.cctvKind, title: node.querySelector('.cctv-row-title')?.textContent || '',
       badge: node.querySelector('.cctv-badge')?.textContent || '', disabled: node.disabled, reason: node.querySelector('.cctv-unplayable')?.textContent || '',
       play: node.querySelector('.cctv-play-label')?.textContent || '', contrast: contrast(node.querySelector('.cctv-row-title')), right: node.getBoundingClientRect().right})),
-    emptyText: surface?.querySelector('.cctv-camera-block:not([hidden]) .cctv-empty')?.textContent || '',
+    emptyText: surface?.querySelector('.cctv-camera-block:not([hidden]) .cctv-empty:not([hidden])')?.textContent || '',
+    cameraFilter: Boolean(surface?.querySelector('.cctv-camera-block:not([hidden]) .cctv-camera-search')),
+    filterEmpty: Boolean(surface?.querySelector('.cctv-camera-block:not([hidden]) .cctv-empty:not([hidden])') && surface.querySelector('.cctv-camera-search')),
     notes: all('.cctv-note').map(node => node.textContent),
     status: surface?.querySelector('.cctv-status')?.textContent || '',
     errorText: surface?.querySelector('.cctv-error:not([hidden])')?.textContent || '',
@@ -627,7 +637,7 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.equal(s.back, '지역정보로 돌아가기');
       assert.deepEqual(s.roads.map(r => [r.id, r.pressed]), [['expressway', 'false'], ['national', 'false']]);
       assert.match(s.roads[0].text, /^고속도로노선 5개 · CCTV 16대$/u);
-      assert.match(s.roads[1].text, /^국도노선 3개 · CCTV 6대$/u);
+      assert.match(s.roads[1].text, /^국도노선 6개 · CCTV 12대$/u);
       assert.equal(s.routes.length, 0);
       assert.deepEqual(s.log.chat, []);
       assert.equal(s.prompt, '');
@@ -816,6 +826,13 @@ async function runCase(browser, origin, workDir, testCase) {
       await screen(st => st.sections.length > 50, 'sections again');
       await tapSelector('[data-cctv-section="unmapped"]');
       s = await screen(st => st.sectionSummary === '구간 미확인 CCTV' && st.cameras.length === 4, 'unmapped');
+      await check(`${label}: 구간 미확인 CCTV come in route order for the chosen direction, said to be an order only`, () => {
+        const expected = FIXTURE.cameras[`expressway|${EX['경부선']}|unmapped|reverse`].cameras.map(item => item.location);
+        assert.deepEqual(s.cameras.map(item => item.title), expected);
+        assert.equal(s.log.calls.at(-1).params.direction, 'reverse');
+        assert.ok(s.notes.some(note => /노선을 따라 놓인 순서입니다\(CCTV 좌표 기준\)\. 구간을 정한 것은 아닙니다\./u.test(note)), JSON.stringify(s.notes));
+        assert.equal(s.cameraFilter, false, 'a short list has no name filter');
+      });
       await check(`${label}: 구간 미확인 CCTV — listed apart; an http or foreign stream says why and opens nothing`, () => {
         const byTitle = Object.fromEntries(s.cameras.map(item => [item.title, item]));
         assert.deepEqual(Object.keys(byTitle).sort(), ['다른 호스트', '달래내2', '동탄 http', '좌표 뒤바뀜'].sort());
@@ -845,6 +862,22 @@ async function runCase(browser, origin, workDir, testCase) {
       await tapSelector('.cctv-player-close');
       await screen(st => !st.player, 'closed');
 
+      // A long list can be narrowed by name.
+      await setScenario('many_cameras');
+      await tapSelector('[data-cctv-change="section"]');
+      await screen(st => st.sections.length > 50, 'sections for the long list');
+      await tapSelector('[data-cctv-section="unmapped"]');
+      await screen(st => st.cameras.length === 20 && st.cameraFilter, 'long list');
+      await typeText('.cctv-camera-search', '달래내');
+      s = await screen(st => st.cameras.length === 5, 'filtered');
+      await check(`${label}: a long CCTV list has a name filter`, () => {
+        assert.ok(s.cameras.every(item => item.title.startsWith('달래내')), JSON.stringify(s.cameras.map(i => i.title)));
+      });
+      await typeText('.cctv-camera-search', '없는이름');
+      s = await screen(st => st.cameras.length === 0, 'filtered to nothing');
+      await check(`${label}: the filter says when nothing matches`, () => assert.equal(s.filterEmpty, true));
+      await setScenario('normal');
+
       // 11. A route without official 구간 lists its cameras with a note.
       await tapSelector('[data-cctv-change="route"]');
       await screen(st => st.routes.length >= 6, 'routes again');
@@ -857,14 +890,33 @@ async function runCase(browser, origin, workDir, testCase) {
         assert.equal(s.cameras[0].title, '판교');
       });
 
-      // 12. 국도 → 국도 번호 → CCTV; MP4 really plays; a still shows as 정지영상.
+      // 12. 국도 → 국도 번호 → 시·군 구간 → CCTV; MP4 really plays; a still shows as 정지영상.
       await tapSelector('[data-cctv-road="national"]');
-      s = await screen(st => st.routes.length === 4, 'national routes');
-      await check(`${label}: 국도 → routes by 국도 번호, 노선 미확인 last`, () => {
-        assert.deepEqual(s.routes, ['국도 1호선', '국도 3호선', '국도 17호선', '노선 미확인 CCTV']);
+      s = await screen(st => st.routes.length === 7, 'national routes');
+      await check(`${label}: 국도 → routes by 국도 번호 (위임국도·시관내 국도 included), 노선 미확인 last`, () => {
+        assert.deepEqual(s.routes, ['국도 1호선', '국도 2호선', '국도 3호선', '국도 7호선', '국도 17호선', '국도 59호선', '노선 미확인 CCTV']);
         assert.equal(s.roads[1].pressed, 'true');
       });
+      await tapSelector(`[data-cctv-route="${NA['국도 1호선']}"]`);
+      s = await screen(st => st.routeSummary === '국도 1호선' && st.sections.length === 4, '국도 1호선 sections');
+      await check(`${label}: 국도 1호선 → 시·군 구간 south to north, 이름에 시·군이 없음 apart`, () => {
+        assert.deepEqual(s.directions.map(d => [d.label, d.pressed]), [['북쪽 방향', 'true'], ['남쪽 방향', 'false']]);
+        assert.deepEqual(s.sections.map(item => item.title), ['전주', '천안', '파주', '구간 미확인 CCTV']);
+        assert.match(s.sections.at(-1).meta, /이름에 시·군이 없음/u);
+        assert.ok(s.notes.some(note => /공식 CCTV 이름에 적힌 시·군/u.test(note)), JSON.stringify(s.notes));
+        assert.ok(s.sections.every(item => item.id === 'unmapped' || /^g-[a-f0-9]{8}$/u.test(item.id)));
+      });
+      await tapSelector('[data-cctv-direction="reverse"]');
+      s = await screen(st => st.sections[0]?.title === '파주', '국도 1호선 reverse');
+      await check(`${label}: 남쪽 방향 reverses the 시·군 order`, () => assert.deepEqual(s.sections.map(item => item.title), ['파주', '천안', '전주', '구간 미확인 CCTV']));
+      await tapSelector('[data-cctv-section]');
+      s = await screen(st => st.sectionSummary === '파주' && st.cameras.length === 1, '파주');
+      await check(`${label}: a 시·군 구간 lists its CCTV`, () => assert.equal(s.cameras[0].title, '파주 테스트1'));
+      await tapSelector('[data-cctv-change="route"]');
+      await screen(st => st.routes.length === 7, 'national routes again');
       await tapSelector(`[data-cctv-route="${NA['국도 17호선']}"]`);
+      await screen(st => st.sections.length === 1, '국도 17호선 sections');
+      await tapSelector('[data-cctv-section]');
       s = await screen(st => st.cameras.length === 1, '국도 17호선');
       assert.equal(s.cameras[0].badge, '동영상');
       await tapSelector(`[data-cctv-camera="${s.cameras[0].id}"]`);
@@ -879,7 +931,7 @@ async function runCase(browser, origin, workDir, testCase) {
       const released = await evaluate("(() => [...document.querySelectorAll('video')].length)()");
       await check(`${label}: closing releases the video element`, () => assert.equal(released, 0));
       await tapSelector('[data-cctv-change="route"]');
-      await screen(st => st.routes.length === 4, 'national routes again');
+      await screen(st => st.routes.length === 7, 'national routes again (unknown)');
       await tapSelector('[data-cctv-route="unknown"]');
       s = await screen(st => st.cameras.length === 2, 'national unknown');
       const still = s.cameras.find(item => item.kind === 'STILL');

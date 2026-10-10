@@ -18,9 +18,9 @@
 // hls.js light build (vendor/hls.js-1.6.19, loaded on first need with SRI).
 // Closing the player stops the stream and releases the player. Nothing is
 // recorded, downloaded or stored, and the stream URL is never logged.
-import {CORE_ORIGIN} from './site-core.js?v=aset-7fe01f2dc380';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-7fe01f2dc380';
-import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-7fe01f2dc380';
+import {CORE_ORIGIN} from './site-core.js?v=aset-e4c9b99791b4';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-e4c9b99791b4';
+import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-e4c9b99791b4';
 
 export const CCTV_MENU_LABEL = '실시간 도로 CCTV';
 export const CCTV_SCREEN_TITLE = '실시간 도로 CCTV';
@@ -38,7 +38,9 @@ const TIMEOUT_MS = 15_000;
 const PLAY_TIMEOUT_MS = 20_000;
 const MAX_PREPARING_RETRIES = 6;
 const ROUTE_ID_RE = /^(?:unknown|[a-z]-[a-f0-9]{10})$/u;
-const SECTION_ID_RE = /^(?:unmapped|s\d{1,4})$/u;
+// s0… = an official 출입시설 구간 (고속도로); g-… = a 시·군 named by the cameras (국도).
+const SECTION_ID_RE = /^(?:unmapped|s\d{1,4}|g-[a-f0-9]{8})$/u;
+const CAMERA_FILTER_MIN = 12;
 const CAMERA_ID_RE = /^[a-f0-9]{16}$/u;
 const KIND_LABELS = Object.freeze({HLS: '실시간', MP4: '동영상', STILL: '정지영상', UNKNOWN: '형식 확인 불가'});
 const UNPLAYABLE_REASONS = Object.freeze({
@@ -138,6 +140,7 @@ export function normalizeSections(value) {
     directionLabel: text(value.direction_label),
     directionNote: text(value.direction_note),
     sectionNote: text(value.section_note),
+    sectionKind: value.section_kind === 'region' ? 'region' : 'facility',
     unmappedCount: count(value.unmapped_count),
   });
 }
@@ -179,7 +182,7 @@ export function normalizeCameras(value) {
   const section = value.section && typeof value.section === 'object'
     ? Object.freeze({sectionId: text(value.section.section_id), name: text(value.section.name), unmapped: value.section.unmapped === true})
     : null;
-  return Object.freeze({...base, route: normalizeRoute(value.route), section, cameras});
+  return Object.freeze({...base, route: normalizeRoute(value.route), section, cameras, orderNote: text(value.order_note)});
 }
 
 export function streamUrlAllowed(url) {
@@ -627,10 +630,12 @@ export async function mountTrafficCctv({
     const nodes = [el('h4', 'cctv-block-title', state.route.directions.length ? '방향과 구간 선택' : '구간 선택', documentRef)];
     const directions = directionRow();
     if (directions) nodes.push(directions);
-    const note = result.directionNote || result.sectionNote;
-    if (note) nodes.push(el('p', 'consumer-feature-note cctv-note', note, documentRef));
+    for (const note of [result.sectionNote, result.directionNote].filter(Boolean)) {
+      nodes.push(el('p', 'consumer-feature-note cctv-note', note, documentRef));
+    }
     const list = el('ul', 'cctv-list cctv-section-list', '', documentRef);
-    list.setAttribute('aria-label', '구간 (IC·JC)');
+    const regional = result.sectionKind === 'region';
+    list.setAttribute('aria-label', regional ? '구간 (시·군)' : '구간 (IC·JC)');
     let part = null;
     for (const section of result.sections) {
       if (section.part && section.part !== part) {
@@ -651,7 +656,7 @@ export async function mountTrafficCctv({
       const choice = button('cctv-row cctv-section cctv-section-unmapped', '', documentRef);
       choice.dataset.cctvSection = 'unmapped';
       choice.append(el('span', 'cctv-row-title', '구간 미확인 CCTV', documentRef),
-        el('span', 'cctv-row-meta', `CCTV ${result.unmappedCount}대 · 공식 IC·JC 이름과 연결되지 않음`, documentRef));
+        el('span', 'cctv-row-meta', `CCTV ${result.unmappedCount}대 · ${regional ? '이름에 시·군이 없음' : '공식 IC·JC 이름과 연결되지 않음'}`, documentRef));
       choice.addEventListener('click', () => void chooseSection({sectionId: 'unmapped', name: '구간 미확인 CCTV', cameraCount: result.unmappedCount, unmapped: true}));
       item.append(choice); list.append(item);
     }
@@ -678,7 +683,8 @@ export async function mountTrafficCctv({
     }
     sectionBlock.replaceChildren(...nodes);
     const route = state.route;
-    const result = await load('cameras', {road_type: state.roadType, route_id: route.routeId, section_id: section.sectionId}, normalizeCameras, {
+    // The direction orders 구간 미확인 CCTV along the route too.
+    const result = await load('cameras', {road_type: state.roadType, route_id: route.routeId, section_id: section.sectionId, direction: state.direction}, normalizeCameras, {
       onRetry: () => chooseSection(section, {skipSections}),
       onReady: value => value,
     });
@@ -688,16 +694,38 @@ export async function mountTrafficCctv({
       state.section = null; remember(); renderSectionList(); status.textContent = result.message; return;
     }
     state.cameras = result.cameras;
-    renderCameras(section);
+    renderCameras(section, result.orderNote);
   }
 
-  function renderCameras(section) {
+  function renderCameras(section, orderNote = '') {
     cameraBlock.hidden = false;
     const heading = el('h4', 'cctv-block-title', `${section.name} CCTV`, documentRef);
     const list = el('ul', 'cctv-list cctv-camera-list', '', documentRef);
     list.setAttribute('aria-label', `${section.name} CCTV`);
+    const nodes = [heading];
+    if (orderNote) nodes.push(el('p', 'consumer-feature-note cctv-note', orderNote, documentRef));
+    // A long list (구간 미확인 on a long road) can be narrowed by name.
+    if (state.cameras.length > CAMERA_FILTER_MIN) {
+      const filter = el('input', 'cctv-route-search cctv-camera-search', '', documentRef);
+      filter.type = 'search'; filter.placeholder = 'CCTV 이름 찾기 (예: 양재)'; filter.autocomplete = 'off';
+      filter.setAttribute('aria-label', 'CCTV 이름 찾기'); filter.enterKeyHint = 'search';
+      const none = el('li', 'cctv-empty', '찾는 CCTV가 없어요.', documentRef); none.hidden = true;
+      filter.addEventListener('input', () => {
+        const needle = filter.value.replace(/\s+/gu, '');
+        let shown = 0;
+        for (const item of list.querySelectorAll(':scope > li[data-cctv-name]')) {
+          const match = !needle || item.dataset.cctvName.includes(needle);
+          item.hidden = !match;
+          if (match) shown += 1;
+        }
+        none.hidden = shown > 0;
+      });
+      nodes.push(filter);
+      list.append(none);
+    }
     for (const camera of state.cameras) {
       const item = el('li', '', '', documentRef);
+      item.dataset.cctvName = camera.name.replace(/\s+/gu, '');
       const choice = button('cctv-row cctv-camera', '', documentRef);
       choice.dataset.cctvCamera = camera.cameraId;
       choice.dataset.cctvKind = camera.kind;
@@ -722,7 +750,8 @@ export async function mountTrafficCctv({
         ? '구간을 확인할 수 없는 CCTV가 없어요.'
         : '이 구간에는 지금 확인되는 공식 CCTV가 없어요. 다른 구간을 골라 보세요.', documentRef));
     }
-    cameraBlock.replaceChildren(heading, list);
+    nodes.push(list);
+    cameraBlock.replaceChildren(...nodes);
   }
 
   // ── player ──
