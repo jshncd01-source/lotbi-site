@@ -1,5 +1,5 @@
-import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-cd3d42af9220';
-import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-cd3d42af9220';
+import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-2bbd472f4ed3';
+import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-2bbd472f4ed3';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
@@ -614,6 +614,15 @@ export async function synchronizeAccountContinuity({preserveUnknownUi = false} =
     const restored = await restoreSiteSessionInPlace('restore');
     if (restored === 'RESTORED') return;
     if (restored === 'SIGNED_OUT') {
+      showAccountSignedOut();
+      return;
+    }
+    // SITE-LOGIN-HANDOFF-REPEAT-01 — one miss on a phone network (a timeout, a
+    // dropped request) sent a signed-in person on the full Account round trip
+    // at once. The in-place restore gets one more go first.
+    const retried = await restoreSiteSessionInPlace('restore-retry');
+    if (retried === 'RESTORED') return;
+    if (retried === 'SIGNED_OUT') {
       showAccountSignedOut();
       return;
     }

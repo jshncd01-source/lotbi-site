@@ -580,6 +580,11 @@ jobs:
       - name: Validate Site session restore and renewal in place
         run: node scripts/validate_auth_session_continuity_p0_02.mjs
 
+      # SITE-LOGIN-HANDOFF-REPEAT-01 — a signed-in device is not sent round
+      # Account again or onto "LOTBI 연결 오류" by a stale callback or one miss.
+      - name: Validate signed-in device skips repeated login hand-overs
+        run: node scripts/validate_site_login_handoff_repeat_01.mjs
+
       - name: Validate HTML document cache policy
         run: python scripts/validate_document_cache_policy_01.py
 
