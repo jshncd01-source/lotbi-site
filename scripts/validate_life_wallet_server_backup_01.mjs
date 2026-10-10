@@ -14,6 +14,31 @@ import {runFixturePage} from './lib/headless-fixture-result.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PASSWORD = 'Lotbi-Backup-2026!';
 const NOTE = 'SECRET-NOTE-7731';
+// What a request shows besides the sealed bytes. The envelope's ciphertext, nonce and salt are
+// random base64, so a short secret such as the 4-digit PIN can appear in them by chance; they
+// must be pure base64, the decoded bytes must not hold the password or the note, and only then
+// are they set aside. The URL, every key and every other field are searched as before.
+const OPAQUE_FIELDS = [['cipher', 'ciphertext'], ['cipher', 'nonce'], ['kdf', 'salt']];
+const BASE64_RE = /^[A-Za-z0-9+/_-]+={0,2}$/u;
+function wireText(request) {
+  let body = request.body;
+  let value = null;
+  try { value = JSON.parse(body); } catch {}
+  if (value && typeof value === 'object') {
+    for (const [outer, inner] of OPAQUE_FIELDS) {
+      const field = value[outer]?.[inner];
+      if (field === undefined) continue;
+      assert.equal(typeof field, 'string', `${outer}.${inner} is a string`);
+      assert.match(field, BASE64_RE, `${outer}.${inner} must be opaque base64: ${request.method} ${request.url}`);
+      const bytes = Buffer.from(field.replaceAll('-', '+').replaceAll('_', '/'), 'base64');
+      for (const secret of [PASSWORD, NOTE]) assert.ok(!bytes.includes(Buffer.from(secret, 'utf8')), `${secret} must not sit inside ${outer}.${inner}`);
+      value[outer][inner] = '<opaque>';
+    }
+    if (value.cipher && 'aad' in value.cipher) assert.equal(value.cipher.aad, 'LOTBI_LIFE_WALLET_BACKUP_V1', 'the AAD is the fixed label');
+    body = JSON.stringify(value);
+  }
+  return request.url + body;
+}
 const head = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/site-theme-tokens.css"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-consumer-design.css"><link rel="stylesheet" href="/site-life-wallet.css"><style>body{margin:0;padding:12px;background:var(--lotbi-bg-primary,#fff)}#host{max-width:720px;margin:auto}</style></head><body><main id="host"></main>';
 
 // A stand-in for Core's /v2/life-wallet/backup; window.__core.mode switches its answers.
@@ -202,7 +227,7 @@ assert.equal(a.ok, true, a.error);
   assert.deepEqual(Object.keys(envelope.cipher).sort(), ['aad', 'algorithm', 'ciphertext', 'nonce'], detail);
   assert.deepEqual([envelope.kdf.name, envelope.kdf.iterations, envelope.cipher.algorithm], ['PBKDF2-HMAC-SHA-256', 600000, 'AES-256-GCM'], detail);
   for (const request of a.requests) {
-    const text = request.url + request.body;
+    const text = wireText(request);
     for (const secret of [PASSWORD, NOTE, '1357', 'data:image', 'PDF 1쪽']) assert.ok(!text.includes(secret), `${secret} must not leave the browser: ${request.method} ${request.url}`);
     assert.equal(request.authorization, 'Bearer session-A', 'every call carries the session'); assert.equal(request.credentials, 'omit');
   }
@@ -226,7 +251,7 @@ assert.equal(b.ok, true, b.error);
   assert.match(b.tooLarge, /32MB/u, detail); assert.equal(b.sent, 0, 'a too-large backup is not sent');
   assert.match(b.deleted, /서버 백업을 삭제했습니다/u, detail); assert.equal(b.deleteRequests, 1, detail); assert.equal(b.stored, null, detail);
   for (const request of b.requests) {
-    const text = request.url + request.body;
+    const text = wireText(request);
     for (const secret of [PASSWORD, NOTE, '2468', 'data:image']) assert.ok(!text.includes(secret), `${secret} must not leave the browser: ${request.method} ${request.url}`);
   }
 }

@@ -1,0 +1,1404 @@
+{
+  "_note": "Test fixture for scripts/validate_voucher_unified_p0.mjs (contract docs/VOUCHER_UNIFIED_API_CONTRACT.md §1). Shops, phone numbers and the 대전 유성구 \"no voucher\" region are synthetic test data, not real listings. May be regenerated from a real Core; the validator reads it tolerantly.",
+  "notice": "공식 공개자료·관리자 확인 자료를 안내해요. 실시간 결제 가능 여부가 아니니 방문 전 가맹점에 확인해 주세요.",
+  "regions": {
+    "SIDO": {
+      "schema_version": 1,
+      "level": "SIDO",
+      "sido": null,
+      "sigungu": null,
+      "items": [
+        {
+          "name": "강원특별자치도",
+          "scheme_count": 3,
+          "merchant_count": 28
+        },
+        {
+          "name": "대전광역시",
+          "scheme_count": 0,
+          "merchant_count": 0
+        }
+      ]
+    },
+    "SIGUNGU": {
+      "강원특별자치도": {
+        "schema_version": 1,
+        "level": "SIGUNGU",
+        "sido": "강원특별자치도",
+        "sigungu": null,
+        "items": [
+          {
+            "name": "원주시",
+            "scheme_count": 2,
+            "merchant_count": 0
+          },
+          {
+            "name": "춘천시",
+            "scheme_count": 2,
+            "merchant_count": 28
+          }
+        ]
+      },
+      "대전광역시": {
+        "schema_version": 1,
+        "level": "SIGUNGU",
+        "sido": "대전광역시",
+        "sigungu": null,
+        "items": [
+          {
+            "name": "유성구",
+            "scheme_count": 0,
+            "merchant_count": 0
+          }
+        ]
+      }
+    },
+    "DONG": {
+      "강원특별자치도|춘천시": {
+        "schema_version": 1,
+        "level": "DONG",
+        "sido": "강원특별자치도",
+        "sigungu": "춘천시",
+        "items": [
+          {
+            "name": "석사동",
+            "scheme_count": null,
+            "merchant_count": 6
+          },
+          {
+            "name": "퇴계동",
+            "scheme_count": null,
+            "merchant_count": 6
+          },
+          {
+            "name": "효자동",
+            "scheme_count": null,
+            "merchant_count": 9
+          },
+          {
+            "name": "후평동",
+            "scheme_count": null,
+            "merchant_count": 6
+          }
+        ]
+      },
+      "강원특별자치도|원주시": {
+        "schema_version": 1,
+        "level": "DONG",
+        "sido": "강원특별자치도",
+        "sigungu": "원주시",
+        "items": []
+      }
+    }
+  },
+  "schemes": {
+    "강원특별자치도|춘천시": {
+      "schema_version": 1,
+      "catalog": {
+        "source": "DB",
+        "checked_on": "2026-10-10",
+        "sources": [
+          {
+            "label": "행정안전부 내고장알리미 지역사랑상품권",
+            "url": "https://www.laiis.go.kr/lips/mlo/lcl/localGiftList.do"
+          },
+          {
+            "label": "행정안전부 지역사랑상품권 발행 현황('25.10. 기준)",
+            "url": "https://mois.go.kr/frt/sub/a06/b07/localVoucher/screen.do"
+          }
+        ]
+      },
+      "region": {
+        "sido": "강원특별자치도",
+        "sigungu": "춘천시"
+      },
+      "items": [
+        {
+          "id": "vs_chuncheon_city",
+          "name": "춘천사랑상품권",
+          "issuer": "춘천시",
+          "issuer_level": "CITY",
+          "sido": "강원특별자치도",
+          "sigungu": "춘천시",
+          "usage_area_label": "강원특별자치도 춘천시",
+          "usage_area_note": "춘천시 안에서만 쓸 수 있어요(테스트 안내).",
+          "payment_types": {
+            "paper": true,
+            "mobile": true,
+            "card": null
+          },
+          "status": "ACTIVE",
+          "official_url": "https://www.chuncheon.go.kr/",
+          "official_merchant_search_url": null,
+          "source_label": "행정안전부 내고장알리미",
+          "last_verified_on": "2026-10-10",
+          "merchant_count": 26
+        },
+        {
+          "id": "vs_gangwon_province",
+          "name": "강원상품권",
+          "issuer": "강원특별자치도",
+          "issuer_level": "PROVINCE",
+          "sido": "강원특별자치도",
+          "sigungu": null,
+          "usage_area_label": "강원특별자치도 전체",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "status": "ACTIVE",
+          "official_url": "https://state.gwd.go.kr/",
+          "official_merchant_search_url": null,
+          "source_label": "행정안전부 내고장알리미",
+          "last_verified_on": "2026-10-10",
+          "merchant_count": 7
+        }
+      ],
+      "empty_reason": null
+    },
+    "강원특별자치도|원주시": {
+      "schema_version": 1,
+      "catalog": {
+        "source": "DB",
+        "checked_on": "2026-10-10",
+        "sources": [
+          {
+            "label": "행정안전부 내고장알리미 지역사랑상품권",
+            "url": "https://www.laiis.go.kr/lips/mlo/lcl/localGiftList.do"
+          },
+          {
+            "label": "행정안전부 지역사랑상품권 발행 현황('25.10. 기준)",
+            "url": "https://mois.go.kr/frt/sub/a06/b07/localVoucher/screen.do"
+          }
+        ]
+      },
+      "region": {
+        "sido": "강원특별자치도",
+        "sigungu": "원주시"
+      },
+      "items": [
+        {
+          "id": "vs_gangwon_province",
+          "name": "강원상품권",
+          "issuer": "강원특별자치도",
+          "issuer_level": "PROVINCE",
+          "sido": "강원특별자치도",
+          "sigungu": null,
+          "usage_area_label": "강원특별자치도 전체",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "status": "ACTIVE",
+          "official_url": "https://state.gwd.go.kr/",
+          "official_merchant_search_url": null,
+          "source_label": "행정안전부 내고장알리미",
+          "last_verified_on": "2026-10-10",
+          "merchant_count": 0
+        },
+        {
+          "id": "vs_wonju_city",
+          "name": "원주사랑상품권",
+          "issuer": "원주시",
+          "issuer_level": "CITY",
+          "sido": "강원특별자치도",
+          "sigungu": "원주시",
+          "usage_area_label": "강원특별자치도 원주시",
+          "payment_types": {
+            "paper": true,
+            "mobile": true,
+            "card": true
+          },
+          "status": "ACTIVE",
+          "official_url": "https://www.wonju.go.kr/",
+          "official_merchant_search_url": "https://www.wonju.go.kr/www/contents.do?key=voucher-merchants",
+          "source_label": "행정안전부 내고장알리미",
+          "last_verified_on": "2026-10-10",
+          "merchant_count": 0
+        }
+      ],
+      "empty_reason": null
+    },
+    "대전광역시|유성구": {
+      "schema_version": 1,
+      "catalog": {
+        "source": "DB",
+        "checked_on": "2026-10-10",
+        "sources": [
+          {
+            "label": "행정안전부 내고장알리미 지역사랑상품권",
+            "url": "https://www.laiis.go.kr/lips/mlo/lcl/localGiftList.do"
+          },
+          {
+            "label": "행정안전부 지역사랑상품권 발행 현황('25.10. 기준)",
+            "url": "https://mois.go.kr/frt/sub/a06/b07/localVoucher/screen.do"
+          }
+        ]
+      },
+      "region": {
+        "sido": "대전광역시",
+        "sigungu": "유성구"
+      },
+      "items": [],
+      "empty_reason": "NO_SCHEME_FOR_REGION"
+    }
+  },
+  "merchants": [
+    {
+      "id": "vm_cc_001",
+      "name": "소양강국밥",
+      "address": "강원특별자치도 춘천시 효자동 테스트로 1",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "효자동",
+      "category": {
+        "code": "FOOD",
+        "label": "음식점"
+      },
+      "category_detail": "한식",
+      "phone": "033-254-1234",
+      "location": {
+        "latitude": 37.8762,
+        "longitude": 127.7211,
+        "precision": "OFFICIAL"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        },
+        {
+          "scheme_id": "vs_gangwon_province",
+          "scheme_name": "강원상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "ADMIN_ENTRY",
+            "label": "LOTBI 관리자 등록자료"
+          },
+          "last_verified_on": "2026-10-09"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 효자동 테스트로 1 소양강국밥"
+    },
+    {
+      "id": "vm_cc_002",
+      "name": "춘천가맥지",
+      "address": "강원특별자치도 춘천시",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": null,
+      "category": {
+        "code": "CAFE",
+        "label": "카페·간식"
+      },
+      "category_detail": "커피전문점",
+      "phone": null,
+      "location": null,
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        },
+        {
+          "scheme_id": "vs_gangwon_province",
+          "scheme_name": "강원상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "ADMIN_ENTRY",
+            "label": "LOTBI 관리자 등록자료"
+          },
+          "last_verified_on": "2026-10-09"
+        }
+      ],
+      "address_precision": "REGION_ONLY",
+      "map_query": "강원특별자치도 춘천시 춘천가맥지"
+    },
+    {
+      "id": "vm_cc_003",
+      "name": "공지천커피",
+      "address": "강원특별자치도 춘천시 후평동 테스트로 3",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "후평동",
+      "category": {
+        "code": "GROCERY",
+        "label": "장보기"
+      },
+      "category_detail": "슈퍼마켓",
+      "phone": null,
+      "location": null,
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        },
+        {
+          "scheme_id": "vs_gangwon_province",
+          "scheme_name": "강원상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "ADMIN_ENTRY",
+            "label": "LOTBI 관리자 등록자료"
+          },
+          "last_verified_on": "2026-10-09"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 후평동 테스트로 3 공지천커피"
+    },
+    {
+      "id": "vm_cc_004",
+      "name": "닭갈비골목집",
+      "address": "강원특별자치도 춘천시 퇴계동 테스트로 4",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "퇴계동",
+      "category": {
+        "code": "LIVING",
+        "label": "생활"
+      },
+      "category_detail": "이용 및 미용업",
+      "phone": null,
+      "location": {
+        "latitude": 37.8798,
+        "longitude": 127.7244,
+        "precision": "STAFF_VERIFIED"
+      },
+      "distance_meters": null,
+      "business_status": "SUSPENDED",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        },
+        {
+          "scheme_id": "vs_gangwon_province",
+          "scheme_name": "강원상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "ADMIN_ENTRY",
+            "label": "LOTBI 관리자 등록자료"
+          },
+          "last_verified_on": "2026-10-09"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 퇴계동 테스트로 4 닭갈비골목집"
+    },
+    {
+      "id": "vm_cc_005",
+      "name": "후평동마트",
+      "address": "강원특별자치도 춘천시 효자동 테스트로 5",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "효자동",
+      "category": {
+        "code": "HEALTH",
+        "label": "병원·약국"
+      },
+      "category_detail": "약국",
+      "phone": null,
+      "location": {
+        "latitude": 37.881,
+        "longitude": 127.7255,
+        "precision": "OFFICIAL"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        },
+        {
+          "scheme_id": "vs_gangwon_province",
+          "scheme_name": "강원상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "ADMIN_ENTRY",
+            "label": "LOTBI 관리자 등록자료"
+          },
+          "last_verified_on": "2026-10-09"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 효자동 테스트로 5 후평동마트"
+    },
+    {
+      "id": "vm_cc_006",
+      "name": "석사헤어",
+      "address": "강원특별자치도 춘천시 석사동 테스트로 6",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "석사동",
+      "category": {
+        "code": "EDU",
+        "label": "학원·교육"
+      },
+      "category_detail": "보습학원",
+      "phone": null,
+      "location": {
+        "latitude": 37.8822,
+        "longitude": 127.7266,
+        "precision": "PROVIDED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 석사동 테스트로 6 석사헤어"
+    },
+    {
+      "id": "vm_cc_007",
+      "name": "효자온정약국",
+      "address": "강원특별자치도 춘천시 후평동 테스트로 7",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "후평동",
+      "category": {
+        "code": "CLOTHING",
+        "label": "의류·잡화"
+      },
+      "category_detail": "의류",
+      "phone": null,
+      "location": {
+        "latitude": 37.8834,
+        "longitude": 127.7277,
+        "precision": "OFFICIAL"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 후평동 테스트로 7 효자온정약국"
+    },
+    {
+      "id": "vm_cc_008",
+      "name": "퇴계수학학원",
+      "address": "강원특별자치도 춘천시 퇴계동 테스트로 8",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "퇴계동",
+      "category": {
+        "code": "OTHER",
+        "label": "기타"
+      },
+      "category_detail": "기타 소매",
+      "phone": null,
+      "location": {
+        "latitude": 37.8846,
+        "longitude": 127.7288,
+        "precision": "STAFF_VERIFIED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 퇴계동 테스트로 8 퇴계수학학원"
+    },
+    {
+      "id": "vm_cc_009",
+      "name": "명동옷가게",
+      "address": "강원특별자치도 춘천시 효자동 테스트로 9",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "효자동",
+      "category": {
+        "code": "FOOD",
+        "label": "음식점"
+      },
+      "category_detail": "한식",
+      "phone": null,
+      "location": {
+        "latitude": 37.8858,
+        "longitude": 127.7299,
+        "precision": "PROVIDED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 효자동 테스트로 9 명동옷가게"
+    },
+    {
+      "id": "vm_cc_010",
+      "name": "봄내문구",
+      "address": "강원특별자치도 춘천시 석사동 테스트로 10",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "석사동",
+      "category": {
+        "code": "CAFE",
+        "label": "카페·간식"
+      },
+      "category_detail": "커피전문점",
+      "phone": null,
+      "location": {
+        "latitude": 37.887,
+        "longitude": 127.731,
+        "precision": "STAFF_VERIFIED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 석사동 테스트로 10 봄내문구"
+    },
+    {
+      "id": "vm_cc_011",
+      "name": "강원막국수",
+      "address": "강원특별자치도 춘천시 후평동 테스트로 11",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "후평동",
+      "category": {
+        "code": "GROCERY",
+        "label": "장보기"
+      },
+      "category_detail": "슈퍼마켓",
+      "phone": null,
+      "location": {
+        "latitude": 37.8882,
+        "longitude": 127.7321,
+        "precision": "OFFICIAL"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 후평동 테스트로 11 강원막국수"
+    },
+    {
+      "id": "vm_cc_012",
+      "name": "소양로카페",
+      "address": "강원특별자치도 춘천시 퇴계동 테스트로 12",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "퇴계동",
+      "category": {
+        "code": "LIVING",
+        "label": "생활"
+      },
+      "category_detail": "이용 및 미용업",
+      "phone": null,
+      "location": {
+        "latitude": 37.8894,
+        "longitude": 127.7332,
+        "precision": "PROVIDED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 퇴계동 테스트로 12 소양로카페"
+    },
+    {
+      "id": "vm_cc_013",
+      "name": "중앙시장건어물",
+      "address": "강원특별자치도 춘천시 효자동 테스트로 13",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "효자동",
+      "category": {
+        "code": "HEALTH",
+        "label": "병원·약국"
+      },
+      "category_detail": "약국",
+      "phone": null,
+      "location": {
+        "latitude": 37.8906,
+        "longitude": 127.7343,
+        "precision": "OFFICIAL"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 효자동 테스트로 13 중앙시장건어물"
+    },
+    {
+      "id": "vm_cc_014",
+      "name": "석사미용실",
+      "address": "강원특별자치도 춘천시 석사동 테스트로 14",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "석사동",
+      "category": {
+        "code": "EDU",
+        "label": "학원·교육"
+      },
+      "category_detail": "보습학원",
+      "phone": null,
+      "location": {
+        "latitude": 37.8918,
+        "longitude": 127.7354,
+        "precision": "STAFF_VERIFIED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 석사동 테스트로 14 석사미용실"
+    },
+    {
+      "id": "vm_cc_015",
+      "name": "명동닭갈비",
+      "address": "강원특별자치도 춘천시 후평동 테스트로 15",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "후평동",
+      "category": {
+        "code": "CLOTHING",
+        "label": "의류·잡화"
+      },
+      "category_detail": "의류",
+      "phone": null,
+      "location": {
+        "latitude": 37.893,
+        "longitude": 127.7365,
+        "precision": "PROVIDED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 후평동 테스트로 15 명동닭갈비"
+    },
+    {
+      "id": "vm_cc_016",
+      "name": "퇴계약국",
+      "address": "강원특별자치도 춘천시 퇴계동 테스트로 16",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "퇴계동",
+      "category": {
+        "code": "OTHER",
+        "label": "기타"
+      },
+      "category_detail": "기타 소매",
+      "phone": null,
+      "location": {
+        "latitude": 37.8942,
+        "longitude": 127.7376,
+        "precision": "STAFF_VERIFIED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 퇴계동 테스트로 16 퇴계약국"
+    },
+    {
+      "id": "vm_cc_017",
+      "name": "봄내영어",
+      "address": "강원특별자치도 춘천시 효자동 테스트로 17",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "효자동",
+      "category": {
+        "code": "FOOD",
+        "label": "음식점"
+      },
+      "category_detail": "한식",
+      "phone": null,
+      "location": {
+        "latitude": 37.8954,
+        "longitude": 127.7387,
+        "precision": "OFFICIAL"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 효자동 테스트로 17 봄내영어"
+    },
+    {
+      "id": "vm_cc_018",
+      "name": "후평양품",
+      "address": "강원특별자치도 춘천시 석사동 테스트로 18",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "석사동",
+      "category": {
+        "code": "CAFE",
+        "label": "카페·간식"
+      },
+      "category_detail": "커피전문점",
+      "phone": null,
+      "location": {
+        "latitude": 37.8966,
+        "longitude": 127.7398,
+        "precision": "PROVIDED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 석사동 테스트로 18 후평양품"
+    },
+    {
+      "id": "vm_cc_019",
+      "name": "효자철물",
+      "address": "강원특별자치도 춘천시 후평동 테스트로 19",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "후평동",
+      "category": {
+        "code": "GROCERY",
+        "label": "장보기"
+      },
+      "category_detail": "슈퍼마켓",
+      "phone": null,
+      "location": {
+        "latitude": 37.8978,
+        "longitude": 127.7409,
+        "precision": "OFFICIAL"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 후평동 테스트로 19 효자철물"
+    },
+    {
+      "id": "vm_cc_020",
+      "name": "춘천감자빵",
+      "address": "강원특별자치도 춘천시 퇴계동 테스트로 20",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "퇴계동",
+      "category": {
+        "code": "LIVING",
+        "label": "생활"
+      },
+      "category_detail": "이용 및 미용업",
+      "phone": null,
+      "location": {
+        "latitude": 37.899,
+        "longitude": 127.742,
+        "precision": "STAFF_VERIFIED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 퇴계동 테스트로 20 춘천감자빵"
+    },
+    {
+      "id": "vm_cc_021",
+      "name": "공지천분식",
+      "address": "강원특별자치도 춘천시 효자동 테스트로 21",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "효자동",
+      "category": {
+        "code": "HEALTH",
+        "label": "병원·약국"
+      },
+      "category_detail": "약국",
+      "phone": null,
+      "location": {
+        "latitude": 37.9002,
+        "longitude": 127.7431,
+        "precision": "PROVIDED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "LOCAL_GOV_LIST",
+            "label": "지자체 공개 가맹점 명단"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 효자동 테스트로 21 공지천분식"
+    },
+    {
+      "id": "vm_cc_022",
+      "name": "약사천반찬",
+      "address": "강원특별자치도 춘천시 석사동 테스트로 22",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "석사동",
+      "category": {
+        "code": "EDU",
+        "label": "학원·교육"
+      },
+      "category_detail": "보습학원",
+      "phone": null,
+      "location": {
+        "latitude": 37.9014,
+        "longitude": 127.7442,
+        "precision": "STAFF_VERIFIED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "LOCAL_GOV_LIST",
+            "label": "지자체 공개 가맹점 명단"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 석사동 테스트로 22 약사천반찬"
+    },
+    {
+      "id": "vm_cc_023",
+      "name": "온의동정육점",
+      "address": "강원특별자치도 춘천시 후평동 테스트로 23",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "후평동",
+      "category": {
+        "code": "CLOTHING",
+        "label": "의류·잡화"
+      },
+      "category_detail": "의류",
+      "phone": null,
+      "location": {
+        "latitude": 37.9026,
+        "longitude": 127.7453,
+        "precision": "OFFICIAL"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "OPERATOR_LIST",
+            "label": "승인된 운영기관 자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 후평동 테스트로 23 온의동정육점"
+    },
+    {
+      "id": "vm_cc_024",
+      "name": "석사동세탁",
+      "address": "강원특별자치도 춘천시 퇴계동 테스트로 24",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "퇴계동",
+      "category": {
+        "code": "OTHER",
+        "label": "기타"
+      },
+      "category_detail": "기타 소매",
+      "phone": null,
+      "location": {
+        "latitude": 37.9038,
+        "longitude": 127.7464,
+        "precision": "PROVIDED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "ADMIN_ENTRY",
+            "label": "LOTBI 관리자 등록자료"
+          },
+          "last_verified_on": "2026-10-09"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 퇴계동 테스트로 24 석사동세탁"
+    },
+    {
+      "id": "vm_cc_025",
+      "name": "퇴계동꽃집",
+      "address": "강원특별자치도 춘천시 효자동 테스트로 25",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "효자동",
+      "category": {
+        "code": "FOOD",
+        "label": "음식점"
+      },
+      "category_detail": "한식",
+      "phone": null,
+      "location": {
+        "latitude": 37.905,
+        "longitude": 127.7475,
+        "precision": "OFFICIAL"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": null,
+            "card": null
+          },
+          "source": {
+            "kind": "ADMIN_ENTRY",
+            "label": "LOTBI 관리자 등록자료"
+          },
+          "last_verified_on": "2026-10-09"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 효자동 테스트로 25 퇴계동꽃집"
+    },
+    {
+      "id": "vm_cc_026",
+      "name": "효자동떡집",
+      "address": "강원특별자치도 춘천시 석사동 테스트로 26",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "석사동",
+      "category": {
+        "code": "CAFE",
+        "label": "카페·간식"
+      },
+      "category_detail": "커피전문점",
+      "phone": null,
+      "location": {
+        "latitude": 37.9062,
+        "longitude": 127.7486,
+        "precision": "STAFF_VERIFIED"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_chuncheon_city",
+          "scheme_name": "춘천사랑상품권",
+          "payment_types": {
+            "paper": true,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "ADMIN_ENTRY",
+            "label": "LOTBI 관리자 등록자료"
+          },
+          "last_verified_on": "2026-10-09"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 석사동 테스트로 26 효자동떡집"
+    },
+    {
+      "id": "vm_gw_27",
+      "name": "도청앞김밥",
+      "address": "강원특별자치도 춘천시 중앙로 27",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "효자동",
+      "category": {
+        "code": "FOOD",
+        "label": "음식점"
+      },
+      "category_detail": "분식",
+      "phone": null,
+      "location": {
+        "latitude": 37.884,
+        "longitude": 127.7298,
+        "precision": "OFFICIAL"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_gangwon_province",
+          "scheme_name": "강원상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 중앙로 27 도청앞김밥"
+    },
+    {
+      "id": "vm_gw_28",
+      "name": "봄내서점",
+      "address": "강원특별자치도 춘천시 중앙로 28",
+      "sido": "강원특별자치도",
+      "sigungu": "춘천시",
+      "dong": "효자동",
+      "category": {
+        "code": "OTHER",
+        "label": "기타"
+      },
+      "category_detail": "서점",
+      "phone": null,
+      "location": {
+        "latitude": 37.884100000000004,
+        "longitude": 127.7298,
+        "precision": "OFFICIAL"
+      },
+      "distance_meters": null,
+      "business_status": "OPERATING",
+      "accepts": [
+        {
+          "scheme_id": "vs_gangwon_province",
+          "scheme_name": "강원상품권",
+          "payment_types": {
+            "paper": null,
+            "mobile": true,
+            "card": null
+          },
+          "source": {
+            "kind": "OFFICIAL_API",
+            "label": "한국조폐공사 공식 공개자료"
+          },
+          "last_verified_on": "2026-10-10"
+        }
+      ],
+      "address_precision": "STREET",
+      "map_query": "강원특별자치도 춘천시 중앙로 28 봄내서점"
+    }
+  ]
+}
