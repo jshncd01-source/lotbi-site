@@ -12,7 +12,7 @@
 //   region, not the reader's address, and never the LOTBI 기본 생활지역.
 // * lotbi.site.ux.v1.real-estate.favorites.guest — 관심 아파트 saved before
 //   signing in. It is never merged into an account by itself.
-import {CORE_ORIGIN} from './site-core.js?v=aset-b0c8e0368576';
+import {CORE_ORIGIN} from './site-core.js?v=aset-f5ec80ca26ef';
 
 export const REAL_ESTATE_PATH = '/v2/life/real-estate';
 export const REAL_ESTATE_DEALS = Object.freeze([

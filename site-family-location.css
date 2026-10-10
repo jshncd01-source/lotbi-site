@@ -35,5 +35,9 @@
 .family-loc-settings-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .family-loc-settings-row select{width:auto;flex:0 1 110px}
 .family-loc-footer{text-align:center}
+.family-loc-places,.family-loc-place-form,.family-loc-places-for-me{display:grid;gap:8px}
+.family-loc-places{padding-top:10px;border-top:1px solid var(--lotbi-border-default,#d8dde5)}
+.family-loc-place-name{font-weight:700;color:var(--lotbi-text-primary,#212121);overflow-wrap:anywhere}
+.family-loc-place-form input:not([type]),.family-loc-place-form select{box-sizing:border-box;width:100%;min-height:48px;border:1px solid var(--lotbi-border-strong,#c9c9c9);border-radius:10px;padding:10px;background:var(--lotbi-surface-primary,#fff);color:var(--lotbi-text-primary,#212121);font:inherit}
 .family-loc-button:focus-visible,.family-loc-surface input:focus-visible,.family-loc-surface select:focus-visible{outline:3px solid var(--lotbi-focus-ring,#454545);outline-offset:2px}
 @media(max-width:640px){.family-loc-card{padding:14px}.family-loc-actions{display:grid}.family-loc-actions .family-loc-button{width:100%}}

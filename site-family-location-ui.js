@@ -6,23 +6,28 @@
 // owner invites (link + 6-digit code), approves a second guardian, removes, and sets alerts.
 // A person who shares sees who sees them, recent checks, pause, and [원치 않는 추적] — sending
 // itself happens on the Android app; the web only sends "지금 내 위치 한 번" and SOS.
+// 도착/출발 (기획서 9): a guardian sets places for a person (name, kind, 100-300 m around that
+// person's current place or the guardian's own position); the person's phone decides, the person
+// sees every place set for them, and doubtful moments are not told.
 // Not here: hidden modes, location history, ads. The map SDK stays off until NAVER Maps keys exist.
 import {
-  FAMILY_PRIVACY_NOTICE, acceptFamilyInvite, approveFamilyGuardian, closeFamilySos, createFamilyInvite, createFamilyRequest,
-  declineFamilyInvite, endFamilyMember, familyAccuracyText, familyErrorMessage, familyHiddenText,
-  familyInviteRef, familyMapLinks, familyPresenceText, familySosMissingReport, getFamilyOverview, getFamilyRequest,
-  getFamilyStatusCheck, pauseFamilySharing, previewFamilyInvite, putFamilyAlertSettings, reconfirmFamilySharing,
-  reportFamilyTracking, resumeFamilySharing, revokeFamilyInvite, sendFamilyLocationOnce, sendFamilySos,
-} from './site-family-location.js?v=aset-b0c8e0368576';
-import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-b0c8e0368576';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-b0c8e0368576';
-import {shareWithKakaoTalk} from './site-kakao-share.js?v=aset-b0c8e0368576';
-import {takeFamilyInviteIntent} from './site-route.js?v=aset-b0c8e0368576';
+  FAMILY_PRIVACY_NOTICE, acceptFamilyInvite, approveFamilyGuardian, closeFamilySos, createFamilyInvite, createFamilyPlace, createFamilyRequest,
+  declineFamilyInvite, deleteFamilyPlace, endFamilyMember, familyAccuracyText, familyErrorMessage, familyHiddenText,
+  familyInviteRef, familyMapLinks, familyPlaceCenterFromFix, familyPresenceText, familySosMissingReport, getFamilyOverview, getFamilyRequest,
+  getFamilyStatusCheck, listFamilyPlaces, pauseFamilySharing, previewFamilyInvite, putFamilyAlertSettings, reconfirmFamilySharing,
+  reportFamilyTracking, resumeFamilySharing, revokeFamilyInvite, sendFamilyLocationOnce, sendFamilySos, updateFamilyPlace,
+} from './site-family-location.js?v=aset-f5ec80ca26ef';
+import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-f5ec80ca26ef';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-f5ec80ca26ef';
+import {shareWithKakaoTalk} from './site-kakao-share.js?v=aset-f5ec80ca26ef';
+import {takeFamilyInviteIntent} from './site-route.js?v=aset-f5ec80ca26ef';
 
 const SHARER_RELATIONS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모님'], ['SPOUSE', '배우자'], ['FAMILY', '가족']]);
 const RELATION_LABEL = Object.freeze({CHILD: '자녀', PARENT: '부모님', SPOUSE: '배우자', FAMILY: '가족', GUARDIAN: '함께 보는 보호자', OWNER: '가족 주인'});
 const PAUSE_LABEL = Object.freeze({HOUR: '1시간 멈추기', TODAY: '오늘 멈추기', UNTIL_RESUME: '다시 켤 때까지 멈추기'});
-const KIND_LABEL = Object.freeze({STALE: '위치 멈춤', BATTERY: '배터리 부족', PAUSE: '잠시 멈춤'});
+const KIND_LABEL = Object.freeze({STALE: '위치 멈춤', BATTERY: '배터리 부족', PAUSE: '잠시 멈춤', PLACE: '장소 도착·출발'});
+const PLACE_KINDS = Object.freeze([['HOME', '집'], ['SCHOOL', '학교'], ['ACADEMY', '학원'], ['OTHER', '기타']]);
+const PLACE_RADII = Object.freeze([100, 150, 200, 300]);
 const POLL_MS = 3000;
 const POLL_LIMIT_MS = 10 * 60_000;
 
@@ -66,6 +71,9 @@ export async function mountFamilyLocation({sessionToken, root, onMissingReport} 
   let inviteNode = null;
   let acceptNode = null; let acceptKey = '';
   let settingsNode = null; let settingsKey = '';
+  const openPlaces = new Set();        // member ids whose 장소 알림 panel is open
+  const placeLists = new Map();        // member id -> Core's list (places, limit, used, plan_allows, suggestions)
+  const placePanels = new Map();       // member id -> {node, key}: rebuilt only when what it shows changes
   const requests = new Map();          // member id -> latest request
   const checks = new Map();            // member id -> status check
   const timers = new Set();
@@ -135,9 +143,126 @@ export async function mountFamilyLocation({sessionToken, root, onMissingReport} 
     );
     const links = familyMapLinks(member, readDefaultMapProvider());
     if (links) actions.append(link('지도에서 보기', links.map), link('로드뷰', links.roadview));
+    if (placesSupported()) {
+      const toggle = button(openPlaces.has(member.id) ? '장소 알림 닫기' : '장소 알림', () => { void togglePlaces(member); }, {testId: 'places'});
+      toggle.setAttribute('aria-expanded', String(openPlaces.has(member.id)));
+      actions.append(toggle);
+    }
     if (family.role === 'OWNER') actions.append(button('연결 해제', () => { void removeMember(member); }, {danger: true, testId: 'remove'}));
     card.append(actions);
+    if (openPlaces.has(member.id)) card.append(placesPanel(member));
     return card;
+  }
+
+  // ── 도착/출발 places for one person ───────────────────────────────────────
+  // Core lists PLACE among the alert kinds once it has places; before that nothing is shown.
+  const placesSupported = () => (overview?.settings?.kinds || []).includes('PLACE');
+
+  async function loadPlaces(member) {
+    // A read never waits for (or blocks) a running action.
+    try { placeLists.set(member.id, await listFamilyPlaces(sessionToken, member.id)); }
+    catch (error) { say(familyErrorMessage(error, '장소를 불러오지 못했어요.'), true); }
+    if (!disposed) render();
+  }
+
+  async function togglePlaces(member) {
+    if (openPlaces.has(member.id)) { openPlaces.delete(member.id); render(); return; }
+    openPlaces.add(member.id); render();
+    await loadPlaces(member);
+  }
+
+  function placesPanel(member) {
+    const list = placeLists.get(member.id) || null;
+    const key = JSON.stringify([member.name, list]);
+    const cached = placePanels.get(member.id);
+    if (cached && cached.key === key) return cached.node;
+    const panel = el('div', 'family-loc-places'); panel.dataset.familyPlaces = member.id;
+    panel.append(el('strong', 'family-loc-name', '도착·출발 알림 장소'),
+      el('p', 'family-loc-note', `${member.name} 폰이 장소 안팎을 스스로 판단하고, 3분 넘게 머물러야 알려요. 위치가 애매하면 알리지 않아요. 등록한 장소는 ${member.name} 폰에도 보여요.`));
+    if (!list) { panel.append(el('p', 'family-loc-note', '장소를 불러오는 중…')); placePanels.set(member.id, {node: panel, key}); return panel; }
+    if (!list.plan_allows) panel.append(el('p', 'family-loc-note', '도착·출발 알림은 Plus 요금제부터 쓸 수 있어요.'));
+    else panel.append(el('p', 'family-loc-note', `장소 ${list.used}/${list.limit}곳 (가족 전체)`));
+    for (const place of list.places || []) panel.append(placeRow(member, place));
+    if (list.plan_allows && list.used < list.limit) panel.append(placeForm(member, list));
+    placePanels.set(member.id, {node: panel, key});
+    return panel;
+  }
+
+  function placeRow(member, place) {
+    const row = el('div', 'family-loc-family-row family-loc-place-row'); row.dataset.familyPlace = place.id;
+    row.append(el('span', 'family-loc-place-name', `${place.name} (${place.kind_label}) · 반경 ${place.radius_m}m · ${place.created_by} 님이 등록`));
+    const toggles = el('div', 'family-loc-settings-row');
+    const flag = (field, label) => {
+      const wrap = el('label', 'family-loc-check-label'); const box = el('input'); box.type = 'checkbox'; box.checked = place[field] === true;
+      box.dataset.familyPlaceField = field;
+      box.addEventListener('change', () => { void changePlace(member, place, {[field]: box.checked}); });
+      wrap.append(box, el('span', '', label)); toggles.append(wrap);
+    };
+    flag('arrive', '도착 알림'); flag('depart', '출발 알림');
+    if (place.kind === 'SCHOOL') flag('holiday_off', place.school_linked ? '쉬는 날 끄기 (주말·공휴일·학사일정)' : '쉬는 날 끄기 (주말·공휴일)');
+    row.append(toggles, button('장소 지우기', () => { void removePlace(member, place); }, {danger: true, testId: 'place-delete'}));
+    return row;
+  }
+
+  function placeForm(member, list) {
+    const form = el('form', 'family-loc-place-form'); form.dataset.familyPlaceForm = member.id;
+    const suggestion = el('select'); suggestion.setAttribute('aria-label', '내 아이 학교에서 고르기');
+    const suggestions = list.suggestions || [];
+    if (suggestions.length) {
+      const none = el('option', '', '직접 입력'); none.value = ''; suggestion.append(none);
+      for (const item of suggestions) { const option = el('option', '', `내 아이: ${item.name}`); option.value = item.my_child_entry_id; suggestion.append(option); }
+    } else suggestion.hidden = true;
+    const name = el('input'); name.maxLength = 20; name.placeholder = '장소 이름 (예: 학원)'; name.setAttribute('aria-label', '장소 이름');
+    const kind = el('select'); kind.setAttribute('aria-label', '장소 종류');
+    for (const [value, label] of PLACE_KINDS) { const option = el('option', '', label); option.value = value; kind.append(option); }
+    kind.value = 'ACADEMY';
+    const radius = el('select'); radius.setAttribute('aria-label', '반경');
+    for (const meters of PLACE_RADII) { const option = el('option', '', `반경 ${meters}m`); option.value = String(meters); radius.append(option); }
+    radius.value = '150';
+    suggestion.addEventListener('change', () => {
+      const picked = suggestions.find(item => item.my_child_entry_id === suggestion.value);
+      if (picked) { name.value = picked.name.slice(0, 20); kind.value = 'SCHOOL'; }
+    });
+    const centers = el('div', 'family-loc-settings-row'); centers.setAttribute('role', 'radiogroup'); centers.setAttribute('aria-label', '장소 위치');
+    const radio = (value, label, checked) => {
+      const wrap = el('label', 'family-loc-check-label'); const input = el('input'); input.type = 'radio'; input.name = `family-place-center-${member.id}`;
+      input.value = value; input.checked = checked; wrap.append(input, el('span', '', label)); centers.append(wrap);
+    };
+    radio('MEMBER_LOCATION', `${member.name} 지금 위치로`, Boolean(member.location));
+    radio('MY_LOCATION', '내 지금 위치로', !member.location);
+    const flags = el('div', 'family-loc-settings-row');
+    const check = label => { const wrap = el('label', 'family-loc-check-label'); const box = el('input'); box.type = 'checkbox'; box.checked = true; wrap.append(box, el('span', '', label)); flags.append(wrap); return box; };
+    const arrive = check('도착 알림'); const depart = check('출발 알림');
+    const submit = el('button', 'site-button family-loc-button family-loc-primary', '장소 추가'); submit.type = 'submit';
+    form.append(suggestion, name, kind, radius, centers, flags, submit);
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!name.value.trim()) { say('장소 이름을 적어 주세요.', true); return; }
+      const source = form.querySelector(`input[name="family-place-center-${member.id}"]:checked`)?.value || 'MY_LOCATION';
+      let center = {source: 'MEMBER_LOCATION'};
+      if (source === 'MY_LOCATION') {
+        const fix = await currentFix().catch(() => null);
+        if (!fix) { say('내 현재 위치를 확인하지 못했어요. 브라우저 위치 권한을 확인해 주세요.', true); return; }
+        center = familyPlaceCenterFromFix(fix);
+      }
+      const created = await act(() => createFamilyPlace(sessionToken, member.id, {
+        name: name.value.trim(), kind: kind.value, radiusMeters: Number(radius.value), center, arrive: arrive.checked, depart: depart.checked,
+        myChildEntryId: suggestion.value || undefined,
+      }), '장소를 추가하지 못했어요.');
+      if (created) { say(`${created.name} 장소를 추가했어요.`); await loadPlaces(member); }
+    });
+    return form;
+  }
+
+  async function changePlace(member, place, fields) {
+    if (await act(() => updateFamilyPlace(sessionToken, place.id, fields), '장소를 바꾸지 못했어요.')) say('장소 알림을 바꿨어요.');
+    await loadPlaces(member);
+  }
+
+  async function removePlace(member, place) {
+    if (!globalThis.confirm?.(`${place.name} 장소를 지울까요?`)) return;
+    if (await act(() => deleteFamilyPlace(sessionToken, place.id), '장소를 지우지 못했어요.')) say(`${place.name} 장소를 지웠어요.`);
+    await loadPlaces(member);
   }
 
   function statusCheckView(check) {
@@ -216,6 +341,16 @@ export async function mountFamilyLocation({sessionToken, root, onMissingReport} 
     box.append(el('p', 'family-loc-note', `나를 보는 사람: ${(sharing.viewers || []).map(item => item.name).join(', ') || '없음'}`));
     for (const check of (sharing.recent_checks || []).slice(0, 3)) {
       box.append(el('p', 'family-loc-note', `${clock(check.at)} ${check.by} · ${check.kind === 'NOW' ? '위치를 확인했어요' : '위치 상태를 점검했어요'}`));
+    }
+    // P1: every 도착/출발 place set for me, and by whom.
+    if ((sharing.places || []).length) {
+      const places = el('div', 'family-loc-places-for-me'); places.dataset.familyPlacesForMe = '';
+      places.append(el('p', 'family-loc-note', '나에게 등록된 장소 (도착·출발을 알려요):'));
+      for (const place of sharing.places) {
+        const alerts = [place.arrive ? '도착' : '', place.depart ? '출발' : ''].filter(Boolean).join('·') || '알림 꺼짐';
+        places.append(el('p', 'family-loc-note', `· ${place.name} (${place.kind_label}) · ${place.by} 님이 등록 · ${alerts}`));
+      }
+      box.append(places);
     }
     box.append(el('p', 'family-loc-note', '위치는 LOTBI 안드로이드 앱이 보내요. 앱에서 같은 계정으로 로그인하고 「가족 위치」에서 위치 보내기를 켜 주세요.'));
     const sos = button(sosArmed ? '한 번 더 누르면 가족에게 알려요' : 'SOS 도와주세요', () => { void sendSos(); }, {danger: true, testId: 'sos'});
@@ -394,7 +529,11 @@ export async function mountFamilyLocation({sessionToken, root, onMissingReport} 
   function settingsSection(families) {
     const settings = overview.settings || {};
     const form = el('form', 'family-loc-card family-loc-settings'); form.dataset.familySettings = '';
-    form.append(el('strong', 'family-loc-name', '알림 설정'), el('p', 'family-loc-note', 'SOS는 늘 울려요. 조용한 시간에는 다른 알림을 아침에 모아서 보내요.'));
+    // The kinds Core knows (an older Core has no PLACE and would refuse it).
+    const kinds = (Array.isArray(settings.kinds) ? settings.kinds : ['STALE', 'BATTERY', 'PAUSE']).filter(kind => KIND_LABEL[kind]);
+    form.append(el('strong', 'family-loc-name', '알림 설정'), el('p', 'family-loc-note', kinds.includes('PLACE')
+      ? 'SOS는 늘 울려요. 조용한 시간에는 다른 알림을 아침에 모아서 보내고, 장소 도착·출발 알림은 보내지 않아요.'
+      : 'SOS는 늘 울려요. 조용한 시간에는 다른 알림을 아침에 모아서 보내요.'));
     const hours = Array.from({length: 24}, (_, hour) => hour);
     const select = (value, label) => {
       const node = el('select'); node.setAttribute('aria-label', label);
@@ -412,7 +551,7 @@ export async function mountFamilyLocation({sessionToken, root, onMissingReport} 
     for (const family of families) {
       for (const member of family.members.filter(item => item.role === 'SHARER')) {
         const line = el('div', 'family-loc-settings-row'); line.append(el('span', '', member.name));
-        for (const kind of ['STALE', 'BATTERY', 'PAUSE']) {
+        for (const kind of kinds) {
           const label = el('label', 'family-loc-check-label'); const box = el('input'); box.type = 'checkbox';
           box.checked = settings.member_kinds?.[member.id]?.[kind] !== false;
           label.append(box, el('span', '', KIND_LABEL[kind])); line.append(label);
@@ -469,7 +608,9 @@ export async function mountFamilyLocation({sessionToken, root, onMissingReport} 
       if (!settingsNode || settingsKey !== key) { settingsNode = settingsSection(families); settingsKey = key; }
       parts.push(settingsNode);
     }
-    parts.push(el('p', 'family-loc-note family-loc-footer', '위치·가족 화면에는 광고가 없어요. 이동 기록은 남기지 않고 마지막 위치 1개만 암호화해 저장해요.'));
+    parts.push(el('p', 'family-loc-note family-loc-footer', placesSupported()
+      ? '위치·가족 화면에는 광고가 없어요. 이동 경로는 남기지 않아요. 마지막 위치 1개만 암호화해 저장하고, 장소 도착·출발은 알림과 하루 보관 기록만 남아요.'
+      : '위치·가족 화면에는 광고가 없어요. 이동 기록은 남기지 않고 마지막 위치 1개만 암호화해 저장해요.'));
     content.replaceChildren(...parts);
   }
 

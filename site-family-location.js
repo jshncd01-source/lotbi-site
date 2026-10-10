@@ -2,7 +2,7 @@
 // Everything answers 404 FAMILY_LOCATION_NOT_ENABLED until the owner turns Core's switch on;
 // the care tab is not even shown then. Coordinates are only ever read from Core's answer for a
 // person this account may see; nothing here keeps them (no storage, no URL query, no log).
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-b0c8e0368576';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-f5ec80ca26ef';
 
 export const FAMILY_PRIVACY_NOTICE = 'LOTBI 직원이 가족 위치를 볼 수 있는 화면은 없어요. 위치는 암호화해 보관하고 광고·판매·AI 학습에 쓰지 않아요. 실종 신고를 하면 보호자가 적은 \'마지막으로 본 장소\'만 담당자가 확인해요.';
 
@@ -61,6 +61,21 @@ export const getFamilyAlertSettings = async (sessionToken, fetchImpl) => (await 
 export const putFamilyAlertSettings = async (sessionToken, settings, fetchImpl) => (await request('/settings', sessionToken, {method: 'PUT', body: {
   quiet_start_hour: settings.quietStartHour, quiet_end_hour: settings.quietEndHour, stale_minutes: settings.staleMinutes, member_kinds: settings.memberKinds || {},
 }}, fetchImpl)).settings;
+
+// 도착/출발 places (Core docs/FAMILY-LOCATION-01.md §8): a guardian sets them for a person they see;
+// the person's phone decides arrival and departure. Plus 5 / Pro 10 per family.
+export const listFamilyPlaces = (sessionToken, memberId, fetchImpl) => request(`/members/${encodeURIComponent(memberId)}/places`, sessionToken, {}, fetchImpl);
+export const createFamilyPlace = async (sessionToken, memberId, input, fetchImpl) => (await request(`/members/${encodeURIComponent(memberId)}/places`, sessionToken, {method: 'POST', body: {
+  name: input.name, kind: input.kind, radius_m: input.radiusMeters, center: input.center, arrive: input.arrive !== false, depart: input.depart !== false,
+  ...(typeof input.holidayOff === 'boolean' ? {holiday_off: input.holidayOff} : {}), ...(input.myChildEntryId ? {my_child_entry_id: input.myChildEntryId} : {}),
+}}, fetchImpl)).place;
+export const updateFamilyPlace = async (sessionToken, placeId, fields, fetchImpl) => (await request(`/places/${encodeURIComponent(placeId)}`, sessionToken, {method: 'PATCH', body: fields}, fetchImpl)).place;
+export const deleteFamilyPlace = (sessionToken, placeId, fetchImpl) => request(`/places/${encodeURIComponent(placeId)}`, sessionToken, {method: 'DELETE'}, fetchImpl);
+/** The guardian's own position (site-current-location.js shape) as a place centre; Core refuses a circle over 100 m. */
+export function familyPlaceCenterFromFix(fix) {
+  return {source: 'MY_LOCATION', latitude: Number(fix.latitude), longitude: Number(fix.longitude),
+    accuracy_m: Math.max(0.5, Math.min(5000, Number(fix.accuracyMeters) || 5000))};
+}
 
 /** "지금 내 위치 한 번 보내기" from an open page (MANUAL). `fix` comes from site-current-location.js. */
 export function sendFamilyLocationOnce(sessionToken, fix, fetchImpl) {
@@ -143,6 +158,12 @@ export function familyErrorMessage(error, fallback) {
     case 'FAMILY_ALREADY_MEMBER': return '이미 이 가족에 연결돼 있어요.';
     case 'FAMILY_CHILD_CANNOT_END': return '만 14세 미만은 공유를 끌 수 없어요. 잠시 멈추기를 쓰거나 원치 않는 추적이면 신고해 주세요.';
     case 'FAMILY_RATE_LIMITED': return '잠시 후 다시 시도해 주세요.';
+    case 'FAMILY_PLACE_PLAN_REQUIRED': return '도착·출발 알림은 Plus 요금제부터 쓸 수 있어요.';
+    case 'FAMILY_PLACE_LIMIT': return '요금제의 장소 수를 다 썼어요(Plus 5곳, Pro 10곳).';
+    case 'FAMILY_PLACE_CENTER_UNAVAILABLE': return '지금은 상대 위치를 볼 수 없어 이 방법으로 등록할 수 없어요. 그 장소에서 \'내 지금 위치로\'를 골라 주세요.';
+    case 'FAMILY_PLACE_CENTER_UNCERTAIN': return '위치 오차가 100m보다 커서 장소로 쓰지 않았어요. 잠시 뒤 밖에서 다시 해 주세요.';
+    case 'FAMILY_PLACE_INVALID': return '장소 이름(20자까지)·종류·반경을 확인해 주세요.';
+    case 'FAMILY_PLACE_NOT_FOUND': return '장소를 찾지 못했어요. 새로 고침해 주세요.';
     default: return fallback;
   }
 }

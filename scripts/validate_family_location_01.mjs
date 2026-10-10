@@ -10,6 +10,10 @@
 // legal-guardian consent; an SOS turns into a 실종 신고 draft; a sharer sees who sees them, pauses an
 // hour and can report unwanted tracking; an invitation link is previewed and accepted with the share
 // consent; a switched-off Core shows "준비 중"; the 가족 위치 tab exists only when Core answers.
+// 도착/출발 places: shown only when Core lists the PLACE alert kind; a guardian adds a place around
+// the person's current place (no coordinate leaves the page for it) or picks a 내 아이 school, turns
+// arrival/departure/days-off on and off, deletes it; typing survives the 3-second redraws; the
+// person sees every place set for them; the alert settings gain 장소 도착·출발.
 // Layout at 360 px, light and dark. All data is synthetic.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -42,6 +46,10 @@ assert.match(sections, /if \(authenticated && typeof mountFamily === 'function' 
 assert.match(conversation, /checkFamily: async \(\) => \{/u);
 assert.match(conversation, /care: \(\) => openConsumerSection\('care', \{careTab: hasFamilyInviteIntent\(\) \? 'family' : 'people'\}\)/u);
 assert.match(html, /<link rel="stylesheet" href="site-family-location\.css\?v=aset-[0-9a-f]{12}" \/>/u);
+// A place centre from this browser is the guardian's own position, asked for only on a press.
+assert.match(ui, /const fix = await currentFix\(\)\.catch\(\(\) => null\);\r?\n\s+if \(!fix\) \{ say\('내 현재 위치를 확인하지 못했어요\./u);
+assert.match(ui, /center = familyPlaceCenterFromFix\(fix\);/u);
+assert.match(ui, /const placesSupported = \(\) => \(overview\?\.settings\?\.kinds \|\| \[\]\)\.includes\('PLACE'\);/u, 'places only when Core has them');
 
 // ── browser ───────────────────────────────────────────────────────────────────
 const head = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/site-theme-tokens.css"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-consumer-design.css"><link rel="stylesheet" href="/site-safecare.css"><link rel="stylesheet" href="/site-family-location.css"><style>body{margin:0;padding:12px;background:var(--lotbi-bg-primary,#fff)}#host{max-width:720px;margin:auto}</style></head>';
@@ -138,6 +146,8 @@ try {
   results.stopReason = grandpaCard.querySelector('.family-loc-reason')?.textContent === '절전 기능이 LOTBI를 끈 것 같아요.'
     && grandpaCard.textContent.includes('47분 전 마지막 확인') && !grandpaCard.querySelector('a[href*="map.kakao"]');
   results.guardianListed = text().includes('함께 보는 사람: 박아빠');
+  // An older Core (no PLACE kind) shows no places and no 장소 alert toggle.
+  results.placesHiddenOnOldCore = !q('[data-family-action="places"]') && !text().includes('장소 도착·출발');
   card.querySelector('[data-family-action="now"]').click();
   await wait(() => card.isConnected ? null : q('[data-family-member="flm_0123456789abcdef0123"] [data-family-request-status="ANSWERED"]'), 'answered');
   results.nowAnswered = calls.some(call => call.key === 'POST /members/flm_0123456789abcdef0123/requests' && call.body.kind === 'NOW') && polls >= 2
@@ -179,11 +189,67 @@ try {
   results.bearerOnly = calls.every(call => call.auth === 'Bearer synthetic-session' && call.credentials === 'omit');
   mounted.dispose?.();
 
+  // 2b. 도착/출발 places
+  const placeRow = {id: 'flp_0123456789abcdef0123', member_id: 'flm_0123456789abcdef0123', name: '학원', kind: 'ACADEMY', kind_label: '학원', radius_m: 150,
+    arrive: true, depart: true, holiday_off: false, school_linked: false, created_by: '김엄마', created_at: new Date().toISOString(), center: {latitude: LAT, longitude: LNG}};
+  let placeList = {places: [placeRow], limit: 5, used: 1, plan_allows: true,
+    suggestions: [{my_child_entry_id: 'mci_0123456789abcdef0123', name: '은율 학교', kind: 'SCHOOL', neis_school: true}]};
+  overview = {...overview, sos: [], settings: {quiet_start_hour: 23, quiet_end_hour: 6, stale_minutes: 30, member_kinds: {}, kinds: ['STALE', 'BATTERY', 'PAUSE', 'PLACE']},
+    families: [{...overview.families[0], pending_guardians: [], invites: []}]};
+  polls = 0;
+  routes = {...routes,
+    'GET /overview': () => [200, overview],
+    'GET /members/flm_0123456789abcdef0123/places': () => [200, placeList],
+    'POST /members/flm_0123456789abcdef0123/places': body => {
+      const place = {...placeRow, id: 'flp_1111111111abcdef0123', name: body.name, kind: body.kind, kind_label: '학교', holiday_off: true, school_linked: true};
+      placeList = {...placeList, places: [...placeList.places, place], used: placeList.used + 1};
+      return [200, {place}];
+    },
+    'PATCH /places/flp_0123456789abcdef0123': body => [200, {place: {...placeRow, ...body}}],
+    'DELETE /places/flp_0123456789abcdef0123': () => { placeList = {...placeList, places: placeList.places.filter(item => item.id !== placeRow.id), used: placeList.used - 1}; return [200, {deleted: true}]; },
+  };
+  mounted = await uiModule.mountFamilyLocation({sessionToken: 'synthetic-session', root: host});
+  (await wait(() => q('[data-family-member="flm_0123456789abcdef0123"] [data-family-action="places"]'), 'places button')).click();
+  const panel = await wait(() => q('[data-family-places="flm_0123456789abcdef0123"] [data-family-place="flp_0123456789abcdef0123"]'), 'places panel');
+  results.placesListed = panel.textContent.includes('학원 (학원) · 반경 150m · 김엄마 님이 등록') && text().includes('장소 1/5곳')
+    && text().includes('3분 넘게 머물러야 알려요') && !q('[data-family-place="flp_0123456789abcdef0123"] [data-family-place-field="holiday_off"]');
+  // What a guardian types survives the 3-second redraws of a pending 지금 위치 request.
+  const placeName = () => q('[data-family-place-form] input:not([type])');
+  const typed = placeName(); typed.value = '학원A';
+  q('[data-family-member="flm_0123456789abcdef0123"] [data-family-action="now"]').click();
+  await wait(() => q('[data-family-member="flm_0123456789abcdef0123"] [data-family-request-status="ANSWERED"]'), 'answered with places open');
+  results.placeTypingKept = placeName() === typed && typed.value === '학원A';
+  const placeForm = q('[data-family-place-form]');
+  const [suggestionSelect, kindSelect] = placeForm.querySelectorAll('select');
+  suggestionSelect.value = 'mci_0123456789abcdef0123'; suggestionSelect.dispatchEvent(new Event('change'));
+  results.suggestionFills = placeName().value === '은율 학교' && kindSelect.value === 'SCHOOL'
+    && placeForm.querySelector('input[type=radio][value="MEMBER_LOCATION"]').checked;
+  placeForm.requestSubmit();
+  await wait(() => q('[data-family-place="flp_1111111111abcdef0123"]'), 'place added');
+  const placeBody = calls.find(call => call.key === 'POST /members/flm_0123456789abcdef0123/places').body;
+  results.placeCreated = JSON.stringify(placeBody) === JSON.stringify({name: '은율 학교', kind: 'SCHOOL', radius_m: 150, center: {source: 'MEMBER_LOCATION'},
+    arrive: true, depart: true, my_child_entry_id: 'mci_0123456789abcdef0123'}) && !!q('[data-family-place="flp_1111111111abcdef0123"] [data-family-place-field="holiday_off"]');
+  const departBox = q('[data-family-place="flp_0123456789abcdef0123"] [data-family-place-field="depart"]');
+  departBox.checked = false; departBox.dispatchEvent(new Event('change'));
+  await wait(() => calls.some(call => call.key === 'PATCH /places/flp_0123456789abcdef0123'), 'place patched');
+  results.placePatched = JSON.stringify(calls.find(call => call.key === 'PATCH /places/flp_0123456789abcdef0123').body) === JSON.stringify({depart: false});
+  const patchAt = calls.findIndex(call => call.key === 'PATCH /places/flp_0123456789abcdef0123');
+  await wait(() => calls.slice(patchAt).some(call => call.key === 'GET /members/flm_0123456789abcdef0123/places'), 'reload after patch');
+  (await wait(() => q('[data-family-place="flp_0123456789abcdef0123"] [data-family-action="place-delete"]'), 'delete button')).click();
+  await wait(() => !q('[data-family-place="flp_0123456789abcdef0123"]') && calls.some(call => call.key === 'DELETE /places/flp_0123456789abcdef0123'), 'place deleted');
+  results.placeDeleted = true;
+  const settingsForm = q('[data-family-settings]');
+  results.placeAlertSetting = settingsForm.textContent.includes('장소 도착·출발') && settingsForm.textContent.includes('장소 도착·출발 알림은 보내지 않아요')
+    && text().includes('이동 경로는 남기지 않아요');
+  results.placesNoCoordinates = calls.filter(call => call.key.includes('/places')).every(call => !JSON.stringify(call.body || {}).match(/latitude|longitude/u));
+  mounted.dispose?.();
+
   // 3. a child who shares
   overview = {enabled: true, privacy_notice: 'x', consent, sos: [], settings: {}, families: [],
     sharing: {sharing: true, connected: true, paused: false, paused_until: null, under14: true, can_end: false, pause_options: ['HOUR'], pause_max_hours: 3,
       viewers: [{name: '김엄마', role: 'OWNER'}, {name: '박아빠', role: 'GUARDIAN'}], families: [{member_id: 'flm_0123456789abcdef0123', relation: 'CHILD', owner: '김엄마'}],
-      recent_checks: [{by: '김엄마', kind: 'NOW', at: new Date().toISOString()}], reconfirm_due_at: null, active_device: true, indicator: '가족에게 위치 공유 중'}};
+      recent_checks: [{by: '김엄마', kind: 'NOW', at: new Date().toISOString()}], reconfirm_due_at: null, active_device: true, indicator: '가족에게 위치 공유 중',
+      places: [{name: '학원', kind_label: '학원', by: '김엄마', arrive: true, depart: false}]}};
   routes = {'GET /overview': () => [200, overview],
     'POST /sharing/pause': body => [200, {sharing: {...overview.sharing, paused: true}}],
     'POST /members/flm_0123456789abcdef0123/report': () => [200, {reported: true, message: '연결을 끊었어요. 신고가 접수됐고, 이 가족은 다시 초대할 수 없어요.'}]};
@@ -191,6 +257,7 @@ try {
   const sharing = await wait(() => q('[data-family-sharing]'), 'sharing');
   results.sharingView = sharing.querySelector('.family-loc-indicator').textContent === '가족에게 위치 공유 중' && sharing.textContent.includes('나를 보는 사람: 김엄마, 박아빠')
     && sharing.textContent.includes('김엄마 · 위치를 확인했어요') && sharing.textContent.includes('잠시 멈추면 보호자에게 바로 알려져요.');
+  results.placesForMe = q('[data-family-places-for-me]')?.textContent.includes('· 학원 (학원) · 김엄마 님이 등록 · 도착') === true;
   results.childPauseOnlyHour = !!sharing.querySelector('[data-family-action="pause-HOUR"]') && !sharing.querySelector('[data-family-action="pause-TODAY"]')
     && !sharing.querySelector('[data-family-action="leave"]');
   sharing.querySelector('[data-family-action="pause-HOUR"]').click();
@@ -242,8 +309,10 @@ try {
 
 const result = await runFixturePage({root: ROOT, fixturePath: '/__family_location_01.html', fixtureHtml: flow, resultExpression: 'window.__result || ""', viewport: {width: 390, height: 844, mobile: true, deviceScaleFactor: 1}, timeoutMs: 180_000});
 assert.equal(result.ok, true, result.error);
-for (const key of ['modulesLoad', 'notEnabled', 'privacy', 'lastTimeAndBattery', 'place', 'mapLinks', 'stopReason', 'guardianListed', 'nowAnswered', 'statusCheck', 'approve',
-  'sosCard', 'missingPrefill', 'consentShownOnlyForUnder14', 'noInviteWithoutConsent', 'invite', 'bearerOnly', 'sharingView', 'childPauseOnlyHour', 'pause',
+for (const key of ['modulesLoad', 'notEnabled', 'privacy', 'lastTimeAndBattery', 'place', 'mapLinks', 'stopReason', 'guardianListed', 'placesHiddenOnOldCore', 'nowAnswered', 'statusCheck', 'approve',
+  'sosCard', 'missingPrefill', 'consentShownOnlyForUnder14', 'noInviteWithoutConsent', 'invite', 'bearerOnly',
+  'placesListed', 'placeTypingKept', 'suggestionFills', 'placeCreated', 'placePatched', 'placeDeleted', 'placeAlertSetting', 'placesNoCoordinates',
+  'sharingView', 'placesForMe', 'childPauseOnlyHour', 'pause',
   'report', 'sosButton', 'preview', 'accept', 'tabHiddenWhenOff', 'tabShownWhenOn', 'noOtherNetwork']) {
   assert.equal(result.results[key], true, `${key}: ${JSON.stringify(result.results)}`);
 }
@@ -274,4 +343,4 @@ for (const theme of ['light', 'dark']) {
   assert.equal(view.basic, true, `${theme}: Basic shows the requests left and why the live map is hidden`);
 }
 
-console.log('FAMILY_LOCATION_01 PASS — source rules + browser flows (guardian, owner, sharer, invitation, tab gating) + 360px light/dark; synthetic Core answers, not live E2E');
+console.log('FAMILY_LOCATION_01 PASS — source rules + browser flows (guardian, owner, sharer, invitation, 도착/출발 places, tab gating) + 360px light/dark; synthetic Core answers, not live E2E');
