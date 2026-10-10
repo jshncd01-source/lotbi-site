@@ -2,15 +2,19 @@
 // 찾을까요?" answer. The list is Core's public weather region list
 // (/v2/life/weather/regions: 시·도 → 시·군, no login), the same one Calendar
 // uses. Picking a region only hands its name back to the conversation, which
-// asks again with it; nothing is saved and no location is read.
-import {CORE_ORIGIN} from './site-core.js?v=aset-49853149b574';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-49853149b574';
+// asks again with it; no location is read. NEARBY-LOCATION-ALLOW-PROMPT-01:
+// the pick also carries the list's own coordinates for that 시·군, so a PC
+// can keep it as the person's region (site-location-allow.js decides), and
+// the saved region is chosen when the list opens.
+import {CORE_ORIGIN} from './site-core.js?v=aset-50858d6cd533';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-50858d6cd533';
 
 const REGION_LIST_TIMEOUT_MS = 8000;
 let regionChoicesRequest = null;
 
-// {provinces: [...], byProvince: Map(province → [{label, name}])}, or null.
-// name is what goes into the sentence: "전북특별자치도 전주시", "세종특별자치시".
+// {provinces: [...], byProvince: Map(province → [{label, name, latitude, longitude}])},
+// or null. name is what goes into the sentence: "전북특별자치도 전주시",
+// "세종특별자치시". latitude/longitude are the list's 시·군 anchor (NaN when absent).
 export function regionChoicesFromPayload(payload) {
   const items = Array.isArray(payload?.items) ? payload.items : [];
   const byProvince = new Map();
@@ -21,7 +25,16 @@ export function regionChoicesFromPayload(payload) {
     const name = province === label ? label : `${province} ${label}`;
     if (!byProvince.has(province)) byProvince.set(province, []);
     const list = byProvince.get(province);
-    if (!list.some(entry => entry.name === name)) list.push(Object.freeze({label, name}));
+    const latitude = Number(item?.latitude);
+    const longitude = Number(item?.longitude);
+    if (!list.some(entry => entry.name === name)) {
+      list.push(Object.freeze({
+        label,
+        name,
+        latitude: Number.isFinite(latitude) && item?.latitude !== null ? latitude : Number.NaN,
+        longitude: Number.isFinite(longitude) && item?.longitude !== null ? longitude : Number.NaN,
+      }));
+    }
   }
   const listed = Array.isArray(payload?.provinces)
     ? payload.provinces.map(value => (typeof value === 'string' ? value.trim() : '')).filter(value => byProvince.has(value))
@@ -73,7 +86,7 @@ function fillOptions(select, placeholder, entries) {
   }));
 }
 
-export function openRegionPicker({onPick, returnFocus = null, fetchImpl = globalThis.fetch, origin = CORE_ORIGIN} = {}) {
+export function openRegionPicker({onPick, returnFocus = null, initialName = '', fetchImpl = globalThis.fetch, origin = CORE_ORIGIN} = {}) {
   const titleId = `lotbi-region-picker-title-${Math.random().toString(36).slice(2, 10)}`;
   const body = element('div', 'lotbi-region-picker');
   const title = element('h3', 'lotbi-region-picker-title', '지역 선택');
@@ -127,9 +140,10 @@ export function openRegionPicker({onPick, returnFocus = null, fetchImpl = global
   submit.addEventListener('click', () => {
     const name = city.value;
     if (!name || typeof onPick !== 'function') return;
+    const entry = (choices?.byProvince.get(province.value) || []).find(item => item.name === name) || null;
     picked = true;
     sheet.close();
-    onPick(name);
+    onPick(name, entry);
   });
 
   const load = async () => {
@@ -146,7 +160,16 @@ export function openRegionPicker({onPick, returnFocus = null, fetchImpl = global
     status.textContent = '';
     fillOptions(province, '시·도 선택', choices.provinces.map(value => [value, value]));
     province.disabled = false;
+    // The saved region, when it is on the list, is already chosen.
+    const wanted = String(initialName || '').trim();
+    const home = wanted ? choices.provinces.find(value => (choices.byProvince.get(value) || []).some(entry => entry.name === wanted || entry.label === wanted)) : '';
+    if (home) province.value = home;
     fillCities();
+    if (home) {
+      const entry = choices.byProvince.get(home).find(item => item.name === wanted || item.label === wanted);
+      if (entry) city.value = entry.name;
+      syncSubmit();
+    }
   };
   retry.addEventListener('click', () => { void load(); });
 
