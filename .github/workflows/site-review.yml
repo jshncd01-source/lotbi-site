@@ -89,6 +89,11 @@ jobs:
       - name: Validate PHASE 10 conversation management
         run: node scripts/validate_conversation_management_10.mjs
 
+      # CONVERSATION-ACCOUNT-SYNC-01: two devices, offline recovery, device
+      # upload yes/no, sync off, delete, shared device, phone widths and dark.
+      - name: Validate conversation account sync
+        run: node scripts/validate_conversation_account_sync_01.mjs
+
       - name: Validate same-page profile menu runtime
         run: node scripts/validate_profile_menu_improvement_01.mjs
 
@@ -679,9 +684,13 @@ jobs:
       - name: Validate company philosophy page
         run: python scripts/validate_about.py
 
+      # 월렛 PIN 칸은 type=password가 아닌 가린 숫자 칸(브라우저·삼성 패스가 로그인으로 저장
+      # 제안하지 않게), 자료 첨부는 한 곳에서 카메라 / 내 파일 두 가지, 카메라로 다녀와도
+      # 자료 추가 화면 유지(열쇠는 메모리에서 내림)를 실제 Chrome에서 확인한다.
       - name: Validate PC Web Life Wallet PIN lock
         run: |
           node scripts/validate_life_wallet_entry_lock_01.mjs
+          node scripts/validate_life_wallet_pin_attachment_ux_p0.mjs
           node scripts/validate_consumer_sections_02.mjs
           node scripts/validate_surface_drag_dismiss_guard_01.mjs
 
@@ -718,8 +727,8 @@ jobs:
       - name: Validate life info cleanup final
         run: node scripts/validate_life_info_cleanup_final_01.mjs
 
-      # ONNURI-MERCHANT-01: 생활정보 온누리상품권 가맹점 찾기 — 지역/현재 위치,
-      # Top 3 + 더 보기, 필터, 0건·준비 중 안내, 검증된 좌표 없이는 거리 없음,
+      # ONNURI-MERCHANT-01: 생활정보 온누리상품권 가맹점 찾기 — 지역/현재 위치(기본 5km),
+      # 한 번에 12곳, 필터, 0건·준비 중 안내, 검증된 좌표 없이는 거리 없음,
       # 승인 전 공식 로고 미사용을 375·390·1280에서 실제 탭으로 확인한다.
       - name: Validate Onnuri merchant search
         run: node scripts/validate_onnuri_merchant_search_01.mjs
@@ -728,6 +737,24 @@ jobs:
       # 소속 시장 위치(MARKET)로 놓인다 — 카드는 '시장까지' 거리·시장 주소·시장 길찾기만.
       - name: Validate Onnuri market location
         run: node scripts/validate_onnuri_market_location_02.mjs
+
+      # JEONBUK-PILOT-01 — 전북 맛집·음식 / 전북 행정기관 연락처 / 전북 의료기관
+      # 등록정보: 이미지 영역 없는 공식 기록 카드, 사용자 지도앱, 공개 번호만, 등록정보만
+      # 있는 병원 카드에 '진료 중' 없음, 생활정보 홈 마지막 줄 빈칸 없음을 360/375/390/412/데스크톱에서 잰다.
+      - name: Validate Jeonbuk real-world pilot cards and life entry
+        run: |
+          node --check site-life-regional.js
+          node scripts/validate_jeonbuk_real_world_pilot_01.mjs
+
+      # ONNURI-MERCHANT-LOCATION-UX-P0: 내 주변(1·3·5·10·25km)/지역 선택(시·도→시·군·구→읍·면·동,
+      # 시장·상점가), 12장 반응형 카드(1·2·3열), 위치 관계도, 선택한 지도앱 4종·기본값·충돌·복귀 시 반영,
+      # 검증된 전화만, 위치 허용/거부/실패, 0건 사유, Core 실패 재시도 — 360·375·390·412·768·1280, 라이트·다크.
+      - name: Validate Onnuri location UX P0
+        run: node scripts/validate_onnuri_location_ux_p0.mjs
+
+      # 기본 지도앱 쿠키 계약(Account 저장값 ↔ Site 읽기).
+      - name: Validate default map preference
+        run: node scripts/validate_default_map_preference_01.mjs
 
       - name: Validate 진위확인 production connection
         run: |
@@ -770,6 +797,13 @@ jobs:
       # 모바일 헤더 로그인 대비를 확인한다(실기기 아님).
       - name: Validate 진위확인 login gate buttons in light and dark
         run: node scripts/validate_scam_shield_login_gate_contrast_01.mjs
+
+      # Core의 2단계 독립 확인 결과(요약 문장·2단계 확인 결과 3줄·공식 근거·
+      # 접힌 경찰청 통계)를 실제 site-core 변환을 거쳐 그리는지, 정부(.go.kr/.or.kr)
+      # https 페이지만 링크가 되는지, 옛 Core 응답·2단계 실패 응답도 그려지는지를
+      # 390·1280, 라이트·다크에서 확인한다(WCAG AA, 실기기 아님).
+      - name: Validate 진위확인 2단계 확인 결과
+        run: node scripts/validate_scam_shield_double_check_p0.mjs
 
       # 다크·시스템다크 입력창 안 흰 사각형(텍스트칸 포커스 링) 0건과 둥근 입력창
       # 포커스 표시, 헤더 로그인·회원가입 대비·크기·겹침·이동, 답변 공유 메뉴의

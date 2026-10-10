@@ -101,6 +101,7 @@ window.fetch=async input=>{const u=String(typeof input==='string'?input:input?.u
 if(u.endsWith('/v2/me')){counts.me+=1;return new Response(JSON.stringify({user:{id:'usr',name:'홍길동',account_handle:'hong',email:'hong@example.com'},session:{id:'ses',assurance_level:'FULL',expires_at:'2099-01-01T00:00:00Z'},installation:{id:'install-profile-test'}}),{status:200,headers:{'Content-Type':'application/json'}})}
 if(u.endsWith('/v2/subscription')){counts.subscription+=1;await subscriptionGate;return new Response(JSON.stringify({plan:'LOTBI_PLUS',status:'ACTIVE',entitled:true,free_units:3,used_free_units:1,remaining_free_units:2}),{status:200,headers:{'Content-Type':'application/json'}})}
 if(u.endsWith('/v2/sessions/logout')){counts.logout+=1;return new Response(JSON.stringify({session_id:'ses',status:'REVOKED'}),{status:200,headers:{'Content-Type':'application/json'}})}
+if(u.includes('/v2/conversation-history/')){counts.history=(counts.history||0)+1;return new Response(JSON.stringify({sync_enabled:true,available:false}),{status:200,headers:{'Content-Type':'application/json'}})}
 counts.other+=1;return new Response('{}',{status:500})};
 try{
 localStorage.clear();

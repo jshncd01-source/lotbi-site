@@ -126,6 +126,8 @@ function onnuriResponse(url) {
   const source = {label:'소상공인시장진흥공단 전국 온누리상품권 가맹점 현황',source_date:'2026-07-31',synced_at:'2026-10-08T17:00:00+09:00'};
   if (url.pathname.endsWith('/regions')) {
     const sido = p.get('sido'), sigungu = p.get('sigungu');
+    if (p.get('level') === 'MARKET') return {contract_id:'CORE-ONNURI-MERCHANT-REGIONS-01',schema_version:1,availability:'AVAILABLE',level:'MARKET',
+      regions:[...new Set(merchants.filter(m=>m.sido===sido&&m.market_name&&(!sigungu||m.sigungu===sigungu)).map(m=>m.market_name))].sort().map(name=>({name,count:1})),data_source:source};
     const pick = !sido ? merchants.map(m=>m.sido) : !sigungu ? merchants.filter(m=>m.sido===sido).map(m=>m.sigungu) : merchants.filter(m=>m.sido===sido&&(m.sigungu===sigungu||m.sigungu.startsWith(sigungu+' '))).map(m=>m.dong);
     return {contract_id:'CORE-ONNURI-MERCHANT-REGIONS-01',schema_version:1,availability:'AVAILABLE',level:!sido?'SIDO':!sigungu?'SIGUNGU':'DONG',regions:[...new Set(pick)].sort().map(name=>({name,count:1})),data_source:source};
   }
@@ -141,12 +143,13 @@ function onnuriResponse(url) {
   if (p.get('category')) rows = rows.filter(m=>words[p.get('category')].some(w=>(m.items||'').includes(w)||m.name.includes(w)));
   if (p.get('accept')==='PAPER') rows = rows.filter(m=>m.paper===true);
   if (p.get('accept')==='DIGITAL') rows = rows.filter(m=>m.digital===true);
-  if (nearby) rows = rows.filter(m=>m.lat!==null).map(m=>({...m,d:Math.round(hav(lat,lng,m.lat,m.lng))})).sort((a,b)=>a.d-b.d);
+  const radius = Number(p.get('radius_meters')||5000);
+  if (nearby) rows = rows.filter(m=>m.lat!==null).map(m=>({...m,d:Math.round(hav(lat,lng,m.lat,m.lng))})).filter(m=>m.d<=radius).sort((a,b)=>a.d-b.d);
   else rows.sort((a,b)=>a.sigungu.localeCompare(b.sigungu)||a.name.localeCompare(b.name));
   const limit = Number(p.get('limit')||3), offset = Number(p.get('offset')||0);
   const page = rows.slice(offset, offset+limit);
   const hasMore = offset+page.length < rows.length;
-  return {contract_id:'CORE-ONNURI-MERCHANT-SEARCH-01',schema_version:1,availability:'AVAILABLE',mode:nearby?'NEARBY':'REGION',location_used:nearby,
+  return {contract_id:'CORE-ONNURI-MERCHANT-SEARCH-01',schema_version:1,availability:'AVAILABLE',mode:nearby?'NEARBY':'REGION',location_used:nearby,...(nearby?{radius_meters:radius,radius_mode:'FIXED'}:{}),
     items:page.map(m=>({id:m.id,name:m.name,market_name:m.market_name,address:m.address,items:m.items,sido:m.sido,sigungu:m.sigungu,dong:m.dong,paper:m.paper,digital:m.digital,mobile:null,card:null,registered_year:2020,
       latitude:m.lat,longitude:m.lng,geo_state:m.lat!==null?'VERIFIED':'UNVERIFIED',distance_meters:nearby?m.d:null})),
     total_count:rows.length,has_more:hasMore,next_offset:hasMore?offset+page.length:null,data_source:source,notice:'',digital_notice:''};
@@ -210,6 +213,7 @@ const PROBE = `(() => {
     error: surface?.querySelector('.onnuri-error:not([hidden])')?.textContent || '',
     more: (() => { const m = surface?.querySelector('.onnuri-more'); return m && !m.hidden ? box(m) : null; })(),
     locate: box(surface?.querySelector('.onnuri-locate')),
+    modeTab: box(surface?.querySelector('[data-onnuri-mode="location"]')),
     digitalNote: Boolean(surface?.querySelector('.onnuri-digital-note:not([hidden])')),
     source: surface?.querySelector('.onnuri-source')?.textContent || '',
     regions: Object.fromEntries([...(surface?.querySelectorAll('[data-onnuri-region]') || [])].map(s => [s.dataset.onnuriRegion, {disabled: s.disabled, options: [...s.options].map(o => o.value), box: box(s)}])),
@@ -376,7 +380,7 @@ async function runCase(browser, origin, dir, testCase) {
       assert.equal(state.emoji, false, 'no ticket emoji anywhere');
     };
 
-    // 1. No permission: region list, Top 3, no distance; 더 보기; shortcut shows text only.
+    // 1. No permission: region list, first page (12; all 8 test shops), no distance; shortcut shows text only.
     await load();
     let state = await probe();
     assert.equal(state.shortcut.label, '온누리상품권');
@@ -388,17 +392,16 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(state.title, '온누리상품권 가맹점');
     assert.match(state.disclaimer, /공식·제휴 서비스가 아니에요/u);
     assert.equal(state.brandImg, false);
-    assert.equal(state.cards.length, 3, `${testCase.label}: Top 3`);
+    assert.equal(state.cards.length, 8, `${testCase.label}: one page of up to 12 (ONNURI-MERCHANT-LOCATION-UX-P0)`);
+    assert.equal(state.more, null, 'all 8 on the first page');
     assert.ok(state.cards.every(card => card.distance === ''), `no distance without location ${JSON.stringify({requests: state.requests, cards: state.cards.map(c => [c.name, c.distance]), note: state.note, status: state.status})}`);
-    assert.match(state.status, /거리는 현재 위치를 쓸 때만/u);
+    assert.match(state.status, /거리는 내 주변 검색에서만/u);
     assert.match(state.source, /2026-07-31 기준/u);
     assert.ok(state.requests.every(url => !url.includes('latitude=')), 'no location sent without permission');
-    assert.ok(state.locate.h >= 40, `${testCase.label}: locate button touch target ${state.locate.h}`);
+    assert.ok(state.modeTab.h >= 44, `${testCase.label}: 내 주변 tab touch target ${state.modeTab.h}`);
     layout(state);
-    await shot('01-region-top3');
-    await tap(await reveal('.onnuri-more'));
-    state = await waitFor(async () => { const v = await probe(); return v.cards.length === 6 ? v : null; }, `${testCase.label}: more`);
-    assert.equal(new Set(state.cards.map(card => card.id)).size, 6, 'no duplicates after 더 보기');
+    await shot('01-region-first-page');
+    assert.equal(new Set(state.cards.map(card => card.id)).size, 8, 'no duplicates');
 
     // 2. Region drill-down: 전북 → 전주시 덕진구 → 만성동 = 2 results only.
     await select('sido', '전북특별자치도');
@@ -426,14 +429,17 @@ async function runCase(browser, origin, dir, testCase) {
     // 4. Permission already granted: opens nearest-first with distances.
     await load({grant: true});
     state = await openOnnuri();
-    state = await waitFor(async () => { const v = await probe(); return v.cards.length === 3 && v.cards.every(c => c.distance) ? v : null; }, `${testCase.label}: nearby`);
-    assert.deepEqual(state.cards.map(card => card.name), ['만성커피', '만성한식당', '명동칼국수']);   // 5.5km < 덕진베이커리 5.8km
+    state = await waitFor(async () => { const v = await probe(); return v.cards.length === 2 && v.cards.every(c => c.distance) ? v : null; }, `${testCase.label}: nearby`);
+    assert.deepEqual(state.cards.map(card => card.name), ['만성커피', '만성한식당'], 'default 5 km');   // 명동칼국수 is 5.5km
+    await tap(await reveal('[data-onnuri-radius="10000"]'));
+    state = await waitFor(async () => { const v = await probe(); return v.cards.length >= 3 && v.requests.at(-1).includes('radius_meters=10000') ? v : null; }, `${testCase.label}: 10 km`);
+    assert.deepEqual(state.cards.slice(0, 3).map(card => card.name), ['만성커피', '만성한식당', '명동칼국수']);   // 5.5km < 효자분식 5.7km < 덕진베이커리 5.8km
     const meters = state.cards.map(card => card.distance.endsWith('km') ? Number.parseFloat(card.distance) * 1000 : Number.parseFloat(card.distance));
     assert.deepEqual(meters, [...meters].sort((a, b) => a - b), 'nearest first');
-    assert.ok(state.cards.every(card => card.mapLabel === '길찾기'));
+    assert.ok(state.cards.every(card => card.mapLabel === '네이버지도 길찾기'), 'the chosen (default) map app is named');
     const nearbyRequest = state.requests.find(url => url.includes('latitude='));
     assert.ok(nearbyRequest && !nearbyRequest.includes('sido='), 'location only, rounded');
-    assert.match(nearbyRequest, /latitude=35\.847/u);
+    assert.match(nearbyRequest, /latitude=35\.847&longitude=127\.061&radius_meters=5000/u);
     assert.match(state.note, /저장하지 않아요/u);
     layout(state);
     await shot('03-nearby');
@@ -441,7 +447,7 @@ async function runCase(browser, origin, dir, testCase) {
     // 5. 위치 사용 off: the button explains and falls back to regions.
     await load({cookie: 'lotbi_location_usage_v1=off'});
     state = await openOnnuri();
-    await tap(await reveal('.onnuri-locate'));
+    await tap(await reveal('[data-onnuri-mode="location"]'));
     state = await waitFor(async () => { const v = await probe(); return v.note.includes('위치 사용이 꺼져') ? v : null; }, `${testCase.label}: usage off`);
     assert.equal(state.settingsLink, 'https://account.lotbiai.com/account#privacy');
     assert.ok(state.requests.every(url => !url.includes('latitude=')));
@@ -475,4 +481,4 @@ try {
   }
 }
 
-console.log('ONNURI-MERCHANT-SEARCH-01 OK — 생활정보 온누리상품권: region/location search, Top 3 + 더 보기, filters, honest empty/not-ready states, no distance without verified location, no official logo before approval (viewport emulation, not a device run)');
+console.log('ONNURI-MERCHANT-SEARCH-01 OK — 생활정보 온누리상품권: region/location search (5 km default, 10 km wider), first page of 12, filters, honest empty/not-ready states, no distance without verified location, no official logo before approval (viewport emulation, not a device run)');

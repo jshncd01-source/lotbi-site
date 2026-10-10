@@ -56,6 +56,27 @@
 .scam-result h4 { margin: 16px 0 6px; font-size: 1rem; }
 .scam-result ul { margin: 0; padding-left: 22px; line-height: 1.65; }
 .scam-result details { margin-top: 18px; }
+/* SCAM-SHIELD-DOUBLE-CHECK-P0 — summary sentence, the three-line second check,
+   official sources and the folded police statistics. Theme tokens only, so
+   light and dark both read. */
+.scam-result-summary { margin: 12px 0 0; font-size: 1.05rem; font-weight: 700; line-height: 1.6; word-break: keep-all; }
+.scam-double-check { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--lotbi-border-default, #d8dee8); border-radius: 14px; background: var(--lotbi-surface-subtle, #f6f8fb); color: var(--lotbi-text-primary, #212121); }
+.scam-result .scam-double-check h4 { margin: 0 0 8px; }
+.scam-double-check dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 12px; margin: 0; line-height: 1.6; }
+/* The home page flattens every result <section>; this box keeps its own tint,
+   and its rows take ink from the theme token, not the light fallback. */
+body.chat-home-page [data-scam-result] section.scam-double-check { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--lotbi-border-default, #d8dee8); background: var(--lotbi-surface-subtle, #f6f8fb); }
+.scam-result .scam-double-check :is(dt, dd) { color: var(--lotbi-text-primary, #212121); }
+.scam-double-check dt { font-weight: 800; }
+.scam-double-check dd { margin: 0; word-break: keep-all; }
+.scam-result .scam-official-sources ul { list-style: none; padding-left: 0; display: grid; gap: 10px; }
+.scam-official-sources li { display: grid; gap: 2px; }
+.scam-source-meta { color: var(--lotbi-text-secondary, #4b5563); font-size: .92rem; }
+.scam-result a:not(.scam-usage-link) { color: var(--lotbi-link-primary, #1258d8); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.scam-result a:not(.scam-usage-link):hover { color: var(--lotbi-link-hover, #0d47a1); }
+.scam-police-stats p { margin: 8px 0 0; line-height: 1.6; }
+.scam-police-stats a { display: inline-block; margin-top: 8px; }
+@media (max-width: 560px) { .scam-double-check dl { grid-template-columns: minmax(0, 1fr); gap: 2px; } .scam-double-check dd { margin-bottom: 6px; } }
 .scam-usage-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 18px; padding: 0 16px; border: 1px solid var(--lotbi-text-primary); border-radius: 12px; background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font-weight: 800; text-decoration: none; }
 .scam-dialog :is(button, a, input, textarea, select):focus-visible { outline: 3px solid var(--lotbi-focus-ring, #1258d8); outline-offset: 3px; }
 @media (max-width: 560px) { .scam-dialog { width: 100%; max-width: none; max-height: 92dvh; margin: auto 0 0; border-radius: 22px 22px 0 0; } .scam-incident { grid-template-columns: 1fr; } }

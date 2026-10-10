@@ -23,7 +23,9 @@ const TYPES = {'.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript
 
 // `resultExpression` must evaluate to a string: empty while pending, JSON when done.
 // userAgent / touch: optional phone-browser emulation (e.g. Samsung Internet on Android).
-export async function runFixturePage({root, fixturePath, fixtureHtml, resultExpression, viewport = null, userAgent = null, touch = false, timeoutMs = 300_000}) {
+// cpuThrottlingRate: slow the page's CPU down N times (DevTools CPU throttling) to reproduce a
+// small Linux gate runner; LOTBI_FIXTURE_CPU_THROTTLE sets it for every page of a run.
+export async function runFixturePage({root, fixturePath, fixtureHtml, resultExpression, viewport = null, userAgent = null, touch = false, timeoutMs = 300_000, cpuThrottlingRate = Number(process.env.LOTBI_FIXTURE_CPU_THROTTLE) || 0}) {
   const server = http.createServer((request, response) => {
     const url = new URL(request.url, 'http://127.0.0.1');
     if (url.pathname === fixturePath) { response.writeHead(200, {'content-type': TYPES['.html']}); response.end(fixtureHtml); return; }
@@ -53,6 +55,7 @@ export async function runFixturePage({root, fixturePath, fixtureHtml, resultExpr
     if (viewport) await send('Emulation.setDeviceMetricsOverride', {deviceScaleFactor: 1, mobile: false, ...viewport});
     if (userAgent) await send('Emulation.setUserAgentOverride', {userAgent});
     if (touch) await send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
+    if (cpuThrottlingRate > 1) await send('Emulation.setCPUThrottlingRate', {rate: cpuThrottlingRate});
     await send('Page.navigate', {url: `http://127.0.0.1:${server.address().port}${fixturePath}`});
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
