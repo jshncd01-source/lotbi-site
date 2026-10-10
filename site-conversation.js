@@ -3990,6 +3990,72 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   };
 
+  // REAL-ESTATE-REGION-FAVORITES-P0: 지역정보 → 부동산 실거래가 (public Core reads;
+  // 관심 아파트 on the account when signed in, on this device otherwise). Its
+  // own route with backRoute 'life', like 축제·행사: the system back and ← land on
+  // 지역정보. An apartment's contracts open inside the same screen under
+  // 'real-estate-apartment' (back → real-estate), so the list keeps its region,
+  // filters and scroll. While an apartment is open, the header ← and Escape step
+  // back to the list first — the same history step the system back takes.
+  let realEstateSurface = null;
+  const openRealEstate = async ({view = 'list'} = {}) => {
+    const reuse = realEstateSurface;
+    if (reuse?.controller && openSurface === reuse.backdrop) {
+      if (view === 'detail' && reuse.controller.hasApartment()) reuse.controller.showDetail();
+      else if (reuse.controller.view !== 'list') reuse.controller.showList();
+      return;
+    }
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('부동산 실거래가');
+    panel.classList.add('site-real-estate-modal');
+    const entry = {backdrop, controller: null};
+    realEstateSurface = entry;
+    installSurfaceBehavior(backdrop, panel, {
+      workspace: 'life', route: 'real-estate', backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life',
+      onClose: () => {
+        entry.controller?.dispose?.();
+        entry.controller = null;
+        if (realEstateSurface === entry) realEstateSurface = null;
+      },
+    });
+    const backToList = () => leaveSiteRoute('real-estate', () => { if (openSurface === backdrop) entry.controller?.showList(); });
+    panel.addEventListener('click', event => {
+      if (entry.controller?.view !== 'detail' || !(event.target instanceof Element) || !event.target.closest('.site-modal-close')) return;
+      event.preventDefault(); event.stopPropagation(); backToList();
+    }, true);
+    panel.addEventListener('keydown', event => {
+      if (event.key !== 'Escape' || entry.controller?.view !== 'detail') return;
+      event.preventDefault(); event.stopPropagation(); backToList();
+    }, true);
+    try {
+      const {mountRealEstate} = await import('./site-life-real-estate.js?v=aset-758a9cca962d');
+      if (!backdrop.isConnected || realEstateSurface !== entry) return;
+      entry.controller = mountRealEstate({
+        root: content,
+        sessionToken,
+        authenticated: Boolean(sessionToken),
+        accountId: serverIdentity?.userId || '',
+        onView: name => {
+          if (openSurface !== backdrop) return;
+          backdrop.dataset.siteRoute = name === 'detail' ? 'real-estate-apartment' : 'real-estate';
+          queueSiteRouteSync();
+        },
+        requestBack: backToList,
+      });
+      if (view === 'detail') {
+        // A reload of #real-estate-apartment reopens the apartment this tab
+        // showed; without one, the URL names the list that is on screen.
+        if (entry.controller.hasApartment()) entry.controller.showDetail();
+        else replaceSiteRouteInPlace('real-estate');
+      }
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'lotbi-re-error',
+        textContent: '부동산 실거래가 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+
   const openRenameThread = id => {
     const record = state.threads.find(item => item.id === id); if (!record) return;
     const {backdrop, panel, content} = modalShell('대화 이름 바꾸기', conversationSync?.onAccount(record)
@@ -4245,6 +4311,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       },
       onFestival: () => { closeSurface(); void openFestival(); },
       onOnnuri: () => { closeSurface(); void openOnnuri(); },
+      onRealEstate: () => { closeSurface(); void openRealEstate(); },
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
@@ -5843,6 +5910,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     pets: () => openConsumerSection('care', {careTab: 'pets'}),
     life: () => openConsumerSection('life'),
     festival: () => openFestival(),
+    'real-estate': () => openRealEstate(),
+    'real-estate-apartment': () => openRealEstate({view: 'detail'}),
     ...(LOTBI_BOX_UI_ENABLED ? {'lotbi-box': () => openLotbiBox()} : {}),
   };
   const applySiteRoute = target => {

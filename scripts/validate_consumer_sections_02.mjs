@@ -20,7 +20,7 @@ assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => item.id), [
 // 축제·행사 and 온누리상품권 open their own surfaces (ONNURI-MERCHANT-01);
 // 지역뉴스 and 내 아이 학교·유치원 open their own screens; 전북 맛집·음식 builds its
 // sentence from its own form (JEONBUK-PILOT-01).
-assert.ok(LIFE_SHORTCUTS.filter(item => !['medical', 'festivals', 'news', 'onnuri', 'my-child'].includes(item.id) && !item.ask && !item.regionalFood).every(item => typeof item.prompt === 'string'));
+assert.ok(LIFE_SHORTCUTS.filter(item => !['medical', 'festivals', 'news', 'onnuri', 'real-estate', 'my-child'].includes(item.id) && !item.ask && !item.regionalFood).every(item => typeof item.prompt === 'string'));
 // 공과금 확인 is hidden until an official integration exists — no entry, form or copy.
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills'), false);
 assert.doesNotMatch(source, /공과금|고지서|납부기한/);

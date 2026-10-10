@@ -26,6 +26,9 @@ export const LIFE_MEDICAL_QUESTIONS = Object.freeze({
 // or 유치원·학교 찾기 (the public lookup, KINDERGARTEN-OFFICIAL-INFO-01).
 // Eight cards with 전북 맛집·음식: every row of two is full (an odd count would
 // let the last card span its row, site-consumer-design.css).
+// REAL-ESTATE-REGION-FAVORITES-P0 adds 부동산 실거래가 after 온누리상품권: its own
+// list screen (site-life-real-estate.js, route real-estate), never a question
+// to the conversation. Nine cards: the odd last card spans its row.
 export const LIFE_MEDICAL_CHOICES = Object.freeze([
   Object.freeze({id: 'hospital', label: '병원·의원 찾기'}),
   Object.freeze({id: 'emergency', label: '응급실 찾기'}),
@@ -80,6 +83,7 @@ const ICON_PATHS = {
   food: ['M6 2v7a2 2 0 0 0 4 0V2M8 2v20', 'M18 22V2c-2.2 1.4-3.5 4.2-3.5 7.5V14H18'],
   school: ['m2 9 10-5 10 5-10 5L2 9Z', 'M6 11v5c3 2.5 9 2.5 12 0v-5', 'M22 9v6'],
   backpack: ['M9 6V5a3 3 0 0 1 6 0v1', 'M6 9a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v12H6V9Z', 'M9 13h6v4H9v-4Z'],
+  building: ['M4 21V8l6-4v17', 'M10 21V9h10v12', 'M2 21h20', 'M13 12h1m3 0h1m-5 4h1m3 0h1M6.5 10h1m-1 4h1'],
 };
 
 function node(tag, className = '', text = '') {
@@ -115,7 +119,7 @@ function empty(title, copy, glyph) {
   return section;
 }
 
-export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
+export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri, onRealEstate, loadCareCounts, mountPeople, mountPets, mountMyChild, careTab = 'people', onCareTab, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null} = {}) {
   root.classList.add('consumer-section-content');
   root.dataset.consumerSurface = section;
   let disposed = false;
@@ -294,7 +298,8 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         else if (item.id === 'festivals') onFestival();
         else if (item.children) openChildChoice(item);
         else item.id === 'news' ? openNewsEntry(item)
-          : item.id === 'onnuri' ? onOnnuri?.() : openLifeDetail(item);
+          : item.id === 'onnuri' ? onOnnuri?.()
+            : item.id === 'real-estate' ? onRealEstate?.() : openLifeDetail(item);
       });
       grid.append(button);
     }

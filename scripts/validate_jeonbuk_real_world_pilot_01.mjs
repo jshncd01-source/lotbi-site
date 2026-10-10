@@ -312,7 +312,7 @@ try {
   // shortcuts, no empty cell in any row (and still none with seven, i.e. if
   // the 전북 card were ever taken out).
   document.querySelector('[data-consumer-section="life"]').click();
-  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 8 ? g : null; }, 'life grid');
+  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 9 ? g : null; }, 'life grid');
   await sleep(300);
   const rows = () => {
     const g = box(grid), byRow = new Map();

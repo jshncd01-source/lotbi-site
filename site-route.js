@@ -24,6 +24,10 @@ export const SITE_ROUTES = Object.freeze([
   'pets',
   'life',
   'festival',
+  // REAL-ESTATE-REGION-FAVORITES-P0: 지역정보 → 부동산 실거래가 (back → life) and
+  // one apartment's contracts inside it (back → real-estate).
+  'real-estate',
+  'real-estate-apartment',
   ...(LOTBI_BOX_UI_ENABLED ? ['lotbi-box'] : []),
 ]);
 

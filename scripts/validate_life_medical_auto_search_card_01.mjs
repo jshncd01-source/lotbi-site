@@ -407,7 +407,7 @@ async function runCase(browser, origin, dir, testCase) {
     const openLife = async () => {
       // The 생활정보 entry sits in the (closed) phone drawer; opening it is not under test.
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 8"), `${label}: life menu`);
+      await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 9"), `${label}: life menu`);
       await sleep(200);
     };
     // Marks the newest answer so selectors reach its cards, not an older one's.
@@ -586,7 +586,7 @@ async function runCase(browser, origin, dir, testCase) {
     await evaluate('history.back(), true');
     await sleep(900);
     await evaluate('history.forward(), true');
-    await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 8"), `${label}: forward restores 생활정보`);
+    await waitFor(() => evaluate("document.querySelectorAll('.consumer-workspace .consumer-shortcut').length === 9"), `${label}: forward restores 생활정보`);
     await sleep(600);
     state = await probe();
     assert.equal(state.sent.length, 4, `${label}: back / forward sends nothing`);
