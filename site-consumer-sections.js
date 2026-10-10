@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-6bddfde21b8f';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-6bddfde21b8f';
-import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-6bddfde21b8f';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-8623f528d925';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-8623f528d925';
+import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-8623f528d925';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -57,9 +57,11 @@ export const LIFE_SHORTCUTS = Object.freeze([
   // searched stations, official real-time arrivals, average congestion. No chat.
   {id: 'subway', label: '지하철 정보', icon: 'subway'},
   // ONNURI-MERCHANT-01: its own search surface (site-life-onnuri.js). The
-  // official logo is not used before approval; brandSlot reserves its place.
-  // LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: 온누리상품권 + 지역화폐 in one card.
-  {id: 'onnuri', label: '온누리상품권·지역화폐', brandSlot: 'onnuri'},
+  // official logo is not used before approval; brandSlot names the place it
+  // takes then. LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: 온누리상품권 + 지역화폐 in
+  // one card. QA 2026-10-10 #12: until then a plain voucher icon (LOTBI's own
+  // line icon, not the official mark) so it is not the one card without one.
+  {id: 'onnuri', label: '온누리상품권·지역화폐', icon: 'voucher', brandSlot: 'onnuri'},
   // REAL-ESTATE-REGION-FAVORITES-P0: 국토교통부 실거래가 list + 관심 아파트, no chat.
   {id: 'real-estate', label: '부동산 실거래가', icon: 'building'},
   // TRAFFIC-CCTV P0: official ITS road cameras by road, route and 구간, no chat.
@@ -92,6 +94,13 @@ const LIFE_VIEW_CARD = Object.freeze({
 export function lifeBackLabel(view) {
   return LIFE_VIEW_PARENT[view] === 'life' ? '지역정보로 돌아가기' : '대화로 돌아가기';
 }
+
+// QA 2026-10-10 #14: 지역생활정보 offers questions that ask in one tap, so the
+// form is not the only way in. No "nearby" word: like the form, they never
+// send the current location (lifeLocationIntent stays false).
+export const LIFE_DETAIL_EXAMPLES = Object.freeze({
+  local: Object.freeze(['쓰레기 배출 요일', '주민센터 운영시간', '대형폐기물 버리는 방법', '공영주차장 위치']),
+});
 
 // Each existing request form should show examples that belong to that service,
 // not a mixed café/grant example repeated across every detail page.
@@ -126,6 +135,7 @@ const ICON_PATHS = {
   ev: ['M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16', 'M2 21h15', 'm10 7-2.5 4h4L9 15', 'M15 9h1.5a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-2.5-2.5'],
   subway: ['M7 3h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z', 'M4 11h16M8 15h.01M16 15h.01', 'm8 18-2 3m10-3 2 3'],
   cctv: ['M3 7.5 15 3.8l2 6.2-12 3.7-2-6.2Z', 'm17 8.6 4-1.2v5.2l-3.2 1', 'M8 12.6 9 16H4.5v4.5', 'M7 8.4h.01'],
+  voucher: ['M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4V7Z', 'M14 7v2m0 2v2m0 2v2'],
 };
 
 function node(tag, className = '', text = '') {
@@ -203,7 +213,8 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       if (typeof requestLifeBack === 'function') requestLifeBack(parent, apply); else apply();
       return true;
     };
-    const backAction = from => action(lifeBackLabel(from), () => stepBack(from), {secondary: true});
+    // QA 2026-10-10 #3: one back per screen — the header ← steps to the 지역정보
+    // list (its label says so, lifeBackLabel); no second '지역정보로 돌아가기' link.
     function showGrid(from = '') {
       releaseDetail();
       root.replaceChildren(heading, grid);
@@ -222,11 +233,21 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     function openLifeDetail(item) {
       releaseDetail();
       const viewName = `life-${item.id}`;
-      const back = backAction(viewName);
       const detail = node('section', 'consumer-life-detail');
       detail.dataset.lifeDetail = item.id;
       const title = node('h3', '', item.label); title.tabIndex = -1;
+      const examples = node('div', 'consumer-life-examples');
+      examples.setAttribute('role', 'group'); examples.setAttribute('aria-label', '자주 묻는 생활정보');
+      for (const example of LIFE_DETAIL_EXAMPLES[item.id] || []) {
+        const chip = node('button', 'consumer-life-example', example); chip.type = 'button';
+        chip.dataset.lifeExample = example;
+        chip.addEventListener('click', () => { if (!disposed) onAsk(`${item.prompt}\n궁금한 생활정보: ${example}`); });
+        examples.append(chip);
+      }
       const queryForm = node('form', 'consumer-life-form');
+      // LOTBI says what is missing, not the browser's own bubble.
+      queryForm.noValidate = true;
+      const formStatus = node('p', 'consumer-life-form-status'); formStatus.setAttribute('role', 'status'); formStatus.hidden = true;
       const controls = [];
       const fields = LIFE_DETAIL_FIELDS[item.id];
       for (const [labelText, placeholder] of fields) {
@@ -235,23 +256,22 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         field.placeholder = placeholder; field.maxLength = 1000; field.required = true;
         field.setAttribute('aria-label', labelText); label.append(field); controls.push([labelText, field]); queryForm.append(label);
       }
-      const send = action('롯비에게 물어보기'); send.type = 'submit'; queryForm.append(send);
+      const send = action('롯비에게 물어보기'); send.type = 'submit'; queryForm.append(formStatus, send);
       queryForm.addEventListener('submit', event => {
         event.preventDefault();
         if (disposed) return;
         const missing = controls.find(([, field]) => !field.value.trim());
-        if (missing) { missing[1].focus(); return; }
+        if (missing) { formStatus.textContent = `${missing[0]}를 입력해 주세요.`; formStatus.hidden = false; missing[1].focus(); return; }
         onAsk([item.prompt, ...controls.map(([label, field]) => `${label}: ${field.value.trim()}`)].join('\n'));
       });
       const note = '누르면 바로 롯비에게 물어봐요. 현재 위치는 자동으로 수집하지 않습니다.';
-      detail.append(back, title, queryForm, node('p', 'consumer-feature-note', note));
+      detail.append(title, ...(examples.childElementCount ? [examples] : []), queryForm, node('p', 'consumer-feature-note', note));
       root.replaceChildren(detail); setView(viewName); title.focus();
     }
     // 병원·응급실: nothing is asked until the reader picks 병원·의원 or 응급실;
     // the pick sends that existing medical question once.
     function openMedicalChoice(item) {
       releaseDetail();
-      const back = backAction('life-medical');
       const detail = node('section', 'consumer-life-detail');
       detail.dataset.lifeDetail = item.id;
       const title = node('h3', '', item.label); title.tabIndex = -1;
@@ -266,7 +286,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         button.dataset.medicalChoice = choice.id;
         choices.append(button);
       }
-      detail.append(back, title, choices);
+      detail.append(title, choices);
       root.replaceChildren(detail); setView('life-medical'); title.focus();
     }
     // 지역뉴스: its own module lists the 광역시·도 news titles in this screen
@@ -275,13 +295,12 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     function openNewsEntry(item) {
       releaseDetail();
       const current = ++generation;
-      const back = backAction('life-news');
       const detail = node('section', 'consumer-life-detail');
       detail.dataset.lifeDetail = item.id;
       const host = node('div', 'consumer-life-news');
-      detail.append(back, host);
-      root.replaceChildren(detail); setView('life-news'); back.focus();
-      import('./site-life-news.js?v=aset-6bddfde21b8f').then(({mountRegionalNews}) => {
+      detail.append(host);
+      root.replaceChildren(detail); setView('life-news');
+      import('./site-life-news.js?v=aset-8623f528d925').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -296,12 +315,11 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     function openMyChild(item) {
       releaseDetail();
       const current = ++generation;
-      const back = backAction('life-my-child');
       const detail = node('section', 'consumer-life-detail');
       detail.dataset.lifeDetail = item.id;
       const title = node('h3', '', item.label); title.tabIndex = -1;
       const host = node('div', 'consumer-life-my-child');
-      detail.append(back, title, host);
+      detail.append(title, host);
       root.replaceChildren(detail); setView('life-my-child'); title.focus();
       Promise.resolve(typeof mountMyChild === 'function' ? mountMyChild(host, {onAsk}) : null).then(mounted => {
         if (disposed || current !== generation) { mounted?.dispose?.(); return; }
@@ -312,7 +330,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     }
     for (const item of LIFE_SHORTCUTS) {
       const button = node('button', 'consumer-shortcut'); button.type = 'button'; button.dataset.lifeShortcut = item.id;
-      button.append(item.brandSlot ? brandSlot(item.brandSlot) : icon(item.icon), node('span', '', item.label));
+      button.append(item.icon ? icon(item.icon) : brandSlot(item.brandSlot), node('span', '', item.label));
       button.addEventListener('click', () => {
         if (disposed) return;
         if (item.ask) onAsk(item.ask);

@@ -208,7 +208,10 @@ const SNAPSHOT = `(() => {
     shell: document.documentElement.hasAttribute('data-subview-back-shell'),
     fakeList: shown('#fake-open'), fakeDetail: shown('#fake-detail'), fakeInner: shown('#fake-inner'),
     sheet: Boolean(document.querySelector('[data-lotbi-sheet][aria-modal="true"]')),
-    festivalList: shown('.festival-card-open'), festivalBack: shown('.festival-back-button'),
+    festivalList: shown('.festival-card-open'),
+    // Not by layout: with html[data-subview-back-shell] a module may hide its
+    // own back control by style and leave the header ← to press it (축제 UX).
+    festivalBack: [...document.querySelectorAll('.festival-back-button[data-subview-back]')].some(node => node.isConnected && !node.closest('[hidden]')),
     calendar: Boolean(document.querySelector('[data-site-route="calendar"]')), editor: shown('.calendar-editor-close'), calendarSettings: shown('.calendar-settings-close'),
   };
 })()`;
@@ -477,7 +480,9 @@ try {
   }
 } finally {
   server.kill();
-  await sleep(300);
-  fs.rmSync(workDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+  // Chrome may still hold its profile for a moment after it is told to quit.
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try { fs.rmSync(workDir, {recursive: true, force: true}); break; } catch { await sleep(300); }
+  }
 }
 console.log(`SUBVIEW-BACK-NAVIGATION-01 PASS (${passed} checks) — viewport emulation, not a device run`);

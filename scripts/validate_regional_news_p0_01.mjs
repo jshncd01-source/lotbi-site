@@ -567,8 +567,10 @@ async function runCase(browser, origin, dir, testCase) {
     assert.ok(!['INPUT', 'TEXTAREA'].includes(state.active?.tag), `${testCase.label}: no keyboard`);
     assert.ok(state.pageOverflowX <= 0 && state.panelOverflowX <= 0, `${testCase.label}: pick screen fits`);
     await shot('02-news-pick');
-    // ← returns to 지역정보 with focus on the card it came from.
-    await tap(await reveal('.consumer-life-detail > .consumer-action'));
+    // ← (the header's, the one back of the screen — QA 2026-10-10 #3) returns
+    // to 지역정보 with focus on the card it came from.
+    assert.equal(await evaluate("document.querySelectorAll('.consumer-life-detail > .consumer-action-secondary').length"), 0, `${testCase.label}: no second text back`);
+    await tap(await reveal('.consumer-workspace .site-modal-close'));
     state = await waitFor(async () => { const value = await probe(); return !value.detail && value.shortcuts.length === LIFE_SHORTCUTS.length ? value : null; }, `${testCase.label}: back to 지역정보`);
     assert.equal(state.active?.shortcut, 'news', `${testCase.label}: focus returns to 지역뉴스`);
 

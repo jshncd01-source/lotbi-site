@@ -36,7 +36,9 @@ const ID = n => String(n).padStart(40, 'a').slice(-40).replace(/[^0-9a-f]/gu, 'b
   assert.equal(onnuri.label, '온누리상품권·지역화폐');
   assert.equal(ONNURI_MENU_LABEL, '온누리상품권');
   assert.equal(ONNURI_CARD_LABEL, '온누리 가맹점');
-  assert.equal(onnuri.icon, undefined, 'no stand-in icon for the official logo');
+  // QA 2026-10-10 #12: LOTBI's own plain voucher icon until the official logo
+  // is approved (brandSlot keeps its place); never the official mark itself.
+  assert.equal(onnuri.icon, 'voucher', 'a plain LOTBI icon, not the official logo');
   assert.equal(onnuri.brandSlot, 'onnuri');
   assert.equal(ONNURI_LOGO_ASSET, '', 'official logo is not used before approval');
   assert.match(ONNURI_DISCLAIMER, /공식·제휴 서비스가 아니에요/u);
@@ -386,9 +388,9 @@ async function runCase(browser, origin, dir, testCase) {
     await load();
     let state = await probe();
     assert.equal(state.shortcut.label, '온누리상품권·지역화폐');
-    assert.equal(state.shortcut.slot, 'PENDING_APPROVAL');
-    assert.equal(state.shortcut.img, false);
-    assert.equal(state.shortcut.svg, false, 'no stand-in icon');
+    assert.equal(state.shortcut.slot, '', 'the plain icon shows; no logo slot drawn');
+    assert.equal(state.shortcut.img, false, 'no official logo image');
+    assert.equal(state.shortcut.svg, true, 'the plain voucher icon');
     assert.ok(state.shortcut.box.h >= 44);
     state = await openOnnuri();
     assert.equal(state.title, '온누리상품권·지역화폐', 'LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: one screen, 온누리상품권 tab first');

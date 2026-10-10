@@ -21,6 +21,10 @@
 // * a tap on the empty area of a workspace (지역정보 and its screens, Life Wallet,
 //   안심케어, 축제·행사, 전기차, 지하철, 온누리, 부동산) keeps it open — same URL, no
 //   history step — and the next back still steps one screen
+// * QA 2026-10-10: one back per 지역정보 screen — the header ← (no second
+//   '지역정보로 돌아가기' text link, #3); 온누리상품권·지역화폐 has a plain icon (#12);
+//   지역생활정보 offers example questions that ask in one tap without the
+//   location, and an empty field gets LOTBI's own message, not the browser's (#14)
 // * the URL always names the screen on view (history state matches)
 //
 // Browser: real Chrome through the DevTools protocol, 360×780 (Samsung
@@ -44,6 +48,7 @@ const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 // ── Pure contract ───────────────────────────────────────────────────────
 const {SITE_ROUTES, isSiteRoute} = await import('../site-route.js');
 const sections = await import('../site-consumer-sections.js');
+const {lifeLocationIntent} = await import('../site-life-location.js');
 const LIFE_VIEWS = ['life-medical', 'life-news', 'life-local', 'life-my-child'];
 
 await check('every screen inside 지역정보 is a route with a parent; chains end at 지역정보', () => {
@@ -57,6 +62,12 @@ await check('every screen inside 지역정보 is a route with a parent; chains e
   for (const view of LIFE_VIEWS) assert.equal(sections.lifeBackLabel(view), '지역정보로 돌아가기', view);
   assert.equal(sections.LIFE_SHORTCUTS.find(item => item.id === 'my-child').children, undefined, '내 아이 학교·유치원 opens its screen at once');
   assert.ok(SITE_ROUTES.includes('onnuri'), '온누리상품권·지역화폐 has its own route');
+  assert.equal(sections.LIFE_SHORTCUTS.find(item => item.id === 'onnuri').icon, 'voucher', '#12 plain icon');
+  const local = sections.LIFE_SHORTCUTS.find(item => item.id === 'local');
+  assert.deepEqual([...sections.LIFE_DETAIL_EXAMPLES.local], ['쓰레기 배출 요일', '주민센터 운영시간', '대형폐기물 버리는 방법', '공영주차장 위치']);
+  for (const example of sections.LIFE_DETAIL_EXAMPLES.local) {
+    assert.equal(lifeLocationIntent(`${local.prompt}\n궁금한 생활정보: ${example}`), false, `${example}: no location sent`);
+  }
   assert.deepEqual(SITE_ROUTES.slice(SITE_ROUTES.indexOf('life'), SITE_ROUTES.indexOf('life') + 5), ['life', ...LIFE_VIEWS]);
 });
 
@@ -125,6 +136,7 @@ async function waitFor(fn, label, timeoutMs = 15000) {
 // each screen's own reads get an empty or refused answer and say so.
 const MOCK = `(() => {
   const nativeFetch = window.fetch.bind(window);
+  window.__asked = [];
   const json = (body, status = 200) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
   window.fetch = async (input, init = {}) => {
     let url;
@@ -134,6 +146,7 @@ const MOCK = `(() => {
       return json({}, 404);
     }
     if (url.origin !== 'https://api.lotbiai.com') return nativeFetch(input, init);
+    if (url.pathname.endsWith('/messages')) { try { window.__asked.push(JSON.parse(String(init.body || '{}'))); } catch { window.__asked.push(null); } }
     if (url.pathname === '/v2/conversation/guest/sessions') return json({contract_id: 'CORE-GUEST-SESSION-01', schema_version: 1, guest_token: 'g'.repeat(43), expires_at: new Date(Date.now() + 3600e3).toISOString()});
     return json({error: {code: 'UNAUTHENTICATED'}}, 401);
   };
@@ -342,7 +355,6 @@ async function runCase(browser, origin, workDir, testCase) {
       log.push(`${what}:${spot.backdrop ? 'backdrop' : 'panel'}`);
     };
     const headerBack = () => tapSelector('[data-site-route] .site-modal-close');
-    const innerBack = () => tapSelector('[data-site-route] .consumer-life-detail > .consumer-action-secondary');
 
     await navigate(`${origin}/`);
     await ready();
@@ -366,6 +378,7 @@ async function runCase(browser, origin, workDir, testCase) {
       await tapSelector(`[data-site-route="life"] [data-life-shortcut="${category.card}"]`);
       const screen = await atScreen(category, `${category.card} opens again`);
       if (category.detail) assert.equal(screen.headerBack, '지역정보로 돌아가기', `${label}: ${category.card}: header ← names its step`);
+      assert.equal(screen.innerBack, '', `${label}: ${category.card}: one back — no second text link (QA #3)`);
       const before = await historyIndex();
       await headerBack();
       await atLife(`${category.card}: header ←`);
@@ -374,18 +387,18 @@ async function runCase(browser, origin, workDir, testCase) {
       await atHome(`${category.card}: header ← on 지역정보`);
     }
 
-    // 2. 내 아이 학교·유치원: the saved screen at once; '지역정보로 돌아가기' steps once.
+    // 2. 내 아이 학교·유치원: the saved screen at once; its header ← steps once.
     const myChild = CATEGORIES.find(category => category.card === 'my-child');
     await openLife();
     await tapSelector('[data-site-route="life"] [data-life-shortcut="my-child"]');
     const mine = await atScreen(myChild, 'my-child opens at once');
-    assert.equal(mine.innerBack, '지역정보로 돌아가기', `${label}: my-child: inner back`);
+    assert.equal(mine.innerBack, '', `${label}: my-child: no second text back`);
     assert.equal(await evaluate("document.querySelectorAll('[data-child-choice]').length"), 0, `${label}: no 내 아이 정보 / 유치원·학교 찾기 choice`);
     await waitFor(() => evaluate("Boolean(document.querySelector('[data-site-route=\"life-my-child\"] .lotbi-mychild'))"), `${label}: the saved schools screen`);
     let before = await historyIndex();
-    await innerBack();
-    const listed = await atLife('my-child: 지역정보로 돌아가기');
-    assert.equal(await historyIndex(), before - 1, `${label}: my-child: button one entry back`);
+    await headerBack();
+    const listed = await atLife('my-child: header ←');
+    assert.equal(await historyIndex(), before - 1, `${label}: my-child: ← one entry back`);
     assert.equal(listed.focusedCard, 'my-child', `${label}: focus returns to the card`);
     await go(1);
     await atScreen(myChild, 'my-child: forward');
@@ -411,6 +424,23 @@ async function runCase(browser, origin, workDir, testCase) {
     await atLife('back after forward');
     await go(-1);
     await atHome('back to the conversation');
+    // #14: 지역생활정보 — an empty field says what is missing (no browser bubble);
+    // an example question asks at once and closes 지역정보.
+    await openLife();
+    await tapSelector('[data-site-route="life"] [data-life-shortcut="local"]');
+    await atScreen(CATEGORIES.find(category => category.card === 'local'), 'local (#14)');
+    const form = await evaluate(`(() => { const f = document.querySelector('[data-site-route="life-local"] .consumer-life-form');
+      return {noValidate: f.noValidate, examples: [...document.querySelectorAll('[data-life-example]')].map(b => b.textContent)}; })()`);
+    assert.deepEqual(form, {noValidate: true, examples: ['쓰레기 배출 요일', '주민센터 운영시간', '대형폐기물 버리는 방법', '공영주차장 위치']});
+    await tapSelector('[data-site-route="life-local"] .consumer-life-form button[type="submit"]');
+    const status = await waitFor(() => evaluate("(() => { const s = document.querySelector('.consumer-life-form-status'); return s && !s.hidden && s.textContent ? {text: s.textContent, focused: document.activeElement?.placeholder || ''} : null; })()"), `${label}: empty-field message`);
+    assert.equal(status.text, '지역 또는 장소를 입력해 주세요.', `${label}: LOTBI's own message`);
+    const sentBefore = await evaluate('globalThis.__asked.length');
+    await tapSelector('[data-life-example="쓰레기 배출 요일"]');
+    await atHome('local: example asked');
+    const asked = await waitFor(() => evaluate(`globalThis.__asked.length > ${sentBefore} ? globalThis.__asked.at(-1) : null`), `${label}: example question sent`);
+    assert.equal(asked.text, '우리 지역 생활정보를 알려 줘\n궁금한 생활정보: 쓰레기 배출 요일');
+    assert.equal(asked.client_context?.location, undefined, `${label}: no location with an example question`);
     // 안심케어 and Life Wallet: an empty tap keeps them; back → home.
     for (const section of ['wallet', 'care']) {
       if (testCase.mobile) {
@@ -444,7 +474,7 @@ async function runCase(browser, origin, workDir, testCase) {
       await loaded;
       await ready();
       const reloaded = await atScreen(myChild, 'my-child: reload keeps the screen');
-      assert.equal(reloaded.innerBack, '지역정보로 돌아가기');
+      assert.equal(reloaded.innerBack, '');
       await go(-1);
       await atLife('my-child: back after the reload');
       await go(-1);

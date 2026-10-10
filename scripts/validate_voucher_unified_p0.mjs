@@ -43,8 +43,8 @@ const same = (actual, expected, message) => { assert.deepEqual(actual, expected,
 {
   const card = LIFE_SHORTCUTS.find(item => item.id === 'onnuri');
   check(['온누리상품권·지역화폐', '온누리·지역화폐'].includes(card.label), `menu card label (${card.label})`);
-  same(card.brandSlot, 'onnuri', 'brand slot kept, no logo');
-  same(card.icon, undefined, 'no stand-in icon');
+  same(card.brandSlot, 'onnuri', 'brand slot kept for the approved logo');
+  same(card.icon, 'voucher', 'QA 2026-10-10 #12: a plain LOTBI voucher icon until then');
   same(VOUCHER_HUB_TITLE, '온누리상품권·지역화폐');
   same(VOUCHER_PAGE_SIZE, 12);
   same(VOUCHER_SOURCE_LABELS, {
@@ -543,8 +543,8 @@ async function runCase(browser, origin, workDir, testCase) {
     check(!v.shortcut.clipped, `${testCase.label}: card label not clipped (${v.shortcut.columns} columns, ${v.shortcut.lines} line(s))`);
     check(v.shortcut.box.right <= v.viewport.w && v.shortcut.box.x >= 0, `${testCase.label}: card inside the viewport`);
     check(v.shortcut.box.h >= 44, `${testCase.label}: card touch target`);
-    same(v.shortcut.slot, 'PENDING_APPROVAL', 'logo slot kept, nothing drawn');
-    same(v.shortcut.img, false, 'no logo image');
+    same(v.shortcut.slot, '', 'the plain icon shows; no logo slot drawn');
+    same(v.shortcut.img, false, 'no official logo image');
     check(v.pageOverflowX <= 0, `${testCase.label}: life home no horizontal scroll`);
     if (testCase.dark) check(v.themeAttr === 'dark' && v.bodyBgLum < 0.2, `${testCase.label}: cookie dark theme applied (${v.themeAttr})`);
     else check(v.themeAttr !== 'dark' && v.bodyBgLum > 0.6, `${testCase.label}: light theme while the OS says dark (${v.themeAttr})`);

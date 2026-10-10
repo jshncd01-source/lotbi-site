@@ -4,8 +4,9 @@
 // * 생활정보 shows a ninth (last) card "내 아이 학교·유치원" (the eight existing
 //   cards and their order stay); the card opens this screen at once — no
 //   내 아이 정보 / 유치원·학교 찾기 choice (REGIONAL-INFO-BACK-NAVIGATION-01, owner
-//   decision 2026-10-10) — with "지역정보로 돌아가기", one screen back to the
-//   지역정보 list; its "대화로 더 물어보기" asks through
+//   decision 2026-10-10) — its header ← ("지역정보로 돌아가기", the one back
+//   of the screen — QA 2026-10-10 #3) steps one screen back to the 지역정보
+//   list; its "대화로 더 물어보기" asks through
 //   the same onAsk as every life card (one tap, no keyboard)
 // * signed out: a login notice (/auth/start/), no Core call
 // * signed in: NEIS school search → pick → nickname (default "첫째") +
@@ -294,12 +295,13 @@ const SCENARIO = `(async () => {
   shortcut.click();
   const host = await wait(() => panel.querySelector('.lotbi-mychild'), 'my-child screen');
   result.choices = [...panel.querySelectorAll('[data-child-choice]')].map(n => n.dataset.childChoice + ':' + n.textContent.trim());
-  result.back = panel.querySelector('.consumer-life-detail > .consumer-action')?.textContent.trim();
+  result.back = panel.querySelector('.site-modal-close')?.getAttribute('aria-label') || '';
+  result.textBack = Boolean(panel.querySelector('.consumer-life-detail > .consumer-action-secondary'));
   if (!${'${SIGNED_IN}'}) {
     const notice = await wait(() => host.querySelector('[data-my-child-state="LOGIN_REQUIRED"]'), 'login notice');
     result.login = {text: notice.textContent, href: notice.querySelector('a')?.getAttribute('href'), measure: measure(host)};
     result.calls = globalThis.__mcsCalls.length;
-    panel.querySelector('.consumer-life-detail > .consumer-action').click();
+    panel.querySelector('.site-modal-close').click();
     await wait(() => panel.querySelector('[data-life-shortcut="my-child"]') && !panel.querySelector('.lotbi-mychild'), 'back to life');
     result.backHome = document.activeElement?.dataset?.lifeShortcut || '';
     return result;
@@ -445,8 +447,11 @@ const SCENARIO = `(async () => {
   const save4 = await wait(() => host.querySelector('[data-my-child-save="SCHOOL"]'), 'save form 4');
   result.consentAgain = Boolean(save4.querySelector('[data-my-child-consent-check]'));
 
-  // 6. 지역정보로 돌아가기 — one screen back, to the 지역정보 list.
-  panel.querySelector('.consumer-life-detail > .consumer-action').click();
+  // 6. The header ← steps one layer at a time (SUBVIEW-BACK-NAVIGATION-01): the
+  //    open 추가 form → the saved list → the 지역정보 list.
+  panel.querySelector('.site-modal-close').click();
+  await wait(() => host.querySelector('[data-my-child-add]') && !host.querySelector('[data-my-child-save]'), '← → the saved list');
+  panel.querySelector('.site-modal-close').click();
   await wait(() => panel.querySelector('[data-life-shortcut="my-child"]') && !panel.querySelector('.consumer-life-detail'), 'back to life');
   result.backHome = document.activeElement?.dataset?.lifeShortcut || '';
   result.calls = globalThis.__mcsCalls;
@@ -580,6 +585,7 @@ try {
       assert.equal(r.card.label, '내 아이 학교·유치원');
       assert.ok(r.card.box.h >= 44, JSON.stringify(r.card.box));
       assert.equal(r.back, '지역정보로 돌아가기');
+      assert.equal(r.textBack, false, 'one back: the header ←, no second text link (QA #3)');
       assert.match(r.empty.text, /아직 저장한 학교·유치원이 없어요/u);
       assert.match(r.empty.footer, /아이 이름·생년월일·사진·학년·반은 받지 않아요/u);
       assert.equal(r.backHome, 'my-child', 'focus returns to the card');
@@ -687,6 +693,7 @@ try {
     assert.match(out.login.text, /로그인하고 아이 학교·유치원을 저장하세요/u);
     assert.equal(out.login.href, '/auth/start/');
     assert.equal(out.back, '지역정보로 돌아가기');
+    assert.equal(out.textBack, false);
     assert.deepEqual(out.choices, []);
     assert.equal(out.calls, 0);
     assert.deepEqual(out.login.measure.small, []);
