@@ -70,8 +70,14 @@ await check('dialog: header LOTBI 분쟁·사고 도우미 / “막막할 때 �
     const mine = html.indexOf('site-trouble-helper.css?v=');
     assert.ok(scam > 0 && mine > scam, `${name}: stylesheet after site-scam-shield.css`);
   }
-  assert.match(conversation, /void import\('\.\/site-trouble-helper\.js\?v=aset-[0-9a-f]{12}'\)\.catch\(\(\) => \{\}\);/u,
-    'loaded on the side from site-conversation.js, a failure there never stops the chat');
+  // SITE-T55 gate: a boot-time import shifted other boot requests into
+  // validate_social_signup_profile_ux_01's window. Only a first tap (or a reload
+  // while open) may load the module; a failure there never stops the chat.
+  assert.doesNotMatch(conversation, /^void import\('\.\/site-trouble-helper\.js/mu, 'never imported at boot');
+  assert.match(conversation, /troubleHelperModule \|\|= import\('\.\/site-trouble-helper\.js\?v=aset-[0-9a-f]{12}'\)\.catch\(/u,
+    'loaded on first use from site-conversation.js');
+  assert.match(conversation, /closest\('\[data-trouble-open\]'\)[\s\S]{0,200}openTroubleHelper\?\.\(trigger\)/u, 'the first tap opens it');
+  assert.match(ui, /export function openTroubleHelper\(trigger\)/u);
 });
 
 await check('sources: no HTML injection, storage only inside try, theme tokens only, no "dispute" names', () => {
@@ -220,11 +226,8 @@ try {
   Object.defineProperty(navigator, 'share', {configurable: true, writable: true, value: async data => { globalThis.__thShares.push(data); }});
   Object.defineProperty(navigator, 'clipboard', {configurable: true, value: {writeText: async text => { globalThis.__thCopies.push(text); }}});
   await import('/site-conversation.js?v=troublehelper01');
-  const started = Date.now();
-  while (document.querySelector('[data-trouble-open]')?.dataset.troubleBound !== 'true') {
-    if (Date.now() - started > 20000) throw new Error('menu buttons never bound');
-    await new Promise(resolve => setTimeout(resolve, 50));
-  }
+  // Loaded on first use: at boot the module is not there yet (unless a reload reopens it).
+  globalThis.__thBootLoaded = performance.getEntriesByType('resource').some(entry => entry.name.includes('site-trouble-helper.js'));
   out.textContent = JSON.stringify({ok: true});
 } catch (e) { out.textContent = JSON.stringify({ok: false, error: String((e && e.stack) || e)}); }
 </script><pre id="th-result">pending</pre>`;
@@ -411,6 +414,7 @@ async function runFlow(browser, origin, dir, testCase) {
     const r = {};
     r.menus = await evaluate(`[...document.querySelectorAll('[data-trouble-open]')].map(n => ({inDrawer: Boolean(n.closest('#mobile-nav-drawer')),
       prev: n.previousElementSibling?.getAttribute('aria-label'), label: n.textContent.trim()}))`);
+    r.bootLoaded = await evaluate('globalThis.__thBootLoaded');
     r.open = await evaluate(OPEN(testCase.mobile));
     await evaluate("__th.wait(() => __th.view()?.dataset.troubleView === 'pick', 'pick view')");
     r.pick = await evaluate(`({
@@ -778,6 +782,7 @@ try {
     const r = await runFlow(browser, origin, dir, testCase);
     await check(`${label}: both menus open it without a login; Core read is public (credentials omit, no headers)`, () => {
       assert.deepEqual(r.menus.map(m => [m.inDrawer, m.prev, m.label]), [[false, '진위확인', '분쟁·사고 도우미'], [true, '진위확인', '분쟁·사고 도우미']]);
+      assert.equal(r.bootLoaded, false, 'site-trouble-helper.js is not fetched at boot (SITE-T55 gate)');
       assert.equal(r.open.eyebrow, 'LOTBI 분쟁·사고 도우미');
       assert.equal(r.open.title, '“막막할 때 롯비”');
       assert.equal(r.open.drawerOpen, false, 'the drawer closes behind the dialog');
