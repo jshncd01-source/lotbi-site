@@ -629,6 +629,10 @@ jobs:
       # Account again or onto "LOTBI 연결 오류" by a stale callback or one miss.
       - name: Validate signed-in device skips repeated login hand-overs
         run: node scripts/validate_site_login_handoff_repeat_01.mjs
+      # SITE-HEADER-AUTH-QA-23-24-01 — 로그인 while Account is slow to answer,
+      # and the signed-in phone Header shows the account.
+      - name: Validate Header sign-in while checking and phone account button
+        run: node scripts/validate_site_header_auth_qa_23_24_01.mjs
 
       # SITE-SESSION-REQUEST-STORM-P0-01 — a refused Site bearer never turns the
       # signed-in Home into a /v2/life/today and Account status request storm.

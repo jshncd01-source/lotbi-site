@@ -3,7 +3,7 @@
 // Deliberately owns no product content: callers inject a body node, so the same
 // component backs the Calendar selected-day sheet and the account/profile sheet.
 //
-//   import {createBottomSheet} from './site-bottom-sheet.js?v=aset-b1fc85f3461c';
+//   import {createBottomSheet} from './site-bottom-sheet.js?v=aset-7d771c0b8067';
 //
 //   const sheet = createBottomSheet({
 //     label: '9월 2일 일정',
