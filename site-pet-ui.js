@@ -4,7 +4,10 @@
 // LOTBI never asserts a match. No "찾았습니다", no "일치합니다", no
 // "당신의 반려동물입니다". The owner decides; LOTBI only shows records.
 import {
+  PET_PHOTO_BODY_MINIMUM,
+  PET_PHOTO_FACE_MINIMUM,
   PET_PHOTO_SLOT_CODES,
+  petPhotoSetCounts,
   closeFoundPet,
   closePetSOS,
   createFoundPet,
@@ -21,6 +24,8 @@ import {
   fetchPetRegistrationDraftPhotoObjectUrl,
   finalizePetRegistrationDraft,
   FOUND_PHOTO_SEMANTIC_SLOT_CODES,
+  addPetPhoto,
+  addPetRegistrationDraftPhoto,
   getActivePetRegistrationDraft,
   getPetCatalog,
   getPetPhotoManifest,
@@ -51,20 +56,21 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-9fc1386c8a08';
+} from './site-pet.js?v=aset-577fd151dea9';
 import {
   petPhotoSlotArtwork,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-9fc1386c8a08';
+} from './site-pet-guides.js?v=aset-577fd151dea9';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-9fc1386c8a08';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-9fc1386c8a08';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-9fc1386c8a08';
+} from './site-pet-gate.js?v=aset-577fd151dea9';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-577fd151dea9';
+import {personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-577fd151dea9';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-577fd151dea9';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -72,7 +78,7 @@ import {
   foundReviewStateCopy,
   identityPhotoProgress,
   renewalBadge,
-} from './site-safecare-common.js?v=aset-9fc1386c8a08';
+} from './site-safecare-common.js?v=aset-577fd151dea9';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -207,27 +213,47 @@ function petPhotoGuide(species) {
   box.appendChild(el(
     'p',
     'safecare-guide-copy',
-    '실종 때 들어오는 발견 사진은 옆모습이나 뒷모습일 때가 많아요. 아래 10개 방향을 모두 채워야 후보를 놓치지 않습니다.',
+    '얼굴 사진 3장과 몸 전체가 보이는 사진 2장이면 등록할 수 있어요. 실종 때 들어오는 발견 사진은 옆모습이나 뒷모습일 때가 많아서, 아래 예시처럼 더 올리면(최대 10장) 찾을 확률을 높일 수 있어요.',
   ));
   return box;
 }
 
 function photoProgressLabel(filled) {
-  return `사진 ${filled}/${PET_PHOTO_SLOT_CODES.length}`;
+  return `사진 ${filled}장`;
 }
 
-function draftPhotoProgressMessage(summary) {
-  if (summary.presentCount < summary.requiredCount) {
-    return `사진 ${summary.requiredCount - summary.presentCount}장을 더 올려 주세요.`;
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): what the pet still needs, or the
+// recommendation once three face photos and two whole-body photos are in.
+// Registration goes on to the next step; a registered pet (사진 갱신·관리)
+// can then be switched to missing.
+function draftPhotoProgressMessage(summary, {manage = false} = {}) {
+  if (summary.speciesMismatchSlots.length) return '선택한 종류와 다른 사진이 있어요. 그 사진을 삭제한 뒤 이어서 진행해 주세요.';
+  const goal = manage ? '실종 상태로 전환할 수 있어요' : '다음 단계로 넘어갈 수 있어요';
+  if (summary.ready) {
+    return summary.presentCount >= PET_PHOTO_SLOT_CODES.length
+      ? '등록에 필요한 사진이 모두 있어요.'
+      : `${goal}. 사진을 더 올리면(최대 10장) 찾을 확률을 높일 수 있어요.`;
   }
-  if (summary.rejectedSlots.length || summary.speciesMismatchSlots.length) {
-    return '다시 촬영이 필요한 사진을 바꾼 뒤 기본 정보로 이동할 수 있어요.';
-  }
-  if (summary.pendingSlots.length) {
-    return '사진 확인이 끝나지 않았어요. 확인 대기 사진이 모두 통과한 뒤 기본 정보로 이동할 수 있어요.';
-  }
-  return summary.ready ? '사진 10장 확인이 모두 완료됐어요.' : '사진 확인 상태를 다시 확인해 주세요.';
+  const needFace = Math.max(0, summary.faceMinimum - summary.faceAccepted);
+  const needBody = Math.max(0, summary.bodyMinimum - summary.bodyAccepted);
+  const parts = [];
+  if (needFace) parts.push(`얼굴 사진 ${needFace}장`);
+  if (needBody) parts.push(`몸 전체가 보이는 사진 ${needBody}장`);
+  if (!parts.length && summary.pendingSlots.length) return `사진 확인이 끝나면 ${goal}.`;
+  return `${parts.join('과 ')}이 더 있으면 ${goal}.`;
 }
+
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): HEIC/WebP/very large photos are
+// brought to JPEG/PNG the way the person screens do, then sent as a file.
+async function petUploadFile(file) {
+  const prepared = await preparePersonPhoto(file);
+  const [head, data] = prepared.dataUri.split(',');
+  const mime = /data:([^;]+);/.exec(head)?.[1] || 'image/jpeg';
+  const bytes = Uint8Array.from(atob(data), char => char.charCodeAt(0));
+  const name = String(file?.name || 'pet-photo').replace(/\.[^.]+$/, '') + (mime === 'image/png' ? '.png' : '.jpg');
+  return new File([bytes], name, {type: mime});
+}
+const PET_CATEGORY_LINE = Object.freeze({FACE: '얼굴 사진으로 등록했어요', BODY: '몸 전체 사진으로 등록했어요', CLOSEUP: '코·특징 사진으로 등록했어요'});
 
 function consentLabel(state) {
   return state === 'GRANTED' ? '매칭 동의함' : '매칭 동의 안 함';
@@ -471,7 +497,7 @@ export async function mountPetFamilyManager({
       const empty = el('div', 'pet-empty');
       empty.append(
         el('p', 'pet-empty-title', '등록된 반려동물이 없습니다.'),
-        el('p', 'pet-empty-copy', '기본정보를 입력하고 서로 다른 방향의 사진 10장을 등록하면, 실종 시 바로 실종 상태로 전환할 수 있습니다.'),
+        el('p', 'pet-empty-copy', '기본정보를 입력하고 얼굴 사진 3장과 몸 전체가 보이는 사진 2장을 등록하면, 실종 시 바로 실종 상태로 전환할 수 있습니다.'),
       );
       listBody.appendChild(empty);
       return;
@@ -537,7 +563,7 @@ export async function mountPetFamilyManager({
         if (profile.familyLabel) card.appendChild(el('p', 'pet-profile-family', profile.familyLabel));
         const identity = profile.photoCount >= profile.photoTotal && profile.visualStatus === 'READY'
           ? `✓ ${profile.visualLabel}`
-          : `📷 식별사진 ${profile.photoCount}/${profile.photoTotal}`;
+          : `📷 식별사진 ${profile.photoCount}장`;
         card.appendChild(el('p', 'pet-profile-identity', identity));
         if (profile.activeSos) {
           card.appendChild(el('p', 'pet-profile-sos', `🔴 ${pet.name} 실종 상태 활성화 중`));
@@ -619,15 +645,168 @@ export async function mountPetFamilyManager({
   // The 10 slots are the heart of the feature and the part owners understand
   // least, so every tile carries a schematic of the view to shoot plus a
   // one-line hint, and the progress line names what is still missing.
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): '사진 여러 장 선택' for a pet,
+  // shared by registration and 사진 갱신·관리. Photos are sent one at a time;
+  // Core picks the card and refuses only wrong photos. The result list of the
+  // last batch survives the screen's re-renders (key = draft or pet id).
+  // SITE-PET-PHOTO-SOURCE-01 stays: on Mobile Web the button opens LOTBI's own
+  // Camera / Gallery / File sheet (Gallery and File take several photos at
+  // once, Camera one); Desktop goes straight to the file dialog.
+  const petBatchResults = new Map();
+  const petBulkPanel = ({key, room, add, done}) => {
+    const section = el('section', 'person-bulk pet-bulk');
+    section.dataset.petBulk = '';
+    section.append(
+      el('h5', 'person-bulk-title', '사진 여러 장 한 번에 등록'),
+      el('p', 'person-bulk-angles', '휴대폰에 있는 사진을 한 번에 골라 주세요. 얼굴 사진인지 몸 전체 사진인지 확인해서 맞는 칸에 넣어요. 각도는 대충 맞아도 괜찮아요.'),
+    );
+    const sourceInputs = buildPetPhotoSourceInputs();
+    sourceInputs.gallery.multiple = true;
+    sourceInputs.file.multiple = true;
+    sourceInputs.gallery.dataset.petBulkInput = '';
+    // One more set of single-photo inputs for '다시 찍기' on a refused row.
+    const replaceInputs = buildPetPhotoSourceInputs();
+    for (const input of replaceInputs.all) input.dataset.petBulkReplaceInput = input.dataset.petPhotoSourceInput;
+    let replaceIndex = -1;
+    const pick = el('button', 'site-button site-button-primary person-bulk-pick', '사진 여러 장 선택');
+    pick.type = 'button';
+    pick.dataset.petBulkPick = '';
+    const line = el('p', 'person-bulk-status');
+    line.setAttribute('role', 'status');
+    line.setAttribute('aria-live', 'polite');
+    line.dataset.petBulkStatus = '';
+    const list = el('ul', 'person-bulk-list');
+    list.setAttribute('aria-label', '고른 사진 결과');
+    const summary = results => {
+      const stored = results.filter(result => result.state === 'STORED').length;
+      const failed = results.filter(result => result.state === 'FAILED').length;
+      return `등록 성공 ${stored}장 · 실패 ${failed}장`;
+    };
+    const draw = () => {
+      const results = petBatchResults.get(key) || [];
+      list.replaceChildren(...results.map((result, index) => {
+        const row = el('li', 'person-bulk-item');
+        row.dataset.petBulkItem = result.state;
+        if (result.code) row.dataset.petErrorCode = result.code;
+        const head = el('div', 'person-bulk-item-head');
+        const badge = result.state === 'STORED' ? ['등록 성공', 'success'] : result.state === 'NOTICE' ? ['안내', 'neutral'] : ['실패', 'danger'];
+        head.append(el('strong', 'person-bulk-item-title', result.title), el('span', `safecare-badge safecare-badge-${badge[1]}`, badge[0]));
+        row.append(head);
+        if (result.message) row.append(el('p', `person-bulk-item-message${result.state === 'FAILED' ? ' is-error' : ''}`, result.message));
+        // SITE-PET-SPECIES-GATE-01: a refusal always comes with a next step;
+        // it replaces only this photo (Camera / Gallery / File on phones).
+        if (result.state === 'FAILED' && !result.final) {
+          const action = el('button', 'site-button site-button-secondary pet-slot-retry-action', petPhotoNextActionLabel(result.nextAction));
+          action.type = 'button';
+          action.dataset.petSlotNextAction = result.nextAction || '';
+          action.dataset.petBulkRetry = String(index);
+          action.addEventListener('click', () => {
+            if (busy) return;
+            replaceIndex = index;
+            openPetPhotoSource(replaceInputs);
+          });
+          row.append(action);
+        }
+        return row;
+      }));
+      list.hidden = !results.length;
+    };
+    // One photo: the screen's quick look (no request for an obviously blurry or
+    // tiny frame), HEIC/large photos brought to JPEG, then Core's slot-free POST.
+    const sendOne = async (file, title) => {
+      const local = await inspectPetPhotoLocally(file).catch(() => null);
+      if (local) return {title, state: 'FAILED', code: local.code, message: local.message, nextAction: ''};
+      let upload;
+      try { upload = await petUploadFile(file); }
+      catch (value) { return {title, state: 'FAILED', code: '', message: personPhotoPrepareMessage(value), nextAction: ''}; }
+      try {
+        const saved = await add(upload);
+        return {title, state: 'STORED', message: PET_CATEGORY_LINE[saved?.category] || '등록했어요.'};
+      } catch (value) {
+        const code = errorCodeOf(value);
+        return {
+          title, state: 'FAILED', code, nextAction: value?.nextAction || '',
+          message: errorMessage(value, '이 사진은 등록하지 못했어요. 다른 사진을 골라 주세요.'),
+          stop: ['SESSION_INVALID', 'SESSION_REQUIRED', 'PET_PHOTOS_FULL'].includes(code),
+          final: ['SESSION_INVALID', 'SESSION_REQUIRED', 'PET_PHOTOS_FULL'].includes(code),
+        };
+      }
+    };
+    const runBatch = async files => {
+      if (!files.length || busy) return;
+      const kept = files.slice(0, Math.max(0, room));
+      const results = [];
+      if (files.length > kept.length) {
+        results.push({title: '사진 수', state: 'NOTICE', message: kept.length
+          ? `사진은 모두 합쳐 10장까지예요. 처음 고른 ${kept.length}장만 확인할게요.`
+          : '사진은 10장까지 등록할 수 있어요. 새 사진을 넣으려면 칸의 사진을 먼저 삭제해 주세요.'});
+      }
+      petBatchResults.set(key, results);
+      draw();
+      setBusy(true);
+      try {
+        for (const [index, file] of kept.entries()) {
+          line.textContent = `사진을 확인하고 있어요 (${index + 1}/${kept.length})`;
+          const result = await sendOne(file, `사진 ${index + 1}`);
+          results.push(result);
+          draw();
+          if (result.stop) break;
+        }
+      } finally {
+        line.textContent = summary(results);
+        setBusy(false);
+        await done();
+      }
+    };
+    const replaceOne = async (index, file) => {
+      const results = petBatchResults.get(key) || [];
+      const previous = results[index];
+      if (!previous || previous.state !== 'FAILED' || busy) return;
+      setBusy(true);
+      try {
+        line.textContent = '사진을 확인하고 있어요 (1/1)';
+        results[index] = await sendOne(file, previous.title);
+        draw();
+      } finally {
+        line.textContent = summary(results);
+        setBusy(false);
+        await done();
+      }
+    };
+    pick.addEventListener('click', () => { if (!busy) openPetPhotoSource(sourceInputs); });
+    for (const input of sourceInputs.all) {
+      input.addEventListener('change', () => {
+        const files = Array.from(input.files || []);
+        input.value = '';
+        void runBatch(files);
+      });
+    }
+    for (const input of replaceInputs.all) {
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        input.value = '';
+        const index = replaceIndex;
+        replaceIndex = -1;
+        if (file && index >= 0) void replaceOne(index, file);
+      });
+    }
+    section.append(pick, ...sourceInputs.all, ...replaceInputs.all, line, list);
+    const last = petBatchResults.get(key);
+    if (last?.length) line.textContent = summary(last);
+    draw();
+    return section;
+  };
+
   const renderPhotos = (pet, host) => {
     host.replaceChildren();
     const filled = filledSlots.get(pet.petId) || new Set();
 
     const header = el('div', 'pet-photo-header');
-    header.append(el('h4', 'pet-photo-title', '사진 갱신·관리 · 식별 사진 10장'));
-    const progress = identityPhotoProgress(filled.size);
-    const count = el('span', 'pet-photo-count safecare-photo-counter', `${progress.label} · ${progress.remainingLabel}`);
-    count.dataset.safecarePhotoCount = String(progress.count);
+    header.append(el('h4', 'pet-photo-title', '사진 갱신·관리 · 식별 사진'));
+    const set = petPhotoSetCounts(filled);
+    const count = el('span', 'pet-photo-count safecare-photo-counter', `얼굴 ${Math.min(set.faceCount, PET_PHOTO_FACE_MINIMUM)}/${PET_PHOTO_FACE_MINIMUM} · 몸 ${Math.min(set.bodyCount, PET_PHOTO_BODY_MINIMUM)}/${PET_PHOTO_BODY_MINIMUM} · 지금 ${filled.size}장`);
+    count.dataset.safecarePhotoCount = String(filled.size);
+    count.dataset.safecarePhotoComplete = set.complete ? 'true' : 'false';
     header.appendChild(count);
     host.appendChild(header);
     const profile = petProfiles.get(pet.petId);
@@ -635,7 +814,7 @@ export async function mountPetFamilyManager({
       host.appendChild(el(
         'p',
         'pet-photo-context-note',
-        `다음 사진 갱신일 ${formatDate(profile.identityPhotoExpiresAt)} · 사진을 다시 선택하면 해당 방향의 사진이 최신 사진으로 바뀝니다.`,
+        `다음 사진 갱신일 ${formatDate(profile.identityPhotoExpiresAt)} · 새 사진은 '사진 여러 장 선택'으로 올리고, 오래된 사진은 칸에서 삭제할 수 있어요.`,
       ));
     }
     if (sosCases.some(item => item.petId === pet.petId && item.status === 'ACTIVE')) {
@@ -653,14 +832,29 @@ export async function mountPetFamilyManager({
     bar.appendChild(fill);
     host.appendChild(bar);
 
-    const remaining = PET_PHOTO_SLOT_CODES.filter(code => !filled.has(code));
     host.appendChild(el(
       'p',
       'pet-photo-progress-note',
-      remaining.length === 0
-        ? '10장을 모두 채웠습니다. 외형 프로필이 완성 상태로 기록됩니다.'
-        : `${remaining.length}장 남았습니다 · ${remaining.slice(0, 3).map(petPhotoSlotLabel).join(', ')}${remaining.length > 3 ? ' 외' : ''}`,
+      draftPhotoProgressMessage({
+        speciesMismatchSlots: [], pendingSlots: [], ready: set.complete, presentCount: filled.size,
+        faceAccepted: set.faceCount, bodyAccepted: set.bodyCount, faceMinimum: PET_PHOTO_FACE_MINIMUM, bodyMinimum: PET_PHOTO_BODY_MINIMUM,
+      }, {manage: true}),
     ));
+    host.appendChild(petBulkPanel({
+      key: pet.petId,
+      room: PET_PHOTO_SLOT_CODES.length - filled.size,
+      add: file => addPetPhoto(sessionToken, pet.petId, file),
+      done: async () => {
+        try {
+          const manifest = await getPetPhotoManifest(sessionToken, pet.petId);
+          filledSlots.set(pet.petId, new Set(manifest.filledSlots));
+          photoCounts.set(pet.petId, manifest.filledSlots.length);
+        } catch { /* the list keeps what it had; the next open reloads */ }
+        await refreshPetProfileData().catch(() => {});
+        renderList();
+        if (host.isConnected) renderPhotos(pet, host);
+      },
+    }));
     host.appendChild(el(
       'p',
       'pet-photo-limits',
@@ -703,46 +897,17 @@ export async function mountPetFamilyManager({
       slotError.setAttribute('role', 'alert');
       slotError.hidden = true;
 
-      // 개·고양이만 등록. Core refuses a photo that is neither rather than
-      // asking the owner what it is, so the refusal has to arrive with the
-      // next step attached — an error message on its own is the dead end this
-      // replaces.
-      const retry = el('div', 'pet-slot-retry');
-      retry.hidden = true;
-      const retryAction = el('button', 'site-button site-button-secondary pet-slot-retry-action', '다시 찍기');
-      retryAction.type = 'button';
-      retry.appendChild(retryAction);
-
-      const clearRefusal = () => {
-        slotError.hidden = true;
-        retry.hidden = true;
-        delete slotError.dataset.petErrorCode;
-      };
       const refuse = (message, cause) => {
         slotError.textContent = message;
         slotError.hidden = false;
         const code = errorCodeOf(cause);
         if (code) slotError.dataset.petErrorCode = code;
         else delete slotError.dataset.petErrorCode;
-        const nextAction = cause && typeof cause === 'object' && typeof cause.nextAction === 'string'
-          ? cause.nextAction
-          : '';
-        retryAction.textContent = petPhotoNextActionLabel(nextAction);
-        retryAction.dataset.petSlotNextAction = nextAction || 'RETAKE';
-        retry.hidden = false;
       };
-
-      const sourceInputs = buildPetPhotoSourceInputs();
-      for (const input of sourceInputs.all) input.dataset.petSlotInput = slotCode;
-
+      // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): new photos go in through
+      // '사진 여러 장 선택' above (Core picks the card); a card can only drop
+      // its photo to make room for a newer one.
       const actions = el('div', 'pet-slot-actions');
-      const choose = el('button', 'site-button site-button-secondary pet-slot-choose',
-        filled.has(slotCode) ? '다른 사진 선택' : '사진 선택');
-      choose.type = 'button';
-      choose.dataset.petSlotChoose = slotCode;
-      choose.addEventListener('click', () => openPetPhotoSource(sourceInputs));
-      actions.appendChild(choose);
-
       if (filled.has(slotCode)) {
         const remove = el('button', 'pet-slot-remove', '삭제');
         remove.type = 'button';
@@ -750,7 +915,7 @@ export async function mountPetFamilyManager({
         remove.addEventListener('click', async () => {
           if (busy) return;
           setBusy(true);
-          clearRefusal();
+          slotError.hidden = true;
           tile.dataset.petSlotWorking = 'true';
           try {
             const {manifest} = await deletePetPhoto(sessionToken, pet.petId, slotCode);
@@ -770,66 +935,7 @@ export async function mountPetFamilyManager({
         });
         actions.appendChild(remove);
       }
-
-      const handleChosenFile = async file => {
-        if (busy) return;
-        const rejection = petPhotoRejection(file);
-        if (rejection) {
-          refuse(rejection, null);
-          return;
-        }
-        // The screen's own quick look, so an unusable frame fails here rather
-        // than after a round trip. Core still decides: it runs the classifier,
-        // and a browser can be skipped entirely.
-        const localLook = await inspectPetPhotoLocally(file);
-        if (localLook) {
-          refuse(localLook.message, {code: localLook.code});
-          return;
-        }
-        setBusy(true);
-        clearRefusal();
-        tile.dataset.petSlotWorking = 'true';
-        try {
-          const {manifest} = await uploadPetPhoto(sessionToken, pet.petId, slotCode, file);
-          filled.add(slotCode);
-          filledSlots.set(pet.petId, filled);
-          photoCounts.set(pet.petId, manifest.slotCount);
-          revokePreview(key);
-          try {
-            photoPreviews.set(key, await fetchPetPhotoObjectUrl(sessionToken, pet.petId, slotCode));
-          } catch {
-            // The upload succeeded; only the preview is missing.
-          }
-          renderList();
-          renderPhotos(pet, host);
-          status.textContent = `${petPhotoSlotLabel(slotCode)} 사진을 올렸습니다.`;
-        } catch (value) {
-          refuse(errorMessage(value, '사진을 올리지 못했습니다.'), value);
-        } finally {
-          tile.dataset.petSlotWorking = 'false';
-          setBusy(false);
-        }
-      };
-      bindPetPhotoSourceChange(sourceInputs, file => { void handleChosenFile(file); });
-
-      retryAction.addEventListener('click', () => {
-        if (busy) return;
-        // A close-up cannot settle a species on its own, so Core holds it until
-        // the pet has a whole-animal photo. Sending the owner back to the file
-        // picker for the same slot would just repeat the refusal; the button
-        // takes them to the photo Core is actually waiting for.
-        if (retryAction.dataset.petSlotNextAction === 'UPLOAD_FACE_OR_BODY_FIRST') {
-          const anchorTile = grid.querySelector(
-            `[data-pet-slot="${PET_PHOTO_ANCHOR_SLOT_CODES[0]}"] [data-pet-slot-choose]`,
-          );
-          anchorTile?.scrollIntoView({block: 'center', behavior: 'smooth'});
-          anchorTile?.focus();
-          return;
-        }
-        openPetPhotoSource(sourceInputs);
-      });
-
-      tile.append(actions, slotError, retry, ...sourceInputs.all);
+      tile.append(actions, slotError);
       grid.appendChild(tile);
     });
 
@@ -1341,8 +1447,8 @@ export async function mountPetFamilyManager({
     const filled = photoCounts.get(pet.petId);
     const blockedReason = profile?.identityPhotoState === 'EXPIRED'
       ? '식별 사진 유효기간이 지나 실종 상태로 전환할 수 없습니다. 최신 사진으로 먼저 갱신해 주세요.'
-      : ((profile?.identityPhotoState === 'INCOMPLETE' || (Number.isInteger(filled) && filled < PET_PHOTO_SLOT_CODES.length))
-        ? '실종 상태로 전환하려면 식별 사진 10장을 먼저 등록해 주세요.'
+      : ((profile?.identityPhotoState === 'INCOMPLETE' || profile?.identityPhotoComplete === false)
+        ? '실종 상태로 전환하려면 얼굴 사진 3장과 몸 전체가 보이는 사진 2장을 먼저 등록해 주세요.'
         : '');
     if (blockedReason) {
       const blocked = el('div', 'pet-empty');
@@ -1790,7 +1896,7 @@ export async function mountPetFamilyManager({
     }
 
     const stepCodes = Object.freeze(['BASIC', 'PHOTOS', 'REVIEW', 'DONE']);
-    const stepNames = Object.freeze({BASIC: '기본정보', PHOTOS: '사진 10장', REVIEW: '최종 확인', DONE: '등록 완료'});
+    const stepNames = Object.freeze({BASIC: '기본정보', PHOTOS: '사진', REVIEW: '최종 확인', DONE: '등록 완료'});
     let screenStep = 'BASIC';
     let finalizeRequestId = '';
     let autosaveTimer = 0;
@@ -2107,7 +2213,7 @@ export async function mountPetFamilyManager({
 
       const error = formError();
       const actions = el('div', 'pet-draft-actions');
-      const next = el('button', 'site-button site-button-primary', '다음: 사진 10장 등록');
+      const next = el('button', 'site-button site-button-primary', '다음: 사진 등록');
       next.type = 'submit';
       next.dataset.petDraftNext = 'PHOTOS';
       actions.append(next);
@@ -2218,60 +2324,52 @@ export async function mountPetFamilyManager({
       body.replaceChildren();
       stepChrome('PHOTOS');
       body.append(
-        el('h4', 'pet-draft-title', `${petSpeciesLabel(registrationDraft.species)} 식별 사진 10장을 등록해 주세요`),
+        el('h4', 'pet-draft-title', `${petSpeciesLabel(registrationDraft.species)} 식별 사진을 올려 주세요`),
         petPhotoGuide(registrationDraft.species),
       );
       const photosBySlot = new Map(registrationDraft.photos.map(photo => [photo.slotCode, photo]));
       const progression = petDraftPhotoProgression(registrationDraft);
-      const presence = identityPhotoProgress(progression.presentCount);
+      // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the same one-step upload as a
+      // person. Photos go in through '사진 여러 장 선택' (Core picks the card);
+      // three face photos and two whole-body photos are enough to go on.
       const count = el(
         'p',
         'pet-photo-count safecare-photo-counter',
-        `${presence.label} · ${presence.remainingLabel} · 확인 완료 ${progression.acceptedCount}/${progression.requiredCount}`,
+        `얼굴 ${Math.min(progression.faceAccepted, progression.faceMinimum)}/${progression.faceMinimum} · 몸 ${Math.min(progression.bodyAccepted, progression.bodyMinimum)}/${progression.bodyMinimum} · 지금 ${progression.presentCount}장 (10장까지)`,
       );
-      count.dataset.safecarePhotoCount = String(presence.count);
-      const faceFrontConfirmed = petDraftFaceFrontConfirmed(registrationDraft, photosBySlot.get('FACE_FRONT'));
-      // PET-PHOTO-SEQUENTIAL-01 — the ten slots open one at a time in the
-      // order shown: 1번 얼굴 정면 first (Core's anchor gate), then each slot
-      // once the one before it holds a photo that did not fail inspection.
-      // A slot that already holds a photo stays open so it can be replaced or
-      // deleted. Dog and cat use the same order.
-      const slotOpen = PET_PHOTO_DISPLAY_ORDER.map((slotCode, index) => {
-        if (index === 0) return true;
-        if (!faceFrontConfirmed) return false;
-        if (photosBySlot.has(slotCode)) return true;
-        const previous = photosBySlot.get(PET_PHOTO_DISPLAY_ORDER[index - 1]);
-        return Boolean(previous) && previous.inspectionState !== 'REJECTED';
-      });
-      const nextIndex = PET_PHOTO_DISPLAY_ORDER.findIndex(
-        (slotCode, index) => slotOpen[index] && !photosBySlot.has(slotCode),
-      );
-      let gateCopy = '먼저 얼굴 정면 사진을 확인해 주세요. 확인이 끝나면 2번부터 한 장씩 순서대로 열려요.';
-      if (faceFrontConfirmed && nextIndex >= 0) {
-        gateCopy = `이제 ${nextIndex + 1}번 ${petPhotoSlotLabel(PET_PHOTO_DISPLAY_ORDER[nextIndex])} 사진을 올려 주세요. 한 장을 올리면 다음 칸이 열려요.`;
-      } else if (faceFrontConfirmed && photosBySlot.size < PET_PHOTO_DISPLAY_ORDER.length) {
-        gateCopy = '확인을 통과하지 못한 사진을 다시 찍어 교체하면 다음 칸이 열려요.';
-      } else if (faceFrontConfirmed) {
-        gateCopy = '10칸을 모두 채웠어요. 사진 확인이 끝나면 다음 단계로 넘어갈 수 있어요.';
-      }
-      const gateBanner = el('p', 'pet-draft-gate-banner', gateCopy);
-      gateBanner.setAttribute('aria-live', 'polite');
-      body.append(count, gateBanner, el('p', 'pet-empty-copy', draftPhotoProgressMessage(progression)));
+      count.dataset.safecarePhotoCount = String(progression.presentCount);
+      count.dataset.safecarePhotoComplete = progression.ready ? 'true' : 'false';
+      const progressNote = el('p', 'pet-empty-copy', draftPhotoProgressMessage(progression));
+      progressNote.dataset.petDraftPhotoNote = '';
+      progressNote.setAttribute('aria-live', 'polite');
+      body.append(count, progressNote);
+      body.appendChild(petBulkPanel({
+        key: registrationDraft.draftId,
+        room: PET_PHOTO_SLOT_CODES.length - registrationDraft.photos.length,
+        add: async file => {
+          const saved = await addPetRegistrationDraftPhoto(sessionToken, registrationDraft.draftId, file);
+          registrationDraft = saved.draft || registrationDraft;
+          if (!saved.draft) replaceDraftPhoto(saved.photo);
+          return saved;
+        },
+        done: async () => { if (detailSection.isConnected && screenStep === 'PHOTOS') renderDraftPhotos(); },
+      }));
+      const examples = el('p', 'pet-empty-copy pet-slot-examples', '아래 10칸은 어떤 사진이 있으면 좋은지 보여 주는 예시예요. 칸을 다 채우지 않아도 돼요.');
+      examples.dataset.petSlotExamples = '';
+      body.appendChild(examples);
       const grid = el('div', 'pet-slot-grid');
       grid.dataset.petDraftSlotGrid = '';
 
       PET_PHOTO_DISPLAY_ORDER.forEach((slotCode, index) => {
         const photo = photosBySlot.get(slotCode);
-        const locked = !slotOpen[index];
         const tile = el('figure', 'pet-slot');
         tile.dataset.petDraftSlot = slotCode;
         tile.dataset.petSlotFilled = photo ? 'true' : 'false';
         tile.dataset.petPhotoInspection = photo?.inspectionState || '';
-        tile.dataset.petDraftSlotLocked = locked ? 'true' : 'false';
         const media = el('div', 'pet-slot-media');
         const key = previewKey(registrationDraft.draftId, slotCode);
         const cached = photoPreviews.get(key);
-        if (cached) {
+        if (photo && cached) {
           const image = el('img', 'pet-slot-photo');
           image.src = cached;
           image.alt = `${petPhotoSlotLabel(slotCode)} 등록 사진`;
@@ -2282,51 +2380,25 @@ export async function mountPetFamilyManager({
         }
         tile.appendChild(media);
         const caption = el('figcaption', 'pet-slot-caption');
-        caption.append(el('span', 'pet-slot-index', String(index + 1)), el('span', 'pet-slot-label', petPhotoSlotLabel(slotCode)));
+        caption.append(el('span', 'pet-slot-index', photo ? '✓' : String(index + 1)), el('span', 'pet-slot-label', petPhotoSlotLabel(slotCode)));
         tile.append(caption, el('p', 'pet-slot-hint', petPhotoSlotHint(slotCode)));
-        // Always present so an in-flight upload can write into it without a
-        // full rebuild of this one tile; empty and hidden until there is
-        // something to say.
         const stateNode = el('p', 'pet-draft-photo-state');
         stateNode.setAttribute('role', 'status');
-        stateNode.hidden = true;
+        stateNode.hidden = !photo;
         if (photo) {
-          stateNode.hidden = false;
           stateNode.classList.add(`pet-draft-photo-state-${photo.inspectionState.toLowerCase()}`);
           stateNode.textContent = petDraftPhotoInspectionMessage(photo);
         }
         tile.appendChild(stateNode);
-        if (locked) {
-          const previousSlot = PET_PHOTO_DISPLAY_ORDER[index - 1];
-          const previous = photosBySlot.get(previousSlot);
-          let lockCopy = '얼굴 정면 사진이 확인되면 선택할 수 있어요.';
-          if (faceFrontConfirmed) {
-            lockCopy = previous?.inspectionState === 'REJECTED'
-              ? `${index}번 ${petPhotoSlotLabel(previousSlot)} 사진을 다시 찍어 교체하면 열려요.`
-              : `${index}번 ${petPhotoSlotLabel(previousSlot)} 사진을 올리면 열려요.`;
-          }
-          tile.appendChild(el('p', 'pet-draft-photo-locked-hint', lockCopy));
-        }
         const slotError = formError();
         slotError.hidden = true;
-        const sourceInputs = buildPetPhotoSourceInputs();
-        const actions = el('div', 'pet-slot-actions');
-        const choose = el('button', 'site-button site-button-secondary', photo ? '다른 사진 선택' : '사진 선택');
-        choose.type = 'button';
-        choose.disabled = locked;
-        choose.setAttribute('aria-disabled', locked ? 'true' : 'false');
-        choose.addEventListener('click', () => {
-          if (locked) return;
-          openPetPhotoSource(sourceInputs);
-        });
-        actions.appendChild(choose);
         if (photo) {
+          const actions = el('div', 'pet-slot-actions');
           const remove = el('button', 'pet-slot-remove', '삭제');
           remove.type = 'button';
-          remove.disabled = locked;
-          remove.setAttribute('aria-disabled', locked ? 'true' : 'false');
+          remove.dataset.petDraftSlotDelete = slotCode;
           remove.addEventListener('click', async () => {
-            if (busy || locked) return;
+            if (busy) return;
             setBusy(true);
             try {
               await deletePetRegistrationDraftPhoto(sessionToken, registrationDraft.draftId, slotCode);
@@ -2344,60 +2416,9 @@ export async function mountPetFamilyManager({
             }
           });
           actions.appendChild(remove);
+          tile.append(actions);
         }
-        const handleChosenFile = async file => {
-          if (busy || locked) return;
-          const rejection = petPhotoRejection(file);
-          if (rejection) {
-            slotError.textContent = rejection;
-            slotError.hidden = false;
-            return;
-          }
-          const localLook = await inspectPetPhotoLocally(file);
-          if (localLook) {
-            slotError.textContent = localLook.message;
-            slotError.hidden = false;
-            return;
-          }
-          setBusy(true);
-          slotError.hidden = true;
-          tile.dataset.petSlotWorking = 'true';
-          stateNode.hidden = false;
-          stateNode.className = 'pet-draft-photo-state pet-draft-photo-state-uploading';
-          stateNode.textContent = '사진을 저장하고 있어요.';
-          try {
-            const saved = await uploadPetRegistrationDraftPhoto(
-              sessionToken,
-              registrationDraft.draftId,
-              slotCode,
-              file,
-            );
-            replaceDraftPhoto(saved);
-            revokePreview(key);
-            try {
-              photoPreviews.set(key, await fetchPetRegistrationDraftPhotoObjectUrl(
-                sessionToken,
-                registrationDraft.draftId,
-                slotCode,
-              ));
-            } catch {
-              // The private upload succeeded; the preview can be retried after resume.
-            }
-            renderDraftPhotos();
-            status.textContent = `${petPhotoSlotLabel(slotCode)} 사진을 초안에 저장했습니다.`;
-          } catch (value) {
-            tile.dataset.petSlotWorking = 'false';
-            stateNode.hidden = !photo;
-            stateNode.className = photo ? `pet-draft-photo-state pet-draft-photo-state-${photo.inspectionState.toLowerCase()}` : 'pet-draft-photo-state';
-            stateNode.textContent = photo ? petDraftPhotoInspectionMessage(photo) : '';
-            slotError.textContent = errorMessage(value, '초안 사진을 저장하지 못했습니다.');
-            slotError.hidden = false;
-          } finally {
-            setBusy(false);
-          }
-        };
-        bindPetPhotoSourceChange(sourceInputs, file => { void handleChosenFile(file); });
-        tile.append(actions, slotError, ...sourceInputs.all);
+        tile.appendChild(slotError);
         grid.appendChild(tile);
       });
       body.appendChild(grid);
@@ -2478,7 +2499,7 @@ export async function mountPetFamilyManager({
       add('생년월일', registrationDraft.birthDate);
       add('추정 나이', Number.isInteger(registrationDraft.approximateAgeMonths) ? `${registrationDraft.approximateAgeMonths}개월` : '');
       add('가족이 된 날', registrationDraft.familyDate);
-      add('식별 사진', identityPhotoProgress(registrationDraft.photos.length).label);
+      add('식별 사진', `${registrationDraft.photos.length}장`);
       add('사진 갱신 주기', registrationDraft.species === 'CAT' ? '1년 (365일)' : '6개월 (180일)');
       add('사진 사용', '등록 상태에서는 사용 안 함 · 실종 상태 전환 시 별도 동의');
       body.appendChild(facts);
@@ -2527,8 +2548,13 @@ export async function mountPetFamilyManager({
           registrationDraft = null;
           addButton.textContent = '반려동물 등록';
           pets = [...pets, created];
-          photoCounts.set(created.petId, PET_PHOTO_SLOT_CODES.length);
-          filledSlots.set(created.petId, new Set(PET_PHOTO_SLOT_CODES));
+          try {
+            const manifest = await getPetPhotoManifest(sessionToken, created.petId);
+            photoCounts.set(created.petId, manifest.filledSlots.length);
+            filledSlots.set(created.petId, new Set(manifest.filledSlots));
+          } catch {
+            photoCounts.set(created.petId, null);
+          }
           await refreshPetProfileData().catch(() => {});
           renderList();
           reportCount();

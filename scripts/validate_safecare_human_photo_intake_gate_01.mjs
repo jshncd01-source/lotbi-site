@@ -72,18 +72,22 @@ for (const [status, code] of [[422, 'PERSON_IDENTITY_PHOTO_NON_IDENTITY_IMAGE'],
   );
 }
 
-// 3. The slot tile says "checking" while Core decides and "saved" only after
-//    the PUT resolved; a refusal clears the status and shows the slot error.
+// 3. SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): photos go in only through the
+//    batch (one slot-free POST each; the tiles have no picker). The batch says
+//    "checking" while Core decides, marks a photo stored only after the POST
+//    resolved, and a refusal never reads as saved and explains Core's reason.
 const ui = read('site-person-ui.js');
 const tile = ui.slice(ui.indexOf('const photoTile = '), ui.indexOf('const renderPhotoStep = '));
-assert.ok(tile.includes('사진을 확인하고 있습니다…'), 'the tile must say the photo is being checked');
-assert.ok(!tile.includes('안전하게 저장하는 중'), 'the tile must not claim saving before Core accepted the photo');
-const tryBlock = tile.slice(tile.indexOf('try {'), tile.indexOf('catch (value)'));
-assert.ok(tryBlock.indexOf('await putPersonIdentityPhoto(') >= 0, 'the tile must await Core');
-assert.ok(tryBlock.indexOf('await putPersonIdentityPhoto(') < tryBlock.indexOf('사진을 저장했습니다.'), '"saved" must follow the accepted PUT');
-const catchBlock = tile.slice(tile.indexOf('catch (value)'), tile.indexOf('finally {', tile.indexOf('catch (value)')));
-assert.ok(!catchBlock.includes('저장했습니다'), 'a refusal must never show the saved message');
-assert.ok(catchBlock.includes("showStatus('')") && catchBlock.includes('personIdentityPhotoErrorMessage(value, slot'), 'a refusal clears the status and explains the slot-specific reason');
+assert.ok(!tile.includes('putPersonIdentityPhoto(') && !tile.includes("type = 'file'"), 'a tile has no picker and sends nothing itself');
+const bulkSource = read('site-person-bulk-photos.js');
+const send = bulkSource.slice(bulkSource.indexOf('async function send(item)'), bulkSource.indexOf('async function act('));
+assert.ok(bulkSource.includes("'사진을 확인하고 있어요'") || /사진을 확인하고 있어요 \(\$\{/.test(bulkSource), 'the batch says the photo is being checked');
+assert.ok(!bulkSource.includes('안전하게 저장하는 중'), 'the batch must not claim saving before Core accepted the photo');
+const sendTry = send.slice(send.indexOf('const result = await addPhoto('), send.indexOf('} catch (error) {', send.indexOf('const result = await addPhoto(')));
+assert.ok(sendTry.indexOf('await addPhoto(') >= 0 && sendTry.indexOf('await addPhoto(') < sendTry.indexOf("state: 'STORED'"), '"stored" must follow the accepted POST');
+const sendCatch = send.slice(send.lastIndexOf('} catch (error) {'));
+assert.ok(!sendCatch.includes("'STORED'") && !sendCatch.includes('저장했'), 'a refusal must never read as saved');
+assert.ok(sendCatch.includes("state: 'REFUSED'") && sendCatch.includes('personIdentityPhotoErrorMessage(error, null'), 'a refusal explains Core\'s reason');
 
 // 4. Guide art: LEFT_45 shows a face looking toward the viewer's left (the v1
 //    art faced right, same as RIGHT_45). Core locks the direction with the

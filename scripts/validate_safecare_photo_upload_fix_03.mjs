@@ -121,27 +121,26 @@ for (const message of Object.values(intake.PERSON_PHOTO_PREPARE_MESSAGES)) {
 }
 assert.equal(intake.personPhotoPrepareMessage(new PersonPhotoPrepareError('PERSON_PHOTO_READ_FAILED')), intake.PERSON_PHOTO_PREPARE_MESSAGES.PERSON_PHOTO_READ_FAILED);
 
-// 7. The slot tile prepares before the PUT, never filters on file.type, and
-//    never ignores a tap silently. SAFECARE-PHOTO-EASY-UPLOAD-01: a tile that
-//    cannot take a photo now has no picker at all (B: personRetrySlots keeps
-//    the front first; validate_safecare_photo_easy_upload_01), C: busy.
+// 7. SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): photos go in only through the
+//    batch. It prepares every photo before the POST, never filters on
+//    file.type, and a file problem shows its own sentence. A tile has no picker;
+//    in 사진 갱신·관리 its '사진 빼기' never runs during a batch and releases
+//    the busy flag after every attempt.
 const ui = read('site-person-ui.js');
 const tile = ui.slice(ui.indexOf('const photoTile = '), ui.indexOf('const renderPhotoStep = '));
-assert.ok(ui.includes("from './site-person-photo-intake.js?v="), 'the UI imports the intake module with the asset token');
-assert.ok(!tile.includes('PHOTO_TYPES.has(file.type)'), 'the tile must not refuse by the browser MIME type');
-assert.ok(!tile.includes('fileDataUri('), 'the tile must not send unprepared bytes');
-assert.ok(tile.includes('input.accept = PERSON_PHOTO_ACCEPT'));
-const tryBlock = tile.slice(tile.indexOf('try {'), tile.indexOf('catch (value)'));
-assert.ok(tryBlock.indexOf('await preparePersonPhoto(file)') >= 0 && tryBlock.indexOf('await preparePersonPhoto(file)') < tryBlock.indexOf('await putPersonIdentityPhoto('), 'prepare runs before the PUT');
-assert.ok(tryBlock.includes('photo.dataUri'), 'the prepared data URI is what Core receives');
-const catchBlock = tile.slice(tile.indexOf('catch (value)'), tile.indexOf('finally {', tile.indexOf('catch (value)')));
-assert.ok(catchBlock.includes('value instanceof PersonPhotoPrepareError ? personPhotoPrepareMessage(value)'), 'a file problem shows its own sentence');
-assert.ok(tile.includes('if (!retry) return tile;'), 'a tile without its own picker has nothing to tap (B)');
-assert.match(ui, /const retry = personRetrySlots\(filledSlots, bulkPhotos\.attention\(\)\);/, 'the front-first rule decides which tiles offer a picker (B)');
-assert.match(tile, /choose\.addEventListener\('click', \(\) => \{ if \(busy\) notNow\(\); else input\.click\(\); \}\)/);
-assert.match(tile, /if \(busy\) \{ notNow\(\); return; \}/);
-assert.ok(tile.includes('다른 사진을 확인하는 중입니다. 끝난 뒤 다시 선택해 주세요.'));
-assert.ok(/finally \{ busy = false; \}/.test(tile), 'busy is released after every attempt (C)');
+const bulkSource = read('site-person-bulk-photos.js');
+assert.ok(bulkSource.includes("from './site-person-photo-intake.js?v="), 'the batch imports the intake module with the asset token');
+assert.ok(!bulkSource.includes('PHOTO_TYPES.has(file.type)') && !tile.includes('PHOTO_TYPES.has(file.type)'), 'nothing refuses by the browser MIME type');
+assert.ok(!bulkSource.includes('fileDataUri(') && !tile.includes('fileDataUri('), 'nothing sends unprepared bytes');
+assert.ok(bulkSource.includes('input.accept = PERSON_PHOTO_ACCEPT'));
+const send = bulkSource.slice(bulkSource.indexOf('async function send(item)'), bulkSource.indexOf('async function act('));
+assert.ok(send.indexOf('await prepare(item.file)') >= 0 && send.indexOf('await prepare(item.file)') < send.indexOf('await addPhoto('), 'prepare runs before the POST');
+assert.ok(send.includes('setPhoto(item, prepared.dataUri)') && send.includes('addPhoto(sessionToken, personId, item.dataUri)'), 'the prepared data URI is what Core receives');
+assert.ok(send.includes("state: 'PREPARE_FAILED', message: personPhotoPrepareMessage(error)"), 'a file problem shows its own sentence');
+assert.ok(!tile.includes("type = 'file'") && !tile.includes('putPersonIdentityPhoto('), 'a tile has no picker');
+assert.ok(tile.includes('if (!removable || !filled) return tile;'), 'only a stored photo in 사진 갱신·관리 has a button');
+assert.ok(tile.includes('if (busy) { slotError.textContent = \'다른 사진을 확인하는 중입니다. 끝난 뒤 다시 선택해 주세요.\''), 'a tap during a batch says why it waits');
+assert.ok(/finally \{ busy = false; \}/.test(tile), 'busy is released after every attempt');
 
 // 8. Slot guidance: left/right is where the face looks in the photo, and a
 //    45-degree photo shows both eyes, the nose and the mouth.
@@ -168,10 +167,11 @@ assert.match(slotByCode.UPPER_BODY_FRONT.visible, /어깨/);
 assert.match(slotByCode.FULL_BODY_FRONT.visible, /발끝/);
 assert.ok(tile.includes("el('p', 'safecare-slot-visible')") && tile.includes("'보여야 하는 부분'"), 'the tile shows the visible parts');
 // SAFECARE-PHOTO-EASY-UPLOAD-01: every tile keeps its example (picture, title,
-// hint, '보여야 하는 부분'); the picker, its error line and input come after it.
+// hint, '보여야 하는 부분'); 2nd round: only a stored photo in 사진 갱신·관리
+// adds '사진 빼기' and its error line after it.
 assert.ok(/tile\.append\(media, caption, hint, visible\);/.test(tile));
-assert.ok(/tile\.append\(choose, slotError, input\);/.test(tile));
-assert.ok(tile.indexOf('tile.append(media, caption, hint, visible);') < tile.indexOf('if (!retry) return tile;'), 'the example is drawn before the picker decision');
+assert.ok(/tile\.append\(remove, slotError\);/.test(tile));
+assert.ok(tile.indexOf('tile.append(media, caption, hint, visible);') < tile.indexOf('if (!removable || !filled) return tile;'), 'the example is drawn before the button decision');
 assert.match(read('site-safecare.css'), /\.safecare-slot-visible \{/);
 
 // 9. A pose refusal says what the slot needed.

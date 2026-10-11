@@ -159,7 +159,9 @@ const KNOWN = new Map([
   ['index.html#scam-photo', PHOTO_PICKER],
   ['site-calendar-manager.js#calendarImagePicker', PHOTO_PICKER],
   ['site-conversation.js#profilePhotoInput', PHOTO_SOURCES],
-  ['site-person-ui.js#personSlotInput', PHOTO_PICKER],
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the per-tile person picker
+  // (site-person-ui.js#personSlotInput) is gone; identity photos go in through
+  // the batch input below.
   ['site-person-ui.js#personFoundInput', PHOTO_PICKER],
   ['site-person-bulk-photos.js#input@399', PHOTO_PICKER],
   ['site-pet-ui.js#petPhotoSourceInput=gallery', PHOTO_PICKER],

@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// SAFECARE-PHOTO-BULK-UPLOAD-01 + SAFECARE-SOS-ADMIN-INTAKE (Site side).
+// SAFECARE-PHOTO-BULK-UPLOAD-01 → SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round) +
+// SAFECARE-SOS-ADMIN-INTAKE (Site side).
 //
-// A guardian can pick up to ten identity photos at once. Core's classify hint
-// (stores nothing, compares no people) says which slots each photo fits; the
-// Site places them (fewer candidates first, never outside the list, never over
-// a filled slot without asking), saves them one by one with the existing
-// per-slot PUT in the order 1, 8, 2, 3, 9, 10, 6, 4, 5, 7, keeps every success
-// when a later photo is refused, and lets only the wrong photo be replaced.
+// A guardian attaches everyday photos in one go. Each photo goes to Core's
+// slot-free POST one at a time, in the order picked; Core decides FACE or BODY,
+// refuses only wrong or useless photos, and places it in a free card. Every
+// success is kept when a later photo is refused, and only a refused photo is
+// replaced. Three face photos and two body photos complete the set (owner
+// decision 2026-10-10); ten are recommended, never required. The ten tiles are
+// examples; in 사진 갱신·관리 a stored photo can be taken out (second tap).
 // After a person SOS the guardian reads that the case reached the LOTBI admin
 // inbox (when Core says so) and, always, that this is not a police report.
 //
@@ -32,7 +34,10 @@ const bulk = await import(`${pathToFileURL(path.join(ROOT, 'site-person-bulk-pho
 const common = await import(`${pathToFileURL(path.join(ROOT, 'site-safecare-common.js')).href}?contract=bulk-01`);
 
 const WARNING = '정확한 비교를 위해 동일한 사람의 사진만 등록해 주세요. 다른 사람이나 동물·사물 사진이 섞이면 등록이 제한될 수 있습니다.';
-const ANCHOR = '정면 사진이 다른 사람일 수 있어요. 정면 사진을 먼저 확인해 주세요.';
+const ANGLES = '휴대폰에 있는 사진 중 얼굴이 잘 보이는 사진 3장과 상반신·전신 사진 2장이면 충분해요. 각도는 대충 맞아도 괜찮아요.';
+const ANCHOR = '처음 저장된 사진이 다른 사람일 수 있어요. 사진 갱신·관리에서 그 사진을 빼고 다시 올려 주세요.';
+const NEEDS_ALL = '얼굴이 잘 보이는 사진 3장과 상반신·전신 사진 2장이 더 있으면 등록을 마칠 수 있어요.';
+const RECOMMEND = '등록할 수 있어요. 사진을 더 올리면(최대 10장) 찾을 확률을 높일 수 있어요.';
 const NOT_POLICE = '이 접수는 경찰 신고가 아닙니다. 긴급한 경우 112에 바로 신고해 주세요.';
 // The bulk screen never claims certainty about who is in the photos...
 const FORBIDDEN = ['100%', '확정', '일치합니다', '찾았습니다', '찾았어요', '동일인입니다', '카메라 촬영'];
@@ -41,37 +46,53 @@ const POLICE = ['경찰 신고 완료', '신고가 경찰에 접수', '경찰에
 // A found report's reporter is never told whether a comparison candidate existed
 // or whether anything matched (SAFECARE-SIGHTING-RESULT-PRIVACY).
 const RESULT_DISCLOSURE = ['비교 후보가 있어', '일치 대상이 없', '일치 대상 없음'];
+// Nothing on the photo step may make ten look required.
+const TEN_REQUIRED = ['남은 사진', '10장을 모두', '/ 10', '/10', '식별 사진 10장'];
 const REVIEW_STATES = ['DRAFT', 'QUEUED', 'ANALYZING', 'ADMIN_REVIEW', 'NO_RELIABLE_MATCH', 'INSUFFICIENT_QUALITY', 'CLOSED', 'SOMETHING_NEW'];
 const QUEUED_DETAIL = '제보가 접수되었습니다. 관리자가 확인하고 있으며, 비교 결과는 제보자에게 공개되지 않습니다.';
 const CLOSED_DETAIL = '제보 검토가 종료되었습니다. 비교 결과는 제보자에게 공개되지 않습니다.';
 const SLOT_CODES = PERSON_IDENTITY_SLOTS.map(slot => slot.code);
 const MSG = {
-  NO_PERSON: '사람을 확인할 수 없습니다. 안내 그림처럼 등록할 사람이 크게 나온 사진을 다시 선택해 주세요.',
+  NO_PERSON: '사람이 보이지 않는 사진이에요. 동물·물건·풍경 사진은 등록할 수 없어요.',
   NON_IDENTITY_IMAGE: '사람 식별 사진이 아닙니다. 문서·사물·화면 사진은 등록할 수 없습니다.',
   DIFFERENT_PERSON: '등록된 사람과 다른 사람으로 보이는 사진입니다. 같은 사람의 사진을 선택해 주세요.',
-  TOO_BLURRY: '사진이 너무 흐립니다. 얼굴이 선명하게 보이도록 다시 촬영해 주세요.',
   MULTIPLE_FACES: '여러 사람이 함께 나온 사진은 등록할 수 없습니다. 등록할 사람 한 명만 나온 사진을 선택해 주세요.',
-  WRONG_POSE: '촬영 방향이 맞지 않습니다. 안내 그림과 같은 방향으로 얼굴을 돌려 다시 촬영해 주세요.',
-  DUPLICATE: '같은 사진은 여러 각도에 사용할 수 없습니다. 다른 방향에서 찍은 사진을 선택해 주세요.',
 };
 
 // ------------------------------------------------------------ A. rules
 assert.deepEqual([...client.PERSON_IDENTITY_SLOT_CODES], SLOT_CODES, 'the client slot table is the guide slot table');
-assert.deepEqual([...bulk.PERSON_BULK_UPLOAD_ORDER], [1, 8, 2, 3, 9, 10, 6, 4, 5, 7]);
 assert.equal(bulk.PERSON_BULK_MAX_FILES, 10);
 assert.equal(bulk.PERSON_BULK_WARNING, WARNING);
+assert.equal(bulk.PERSON_BULK_ANGLE_GUIDE, ANGLES);
 assert.equal(bulk.PERSON_BULK_ANCHOR_HINT, ANCHOR);
-assert.match(bulk.PERSON_BULK_ANGLE_GUIDE, /서로 다른 각도/);
-assert.equal(bulk.personBulkClassifyProgress(3, 10), 'AI가 사진을 분류하고 있어요 (3/10)');
-assert.equal(bulk.personBulkUploadProgress(5, 10), '사진을 등록하고 있어요 (5/10)');
+assert.equal(bulk.personBulkProgress(3, 10), '사진을 확인하고 있어요 (3/10)');
 {
-  const {kept, dropped} = bulk.limitPersonBulkFiles(Array.from({length: 12}, (_, i) => `f${i}`));
-  assert.deepEqual(kept, Array.from({length: 10}, (_, i) => `f${i}`));
-  assert.equal(dropped, 2);
-  assert.equal(bulk.limitPersonBulkFiles(['a', 'b']).dropped, 0);
+  // Ten in all, counting the photos already stored.
+  const all = Array.from({length: 12}, (_, i) => `f${i}`);
+  assert.deepEqual(bulk.limitPersonBulkFiles(all), {kept: all.slice(0, 10), dropped: 2, room: 10});
+  assert.deepEqual(bulk.limitPersonBulkFiles(all, 8), {kept: all.slice(0, 2), dropped: 10, room: 2});
+  assert.deepEqual(bulk.limitPersonBulkFiles(['a'], 10), {kept: [], dropped: 1, room: 0});
+  assert.equal(bulk.personBulkTooManyMessage(2), '사진은 모두 합쳐 10장까지 등록할 수 있어요. 처음 고른 2장만 확인할게요.');
+  assert.equal(bulk.personBulkTooManyMessage(0), bulk.PERSON_BULK_FULL);
 }
+{
+  const DP = 'PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON';
+  assert.equal(bulk.personBulkAnchorSuspect([{ok: true}, {ok: false, code: DP}, {ok: false, code: DP}], true), true);
+  assert.equal(bulk.personBulkAnchorSuspect([{ok: true}, {ok: false, code: DP}, {ok: false, code: DP}], false), false, 'only a previously empty profile');
+  assert.equal(bulk.personBulkAnchorSuspect([{ok: true}, {ok: false, code: DP}, {ok: false, code: 'PERSON_IDENTITY_PHOTO_TOO_BLURRY'}], true), false, 'two different-person refusals are needed');
+  assert.equal(bulk.personBulkAnchorSuspect([{ok: false, code: 'X'}, {ok: false, code: DP}, {ok: false, code: DP}], true), false, 'no anchor stored');
+  assert.equal(bulk.personBulkSummary([{state: 'STORED'}, {state: 'REFUSED'}, {state: 'PREPARE_FAILED'}, {state: 'SKIPPED'}]).text, '등록 성공 1장 · 실패 2장');
+}
+// What the guardian still needs; ten is only a recommendation.
+assert.equal(bulk.personPhotoSetMessage({complete: false, faceCount: 0, bodyCount: 0}), NEEDS_ALL);
+assert.equal(bulk.personPhotoSetMessage({complete: false, faceCount: 3, bodyCount: 1}), '상반신·전신 사진 1장이 더 있으면 등록을 마칠 수 있어요.');
+assert.equal(bulk.personPhotoSetMessage({complete: false, faceCount: 1, bodyCount: 2}), '얼굴이 잘 보이는 사진 2장이 더 있으면 등록을 마칠 수 있어요.');
+assert.equal(bulk.personPhotoSetMessage({complete: true, faceCount: 3, bodyCount: 2, photoCount: 5}), RECOMMEND);
+assert.equal(bulk.personPhotoSetMessage({complete: true, faceCount: 8, bodyCount: 2, photoCount: 10}), '등록에 필요한 사진이 모두 있어요.');
 
-// Classify contract: strict shape, POST body, nothing stored, no identity claim.
+
+// Classify contract (kept for older callers; the 2nd-round batch no longer uses it):
+// strict shape, POST body, nothing stored, no identity claim.
 {
   const calls = [];
   const response = (body, status = 200) => async (url, init) => { calls.push({url: String(url), init}); return new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}}); };
@@ -113,65 +134,42 @@ assert.equal(bulk.personBulkUploadProgress(5, 10), '사진을 등록하고 있�
   await assert.rejects(() => client.classifyPersonIdentityPhoto('t', 'p', 'd', response({detail: 'Not Found'}, 404)), error => error.code === 'HTTP_404');
 }
 
-// Assignment: fewer candidates first, first free slot of the photo's own list,
-// filled slots untouched, never a slot outside the list.
+// Slot-free add contract (2nd round): POST body, parsed result, no stronger claim than SAME/UNVERIFIED.
 {
-  const E = (status, suggested) => ({status, suggested});
-  const decisions = bulk.assignPersonBulkPhotos([
-    E('CLEAR', [1, 8]), E('CLEAR', [6]), E('CLEAR', [1, 8]), E('CLEAR', [1, 8]), E('UNCERTAIN', [6, 7]), E('REJECTED', []), null, E('CLEAR', [2, 9]),
-  ], []);
-  assert.deepEqual(decisions.map(d => d.state), ['ASSIGNED', 'ASSIGNED', 'ASSIGNED', 'NEEDS_CHOICE', 'NEEDS_CHOICE', 'NOT_PLACED', 'NOT_PLACED', 'ASSIGNED']);
-  assert.deepEqual([decisions[0].slot, decisions[1].slot, decisions[2].slot, decisions[7].slot], [1, 6, 8, 2]);
-  assert.equal(decisions[3].reason, 'NO_FREE_SLOT');
-  assert.deepEqual(decisions[3].candidates, [1, 8]);
-  assert.equal(decisions[4].reason, 'UNCERTAIN');
-  // The photo with one candidate wins its slot over an earlier photo with two.
-  const contested = bulk.assignPersonBulkPhotos([E('CLEAR', [6, 7]), E('CLEAR', [6])], []);
-  assert.deepEqual(contested.map(d => d.slot), [7, 6]);
-  // Already filled on Core: not overwritten automatically.
-  const filled = bulk.assignPersonBulkPhotos([E('CLEAR', [1, 8]), E('CLEAR', [4])], [1, 4]);
-  assert.deepEqual(filled.map(d => [d.state, d.slot || 0]), [['ASSIGNED', 8], ['NEEDS_CHOICE', 0]]);
-  for (let round = 0; round < 200; round += 1) {
-    const entries = Array.from({length: 10}, () => {
-      const pool = [...SLOT_CODES.keys()].map(i => i + 1).sort(() => Math.random() - 0.5);
-      return E(Math.random() < 0.8 ? 'CLEAR' : 'UNCERTAIN', pool.slice(0, 1 + Math.floor(Math.random() * 3)));
-    });
-    const before = [3, 5].filter(() => Math.random() < 0.5);
-    const placed = bulk.assignPersonBulkPhotos(entries, before);
-    const slots = placed.filter(d => d.state === 'ASSIGNED').map(d => d.slot);
-    assert.equal(new Set(slots).size, slots.length, 'one photo per slot');
-    placed.forEach((d, i) => {
-      if (d.state === 'ASSIGNED') {
-        assert.ok(entries[i].suggested.includes(d.slot), 'never outside the suggested list');
-        assert.ok(!before.includes(d.slot), 'never over a filled slot');
-        assert.equal(entries[i].status, 'CLEAR');
-      }
-    });
-  }
+  const calls = [];
+  const response = (body, status = 201) => async (url, init) => { calls.push({url: String(url), init}); return new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}}); };
+  const added = await client.addPersonIdentityPhoto('session-token', 'per 1', 'data:image/jpeg;base64,AAAA', response({
+    photo: {slot_index: 6, slot_code: 'UPPER_BODY_FRONT', category: 'BODY', revision: 1, width: 640, height: 640},
+    category: 'BODY', identity_check: 'SAME', idempotent_replay: false,
+    validity: {state: 'INCOMPLETE', photo_count: 4, face_count: 3, body_count: 1, complete: false},
+  }));
+  assert.match(calls[0].url, /\/v2\/person-profiles\/per%201\/identity-photos$/);
+  assert.equal(calls[0].init.method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0].init.body), {photo_data_uri: 'data:image/jpeg;base64,AAAA'});
+  assert.equal(calls[0].init.credentials, 'omit');
+  assert.deepEqual({slot: added.photo.slotIndex, category: added.category, check: added.identityCheck, complete: added.complete, face: added.faceCount, body: added.bodyCount}, {slot: 6, category: 'BODY', check: 'SAME', complete: false, face: 3, body: 1});
+  const unknownCheck = await client.addPersonIdentityPhoto('t', 'p', 'd', response({photo: {slot_index: 1, slot_code: 'FACE_FRONT'}, category: 'FACE', identity_check: 'MATCH', validity: {}}));
+  assert.equal(unknownCheck.identityCheck, 'UNVERIFIED', 'anything but SAME reads as UNVERIFIED');
+  await assert.rejects(() => client.addPersonIdentityPhoto('t', 'p', 'd', response({detail: {code: 'PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON'}}, 422)), error => error.code === 'PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON');
+  await assert.rejects(() => client.addPersonIdentityPhoto('t', 'p', 'd', response({detail: {code: 'PERSON_IDENTITY_PHOTOS_FULL'}}, 409)), error => error.code === 'PERSON_IDENTITY_PHOTOS_FULL' && error.status === 409);
+  const removed = [];
+  await client.deletePersonIdentityPhoto('t', 'per 1', 3, async (url, init) => { removed.push([String(url), init.method]); return new Response(null, {status: 204}); });
+  assert.match(removed[0][0], /\/v2\/person-profiles\/per%201\/identity-photos\/3$/);
+  assert.equal(removed[0][1], 'DELETE');
 }
-// Upload order, front-first rule, anchor rule, replacement plan, summary.
-assert.deepEqual(bulk.orderPersonBulkUploads([7, 5, 4, 6, 10, 9, 3, 2, 8, 1].map(slot => ({slot}))).map(item => item.slot), [1, 8, 2, 3, 9, 10, 6, 4, 5, 7]);
-assert.equal(bulk.personBulkNeedsFrontFirst([2, 6], []), true);
-assert.equal(bulk.personBulkNeedsFrontFirst([2, 1], []), false);
-assert.equal(bulk.personBulkNeedsFrontFirst([2, 6], [1]), false);
-assert.equal(bulk.personBulkNeedsFrontFirst([], []), false);
-const DP = 'PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON';
-assert.equal(bulk.personBulkAnchorSuspect([{slot: 1, ok: true}, {slot: 8, ok: false, code: DP}, {slot: 2, ok: false, code: DP}], true), true);
-assert.equal(bulk.personBulkAnchorSuspect([{slot: 1, ok: true}, {slot: 8, ok: false, code: DP}, {slot: 2, ok: false, code: DP}], false), false, 'only a previously empty profile');
-assert.equal(bulk.personBulkAnchorSuspect([{slot: 1, ok: true}, {slot: 8, ok: false, code: DP}, {slot: 2, ok: true}, {slot: 3, ok: false, code: DP}], true), false, 'a later success clears it');
-assert.equal(bulk.personBulkAnchorSuspect([{slot: 1, ok: true}, {slot: 8, ok: false, code: DP}, {slot: 2, ok: false, code: 'PERSON_IDENTITY_PHOTO_TOO_BLURRY'}], true), false, 'two different-person refusals are needed');
-assert.equal(bulk.personBulkAnchorSuspect([{slot: 1, ok: false, code: 'X'}, {slot: 8, ok: false, code: DP}, {slot: 2, ok: false, code: DP}], true), false, 'no anchor stored');
-assert.deepEqual(bulk.personBulkReplacementPlan({intendedSlot: 8, status: 'CLEAR', suggested: [1, 8], filled: [1]}), {action: 'PUT', slot: 8});
-assert.deepEqual(bulk.personBulkReplacementPlan({intendedSlot: 8, status: 'CLEAR', suggested: [6], filled: [1]}), {action: 'MISMATCH'});
-assert.deepEqual(bulk.personBulkReplacementPlan({intendedSlot: 8, status: 'UNCERTAIN', suggested: [8, 6], filled: [1]}), {action: 'PUT', slot: 8});
-assert.deepEqual(bulk.personBulkReplacementPlan({intendedSlot: 8, status: 'REJECTED', suggested: [], filled: [1]}), {action: 'REJECTED'});
-assert.deepEqual(bulk.personBulkReplacementPlan({intendedSlot: 6, status: 'CLEAR', suggested: [6], filled: []}), {action: 'HOLD', slot: 6});
-assert.deepEqual(bulk.personBulkReplacementPlan({status: 'CLEAR', suggested: [1, 8], filled: [1]}), {action: 'PUT', slot: 8});
-assert.deepEqual(bulk.personBulkReplacementPlan({status: 'CLEAR', suggested: [4], filled: [1, 4]}), {action: 'CHOOSE', reason: 'NO_FREE_SLOT', candidates: [4]});
-assert.deepEqual(bulk.personBulkReplacementPlan({status: 'UNCERTAIN', suggested: [6, 7], filled: [1]}), {action: 'CHOOSE', reason: 'UNCERTAIN', candidates: [6, 7]});
-assert.deepEqual(bulk.personBulkChoiceSlots([1, 8, 6], [1, 8]), [6]);
-assert.equal(bulk.personBulkSummary([{state: 'STORED'}, {state: 'PUT_FAILED'}, {state: 'REJECTED'}, {state: 'NEEDS_CHOICE'}, {state: 'HELD'}, {state: 'SKIPPED'}]).text, '등록 성공 1장 · 실패 2장 · 확인 필요 2장');
-assert.equal(bulk.personBulkMismatchMessage(8), '새 사진은 추가 정면 칸에 맞지 않아요. 추가 정면 칸에 맞는 사진을 선택해 주세요.');
+// The person row: Core's minimum-set flag; an older Core without it needs all ten.
+{
+  const row = extra => ({person_id: 'p', display_name: 'x', relationship: 'CHILD', revision: 1, identity_photo_count: 5, ...extra});
+  const listed = async rows => client.listPeople('t', async () => new Response(JSON.stringify({people: rows}), {status: 200, headers: {'Content-Type': 'application/json'}}));
+  const [fresh, old, oldFull] = await listed([
+    row({identity_photo_complete: true, identity_photo_face_count: 3, identity_photo_body_count: 2}),
+    row({}),
+    row({identity_photo_count: 10}),
+  ]);
+  assert.deepEqual([fresh.identityPhotoComplete, fresh.identityPhotoFaceCount, fresh.identityPhotoBodyCount], [true, 3, 2]);
+  assert.deepEqual([old.identityPhotoComplete, old.identityPhotoFaceCount], [false, null]);
+  assert.equal(oldFull.identityPhotoComplete, true);
+}
 
 // SOS intake (contract B1): old Core (no intake) and new Core both accepted.
 {
@@ -224,12 +222,16 @@ for (const [label, text] of [['site-person-bulk-photos.js', bulkSource], ['site-
   for (const phrase of POLICE) assert.ok(!copyOf(text).includes(phrase), `${label} must not render "${phrase}"`);
 }
 assert.ok(bulkSource.includes(`'${WARNING}'`), 'the warning sentence is exact');
-assert.match(ui, /import \{createPersonBulkPhotos, personRetrySlots\} from '\.\/site-person-bulk-photos\.js\?v=aset-[0-9a-f]{12}';/);
+assert.ok(!bulkSource.includes('classifyPersonIdentityPhoto') && !bulkSource.includes('putPersonIdentityPhoto'), 'the batch uses the slot-free POST only');
+assert.match(ui, /import \{createPersonBulkPhotos, personPhotoSetMessage\} from '\.\/site-person-bulk-photos\.js\?v=aset-[0-9a-f]{12}';/);
 const photoStep = ui.slice(ui.indexOf('const renderPhotoStep = '), ui.indexOf('const renderReviewStep = '));
-assert.ok(photoStep.indexOf('bulkPhotos.render({filledSlots})') > 0 && photoStep.indexOf('bulkPhotos.render({filledSlots})') < photoStep.indexOf("const grid = el('div', 'safecare-slot-grid')"), 'the bulk panel sits above the ten tiles');
-assert.ok(photoStep.includes('isBusy: () => busy') && photoStep.includes('setBusy: value => { busy = value; }'), 'the bulk run shares the tiles\' busy flag');
+assert.ok(photoStep.indexOf('bulkPhotos.render({storedCount: photos.length})') > 0 && photoStep.indexOf('bulkPhotos.render({storedCount: photos.length})') < photoStep.indexOf("const grid = el('div', 'safecare-slot-grid')"), 'the bulk panel sits above the ten tiles');
+assert.ok(photoStep.includes('isBusy: () => busy') && photoStep.includes('setBusy: value => { busy = value; }'), 'the bulk run shares the screen\'s busy flag');
+assert.ok(photoStep.includes('next.disabled = !set.complete;'), 'the next step opens at the minimum set (Core\'s flag)');
 const tile = ui.slice(ui.indexOf('const photoTile = '), ui.indexOf('const renderPhotoStep = '));
-assert.ok(!/bulk/i.test(tile), 'the single-slot tile is unchanged');
+assert.ok(!/type = 'file'|putPersonIdentityPhoto|이 칸 다시 고르기/.test(tile), 'a tile has no photo picker any more');
+assert.ok(tile.includes('if (!removable || !filled) return tile;') && tile.includes('deletePersonIdentityPhoto('), 'only 사진 갱신·관리 can take a stored photo out');
+for (const phrase of TEN_REQUIRED) assert.ok(!copyOf(photoStep).includes(phrase), `the photo step must not make ten look required: "${phrase}"`);
 assert.ok(ui.includes('showStatus(personSosReceivedMessage(person.displayName, created))'), 'the SOS success copy comes from the intake-aware message');
 assert.ok(!ui.includes('`${person.displayName} 실종 상태로 전환했습니다.`'), 'the old one-line SOS copy is replaced');
 const index = read('index.html');
@@ -270,52 +272,57 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
 <script>
   const PERSON = 'aaaaaaaa-0000-4000-8000-0000000000b1';
   const SLOT_CODES = ${JSON.stringify(SLOT_CODES)};
-  globalThis.__core = {filled: new Map(), rules: {}, calls: [], puts: [], inflight: 0, maxInflight: 0, delay: 4, classifyStatus: 0, sosIntake: null, sosPosted: false};
+  globalThis.__core = {filled: new Map(), rules: {}, calls: [], posts: [], deletes: [], inflight: 0, maxInflight: 0, delay: 4, postStatus: 0, sosIntake: null, sosPosted: false};
   globalThis.__names = new Map();
   const nameOf = uri => __names.get(uri) || '?';
-  const person = () => {
-    const count = __core.filled.size;
-    return {person_id: PERSON, display_name: '한지우', nickname: '', relationship: 'CHILD', birth_year: 2016, birthday_month: 5, revision: 1,
-      has_photo: count === 10, identity_photo_count: count, identity_photo_state: count === 10 ? 'CURRENT' : 'INCOMPLETE',
-      identity_photo_expires_at: count === 10 ? '2027-03-01T00:00:00Z' : null, identity_photo_days_remaining: count === 10 ? 140 : null,
-      identity_photo_renewal_reminder_days: null, identity_photo_validity_days: count === 10 ? 180 : null};
+  const counts = () => {
+    const values = [...__core.filled.values()];
+    const body = values.filter(item => item.cat === 'BODY').length;
+    return {face: values.length - body, body, total: values.length, complete: values.length - body >= 3 && body >= 2};
   };
+  const person = () => {
+    const c = counts();
+    return {person_id: PERSON, display_name: '한지우', nickname: '', relationship: 'CHILD', birth_year: 2016, birthday_month: 5, revision: 1,
+      has_photo: c.complete, identity_photo_count: c.total, identity_photo_required: 10, identity_photo_minimum: 5,
+      identity_photo_face_count: c.face, identity_photo_body_count: c.body, identity_photo_face_minimum: 3, identity_photo_body_minimum: 2,
+      identity_photo_complete: c.complete, identity_photo_state: c.complete ? 'CURRENT' : 'INCOMPLETE',
+      identity_photo_expires_at: c.complete ? '2027-03-01T00:00:00Z' : null, identity_photo_days_remaining: c.complete ? 140 : null,
+      identity_photo_renewal_reminder_days: null, identity_photo_validity_days: c.complete ? 180 : null};
+  };
+  const validity = () => { const c = counts(); return {state: c.complete ? 'CURRENT' : 'INCOMPLETE', photo_count: c.total, required_count: 10, minimum_count: 5, face_count: c.face, body_count: c.body, face_minimum: 3, body_minimum: 2, complete: c.complete}; };
   const json = (body, status = 200) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
   const png = () => new Response(Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0)), {status: 200, headers: {'Content-Type': 'image/png'}});
-  const classification = rule => ({
-    status: rule.status, detected_view: rule.view || 'UNKNOWN',
-    suggested_slot_indexes: rule.slots || [], suggested_slot_codes: (rule.slots || []).map(index => SLOT_CODES[index - 1]),
-    rejection_code: rule.status === 'REJECTED' ? 'PERSON_IDENTITY_PHOTO_' + rule.code : null,
-    identity_checked: false, stored: false,
-  });
+  const view = (slot, item) => ({slot_index: slot, slot_code: item.cat === 'BODY' ? 'UPPER_BODY_FRONT' : 'FACE_FRONT', category: item.cat, revision: 1, width: 640, height: 640, updated_at: '2026-10-10T00:00:00Z'});
   const sosRow = () => ({sos_id: 'hsos_0123456789abcdef0123', person_id: PERSON, display_name: '한지우', status: 'ACTIVE', last_seen_at: '2026-10-08T01:00:00Z', last_seen_summary: '망원한강공원 입구', description: null, matching_scope: 'ACTIVE_SOS_ONLY', automatic_identity_decision: false, ...(__core.sosIntake ? {intake: __core.sosIntake} : {})});
   const handle = async (target, method, init) => {
     let m;
     if (/\/content$/.test(target)) return png();
     if (target === '/v2/person-profiles' && method === 'GET') return json({people: [person()]});
-    if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos\/classify$/)) && method === 'POST') {
-      const name = nameOf(JSON.parse(init.body).photo_data_uri);
-      __core.calls.push('CLASSIFY ' + name);
-      if (__core.classifyStatus) return json({detail: 'Not Found'}, __core.classifyStatus);
-      const rule = __core.rules[name] || {status: 'REJECTED', code: 'NO_PERSON'};
-      return json({classification: classification(rule)});
-    }
-    if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos$/))) {
-      return json({photos: [...__core.filled.keys()].sort((a, b) => a - b).map(slot => ({slot_index: slot, slot_code: SLOT_CODES[slot - 1], revision: 1, width: 640, height: 640, updated_at: '2026-10-08T00:00:00Z'}))});
-    }
-    if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos\/(\d+)$/)) && method === 'PUT') {
-      const slot = Number(m[2]);
+    if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos$/)) && method === 'POST') {
       const uri = JSON.parse(init.body).photo_data_uri;
       const name = nameOf(uri);
-      __core.calls.push('PUT ' + slot + ' ' + name);
-      __core.puts.push(slot);
-      const rule = __core.rules[name] || {};
-      if (rule.put) return json({detail: {code: 'PERSON_IDENTITY_PHOTO_' + rule.put}}, 422);
-      for (const [other, stored] of __core.filled) if (other !== slot && stored === uri) return json({detail: {code: 'PERSON_IDENTITY_PHOTO_DUPLICATE'}}, 422);
-      __core.filled.set(slot, uri);
-      return json({photo: {slot_index: slot, slot_code: SLOT_CODES[slot - 1], revision: 2, width: 640, height: 640}});
+      __core.calls.push('POST ' + name);
+      __core.posts.push(name);
+      if (__core.postStatus) return json({detail: 'Not Found'}, __core.postStatus);
+      const rule = __core.rules[name] || {code: 'NO_PERSON'};
+      if (rule.code) return json({detail: {code: 'PERSON_IDENTITY_PHOTO_' + rule.code}}, 422);
+      for (const [slot, item] of __core.filled) if (item.uri === uri) return json({photo: view(slot, item), category: item.cat, identity_check: 'SAME', validity: validity(), idempotent_replay: true});
+      if (__core.filled.size >= 10) return json({detail: {code: 'PERSON_IDENTITY_PHOTOS_FULL'}}, 409);
+      const order = rule.cat === 'BODY' ? [6, 7, 10, 9, 8, 5, 4, 3, 2, 1] : [1, 8, 2, 3, 9, 10, 4, 5, 7, 6];
+      const slot = order.find(index => !__core.filled.has(index));
+      const item = {uri, cat: rule.cat};
+      __core.filled.set(slot, item);
+      return json({photo: view(slot, item), category: item.cat, identity_check: 'SAME', validity: validity(), idempotent_replay: false}, 201);
     }
-    if (method === 'DELETE') { __core.calls.push('DELETE ' + target); return json({}, 405); }
+    if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos$/))) {
+      return json({photos: [...__core.filled.entries()].sort((a, b) => a[0] - b[0]).map(([slot, item]) => view(slot, item))});
+    }
+    if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos\/(\d+)$/)) && method === 'DELETE') {
+      __core.calls.push('DELETE ' + m[2]); __core.deletes.push(Number(m[2]));
+      __core.filled.delete(Number(m[2]));
+      return new Response(null, {status: 204});
+    }
+    if (method === 'PUT' || method === 'DELETE') { __core.calls.push(method + ' ' + target); return json({}, 405); }
     if ((m = target.match(/^\/v2\/person-profiles\/([^/?]+)$/))) return json({person: person()});
     if (target.startsWith('/v2/person-sos?status=ACTIVE')) return json({items: __core.sosPosted ? [sosRow()] : []});
     if (target === '/v2/person-sos' && method === 'POST') { __core.calls.push('POST SOS'); __core.sosPosted = true; return json({sos: sosRow()}, 201); }
@@ -326,8 +333,8 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
   globalThis.fetch = async (url, init = {}) => {
     const target = String(url).replace(/^https?:\/\/[^/]+/, '');
     const method = init.method || 'GET';
-    // Concurrency of the photo writes and classify calls only (page loads fetch in parallel).
-    const photoCall = /\/identity-photos\/(classify|\d+)$/.test(target) && method !== 'GET';
+    // Concurrency of the photo writes only (page loads fetch in parallel).
+    const photoCall = /\/identity-photos(\/\d+)?$/.test(target) && method !== 'GET';
     if (photoCall) { __core.inflight += 1; __core.maxInflight = Math.max(__core.maxInflight, __core.inflight); }
     try { await new Promise(resolve => setTimeout(resolve, __core.delay)); return await handle(target, method, init); }
     finally { if (photoCall) __core.inflight -= 1; }
@@ -378,12 +385,11 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
   }).observe(document.body, {subtree: true, childList: true, characterData: true});
   globalThis.__items = () => [...document.querySelectorAll('[data-person-bulk-item]')].map(row => ({
     id: Number(row.dataset.personBulkItem), title: row.querySelector('.person-bulk-item-title')?.textContent || '',
-    state: row.dataset.personBulkState, slot: Number(row.dataset.personBulkSlot || 0), code: row.dataset.personErrorCode || '',
-    badge: row.querySelector('.safecare-badge')?.textContent || '', slotLine: row.querySelector('.person-bulk-item-slot')?.textContent || '',
-    message: row.querySelector('[data-person-bulk-message]')?.textContent || '', note: row.querySelector('[data-person-bulk-note]')?.textContent || '',
-    choices: [...row.querySelectorAll('[data-person-bulk-choose]')].map(button => [Number(button.dataset.personBulkChoose), button.textContent]),
-    skip: Boolean(row.querySelector('[data-person-bulk-skip]')), replace: Boolean(row.querySelector('[data-person-bulk-replace]')),
+    state: row.dataset.personBulkState, slot: Number(row.dataset.personBulkSlot || 0), category: row.dataset.personBulkCategory || '', code: row.dataset.personErrorCode || '',
+    badge: row.querySelector('.safecare-badge')?.textContent || '', line: row.querySelector('.person-bulk-item-slot')?.textContent || '',
+    message: row.querySelector('[data-person-bulk-message]')?.textContent || '', replace: Boolean(row.querySelector('[data-person-bulk-replace]')),
   }));
+  globalThis.__counter = () => ({text: document.querySelector('[data-safecare-photo-count]')?.textContent || '', complete: document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoComplete || '', note: document.querySelector('[data-person-photo-set-note]')?.textContent || '', next: document.querySelector('[data-person-photos-next]')?.disabled});
   globalThis.__layout = () => {
     const panel = __panel();
     const box = panel.getBoundingClientRect();
@@ -437,37 +443,16 @@ class Cdp {
   }
 }
 
-// Classify rules per file name: CLEAR/UNCERTAIN with slots, REJECTED with a
-// reason; `put` makes the PUT refuse with that reason.
+// What Core makes of each picked photo (by file name): a FACE or BODY photo,
+// or a refusal reason.
 const R = {
-  front1: {status: 'CLEAR', view: 'FRONT', slots: [1, 8]},
-  front2: {status: 'CLEAR', view: 'FRONT', slots: [1, 8]},
-  front3: {status: 'CLEAR', view: 'FRONT', slots: [1, 8]},
-  left45: {status: 'CLEAR', view: 'LEFT_TURN', slots: [2, 9]},
-  left45b: {status: 'CLEAR', view: 'LEFT_TURN', slots: [2, 9]},
-  right45: {status: 'CLEAR', view: 'RIGHT_TURN', slots: [3, 10]},
-  right45b: {status: 'CLEAR', view: 'RIGHT_TURN', slots: [3, 10]},
-  leftp: {status: 'CLEAR', view: 'LEFT_PROFILE', slots: [4]},
-  rightp: {status: 'CLEAR', view: 'RIGHT_PROFILE', slots: [5]},
-  upper: {status: 'CLEAR', view: 'UPPER_BODY', slots: [6]},
-  upper2: {status: 'CLEAR', view: 'UPPER_BODY', slots: [6]},
-  full: {status: 'CLEAR', view: 'FULL_BODY', slots: [7]},
-  dog: {status: 'REJECTED', code: 'NO_PERSON'},
-  car: {status: 'REJECTED', code: 'NON_IDENTITY_IMAGE'},
-  blur: {status: 'REJECTED', code: 'TOO_BLURRY'},
-  group: {status: 'REJECTED', code: 'MULTIPLE_FACES'},
-  back: {status: 'REJECTED', code: 'WRONG_POSE'},
-  other: {status: 'CLEAR', view: 'FRONT', slots: [1, 8], put: 'DIFFERENT_PERSON'},
-  unsure: {status: 'UNCERTAIN', view: 'UNKNOWN', slots: [6, 7]},
-  unsure2: {status: 'UNCERTAIN', view: 'UNKNOWN', slots: [2, 4]},
-  wrongfront: {status: 'CLEAR', view: 'FRONT', slots: [1, 8]},
-  left45x: {status: 'CLEAR', view: 'LEFT_TURN', slots: [2, 9], put: 'DIFFERENT_PERSON'},
-  upperx: {status: 'CLEAR', view: 'UPPER_BODY', slots: [6], put: 'DIFFERENT_PERSON'},
-  fullx: {status: 'CLEAR', view: 'FULL_BODY', slots: [7], put: 'DIFFERENT_PERSON'},
-  extra1: {status: 'CLEAR', view: 'FRONT', slots: [1, 8]},
-  extra2: {status: 'CLEAR', view: 'FRONT', slots: [1, 8]},
+  front1: {cat: 'FACE'}, front2: {cat: 'FACE'}, left45: {cat: 'FACE'}, left45b: {cat: 'FACE'}, right45: {cat: 'FACE'}, right45b: {cat: 'FACE'},
+  leftp: {cat: 'FACE'}, rightp: {cat: 'FACE'}, upper: {cat: 'BODY'}, full: {cat: 'BODY'}, extra1: {cat: 'FACE'}, extra2: {cat: 'FACE'},
+  dog: {code: 'NO_PERSON'}, car: {code: 'NON_IDENTITY_IMAGE'}, group: {code: 'MULTIPLE_FACES'}, other: {code: 'DIFFERENT_PERSON'},
+  wrongfront: {cat: 'FACE'}, left45x: {code: 'DIFFERENT_PERSON'}, upperx: {code: 'DIFFERENT_PERSON'}, fullx: {code: 'DIFFERENT_PERSON'},
 };
 const TEN = ['full', 'left45', 'upper', 'front1', 'rightp', 'right45', 'left45b', 'front2', 'leftp', 'right45b'];
+const PREFILL = (faces, bodies) => [...Array.from({length: faces}, (_, i) => [[1, 8, 2, 3, 9, 10, 4, 5][i], 'FACE']), ...Array.from({length: bodies}, (_, i) => [[6, 7][i], 'BODY'])];
 
 const SHOTS = process.env.SAFECARE_SCREENSHOT_DIR ? path.resolve(process.env.SAFECARE_SCREENSHOT_DIR) : '';
 if (SHOTS) fs.mkdirSync(SHOTS, {recursive: true});
@@ -494,13 +479,16 @@ try {
     const scenario = async (name, setup, body) => {
       const started = Date.now();
       await cdp.send('Page.navigate', {url: `http://127.0.0.1:${server.address().port}/${FIXTURE}`});
-      for (let t = 0; t < 100; t += 1) {
-        if (await cdp.evaluate('return globalThis.__ready === true;').catch(() => false)) break;
-        await new Promise(resolve => setTimeout(resolve, 100));
+      let ready = false;
+      for (let t = 0; t < 300 && !ready; t += 1) {
+        ready = await cdp.evaluate('return globalThis.__ready === true;').catch(() => false);
+        if (!ready) await new Promise(resolve => setTimeout(resolve, 100));
       }
+      if (!ready) throw new Error(`${label} ${name}: the fixture page did not load`);
+      const {prefill, ...rest} = setup;
       const result = await cdp.evaluate(`
-        Object.assign(__core, ${JSON.stringify({rules: R, ...setup})});
-        ${setup.prefill ? `for (const slot of ${JSON.stringify(setup.prefill)}) __core.filled.set(slot, 'prefilled-' + slot);` : ''}
+        Object.assign(__core, ${JSON.stringify({rules: R, ...rest})});
+        for (const [slot, cat] of ${JSON.stringify(prefill || [])}) __core.filled.set(slot, {uri: 'prefilled-' + slot, cat});
         ${body}
       `);
       const layout = await cdp.evaluate('return document.querySelector("[data-person-bulk]") ? __layout() : {overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, outside: [], small: []};');
@@ -521,7 +509,7 @@ try {
       return {result, where};
     };
 
-    // (i) Selection screen: the exact warning and the angle line before picking.
+    // (i) Before picking: the exact warning, the easy guide, the tiles as examples, nothing that makes ten look required.
     {
       const {result: r, where} = await scenario('i-selection', {}, `
         await __openPhotos();
@@ -534,280 +522,168 @@ try {
           multiple: input.multiple, accept: input.accept, type: input.type,
           beforeGrid: Boolean(panel.compareDocumentPosition(document.querySelector('[data-person-slot-grid]')) & Node.DOCUMENT_POSITION_FOLLOWING),
           tiles: document.querySelectorAll('[data-person-slot]').length,
-          tileArtwork: document.querySelectorAll('[data-person-slot] .person-slot-guide-image').length,
-          tileVisible: [...document.querySelectorAll('[data-person-slot] .safecare-slot-visible')].filter(node => node.textContent.startsWith('보여야 하는 부분')).length,
-          tilePickers: document.querySelectorAll('[data-person-slot] .safecare-slot-choose, [data-person-slot-input]').length,
-          tileRetry: [...document.querySelectorAll('[data-person-slot]')].map(tile => tile.dataset.safecareSlotRetry),
-          lockText: document.querySelector('[data-person-slot-grid]').textContent.includes('먼저 등록하면 선택할 수 있습니다'),
+          artwork: document.querySelectorAll('[data-person-slot] .person-slot-guide-image').length,
+          visible: [...document.querySelectorAll('[data-person-slot] .safecare-slot-visible')].filter(node => node.textContent.startsWith('보여야 하는 부분')).length,
+          tileControls: document.querySelectorAll('[data-person-slot] button, [data-person-slot] input').length,
           examples: document.querySelector('[data-person-slot-examples]')?.textContent || '',
+          step: document.querySelector('[data-person-care-surface]').innerText,
+          counter: __counter(),
           statusRole: panel.querySelector('[data-person-bulk-status]').getAttribute('role'),
         };
       `);
       assert.equal(r.warning, WARNING, `${where}: warning verbatim`);
-      assert.equal(r.angles, bulk.PERSON_BULK_ANGLE_GUIDE, where);
+      assert.equal(r.angles, ANGLES, where);
       assert.equal(r.pick, '사진 여러 장 선택', where);
       assert.equal(r.multiple, true, where);
       assert.equal(r.accept, 'image/*', where);
       assert.equal(r.beforeGrid, true, `${where}: the panel sits above the tiles`);
       assert.equal(r.tiles, 10, `${where}: the ten example tiles stay`);
-      assert.equal(r.tileArtwork, 10, `${where}: every tile keeps its example picture`);
-      assert.equal(r.tileVisible, 10, `${where}: every tile keeps '보여야 하는 부분'`);
-      assert.equal(r.tilePickers, 0, `${where}: no per-tile picker before the first batch (SAFECARE-PHOTO-EASY-UPLOAD-01)`);
-      assert.deepEqual(r.tileRetry, Array(10).fill('false'), where);
-      assert.equal(r.lockText, false, `${where}: no per-tile lock sentence`);
-      assert.equal(r.examples, '아래 10칸은 어떤 사진이 필요한지 보여 주는 예시예요. 사진은 위의 ‘사진 여러 장 선택’으로 한 번에 올려 주세요.', where);
+      assert.equal(r.artwork, 10, `${where}: every tile keeps its example picture`);
+      assert.equal(r.visible, 10, `${where}: every tile keeps '보여야 하는 부분'`);
+      assert.equal(r.tileControls, 0, `${where}: a registration tile has no button or picker`);
+      assert.equal(r.examples, '아래 10칸은 어떤 사진이 있으면 좋은지 보여 주는 예시예요. 사진은 위의 ‘사진 여러 장 선택’으로 한 번에 올려 주세요. 칸을 다 채우지 않아도 돼요.', where);
+      assert.deepEqual(r.counter, {text: '얼굴 0/3 · 몸 0/2지금 0장 · 10장까지 올릴 수 있어요', complete: 'false', note: NEEDS_ALL, next: true}, where);
+      for (const phrase of TEN_REQUIRED) assert.ok(!r.step.includes(phrase), `${where}: nothing makes ten look required ("${phrase}")`);
       assert.equal(r.statusRole, 'status', where);
     }
 
-    // (a) Ten photos of one person, all CLEAR: ten stored, fronts first.
+    // (a) Ten everyday photos: sent one at a time in the order picked, all kept, the set complete.
     {
-      const {result: r, where} = await scenario('a-ten-clear', {delay: 25}, `
+      const {result: r, where} = await scenario('a-ten', {delay: 25}, `
         await __openPhotos();
         await __pick(__panel().querySelector('[data-person-bulk-input]'), ${JSON.stringify(TEN)});
-        // While the batch runs no tile offers its own picker.
         const running = document.querySelector('[data-person-care-surface]').dataset.personBulkRunning;
-        const pickersDuringRun = document.querySelectorAll('[data-person-slot] .safecare-slot-choose').length;
         await __done();
         return {
-          running, pickersDuringRun, pickersAfter: document.querySelectorAll('[data-person-slot] .safecare-slot-choose').length, puts: [...__core.puts], classifies: __core.calls.filter(c => c.startsWith('CLASSIFY')).length,
-          maxInflight: __core.maxInflight, summary: __panel().querySelector('[data-person-bulk-summary]')?.textContent,
-          items: __items(), statusLog: [...__statusLog], counter: document.querySelector('[data-safecare-photo-count]').textContent,
-          next: document.querySelector('[data-person-photos-next]')?.disabled, anchor: Boolean(document.querySelector('[data-person-bulk-anchor-hint]')),
+          running, posts: [...__core.posts], maxInflight: __core.maxInflight,
+          summary: __panel().querySelector('[data-person-bulk-summary]')?.textContent,
+          items: __items(), statusLog: [...__statusLog], counter: __counter(),
           focused: document.activeElement?.dataset?.personBulkSummary === '',
-          summaryDrawn: [...__panel().querySelectorAll('*')].filter(node => !node.children.length && node.textContent === '등록 성공 10장 · 실패 0장 · 확인 필요 0장' && node.getBoundingClientRect().height > 2).length,
+          summaryDrawn: [...__panel().querySelectorAll('*')].filter(node => !node.children.length && node.textContent === '등록 성공 10장 · 실패 0장' && node.getBoundingClientRect().height > 2).length,
+          filled: [...__core.filled.keys()].sort((a, b) => a - b),
         };
       `);
       assert.equal(r.running, 'true', `${where}: the surface marks the run`);
-      assert.equal(r.pickersDuringRun, 0, `${where}: no tile picker while the batch runs`);
-      assert.equal(r.pickersAfter, 0, `${where}: all ten stored, no tile asks for another photo`);
-      assert.deepEqual(r.puts, [1, 8, 2, 3, 9, 10, 6, 4, 5, 7], `${where}: upload order`);
-      assert.equal(r.classifies, 10, where);
+      assert.deepEqual(r.posts, TEN, `${where}: one POST per photo, in the order picked`);
       assert.equal(r.maxInflight, 1, `${where}: one request at a time`);
-      assert.equal(r.summary, '등록 성공 10장 · 실패 0장 · 확인 필요 0장', where);
-      assert.ok(r.items.every(item => item.state === 'STORED' && item.badge === '등록 성공' && item.slotLine.startsWith('등록한 칸: ')), where);
-      assert.deepEqual(r.items.map(item => item.slot), [7, 2, 6, 1, 5, 3, 9, 8, 4, 10], `${where}: each photo in its own kind of slot`);
-      for (let i = 1; i <= 10; i += 1) {
-        assert.ok(r.statusLog.includes(`AI가 사진을 분류하고 있어요 (${i}/10)`), `${where}: classify progress ${i}/10`);
-        assert.ok(r.statusLog.includes(`사진을 등록하고 있어요 (${i}/10)`), `${where}: upload progress ${i}/10`);
-      }
-      assert.ok(r.statusLog.indexOf('AI가 사진을 분류하고 있어요 (10/10)') < r.statusLog.indexOf('사진을 등록하고 있어요 (1/10)'), `${where}: classify before upload`);
-      assert.equal(r.counter, '등록 완료 10 / 10' + '10장을 모두 등록했습니다', `${where}: the counter follows Core`);
-      assert.equal(r.next, false, `${where}: the wizard can move on`);
-      assert.equal(r.anchor, false, where);
+      assert.equal(r.summary, '등록 성공 10장 · 실패 0장', where);
+      assert.ok(r.items.every(item => item.state === 'STORED' && item.badge === '등록 성공'), where);
+      assert.deepEqual(r.items.map(item => item.line), TEN.map(name => (R[name].cat === 'BODY' ? '상반신·전신 사진으로 등록했어요' : '얼굴 사진으로 등록했어요')), `${where}: each photo says what kind it was stored as`);
+      for (let i = 1; i <= 10; i += 1) assert.ok(r.statusLog.includes(`사진을 확인하고 있어요 (${i}/10)`), `${where}: progress ${i}/10`);
+      assert.deepEqual(r.counter, {text: '얼굴 3/3 · 몸 2/2지금 10장 · 10장까지 올릴 수 있어요', complete: 'true', note: '등록에 필요한 사진이 모두 있어요.', next: false}, where);
+      assert.deepEqual(r.filled, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], where);
       assert.equal(r.focused, true, `${where}: focus moves to the result`);
       assert.equal(r.summaryDrawn, 1, `${where}: the summary is drawn once`);
     }
 
-    // (b) Mixed: an animal, a car and another person among real photos.
-    // (d) Then replace only the wrong photos; earlier successes stay.
+    // (b) Mixed: an animal, a car and another person among real photos; then replace only a wrong photo.
     {
-      const {result: r, where} = await scenario('b-d-mixed-replace', {}, `
+      const {result: r, where} = await scenario('b-mixed-replace', {}, `
         await __openPhotos();
         await __pick(__panel().querySelector('[data-person-bulk-input]'), ['front1', 'dog', 'car', 'other', 'left45', 'upper']);
         await __done();
-        const first = {puts: [...__core.puts], items: __items(), summary: __panel().querySelector('[data-person-bulk-summary]').textContent, anchor: Boolean(document.querySelector('[data-person-bulk-anchor-hint]')),
-          tiles: [...document.querySelectorAll('[data-person-slot]')].map(tile => [tile.dataset.safecareSlotRetry, tile.querySelector('.safecare-slot-choose')?.textContent || ''])};
+        const first = {posts: [...__core.posts], items: __items(), summary: __panel().querySelector('[data-person-bulk-summary]').textContent, anchor: Boolean(document.querySelector('[data-person-bulk-anchor-hint]'))};
         const row = id => document.querySelector('[data-person-bulk-item="' + id + '"]');
-        // The other person's photo (meant for 추가 정면) replaced by an upper-body photo: wrong slot, kept pending.
-        await __pick(row(4).querySelector('[data-person-bulk-replace-input]'), ['upper2']);
+        await __pick(row(4).querySelector('[data-person-bulk-replace-input]'), ['right45']);
         await __done();
-        const mismatch = {puts: [...__core.puts], item: __items()[3]};
-        // ...then by a real front photo: stored in 추가 정면 only.
-        await __pick(row(4).querySelector('[data-person-bulk-replace-input]'), ['front2']);
-        await __done();
-        const fixed = {puts: [...__core.puts], items: __items(), summary: __panel().querySelector('[data-person-bulk-summary]').textContent};
-        // The dog photo (no slot) replaced by a full-body photo: goes to 정면 전신.
-        await __pick(row(2).querySelector('[data-person-bulk-replace-input]'), ['full']);
-        await __done();
-        return {first, mismatch, fixed, last: {puts: [...__core.puts], items: __items(), summary: __panel().querySelector('[data-person-bulk-summary]').textContent},
-          deletes: __core.calls.filter(c => c.startsWith('DELETE')), filled: [...__core.filled.keys()].sort((a, b) => a - b),
-          counter: document.querySelector('[data-safecare-photo-count]').dataset.safecarePhotoCount};
+        return {first, posts: [...__core.posts], items: __items(), summary: __panel().querySelector('[data-person-bulk-summary]').textContent,
+          deletes: [...__core.deletes], filled: [...__core.filled.keys()].sort((a, b) => a - b), counter: __counter()};
       `);
       const byId = items => Object.fromEntries(items.map(item => [item.id, item]));
       const first = byId(r.first.items);
-      assert.deepEqual(r.first.puts, [1, 8, 2, 6], `${where}: fronts first, rejected photos never uploaded`);
-      assert.equal(r.first.summary, '등록 성공 3장 · 실패 3장 · 확인 필요 0장', where);
-      assert.equal(first[1].state, 'STORED'); assert.equal(first[1].slot, 1);
-      assert.equal(first[2].state, 'REJECTED'); assert.equal(first[2].message, MSG.NO_PERSON, `${where}: animal reason`);
-      assert.equal(first[3].state, 'REJECTED'); assert.equal(first[3].message, MSG.NON_IDENTITY_IMAGE, `${where}: object reason`);
-      assert.equal(first[4].state, 'PUT_FAILED'); assert.equal(first[4].message, MSG.DIFFERENT_PERSON, `${where}: other person reason`);
-      assert.equal(first[4].slotLine, '등록하려던 칸: 추가 정면');
-      assert.equal(first[4].code, 'PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON');
-      assert.ok(first[2].replace && first[3].replace && first[4].replace, `${where}: every failed photo has 다른 사진으로 교체`);
-      assert.equal(first[5].slot, 2); assert.equal(first[6].slot, 6);
-      assert.equal(r.first.anchor, false, `${where}: one different-person refusal followed by successes is no anchor warning`);
-      const again = ['true', '이 칸 다시 고르기'], none = ['false', ''];
-      assert.deepEqual(r.first.tiles, [none, none, again, again, again, none, again, again, again, again],
-        `${where}: after the batch only the tiles still missing a photo (추가 정면 refused) offer '이 칸 다시 고르기'`);
-      assert.deepEqual(r.mismatch.puts, [1, 8, 2, 6], `${where}: a replacement for the wrong slot is not uploaded`);
-      assert.equal(r.mismatch.item.state, 'PUT_FAILED');
-      assert.equal(r.mismatch.item.note, '새 사진은 추가 정면 칸에 맞지 않아요. 추가 정면 칸에 맞는 사진을 선택해 주세요.', where);
-      assert.deepEqual(r.fixed.puts, [1, 8, 2, 6, 8], `${where}: only the intended slot is written`);
-      assert.equal(byId(r.fixed.items)[4].state, 'STORED');
-      assert.equal(byId(r.fixed.items)[4].slot, 8);
-      assert.equal(r.fixed.summary, '등록 성공 4장 · 실패 2장 · 확인 필요 0장', where);
-      assert.deepEqual(r.last.puts, [1, 8, 2, 6, 8, 7], where);
-      assert.equal(byId(r.last.items)[2].state, 'STORED'); assert.equal(byId(r.last.items)[2].slot, 7);
-      assert.equal(r.last.summary, '등록 성공 5장 · 실패 1장 · 확인 필요 0장', where);
-      assert.deepEqual(r.deletes, [], `${where}: nothing is ever deleted`);
-      assert.deepEqual(r.filled, [1, 2, 6, 7, 8], `${where}: earlier successes stay stored`);
-      assert.equal(r.counter, '5', where);
+      assert.deepEqual(r.first.posts, ['front1', 'dog', 'car', 'other', 'left45', 'upper'], `${where}: every photo is asked about, in order`);
+      assert.equal(r.first.summary, '등록 성공 3장 · 실패 3장', where);
+      assert.equal(first[1].state, 'STORED');
+      assert.deepEqual([first[2].state, first[2].message], ['REFUSED', MSG.NO_PERSON], `${where}: animal reason`);
+      assert.deepEqual([first[3].state, first[3].message], ['REFUSED', MSG.NON_IDENTITY_IMAGE], `${where}: object reason`);
+      assert.deepEqual([first[4].state, first[4].message, first[4].code], ['REFUSED', MSG.DIFFERENT_PERSON, 'PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON'], `${where}: other person reason`);
+      assert.ok(first[2].replace && first[3].replace && first[4].replace && !first[1].replace, `${where}: only a refused photo can be replaced`);
+      assert.equal(r.first.anchor, false, `${where}: one different-person refusal is no anchor warning`);
+      assert.deepEqual(r.posts, ['front1', 'dog', 'car', 'other', 'left45', 'upper', 'right45'], `${where}: the replacement is one more POST`);
+      assert.equal(byId(r.items)[4].state, 'STORED');
+      assert.equal(r.summary, '등록 성공 4장 · 실패 2장', where);
+      assert.deepEqual(r.deletes, [], `${where}: nothing is ever deleted by a batch`);
+      assert.deepEqual(r.filled, [1, 2, 6, 8], `${where}: earlier successes stay stored`);
+      assert.equal(r.counter.note, '상반신·전신 사진 1장이 더 있으면 등록을 마칠 수 있어요.', `${where}: three faces and one body so far`);
     }
 
-    // (c) Wrong angle, a third front, blur, a group photo and duplicate bytes.
+    // (c) Five photos — three faces and two bodies — open the next step; more is only recommended.
     {
-      const {result: r, where} = await scenario('c-angles-quality-duplicate', {}, `
+      const {result: r, where} = await scenario('c-five', {}, `
         await __openPhotos();
-        await __pick(__panel().querySelector('[data-person-bulk-input]'), ['front1', 'front2', 'front3', 'blur', 'group', 'back', 'left45', ['left45dup', 'left45']]);
+        await __pick(__panel().querySelector('[data-person-bulk-input]'), ['front1', 'left45', 'upper', 'right45']);
         await __done();
-        return {puts: [...__core.puts], items: __items(), summary: __panel().querySelector('[data-person-bulk-summary]').textContent};
+        const four = __counter();
+        await __pick(__panel().querySelector('[data-person-bulk-input]'), ['full']);
+        await __done();
+        return {four, five: __counter()};
       `);
-      const items = Object.fromEntries(r.items.map(item => [item.id, item]));
-      assert.deepEqual(r.puts, [1, 8, 2, 9], where);
-      assert.equal(r.summary, '등록 성공 3장 · 실패 4장 · 확인 필요 1장', where);
-      assert.deepEqual([items[1].slot, items[2].slot], [1, 8], `${where}: two fronts placed`);
-      assert.equal(items[3].state, 'NEEDS_CHOICE', `${where}: the third front needs confirmation`);
-      assert.equal(items[3].badge, '확인 필요');
-      assert.deepEqual(items[3].choices, [], `${where}: it never displaces a photo of this batch`);
-      assert.ok(items[3].skip && items[3].replace, where);
-      assert.match(items[3].message, /다른 각도에서 찍은 사진으로 바꾸거나 건너뛰어 주세요/);
-      assert.equal(items[4].message, MSG.TOO_BLURRY, `${where}: blur`);
-      assert.equal(items[5].message, MSG.MULTIPLE_FACES, `${where}: several people`);
-      assert.equal(items[6].message, MSG.WRONG_POSE, `${where}: wrong angle`);
-      assert.equal(items[7].state, 'STORED'); assert.equal(items[7].slot, 2);
-      assert.equal(items[8].state, 'PUT_FAILED'); assert.equal(items[8].slot, 9);
-      assert.equal(items[8].message, MSG.DUPLICATE, `${where}: duplicate bytes`);
+      assert.deepEqual(r.four, {text: '얼굴 3/3 · 몸 1/2지금 4장 · 10장까지 올릴 수 있어요', complete: 'false', note: '상반신·전신 사진 1장이 더 있으면 등록을 마칠 수 있어요.', next: true}, `${where}: four photos are one body short`);
+      assert.deepEqual(r.five, {text: '얼굴 3/3 · 몸 2/2지금 5장 · 10장까지 올릴 수 있어요', complete: 'true', note: RECOMMEND, next: false}, `${where}: five photos complete the set`);
     }
 
-    // (e) UNCERTAIN: the guardian chooses the slot; another one is skipped.
+    // (g) More than fits: ten in all, counting the photos already stored.
     {
-      const {result: r, where} = await scenario('e-uncertain-choice', {}, `
+      const {result: r, where} = await scenario('g-room', {prefill: PREFILL(6, 2)}, `
         await __openPhotos();
-        await __pick(__panel().querySelector('[data-person-bulk-input]'), ['front1', 'unsure', 'unsure2']);
+        await __pick(__panel().querySelector('[data-person-bulk-input]'), ['extra1', 'extra2', 'front1', 'front2']);
         await __done();
-        const before = {puts: [...__core.puts], items: __items(), summary: __panel().querySelector('[data-person-bulk-summary]').textContent};
-        document.querySelector('[data-person-bulk-item="2"] [data-person-bulk-choose="7"]').click();
-        await __done();
-        document.querySelector('[data-person-bulk-item="3"] [data-person-bulk-skip]').click();
-        await __wait(30);
-        return {before, puts: [...__core.puts], items: __items(), summary: __panel().querySelector('[data-person-bulk-summary]').textContent};
+        return {posts: [...__core.posts], notices: [...document.querySelectorAll('[data-person-bulk-notice]')].map(n => n.textContent), items: __items().length};
       `);
-      const before = Object.fromEntries(r.before.items.map(item => [item.id, item]));
-      assert.deepEqual(r.before.puts, [1], `${where}: an uncertain photo is not placed by itself`);
-      assert.equal(r.before.summary, '등록 성공 1장 · 실패 0장 · 확인 필요 2장', where);
-      assert.equal(before[2].state, 'NEEDS_CHOICE');
-      assert.deepEqual(before[2].choices, [[6, '정면 상반신 칸에 등록'], [7, '정면 전신 칸에 등록']], `${where}: only its own candidate slots`);
-      assert.deepEqual(before[3].choices.map(([slot]) => slot), [2, 4]);
-      const after = Object.fromEntries(r.items.map(item => [item.id, item]));
-      assert.deepEqual(r.puts, [1, 7], `${where}: the chosen slot only`);
-      assert.equal(after[2].state, 'STORED'); assert.equal(after[2].slot, 7);
-      assert.equal(after[3].state, 'SKIPPED'); assert.equal(after[3].badge, '건너뜀');
-      assert.equal(r.summary, '등록 성공 2장 · 실패 0장 · 확인 필요 0장', where);
+      assert.deepEqual(r.posts, ['extra1', 'extra2'], `${where}: only the two that fit are sent`);
+      assert.deepEqual(r.notices, ['사진은 모두 합쳐 10장까지 등록할 수 있어요. 처음 고른 2장만 확인할게요.'], where);
+      assert.equal(r.items, 2, where);
     }
 
-    // (e2) A slot already filled on Core is replaced only when chosen.
-    {
-      const {result: r, where} = await scenario('e2-filled-replace-choice', {prefill: [1, 4, 6]}, `
-        await __openPhotos();
-        await __pick(__panel().querySelector('[data-person-bulk-input]'), ['upper', 'leftp']);
-        await __done();
-        const before = {puts: [...__core.puts], items: __items()};
-        document.querySelector('[data-person-bulk-item="1"] [data-person-bulk-choose="6"]').click();
-        await __done();
-        return {before, puts: [...__core.puts], items: __items()};
-      `);
-      assert.deepEqual(r.before.puts, [], `${where}: filled slots are not overwritten automatically`);
-      assert.deepEqual(r.before.items.map(item => item.choices), [[[6, '정면 상반신 사진 바꾸기']], [[4, '왼쪽 옆면 사진 바꾸기']]], where);
-      assert.deepEqual(r.puts, [6], where);
-      assert.equal(r.items[0].state, 'STORED');
-    }
-
-    // (f) No front photo while slot 1 is empty: nothing uploaded, front first.
-    {
-      const {result: r, where} = await scenario('f-front-first', {}, `
-        await __openPhotos();
-        await __pick(__panel().querySelector('[data-person-bulk-input]'), ['left45', 'upper']);
-        await __done();
-        const before = {puts: [...__core.puts], items: __items(), notices: [...document.querySelectorAll('[data-person-bulk-notice]')].map(n => n.textContent),
-          summary: __panel().querySelector('[data-person-bulk-summary]').textContent, front: Boolean(document.querySelector('[data-person-bulk-front-pick]')),
-          tiles: [...document.querySelectorAll('[data-person-slot]')].map(tile => [tile.dataset.safecareSlotRetry, tile.querySelector('.safecare-slot-choose')?.textContent || ''])};
-        // A held photo cannot be replaced into its slot before the front.
-        document.querySelector('[data-person-bulk-item="1"] [data-person-bulk-replace]').click();
-        const blocked = document.querySelector('[data-person-bulk-item="1"] [data-person-bulk-note]')?.textContent || '';
-        // A side photo offered as the front is refused without an upload.
-        await __pick(document.querySelector('[data-person-bulk-front-input]'), ['leftp']);
-        await __done();
-        const wrongFront = {puts: [...__core.puts], note: document.querySelector('[data-person-bulk-front-note]')?.textContent || ''};
-        await __pick(document.querySelector('[data-person-bulk-front-input]'), ['front1']);
-        await __done();
-        return {before, blocked, wrongFront, puts: [...__core.puts], items: __items(), summary: __panel().querySelector('[data-person-bulk-summary]').textContent,
-          notices: [...document.querySelectorAll('[data-person-bulk-notice]')].map(n => n.textContent)};
-      `);
-      assert.deepEqual(r.before.puts, [], `${where}: nothing uploaded without a front`);
-      assert.ok(r.before.notices.includes(bulk.PERSON_BULK_FRONT_FIRST), `${where}: front-first message`);
-      assert.deepEqual(r.before.items.map(item => [item.state, item.slot, item.badge]), [['HELD', 2, '확인 필요'], ['HELD', 6, '확인 필요']], where);
-      assert.equal(r.before.summary, '등록 성공 0장 · 실패 0장 · 확인 필요 2장', where);
-      assert.equal(r.before.front, true, `${where}: a front photo can be picked right here`);
-      assert.deepEqual(r.before.tiles, [['true', '이 칸 다시 고르기'], ...Array(9).fill(['false', ''])], `${where}: without a front only the 정면 얼굴 tile offers a picker`);
-      assert.equal(r.blocked, '정면 얼굴 사진을 먼저 등록해 주세요.', where);
-      assert.deepEqual(r.wrongFront.puts, [], where);
-      assert.equal(r.wrongFront.note, '새 사진은 정면 얼굴 칸에 맞지 않아요. 정면 얼굴 칸에 맞는 사진을 선택해 주세요.', where);
-      assert.deepEqual(r.puts, [1, 2, 6], `${where}: the front first, then the held photos in order`);
-      assert.equal(r.summary, '등록 성공 3장 · 실패 0장 · 확인 필요 0장', where);
-      assert.deepEqual(r.notices, [], where);
-    }
-
-    // (g) More than ten photos: the first ten are used and the screen says so.
-    {
-      const {result: r, where} = await scenario('g-more-than-ten', {}, `
-        await __openPhotos();
-        await __pick(__panel().querySelector('[data-person-bulk-input]'), ${JSON.stringify([...TEN, 'extra1', 'extra2'])});
-        await __done();
-        return {classified: __core.calls.filter(c => c.startsWith('CLASSIFY')).map(c => c.slice(9)), items: __items().length,
-          notices: [...document.querySelectorAll('[data-person-bulk-notice]')].map(n => n.textContent), puts: __core.puts.length};
-      `);
-      assert.deepEqual(r.classified, TEN, `${where}: only the first ten are classified`);
-      assert.equal(r.items, 10, where);
-      assert.equal(r.puts, 10, where);
-      assert.ok(r.notices.includes('사진은 한 번에 최대 10장까지 등록할 수 있어 앞의 10장만 사용해요. (12장 중 2장 제외)'), `${where}: ${JSON.stringify(r.notices)}`);
-    }
-
-    // (h) The anchor may be someone else: a stored front, then only refusals.
+    // (h) The first stored photo may be someone else.
     {
       const {result: r, where} = await scenario('h-anchor-hint', {}, `
         await __openPhotos();
         await __pick(__panel().querySelector('[data-person-bulk-input]'), ['wrongfront', 'left45x', 'upperx', 'fullx']);
         await __done();
-        return {puts: [...__core.puts], hint: document.querySelector('[data-person-bulk-anchor-hint]')?.textContent || '', summary: __panel().querySelector('[data-person-bulk-summary]').textContent};
+        return {hint: document.querySelector('[data-person-bulk-anchor-hint]')?.textContent || '', summary: __panel().querySelector('[data-person-bulk-summary]').textContent};
       `);
-      assert.deepEqual(r.puts, [1, 2, 6, 7], where);
       assert.equal(r.hint, ANCHOR, `${where}: anchor hint verbatim`);
-      assert.equal(r.summary, '등록 성공 1장 · 실패 3장 · 확인 필요 0장', where);
+      assert.equal(r.summary, '등록 성공 1장 · 실패 3장', where);
     }
 
-    // (k) Older Core without classify: nothing stored, the tiles still work.
+    // (k) An older Core without the slot-free POST: the run stops at the first answer, nothing is stored.
     {
-      const {result: r, where} = await scenario('k-classify-unavailable', {classifyStatus: 404}, `
+      const {result: r, where} = await scenario('k-post-unavailable', {postStatus: 404}, `
         await __openPhotos();
-        await __pick(__panel().querySelector('[data-person-bulk-input]'), ['front1', 'left45']);
+        await __pick(__panel().querySelector('[data-person-bulk-input]'), ['front1', 'left45', 'upper']);
         await __done();
-        const notices = [...document.querySelectorAll('[data-person-bulk-notice]')].map(n => n.textContent);
-        const pickers = () => [...document.querySelectorAll('[data-person-slot]')].filter(tile => tile.querySelector('.safecare-slot-choose')).map(tile => tile.dataset.personSlot);
-        const before = pickers();
-        const tile = document.querySelector('[data-person-slot="FACE_FRONT"]');
-        const label = tile.querySelector('.safecare-slot-choose').textContent;
-        const transfer = new DataTransfer(); transfer.items.add(await __file('front2'));
-        const input = tile.querySelector('[data-person-slot-input]'); input.files = transfer.files; input.dispatchEvent(new Event('change', {bubbles: true}));
-        await __until(() => __core.puts.length === 1 && document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoCount === '1');
-        return {notices, before, label, after: pickers(), puts: [...__core.puts], classifies: __core.calls.filter(c => c.startsWith('CLASSIFY')).length, items: __items().length};
+        return {notices: [...document.querySelectorAll('[data-person-bulk-notice]')].map(n => n.textContent), posts: [...__core.posts], items: __items().map(item => item.state), filled: __core.filled.size};
       `);
       assert.deepEqual(r.notices, [bulk.PERSON_BULK_UNAVAILABLE], where);
-      assert.equal(r.classifies, 1, `${where}: the run stops at the first answer`);
-      assert.equal(r.items, 0, where);
-      assert.deepEqual(r.before, ['FACE_FRONT'], `${where}: after the stopped batch the 정면 얼굴 tile offers its picker`);
-      assert.equal(r.label, '이 칸 다시 고르기', where);
-      assert.deepEqual(r.puts, [1], `${where}: the tile's own picker still saves`);
-      assert.equal(r.after.length, 9, `${where}: with the front stored the other nine empty tiles offer their picker`);
+      assert.deepEqual(r.posts, ['front1'], `${where}: the run stops at the first answer`);
+      assert.deepEqual(r.items, ['REFUSED', 'SKIPPED', 'SKIPPED'], where);
+      assert.equal(r.filled, 0, where);
+    }
+
+    // (m) 사진 갱신·관리: a stored photo is taken out only on a second tap.
+    {
+      const {result: r, where} = await scenario('m-manage-remove', {prefill: PREFILL(4, 2)}, `
+        await __mount();
+        await __until(() => document.querySelector('[data-person-photos]'));
+        document.querySelector('[data-person-photos]').click();
+        await __until(() => document.querySelector('[data-person-slot-grid]'));
+        const removers = () => [...document.querySelectorAll('[data-person-slot-remove]')].map(button => Number(button.dataset.personSlotRemove));
+        const before = removers();
+        const button = document.querySelector('[data-person-slot-remove="8"]');
+        button.click();
+        await __wait(50);
+        const armed = {label: button.textContent, deletes: [...__core.deletes]};
+        button.click();
+        await __until(() => __core.deletes.length === 1 && document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoCount === '5');
+        return {before, armed, deletes: [...__core.deletes], after: removers(), counter: __counter(), title: document.querySelector('.person-form-title')?.textContent || ''};
+      `);
+      assert.deepEqual(r.before, [1, 2, 3, 6, 7, 8], `${where}: only filled tiles offer 사진 빼기`);
+      assert.deepEqual(r.armed, {label: '한 번 더 누르면 사진을 빼요', deletes: []}, `${where}: the first tap only asks`);
+      assert.deepEqual(r.deletes, [8], `${where}: the second tap takes that photo out`);
+      assert.deepEqual(r.after, [1, 2, 3, 6, 7], where);
+      assert.equal(r.title, '한지우 사진 갱신·관리', where);
+      assert.equal(r.counter.complete, 'true', `${where}: three faces and two bodies are still a set`);
     }
 
     // (l) The reporter's own found reports never disclose a comparison result,
@@ -839,7 +715,7 @@ try {
       ['retrying', {received: true, review_status: 'RECEIVED', admin_notification: 'RETRYING', police_report_filed: false}, `한지우 실종 상태로 전환했고 LOTBI 안심케어 관리자 접수함에 등록했습니다. 관리자 알림을 다시 보내고 있습니다. 접수는 이미 완료되었습니다. ${NOT_POLICE}`],
       ['no-intake', null, `한지우 실종 상태로 전환했습니다. ${NOT_POLICE}`],
     ]) {
-      const {result: r, where} = await scenario(`j-sos-${mode}`, {prefill: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], sosIntake: intake}, `
+      const {result: r, where} = await scenario(`j-sos-${mode}`, {prefill: PREFILL(8, 2), sosIntake: intake}, `
         await __mount();
         await __until(() => document.querySelector('[data-person-sos-open]'));
         document.querySelector('[data-person-sos-open]').click();
@@ -858,7 +734,7 @@ try {
       assert.equal(r.role, 'status', where);
       assert.equal(r.view, 'list', where);
     }
-    console.log(`  ${label}: bulk upload a-k, found-report privacy, SOS copy PASS`);
+    console.log(`  ${label}: bulk upload (POST one by one), five-photo set, manage remove, found-report privacy, SOS copy PASS`);
   }
 } finally {
   browser.kill();
