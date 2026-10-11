@@ -1,35 +1,53 @@
-import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-f6e2cba23952';
-import * as siteCore from './site-core.js?v=aset-f6e2cba23952';
-import './site-scam-shield.js?v=aset-f6e2cba23952';
-import {mountConsumerSection, LIFE_VIEW_PARENT, lifeBackLabel} from './site-consumer-sections.js?v=aset-f6e2cba23952';
-import {parseSiteRouteHash, siteRouteHash, siteRouteUrl, captureWalletShareIntent} from './site-route.js?v=aset-f6e2cba23952';
-import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl} from './site-navigation.js?v=aset-f6e2cba23952';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-f6e2cba23952';
-import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-f6e2cba23952';
-import * as siteAttachments from './site-attachments.js?v=aset-f6e2cba23952';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-f6e2cba23952';
-import {deterministicReply} from './site-deterministic.js?v=aset-f6e2cba23952';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-f6e2cba23952';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-f6e2cba23952';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-f6e2cba23952';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-f6e2cba23952';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-f6e2cba23952';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-f6e2cba23952';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-f6e2cba23952';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-f6e2cba23952';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-f6e2cba23952';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-f6e2cba23952';
-import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-f6e2cba23952';
-import {resolveLifeLocationContext} from './site-life-location.js?v=aset-f6e2cba23952';
-import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-f6e2cba23952';
-import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-f6e2cba23952';
-import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-f6e2cba23952';
-import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-f6e2cba23952';
-import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-f6e2cba23952';
-import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-f6e2cba23952';
-import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-f6e2cba23952';
+import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-0428ff94b761';
+import * as siteCore from './site-core.js?v=aset-0428ff94b761';
+import './site-scam-shield.js?v=aset-0428ff94b761';
+import {mountConsumerSection, LIFE_VIEW_PARENT, lifeBackLabel} from './site-consumer-sections.js?v=aset-0428ff94b761';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl, captureWalletShareIntent, captureFamilyInviteIntent, hasFamilyInviteIntent} from './site-route.js?v=aset-0428ff94b761';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl, placeCategoryLabel} from './site-navigation.js?v=aset-0428ff94b761';
+import {readDefaultMapProvider, isLocationUsageEnabled} from './site-location-preference.js?v=aset-0428ff94b761';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-0428ff94b761';
+import * as siteAttachments from './site-attachments.js?v=aset-0428ff94b761';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-0428ff94b761';
+import {deterministicReply} from './site-deterministic.js?v=aset-0428ff94b761';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-0428ff94b761';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-0428ff94b761';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-0428ff94b761';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-0428ff94b761';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-0428ff94b761';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-0428ff94b761';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-0428ff94b761';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-0428ff94b761';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-0428ff94b761';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-0428ff94b761';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-0428ff94b761';
+import {resolveLifeLocationContext, lifeCurrentLocationBlocked, lifeLocationIntent, resetLifeLocationPromptMemory} from './site-life-location.js?v=aset-0428ff94b761';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-0428ff94b761';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-0428ff94b761';
+import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-0428ff94b761';
+import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-0428ff94b761';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-0428ff94b761';
+import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-0428ff94b761';
+import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-0428ff94b761';
 const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
+
+// TROUBLE-HELPER-01 — 분쟁·사고 도우미 ("막막할 때 롯비") owns its <dialog> the
+// way 진위확인 does. It loads only when first needed — the first tap on a menu
+// button, or a reload while it was open — never at boot, so the boot timing of
+// every other request stays as it was. A failure there never stops this module.
+let troubleHelperModule = null;
+const loadTroubleHelper = () => {
+  troubleHelperModule ||= import('./site-trouble-helper.js?v=aset-0428ff94b761').catch(() => { troubleHelperModule = null; return null; });
+  return troubleHelperModule;
+};
+document.addEventListener('click', event => {
+  const trigger = event.target instanceof Element ? event.target.closest('[data-trouble-open]') : null;
+  if (!trigger || trigger.dataset.troubleBound === 'true') return;
+  void loadTroubleHelper().then(module => module?.openTroubleHelper?.(trigger));
+});
+try {
+  if (window.sessionStorage.getItem('lotbi.trouble-helper.open.v1') === '1') void loadTroubleHelper();
+} catch {}
 
 // SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — an image-only turn carries this
 // placeholder as its conversation text. The composer builds the same sentence
@@ -204,7 +222,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-f6e2cba23952';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-0428ff94b761';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -297,7 +315,7 @@ const MESSAGE_ACTION_FEEDBACK_MS = 2600;
 let shareMenuSequence = 0;
 
 async function shareMessageWithKakao(options) {
-  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-f6e2cba23952');
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-0428ff94b761');
   return shareWithKakaoTalk(options);
 }
 
@@ -306,7 +324,7 @@ async function shareMessageWithKakao(options) {
 // already has the SDK loaded, so choosing it shares within the same tap.
 async function prepareKakaoShare() {
   try {
-    const module = await import('./site-kakao-share.js?v=aset-f6e2cba23952');
+    const module = await import('./site-kakao-share.js?v=aset-0428ff94b761');
     return Boolean(await module.prepareKakaoShare());
   } catch {
     return false;
@@ -397,9 +415,10 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
   // Calendar is a launcher, never a writer: it always opens the same editor
   // dialog every other Calendar entry point uses, pre-filled with only the
   // fields this message already carries, and it never calls a register/save
-  // function directly from here.
-  const calendar = createIconButton({className: 'chat-message-action', label: '캘린더에 추가', iconPath: MESSAGE_ACTION_ICON_CALENDAR, dataset: {messageAction: 'calendar'}});
-  calendar.addEventListener('click', () => {
+  // function directly from here. CONVERSATION-ANSWER-UX-01 (QA #8): only an
+  // answer with a schedule in it offers it; a "where?" or place answer has none.
+  const calendar = calendarDraft ? createIconButton({className: 'chat-message-action', label: '캘린더에 추가', iconPath: MESSAGE_ACTION_ICON_CALENDAR, dataset: {messageAction: 'calendar'}}) : null;
+  calendar?.addEventListener('click', () => {
     if (typeof openCalendarDraft !== 'function') return;
     void openCalendarDraft(calendarDraft).catch(() => report('캘린더를 열지 못했습니다.', 'error'));
   });
@@ -481,29 +500,30 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
     }
   });
 
-  actions.append(copy, share, calendar, readAloud, feedback, shareMenu);
+  actions.append(...[copy, share, calendar, readAloud, feedback, shareMenu].filter(Boolean));
   return actions;
 }
 
-// Only fields this message already has, never a guess: a settled calendar
-// draft wins outright (it already went through CHATPERF-05's own contract),
-// otherwise the first place result lends its name and address and nothing
-// else — no date, no time, nothing this message never said.
-//
-// Always an object, never null: openCalendar's editor only opens itself when
-// initialDraft is an object (site-calendar-manager.js's openDeepTarget), so a
-// message with nothing to pre-fill still has to reach the blank 일정 등록
-// editor rather than silently landing on the plain calendar view.
-function calendarDraftHintFromMessage(message, place) {
+// Only fields this message already has, never a guess: the schedule Core
+// read from it (CHATPERF-05's calendar draft) - a title or a date. An answer
+// without one (a "where?" question, a place list, the weather) offers no
+// 캘린더에 추가 at all (CONVERSATION-ANSWER-UX-01, QA #8), so this is null.
+// When it is an object it is what openCalendar's editor opens with.
+function calendarDraftHintFromMessage(message) {
   const draft = message?.meta?.calendarDraft;
   if (draft && typeof draft === 'object' && (draft.title || draft.localDate)) {
     return {title: draft.title, localDate: draft.localDate, localTime: draft.localTime, entry: draft.entry};
   }
-  const primaryPlace = place?.results?.[0];
-  if (primaryPlace?.name) {
-    return {title: primaryPlace.name, entry: primaryPlace.address ? {place: primaryPlace.address} : undefined};
-  }
-  return {};
+  return null;
+}
+
+// CONVERSATION-ANSWER-UX-01 (QA #7): Core says why it asks where
+// (follow_up.reason / intent.clarification). Only "no location at all" gets
+// [현재 위치 사용] [지역 선택]; a name several 시·도 share is answered in words.
+function answerLocationRequest(response, question) {
+  const reason = response?.followUp?.reason || response?.intent?.clarification;
+  const text = typeof question === 'string' ? question.trim().slice(0, 1000) : '';
+  return reason === 'LOCATION_REQUIRED' && text ? {question: text} : null;
 }
 
 function createAttachmentIcon(attachment) {
@@ -1013,8 +1033,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (conversationSync) return Promise.resolve(conversationSync);
     if (!conversationSyncLoading) {
       conversationSyncLoading = Promise.all([
-        import('./site-conversation-sync.js?v=aset-f6e2cba23952'),
-        import('./site-conversation-sync-ui.js?v=aset-f6e2cba23952'),
+        import('./site-conversation-sync.js?v=aset-0428ff94b761'),
+        import('./site-conversation-sync-ui.js?v=aset-0428ff94b761'),
       ]).then(([engine, ui]) => {
         conversationSyncUi = ui;
         ui.ensureConversationSyncStyles();
@@ -1699,11 +1719,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const title = document.createElement('span');
         title.dataset.conversationTitle = ''; title.textContent = item.title;
         button.appendChild(title);
-        if (item.pinned === true) {
-          const badge = document.createElement('span');
-          badge.className = 'conversation-history-pin'; badge.textContent = '고정'; badge.setAttribute('aria-hidden', 'true');
-          button.appendChild(badge);
-        }
+        // COMMON-UI-POLISH-02 (QA 02 C9) — pinned chats are listed under their own '고정'
+        // heading, so a '고정' badge on each one said the same word twice.
         button.addEventListener('click', () => { activateThread(item.id); schedulePendingTurnResume(); });
 
         const actions = document.createElement('details');
@@ -2096,7 +2113,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       copy.className = 'lotbi-rich-card-copy';
       const source = document.createElement('span');
       source.className = 'lotbi-rich-card-source';
-      source.textContent = place.category || '장소';
+      source.textContent = placeCategoryLabel(place.category) || '장소';
       const title = document.createElement('h3');
       title.className = 'lotbi-rich-card-title';
       title.textContent = place.name;
@@ -3325,15 +3342,60 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         node.appendChild(vet);
       }
     }
+    if (message.role === 'assistant' && message.meta?.locationRequest?.question) {
+      node.appendChild(createLocationRequestRow(message.meta.locationRequest.question));
+    }
     if (message.role === 'assistant' && !reusableOutput) {
       const actions = createMessageActions(message.text, setStatus, {
-        calendarDraft: calendarDraftHintFromMessage(message, place),
+        calendarDraft: calendarDraftHintFromMessage(message),
         openCalendarDraft: draft => openCalendar(draft?.localDate ? 'month' : 'agenda', {initialDraft: draft, restoreConversation: true}),
       });
       if (actions) node.appendChild(actions);
     }
     return node;
   };
+  // CONVERSATION-ANSWER-UX-01 (QA #7): "어느 지역에서 찾을까요?" offers the two
+  // ways to answer it under the answer. [현재 위치 사용] shows only while LOTBI
+  // location use is on (as the 지역뉴스 screen); the tap is the explicit
+  // request, so the browser may ask once more. [지역 선택] opens the region
+  // list and asks again with the region in the sentence (a named region wins
+  // in Core). Nothing is stored.
+  function createLocationRequestRow(question) {
+    const row = document.createElement('div');
+    row.className = 'lotbi-place-filter-row lotbi-location-request-row';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', '찾을 위치 정하기');
+    const add = (label, kind, onClick) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'lotbi-place-filter-chip';
+      button.dataset.locationRequest = kind;
+      button.textContent = label;
+      button.addEventListener('click', () => { void onClick(button); });
+      row.appendChild(button);
+    };
+    if (isLocationUsageEnabled()) add('현재 위치 사용', 'current', () => askWithCurrentLocation(question));
+    add('지역 선택', 'region', button => askInPickedRegion(question, button));
+    return row;
+  }
+  async function askWithCurrentLocation(question) {
+    if (await lifeCurrentLocationBlocked()) {
+      setStatus('이 브라우저에서 위치를 쓸 수 없어요. 지역 선택을 눌러 주세요.');
+      return;
+    }
+    resetLifeLocationPromptMemory();
+    // A deliberate second ask of the same question, not a double tap.
+    lastTapQuestion = {text: '', at: 0};
+    askWithoutKeyboard(lifeLocationIntent(question) ? question : `근처 ${question}`);
+  }
+  async function askInPickedRegion(question, trigger) {
+    try {
+      const {openRegionPicker} = await import('./site-region-picker.js?v=aset-0428ff94b761');
+      openRegionPicker({returnFocus: trigger, onPick: region => askWithoutKeyboard(`${region} ${question}`)});
+    } catch {
+      setStatus('지역 목록을 열지 못했어요. 입력창에 지역 이름을 적어 보내 주세요.');
+    }
+  }
   const appendConversationRecord = (message, options = {}) => {
     if (shouldShowConversationSeparator(lastRenderedCreatedAt, message?.createdAt)) {
       const separator = createConversationSeparator(message.createdAt);
@@ -3430,6 +3492,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const draft = normalizeConversationCalendarDraft(meta.calendarDraft);
       if (draft) meta.calendarDraft = draft;
       else delete meta.calendarDraft;
+    }
+    if ('locationRequest' in meta) {
+      const question = typeof meta.locationRequest?.question === 'string' ? meta.locationRequest.question.trim().slice(0, 1000) : '';
+      if (value.role === 'assistant' && question) meta.locationRequest = {question};
+      else delete meta.locationRequest;
     }
     if ('reusableOutput' in meta) {
       try {
@@ -3664,6 +3731,35 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     const openSummary = openSurface?.querySelector?.('.profile-popover-summary');
     if (openSummary instanceof HTMLElement) openSummary.replaceWith(profileSummary());
+    renderHeaderAccountAvatar();
+  };
+  // SITE-HEADER-AUTH-QA-23-24-01 (#24) — the phone Header's account button
+  // shows the same avatar as the account row it opens; signed out, it goes
+  // back to the plain icon (the button itself is hidden then).
+  const renderHeaderAccountAvatar = ({signedOut = false} = {}) => {
+    const name = signedOut ? '' : ownProfileName();
+    const key = signedOut ? 'signed-out'
+      : profilePhotoUrl ? `photo:${profilePhotoUrl}`
+        : name ? `initials:${initials(name)}` : 'default';
+    const label = signedOut ? '내 계정 메뉴 열기' : `${canonicalProfileName()} 계정 메뉴 열기`;
+    for (const button of document.querySelectorAll('[data-header-account]')) {
+      if (!(button instanceof HTMLElement)) continue;
+      if (button.getAttribute('aria-label') !== label) button.setAttribute('aria-label', label);
+      // The profile refreshes several times right after sign-in. Replacing
+      // the picture under a finger between press and release loses the tap,
+      // so the node is only swapped when the picture really changes.
+      if (button.dataset.headerAvatarKey === key) continue;
+      button.dataset.headerAvatarKey = key;
+      const current = button.querySelector('[data-header-account-avatar]');
+      const visual = signedOut ? document.createElement('span') : profileVisual();
+      if (signedOut) {
+        visual.className = 'sidebar-profile-avatar sidebar-profile-avatar-default';
+        visual.setAttribute('aria-hidden', 'true');
+        visual.appendChild(defaultProfileIcon());
+      }
+      visual.dataset.headerAccountAvatar = '';
+      if (current instanceof HTMLElement) current.replaceWith(visual); else button.prepend(visual);
+    }
   };
   const loadServerProfile = async () => {
     if (!sessionToken) return;
@@ -4063,7 +4159,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-f6e2cba23952');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-0428ff94b761');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -4091,7 +4187,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-f6e2cba23952');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-0428ff94b761');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -4124,7 +4220,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseCctvSurface?.(); releaseCctvSurface = null; },
     });
     try {
-      const {mountTrafficCctv} = await import('./site-life-traffic-cctv.js?v=aset-f6e2cba23952');
+      const {mountTrafficCctv} = await import('./site-life-traffic-cctv.js?v=aset-0428ff94b761');
       const mounted = await mountTrafficCctv({root: content, showTitle: false});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseCctvSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -4153,7 +4249,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseOnnuriSurface?.(); releaseOnnuriSurface = null; },
     });
     try {
-      const {mountVoucherHub} = await import('./site-life-vouchers.js?v=aset-f6e2cba23952');
+      const {mountVoucherHub} = await import('./site-life-vouchers.js?v=aset-0428ff94b761');
       const mounted = await mountVoucherHub({root: content});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseOnnuriSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -4203,7 +4299,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       event.preventDefault(); event.stopPropagation(); backToList();
     }, true);
     try {
-      const {mountRealEstate} = await import('./site-life-real-estate.js?v=aset-f6e2cba23952');
+      const {mountRealEstate} = await import('./site-life-real-estate.js?v=aset-0428ff94b761');
       if (!backdrop.isConnected || realEstateSurface !== entry) return;
       entry.controller = mountRealEstate({
         root: content,
@@ -4246,7 +4342,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseEvSurface?.(); releaseEvSurface = null; },
     });
     try {
-      const {mountEvChargers} = await import('./site-life-ev-chargers.js?v=aset-f6e2cba23952');
+      const {mountEvChargers} = await import('./site-life-ev-chargers.js?v=aset-0428ff94b761');
       const mounted = await mountEvChargers({root: content, showTitle: false, askLocationOnOpen: askLocation});
       if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
       releaseEvSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
@@ -4285,7 +4381,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onClose: () => { releaseSubwaySurface?.(); releaseSubwaySurface = null; },
     });
     try {
-      const {mountSubwayHome} = await import('./site-life-subway.js?v=aset-f6e2cba23952');
+      const {mountSubwayHome} = await import('./site-life-subway.js?v=aset-0428ff94b761');
       const mounted = await mountSubwayHome({
         root: content, askLocationOnOpen: askLocation, initialState,
         onState: value => { if (backdrop.isConnected) rememberSubwayState('subway', 'lotbiSubwayHome', value); },
@@ -4314,7 +4410,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     // A station picked on #subway is written into the entry pushed for it.
     queueMicrotask(() => { if (backdrop.isConnected) rememberSubwayState('subway-station', 'lotbiSubwayStation', saved); });
     try {
-      const {mountSubwayStation} = await import('./site-life-subway.js?v=aset-f6e2cba23952');
+      const {mountSubwayStation} = await import('./site-life-subway.js?v=aset-0428ff94b761');
       const mounted = await mountSubwayStation({
         root: content, initialState: saved,
         onState: value => { if (backdrop.isConnected) rememberSubwayState('subway-station', 'lotbiSubwayStation', value); },
@@ -4621,8 +4717,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       onSaved: () => { closeSurface(); openLotbiBox(); },
       loadCareCounts: async () => {
         const [{listPeople}, {listPets}] = await Promise.all([
-          import('./site-person.js?v=aset-f6e2cba23952'),
-          import('./site-pet.js?v=aset-f6e2cba23952'),
+          import('./site-person.js?v=aset-0428ff94b761'),
+          import('./site-pet.js?v=aset-0428ff94b761'),
         ]);
         const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
         return {
@@ -4630,12 +4726,21 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           ...(pets.status === 'fulfilled' ? {pets: pets.value.length} : {}),
         };
       },
-      mountPeople: async (root, initialSurface, reportCounts) => {
-        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-f6e2cba23952');
-        return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts});
+      mountPeople: async (root, initialSurface, reportCounts, {missingPrefill = null} = {}) => {
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-0428ff94b761');
+        return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts, missingPrefill});
+      },
+      // FAMILY-LOCATION-01: 안심케어 → 가족 위치, a tab that appears only when Core answers.
+      checkFamily: async () => {
+        const {familyLocationAvailable} = await import('./site-family-location.js?v=aset-0428ff94b761');
+        return familyLocationAvailable(sessionToken);
+      },
+      mountFamily: async (root, {onMissingReport} = {}) => {
+        const {mountFamilyLocation} = await import('./site-family-location-ui.js?v=aset-0428ff94b761');
+        return mountFamilyLocation({sessionToken, root, onMissingReport});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-f6e2cba23952');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-0428ff94b761');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
@@ -4643,7 +4748,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       // only). It asks through the onAsk handed over by the life section, so a
       // question is sent at once without the keyboard, like every life card.
       mountMyChild: async (root, {onAsk: askFromMyChild} = {}) => {
-        const {mountMyChild} = await import('./site-life-my-child.js?v=aset-f6e2cba23952');
+        const {mountMyChild} = await import('./site-life-my-child.js?v=aset-0428ff94b761');
         return mountMyChild({sessionToken, root, authenticated: Boolean(sessionToken), onAsk: askFromMyChild});
       },
     });
@@ -5566,6 +5671,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       console.info(`[LOTBI deterministic evidence] latencyMs=${diagnostics.lastVisibleAnswerMs} coreRequests=${diagnostics.lastCoreRequestDelta} providerRequests=0 externalAiRequests=${diagnostics.lastExternalAiRequestDelta}`);
       setStatus('LOTBI의 즉시 응답이 도착했습니다.'); if (!keepComposerClosed) returnComposerFocusAfterTurn(); return;
     }
+    // A sentence the recogniser took for a command but Core could not read
+    // (a past date, 10월 32일...) is not an error: it goes on to the
+    // conversation like any other message (CALENDAR-COMMAND-RECOGNITION-P0-01).
+    const calendarCommandRefused = caught => caught instanceof SiteCoreError && caught.code === 'CALENDAR_COMMAND_UNSUPPORTED';
+    let calendarCommandFallsThrough = false;
     if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message)) {
       const calendarRequestId = logicalRequestId || newId('calendar-guest-direct');
       const thinking = beginRequestThinking(calendarRequestId); inFlight = true; updateSendState();
@@ -5581,14 +5691,29 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           turnCreatedAt: sourceTurnCreatedAtIso,
         });
         if (!turnStillActive()) return;
+        if (preview.recurrence) {
+          // This browser's Calendar holds single events only; a repeat needs the
+          // account Calendar. Say so instead of saving one occurrence.
+          const repeatRecord = timestampedConversationMessage({
+            role: 'assistant',
+            text: '반복 일정은 로그인한 뒤 등록할 수 있어요. 로그인하지 않은 동안에는 한 번만 있는 일정만 이 브라우저 캘린더에 저장돼요.',
+            meta: {status: 'ANSWERED', responseMode: preview.parserType},
+          });
+          thinking.stop('answer');
+          appendConversationRecord(repeatRecord);
+          appendPersistedMessage(repeatRecord);
+          setStatus('반복 일정은 로그인이 필요합니다.');
+          return;
+        }
+        const allDay = preview.temporal.kind === 'DATE_ONLY';
         const event = await globalThis.navigator.locks.request(
           `lotbi-calendar-direct:${calendarRequestId}`,
           {mode: 'exclusive'},
           async () => createGuestCalendarRepository(storage).createForRequest(calendarRequestId, {
             title: preview.title,
-            local_date: preview.temporal.local_datetime.slice(0, 10),
-            local_datetime: preview.temporal.local_datetime,
-            all_day: false,
+            local_date: allDay ? preview.temporal.local_date : preview.temporal.local_datetime.slice(0, 10),
+            local_datetime: allDay ? null : preview.temporal.local_datetime,
+            all_day: allDay,
           }),
         );
         if (!turnStillActive()) return;
@@ -5622,8 +5747,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         setStatus('이 브라우저 캘린더에 일정을 등록했습니다.');
       } catch (caught) {
         if (!turnStillActive()) return;
-        thinking.stop('error');
-        showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
+        if (calendarCommandRefused(caught)) {
+          calendarCommandFallsThrough = true;
+          thinking.stop('cancel');
+        } else {
+          thinking.stop('error');
+          showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
+        }
       } finally {
         if (turnStillActive()) {
           thinking.stop('cancel');
@@ -5632,7 +5762,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           focusComposerAfterThisTurn();
         }
       }
-      return;
+      if (!calendarCommandFallsThrough) return;
     }
     if (!sessionToken) {
       const guestRequestId = logicalRequestId || newId('guest-ai');
@@ -5672,6 +5802,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+        const locationRequest = answerLocationRequest(response, message);
+        if (locationRequest) meta.locationRequest = locationRequest;
         if (suggestedPetAction) meta.petAction = suggestedPetAction;
         if (response.medicalNotice?.emergencyCall === true) meta.emergencyCall = true;
         if (response.medicalNotice?.partial === true) meta.medicalPartial = true;
@@ -5766,12 +5898,17 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         setStatus('일정을 추가하고 달력을 새로 고쳤습니다.');
       } catch (caught) {
         if (!turnStillActive()) return;
-        thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
-        showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
+        if (calendarCommandRefused(caught)) {
+          calendarCommandFallsThrough = true;
+          thinking.stop('cancel');
+        } else {
+          thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
+          showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
+        }
       } finally {
         if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); if (!keepComposerClosed) returnComposerFocusAfterTurn(); }
       }
-      return;
+      if (!calendarCommandFallsThrough) return;
     }
     const authenticatedRequestId = logicalRequestId || newId('auth-ai');
     const thinking = beginRequestThinking(authenticatedRequestId); inFlight = true; updateSendState(); setVoiceFeedback('');
@@ -5811,6 +5948,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       }
       const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+      const locationRequest = answerLocationRequest(response, message);
+      if (locationRequest) meta.locationRequest = locationRequest;
       if (suggestedPetAction) meta.petAction = suggestedPetAction;
       if (response.medicalNotice?.emergencyCall === true) meta.emergencyCall = true;
       if (response.medicalNotice?.partial === true) meta.medicalPartial = true;
@@ -6116,10 +6255,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const homePrompt = target?.closest('[data-home-prompt]');
     if (homePrompt instanceof HTMLButtonElement) {
       event.preventDefault();
-      prompt.value = String(homePrompt.dataset.homePrompt || '').slice(0, 1000);
-      prompt.dispatchEvent(new Event('input', {bubbles: true}));
-      prompt.focus();
-      setStatus('예시 요청을 입력창에 넣었습니다. 내용을 바꾸거나 바로 전송할 수 있습니다.');
+      // CONVERSATION-ANSWER-UX-01 (QA #6): an example asks at once, like every
+      // other one-tap chip - nothing waits in the composer, no keyboard.
+      askWithoutKeyboard(String(homePrompt.dataset.homePrompt || ''));
       return;
     }
     const globalNavAction = target?.closest('[data-global-nav-action]');
@@ -6223,6 +6361,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell, .profile-photo-picker')) closeSurface();
     // A different (or no) account must never keep showing the previous photo.
     clearProfilePhoto();
+    if (!detail.authenticated) renderHeaderAccountAvatar({signedOut: true});
     if (detail.authenticated) {
       const key = normalizedNamespace(detail.identityKey || detail.installationId); if (key) switchNamespace(key);
       refreshAuthenticatedProfileSlots();
@@ -6260,7 +6399,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     calendar: () => openCalendar('all'),
     wallet: () => openConsumerSection('wallet'),
     scam: () => openScamShield(),
-    care: () => openConsumerSection('care'),
+    care: () => openConsumerSection('care', {careTab: hasFamilyInviteIntent() ? 'family' : 'people'}),
     pets: () => openConsumerSection('care', {careTab: 'pets'}),
     life: () => openLifeView('life'),
     'life-medical': () => openLifeView('life-medical'),
@@ -6334,7 +6473,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     applySiteRoute(target);
   });
   // A Life Wallet share link opened while LOTBI is already open in this tab.
-  window.addEventListener('hashchange', () => { if (captureWalletShareIntent()) applySiteRoute('wallet'); });
+  window.addEventListener('hashchange', () => {
+    if (captureWalletShareIntent()) applySiteRoute('wallet');
+    else if (captureFamilyInviteIntent()) applySiteRoute('care');
+  });
   // The 로그인 links inside a screen (Life Wallet, 안심케어 사람·반려동물) go
   // through the /auth/start/ fallback page, whose fragment is the login return
   // target; carry the screen there so the login comes back to it.
@@ -6354,6 +6496,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const restoreSiteRouteFromUrl = () => {
     // A Life Wallet share link (#wallet-share=…) opens the wallet; its token waits in this tab.
     captureWalletShareIntent();
+    // A 가족 위치 invitation link (#family-invite=…) opens 안심케어; its token waits in this tab.
+    captureFamilyInviteIntent();
     const requested = parseSiteRouteHash(window.location.hash);
     if (!requested || isProfilePhotoEmbed()) { settleSiteRoutePending(); return; }
     let started = false;

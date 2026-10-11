@@ -1,0 +1,1272 @@
+{
+  "guide_version": "2026-10-10-01",
+  "verified_on": "2026-10-10",
+  "notice": "참고용이에요. 최종 결정은 보험사·기관·법원이 해요.",
+  "status_track": [
+    {
+      "id": "PREPARE",
+      "label": "자료 정리"
+    },
+    {
+      "id": "SUBMITTED",
+      "label": "제출함(접수번호 확인)"
+    },
+    {
+      "id": "IN_PROGRESS",
+      "label": "조사·처리 중"
+    },
+    {
+      "id": "RESULT",
+      "label": "결과 받음"
+    },
+    {
+      "id": "RESOLVED",
+      "label": "실제로 해결됨"
+    }
+  ],
+  "safety_notes": [
+    "온라인으로 다 썼어도 접수번호를 확인하기 전에는 접수가 끝난 것이 아니에요.",
+    "신고를 했다고 바로 해결되는 것은 아니에요. 진행 상황을 따로 확인해 주세요.",
+    "인증번호와 비밀번호는 가족에게도 보내지 마세요."
+  ],
+  "situations": [
+    {
+      "id": "CAR_ACCIDENT",
+      "order": 1,
+      "title": "자동차 사고",
+      "subtitle": "차 사고가 났어요",
+      "notice": "참고용이에요. 최종 과실은 보험사가 정해요.",
+      "receipt_field_id": "receipt",
+      "questions": [
+        {
+          "id": "injury",
+          "text": "다친 사람이 있나요?",
+          "options": [
+            {
+              "id": "yes",
+              "label": "있어요"
+            },
+            {
+              "id": "no",
+              "label": "없어요"
+            },
+            {
+              "id": "unknown",
+              "label": "잘 모르겠어요"
+            }
+          ]
+        },
+        {
+          "id": "other",
+          "text": "무엇과 부딪혔나요?",
+          "options": [
+            {
+              "id": "car",
+              "label": "다른 차"
+            },
+            {
+              "id": "person",
+              "label": "사람"
+            },
+            {
+              "id": "bicycle",
+              "label": "자전거"
+            },
+            {
+              "id": "pm",
+              "label": "전동킥보드"
+            }
+          ]
+        },
+        {
+          "id": "place",
+          "text": "어디서 났나요?",
+          "options": [
+            {
+              "id": "intersection",
+              "label": "교차로(사거리·삼거리)"
+            },
+            {
+              "id": "same_direction",
+              "label": "같은 방향으로 가다가"
+            },
+            {
+              "id": "oncoming",
+              "label": "마주 오다가"
+            },
+            {
+              "id": "other_place",
+              "label": "주차장 같은 그 밖의 곳"
+            }
+          ]
+        },
+        {
+          "id": "signal",
+          "text": "신호등이 있었나요?",
+          "show_if": {
+            "place": [
+              "intersection"
+            ]
+          },
+          "options": [
+            {
+              "id": "yes",
+              "label": "있었어요"
+            },
+            {
+              "id": "no",
+              "label": "없었어요"
+            },
+            {
+              "id": "unknown",
+              "label": "잘 모르겠어요"
+            }
+          ]
+        },
+        {
+          "id": "my_move",
+          "text": "내 차는 어떻게 움직이고 있었나요?",
+          "options": [
+            {
+              "id": "straight",
+              "label": "곧게 가고 있었어요"
+            },
+            {
+              "id": "left",
+              "label": "왼쪽으로 돌고 있었어요"
+            },
+            {
+              "id": "right",
+              "label": "오른쪽으로 돌고 있었어요"
+            },
+            {
+              "id": "lane_change",
+              "label": "차로를 바꾸고 있었어요"
+            },
+            {
+              "id": "stopped",
+              "label": "서 있었어요"
+            },
+            {
+              "id": "reverse",
+              "label": "뒤로 가고 있었어요"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "id": "call_119",
+          "title": "다친 사람이 있으면 119",
+          "body": "다친 사람이 있거나 잘 모르겠으면 먼저 119에 전화하세요.",
+          "urgent": true,
+          "status": "PREPARE",
+          "channel_ids": [
+            "FIRE_119"
+          ],
+          "show_if": {
+            "injury": [
+              "yes",
+              "unknown"
+            ]
+          }
+        },
+        {
+          "id": "stay_safe",
+          "title": "더 큰 사고 막기",
+          "body": "비상등을 켜고 삼각대나 불꽃신호기를 세우세요. 탄 사람은 차가 다니지 않는 안전한 곳으로 피하세요.",
+          "urgent": true,
+          "status": "PREPARE"
+        },
+        {
+          "id": "call_112",
+          "title": "필요하면 112 신고",
+          "body": "다친 사람이 있거나, 상대가 그냥 가려 하거나, 다툼이 있으면 112에 신고하세요.",
+          "urgent": false,
+          "status": "PREPARE",
+          "channel_ids": [
+            "POLICE_112"
+          ]
+        },
+        {
+          "id": "photos",
+          "title": "사진 찍기",
+          "body": "찍기 전에 블랙박스가 녹화되고 있는지 먼저 보세요. 그다음 ① 사고 장소(도로 모양·신호·표지판) ② 부딪힌 곳(가까이 한 장, 멀리서 차 전체 한 장) ③ 차가 지나온 자국(앞바퀴 방향·노면 표시·미끄러진 자국)을 찍으세요.",
+          "urgent": false,
+          "status": "PREPARE"
+        },
+        {
+          "id": "blackbox",
+          "title": "블랙박스 영상 지키기",
+          "body": "블랙박스 영상은 새 영상에 덮일 수 있어요. 휴대폰이나 다른 저장장치로 원본을 옮겨 두세요.",
+          "urgent": false,
+          "status": "PREPARE"
+        },
+        {
+          "id": "insurer",
+          "title": "내 보험사에 사고 접수",
+          "body": "가입한 보험사에 사고를 접수하세요. 상대 차 번호와 상대 보험사도 받아 두세요. 접수번호는 정리표에 적어 두세요.",
+          "urgent": false,
+          "status": "SUBMITTED",
+          "channel_ids": [
+            "MY_INSURER"
+          ]
+        },
+        {
+          "id": "fault_reference",
+          "title": "비슷한 사고 유형 찾아보기",
+          "body": "손해보험협회 과실비율정보포털에서 비슷한 사고 유형을 찾아볼 수 있어요. 아래 '포털에서 고르는 순서'나 '대화로 찾기'를 써 보세요.",
+          "urgent": false,
+          "status": "IN_PROGRESS",
+          "channel_ids": [
+            "KNIA_PORTAL"
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "id": "blackbox",
+          "label": "블랙박스 원본 영상"
+        },
+        {
+          "id": "photos",
+          "label": "사진(사고 장소·부딪힌 곳·지나온 자국)"
+        },
+        {
+          "id": "other_car",
+          "label": "상대 차 번호, 연락처, 보험사"
+        },
+        {
+          "id": "witness",
+          "label": "본 사람(목격자) 연락처"
+        },
+        {
+          "id": "time_place",
+          "label": "사고 날짜·시각·장소"
+        }
+      ],
+      "references": [
+        {
+          "label": "교통사고 대응요령(과실비율정보포털 화면 아래 링크)",
+          "url": "https://accident.knia.or.kr/myaccident"
+        },
+        {
+          "label": "과실비율 인정기준이란(손해보험협회)",
+          "url": "https://accident.knia.or.kr/index"
+        },
+        {
+          "label": "과실비율 분쟁심의 제도(손해보험협회)",
+          "url": "https://accident.knia.or.kr/system"
+        }
+      ],
+      "fault_portal": {
+        "select_url": "https://accident.knia.or.kr/myaccident1?tab=car",
+        "describe_url": "https://accident.knia.or.kr/myaccident",
+        "pm_url": "https://accident.knia.or.kr/special",
+        "step1": {
+          "car": "차 대 차",
+          "person": "차 대 사람",
+          "bicycle": "차 대 자전거",
+          "pm": "비정형 과실비율(개인형 이동장치)"
+        },
+        "step2": {
+          "intersection": "교차로",
+          "same_direction": "같은 방향 진행차량 간",
+          "oncoming": "마주보는 방향 진행차량 간",
+          "other_place": "기타(주차장 등)"
+        },
+        "describe_min_chars": 20,
+        "describe_max_chars": 1000,
+        "copy_note": "포털의 '대화로 찾기'에 이 문장을 붙여 넣으면 비슷한 사고 유형을 찾아 줘요. 과실비율 숫자는 포털에서 직접 확인하세요."
+      },
+      "channel_ids": [
+        "FIRE_119",
+        "POLICE_112",
+        "MY_INSURER",
+        "KNIA_PORTAL"
+      ],
+      "call_script": [
+        "자동차 사고가 났어요.",
+        "사고 장소와 시각을 말해요.",
+        "다친 사람이 있는지 말해요.",
+        "상대 차 번호를 알면 말해요."
+      ],
+      "summary_fields": [
+        {
+          "id": "when_where",
+          "label": "사고 날짜·시각·장소"
+        },
+        {
+          "id": "other_party",
+          "label": "상대 차 번호·연락처·보험사"
+        },
+        {
+          "id": "injury_note",
+          "label": "다친 사람"
+        },
+        {
+          "id": "receipt",
+          "label": "보험사 접수번호"
+        },
+        {
+          "id": "questions",
+          "label": "보험사에 물어볼 것"
+        }
+      ],
+      "status_labels": {
+        "SUBMITTED": "보험사 접수함(접수번호 확인)",
+        "IN_PROGRESS": "과실 협의 중",
+        "RESULT": "과실 결정 들음",
+        "RESOLVED": "보상·수리 끝남"
+      }
+    },
+    {
+      "id": "USED_TRADE_FRAUD",
+      "order": 2,
+      "title": "중고거래 사기",
+      "subtitle": "돈을 보냈는데 물건이 안 와요",
+      "notice": "참고용이에요. 거래를 멈출 수 있는지는 은행과 경찰이 판단해요.",
+      "receipt_field_id": "receipt",
+      "questions": [
+        {
+          "id": "paid",
+          "text": "돈을 보냈나요?",
+          "options": [
+            {
+              "id": "bank",
+              "label": "계좌로 보냈어요"
+            },
+            {
+              "id": "app_pay",
+              "label": "앱 안전결제로 냈어요"
+            },
+            {
+              "id": "not_yet",
+              "label": "아직 안 보냈어요"
+            }
+          ]
+        },
+        {
+          "id": "when",
+          "text": "언제 보냈나요?",
+          "show_if": {
+            "paid": [
+              "bank",
+              "app_pay"
+            ]
+          },
+          "options": [
+            {
+              "id": "today",
+              "label": "오늘"
+            },
+            {
+              "id": "before",
+              "label": "어제나 그 전"
+            }
+          ]
+        },
+        {
+          "id": "contact",
+          "text": "판매자와 지금도 연락이 되나요?",
+          "options": [
+            {
+              "id": "yes",
+              "label": "돼요"
+            },
+            {
+              "id": "no",
+              "label": "안 돼요"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "id": "stop_paying",
+          "title": "돈을 더 보내지 마세요",
+          "body": "'배송비', '수수료', '다시 보내 주면 환불' 같은 말에 돈을 더 보내지 마세요.",
+          "urgent": true,
+          "status": "PREPARE"
+        },
+        {
+          "id": "bank_and_112",
+          "title": "보낸 은행과 112에 바로 알리기",
+          "body": "돈을 보낸 은행 고객센터와 112에 바로 알리고 거래를 멈춰 달라고 요청하세요. 멈출 수 있는지는 은행과 경찰이 판단해요.",
+          "urgent": true,
+          "status": "PREPARE",
+          "channel_ids": [
+            "POLICE_112"
+          ],
+          "show_if": {
+            "paid": [
+              "bank"
+            ]
+          }
+        },
+        {
+          "id": "app_report",
+          "title": "거래 앱 고객센터에 알리기",
+          "body": "앱 안전결제로 냈다면 그 앱 고객센터에 먼저 알리세요.",
+          "urgent": true,
+          "status": "PREPARE",
+          "show_if": {
+            "paid": [
+              "app_pay"
+            ]
+          }
+        },
+        {
+          "id": "save_evidence",
+          "title": "증거 저장하기",
+          "body": "판매 글(주소가 보이게), 대화 전체, 이체 확인증, 판매자 계좌·전화번호·닉네임을 캡처해 두세요. 판매 글이 지워지기 전에 먼저 하세요.",
+          "urgent": false,
+          "status": "PREPARE",
+          "show_if": {
+            "paid": [
+              "bank",
+              "app_pay"
+            ]
+          }
+        },
+        {
+          "id": "police_report",
+          "title": "경찰에 신고하기",
+          "body": "사이버범죄 신고시스템에 미리 써 둘 수 있어요(임시접수). 정식 접수는 평일 오전 9시~오후 6시에 관할 경찰서에 가서 해요. 경찰서에서 받은 접수번호를 정리표에 적어 두세요.",
+          "urgent": false,
+          "status": "SUBMITTED",
+          "channel_ids": [
+            "ECRM",
+            "POLICE_182"
+          ],
+          "show_if": {
+            "paid": [
+              "bank",
+              "app_pay"
+            ]
+          }
+        },
+        {
+          "id": "lookup_before",
+          "title": "보내기 전에 조회해 보기",
+          "body": "판매자 전화번호나 계좌가 사기로 신고된 적 있는지 경찰청에서 조회해 보세요. 받은 문자나 링크가 수상하면 LOTBI 진위확인으로 먼저 확인해 보세요.",
+          "urgent": false,
+          "status": "PREPARE",
+          "channel_ids": [
+            "POLICE_FRAUD_LOOKUP"
+          ],
+          "show_if": {
+            "paid": [
+              "not_yet"
+            ]
+          },
+          "link_scam_shield": true
+        }
+      ],
+      "evidence": [
+        {
+          "id": "post",
+          "label": "판매 글 캡처(주소 보이게)"
+        },
+        {
+          "id": "chat",
+          "label": "대화 전체 캡처"
+        },
+        {
+          "id": "transfer",
+          "label": "이체 확인증"
+        },
+        {
+          "id": "seller",
+          "label": "판매자 계좌·전화번호·닉네임"
+        }
+      ],
+      "references": [
+        {
+          "label": "사이버사기 피해신고 이력조회(경찰청)",
+          "url": "https://www.police.go.kr/www/security/cyber/cyber04.jsp"
+        }
+      ],
+      "channel_ids": [
+        "POLICE_112",
+        "POLICE_182",
+        "ECRM",
+        "POLICE_FRAUD_LOOKUP"
+      ],
+      "call_script": [
+        "중고거래에서 돈을 보냈는데 물건을 못 받았어요.",
+        "보낸 날짜·시각·금액을 말해요.",
+        "보낸 은행과 받은 사람 계좌번호를 말해요."
+      ],
+      "summary_fields": [
+        {
+          "id": "trade",
+          "label": "거래 날짜·물건·금액"
+        },
+        {
+          "id": "payment",
+          "label": "보낸 방법·계좌"
+        },
+        {
+          "id": "seller",
+          "label": "판매자 정보(닉네임·전화·계좌)"
+        },
+        {
+          "id": "app",
+          "label": "거래한 앱"
+        },
+        {
+          "id": "receipt",
+          "label": "신고 접수번호"
+        }
+      ],
+      "status_labels": {
+        "SUBMITTED": "신고함(접수번호 확인)",
+        "IN_PROGRESS": "수사 중",
+        "RESULT": "결과 들음",
+        "RESOLVED": "돈 돌려받음"
+      }
+    },
+    {
+      "id": "WAGE_ARREARS",
+      "order": 3,
+      "title": "월급 못 받음",
+      "subtitle": "월급이나 퇴직금을 못 받았어요",
+      "notice": "참고용이에요. 체불 여부와 금액은 근로감독관이 조사해요.",
+      "receipt_field_id": "receipt",
+      "questions": [
+        {
+          "id": "employment",
+          "text": "지금도 그 회사에 다니시나요?",
+          "options": [
+            {
+              "id": "working",
+              "label": "다니고 있어요"
+            },
+            {
+              "id": "left",
+              "label": "그만뒀어요"
+            },
+            {
+              "id": "unknown",
+              "label": "잘 모르겠어요"
+            }
+          ]
+        },
+        {
+          "id": "documents",
+          "text": "근로계약서나 월급 명세서가 있나요?",
+          "options": [
+            {
+              "id": "yes",
+              "label": "있어요"
+            },
+            {
+              "id": "no",
+              "label": "없어요"
+            },
+            {
+              "id": "unknown",
+              "label": "잘 모르겠어요"
+            }
+          ]
+        },
+        {
+          "id": "company",
+          "text": "회사가 문을 닫았거나 사장님과 연락이 안 되나요?",
+          "options": [
+            {
+              "id": "yes",
+              "label": "네"
+            },
+            {
+              "id": "no",
+              "label": "아니요"
+            },
+            {
+              "id": "unknown",
+              "label": "잘 모르겠어요"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "id": "write_down",
+          "title": "밀린 돈 적어 두기",
+          "body": "몇 월 월급이 얼마 밀렸는지, 퇴직금이 있는지 날짜와 금액을 적어 두세요. 아래 정리표에 바로 적을 수 있어요.",
+          "urgent": false,
+          "status": "PREPARE"
+        },
+        {
+          "id": "call_1350",
+          "title": "1350에 전화로 묻기",
+          "body": "고용노동부 고객상담센터 1350에 전화해 '임금체불 진정'을 내는 방법을 물어보세요.",
+          "urgent": false,
+          "status": "PREPARE",
+          "channel_ids": [
+            "MOEL_1350"
+          ]
+        },
+        {
+          "id": "file_petition",
+          "title": "진정 내기",
+          "body": "노동포털에서 임금체불 진정서를 쓰거나(로그인·본인인증 필요), 회사가 있는 지역 고용노동관서 고객지원실에 가서 낼 수 있어요. 다 내고 나면 접수번호를 꼭 적어 두세요.",
+          "duration": "처리기간 25일(토요일·공휴일 제외, 2번까지 늘어날 수 있어요). 이 기간은 조사하는 기간이에요. 돈을 받는 날이 아니에요.",
+          "urgent": false,
+          "status": "SUBMITTED",
+          "channel_ids": [
+            "MOEL_1350"
+          ]
+        },
+        {
+          "id": "attend",
+          "title": "근로감독관이 부르면 가기",
+          "body": "근로감독관이 부르면 꼭 가세요. 두 번 이상 안 가면 사건이 끝날 수 있어요(다시 낼 수는 있어요).",
+          "urgent": false,
+          "status": "IN_PROGRESS"
+        },
+        {
+          "id": "certificate",
+          "title": "확인서 받아 두기",
+          "body": "조사가 끝나면 '체불 임금등·사업주 확인서'를 신청해 받아 두세요(처리 3일, 수수료 없음). 대지급금이나 무료 소송 지원을 신청할 때 필요해요.",
+          "urgent": false,
+          "status": "RESULT"
+        },
+        {
+          "id": "substitute_pay",
+          "title": "대지급금 알아보기",
+          "body": "회사가 어렵거나 이미 그만뒀다면, 조건이 맞을 때 나라가 밀린 임금 일부를 먼저 주는 대지급금을 근로복지공단에 물어보세요.",
+          "urgent": false,
+          "status": "RESULT",
+          "channel_ids": [
+            "COMWEL_1588"
+          ],
+          "show_if": {
+            "company": [
+              "yes",
+              "unknown"
+            ]
+          }
+        },
+        {
+          "id": "legal_aid",
+          "title": "무료 소송 지원 물어보기",
+          "body": "돈을 끝내 못 받으면 대한법률구조공단 132에 물어보세요. 최근 3개월 월평균 임금이 400만 원 미만이면 소송 지원 대상이 될 수 있어요.",
+          "urgent": false,
+          "status": "RESULT",
+          "channel_ids": [
+            "KLAC_132"
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "id": "contract",
+          "label": "근로계약서"
+        },
+        {
+          "id": "payslip",
+          "label": "월급 명세서나 통장 입금 내역"
+        },
+        {
+          "id": "attendance",
+          "label": "출퇴근 기록(교통카드·출입 기록·메신저)"
+        },
+        {
+          "id": "orders",
+          "label": "일을 시킨 문자·메신저"
+        },
+        {
+          "id": "company_info",
+          "label": "회사 이름·주소·사장님 이름"
+        }
+      ],
+      "references": [
+        {
+          "label": "체불임금 해결 방법(고용노동부 노동포털)",
+          "url": "https://labor.moel.go.kr/minwonSysInfo/wagesolway.do"
+        },
+        {
+          "label": "체불 임금등·사업주 확인서 발급 신청(노동포털)",
+          "url": "https://labor.moel.go.kr/minwonApply/minwonFormat.do?searchVal=AG096&searchGubun=1&urlAddr=/minwonRqst/AG096.do"
+        },
+        {
+          "label": "간이대지급금 안내(근로복지넷)",
+          "url": "https://welfare.comwel.or.kr/default/page.do?mCode=H030010000"
+        }
+      ],
+      "channel_ids": [
+        "MOEL_1350",
+        "COMWEL_1588",
+        "KLAC_132"
+      ],
+      "call_script": [
+        "월급이 밀려서 임금체불 진정을 내고 싶어요.",
+        "회사 이름과 지역을 말해요.",
+        "밀린 기간과 금액을 말해요."
+      ],
+      "summary_fields": [
+        {
+          "id": "company",
+          "label": "회사 이름·주소"
+        },
+        {
+          "id": "period",
+          "label": "일한 기간(그만둔 날)"
+        },
+        {
+          "id": "unpaid",
+          "label": "밀린 기간과 금액"
+        },
+        {
+          "id": "receipt",
+          "label": "진정 접수번호"
+        },
+        {
+          "id": "questions",
+          "label": "물어볼 것"
+        }
+      ],
+      "status_labels": {
+        "SUBMITTED": "진정 냄(접수번호 확인)",
+        "IN_PROGRESS": "근로감독관 조사 중",
+        "RESULT": "조사 결과·확인서 받음",
+        "RESOLVED": "밀린 돈 받음"
+      }
+    },
+    {
+      "id": "FLOOR_NOISE",
+      "order": 4,
+      "title": "층간소음·이웃 다툼",
+      "subtitle": "위아래 집 소음으로 힘들어요",
+      "notice": "참고용이에요. 상담·조정 결과는 각 기관이 정해요.",
+      "receipt_field_id": "receipt",
+      "questions": [
+        {
+          "id": "housing",
+          "text": "어떤 집에 사세요?",
+          "options": [
+            {
+              "id": "apartment",
+              "label": "아파트"
+            },
+            {
+              "id": "multi",
+              "label": "연립·다세대"
+            },
+            {
+              "id": "multi_family",
+              "label": "다가구·주거용 오피스텔"
+            },
+            {
+              "id": "other_house",
+              "label": "단독주택·상가·그 밖"
+            }
+          ]
+        },
+        {
+          "id": "manager",
+          "text": "관리사무소가 있나요?",
+          "options": [
+            {
+              "id": "yes",
+              "label": "있어요"
+            },
+            {
+              "id": "no",
+              "label": "없어요"
+            },
+            {
+              "id": "unknown",
+              "label": "잘 모르겠어요"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "id": "diary",
+          "title": "소음 기록 시작하기",
+          "body": "날짜, 시각, 어떤 소리인지, 얼마나 오래였는지 적어 두세요. 녹음할 때는 시각이 같이 남게 하세요.",
+          "urgent": false,
+          "status": "PREPARE"
+        },
+        {
+          "id": "manager_first",
+          "title": "관리사무소에 먼저 중재 요청",
+          "body": "관리사무소가 있으면 먼저 중재를 요청하세요. 이웃사이센터도 관리사무소 중재를 먼저 거치도록 안내해요. 중재 결과를 적은 서류를 받아 두세요.",
+          "urgent": false,
+          "status": "SUBMITTED",
+          "show_if": {
+            "manager": [
+              "yes",
+              "unknown"
+            ]
+          }
+        },
+        {
+          "id": "center",
+          "title": "이웃사이센터에 상담 신청",
+          "body": "층간소음 이웃사이센터에 전화하거나 누리집에서 상담을 신청하세요(누리집은 본인인증 필요). 전화 상담, 방문 상담, 소음 측정을 받을 수 있어요.",
+          "urgent": false,
+          "status": "SUBMITTED",
+          "channel_ids": [
+            "NOISE_CENTER"
+          ],
+          "show_if": {
+            "housing": [
+              "apartment",
+              "multi",
+              "multi_family"
+            ]
+          },
+          "duration": "신청하면 평일 5일 안에 접수되고 문자가 와요."
+        },
+        {
+          "id": "not_covered",
+          "title": "어디에 물을지 먼저 확인",
+          "body": "단독주택·상가 같은 곳은 이웃사이센터 대상이 아닐 수 있어요. 110이나 132에 먼저 물어보세요.",
+          "urgent": false,
+          "status": "PREPARE",
+          "channel_ids": [
+            "CALL_110",
+            "KLAC_132"
+          ],
+          "show_if": {
+            "housing": [
+              "other_house"
+            ]
+          }
+        },
+        {
+          "id": "mediation",
+          "title": "그래도 안 되면 분쟁조정",
+          "body": "상담으로 해결되지 않으면 공동주택관리 분쟁조정위원회에 조정을 신청할 수 있어요. 신청 조건과 수수료가 있어요.",
+          "urgent": false,
+          "status": "IN_PROGRESS",
+          "channel_ids": [
+            "NAMC"
+          ],
+          "show_if": {
+            "housing": [
+              "apartment",
+              "multi",
+              "multi_family"
+            ]
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "id": "diary",
+          "label": "소음 일지(날짜·시각·소리·시간)"
+        },
+        {
+          "id": "recording",
+          "label": "녹음·영상(시각이 보이게)"
+        },
+        {
+          "id": "manager_record",
+          "label": "관리사무소에 요청한 기록·중재 결과"
+        }
+      ],
+      "references": [
+        {
+          "label": "층간소음 이웃사이센터 업무 소개",
+          "url": "https://floor.noiseinfo.or.kr/floornoise/home/guide/intro.do"
+        },
+        {
+          "label": "공동주택 분쟁조정 신청 기준",
+          "url": "https://namc.molit.go.kr/dpconcil/systemStand.do?menu=1"
+        },
+        {
+          "label": "비공동주택(다가구·주거용 오피스텔) 상담 안내",
+          "url": "https://floor.noiseinfo.or.kr/floornoise/home/guide/detachedHouse.do"
+        }
+      ],
+      "channel_ids": [
+        "NOISE_CENTER",
+        "NAMC",
+        "CALL_110",
+        "KLAC_132"
+      ],
+      "call_script": [
+        "층간소음 상담을 받고 싶어요.",
+        "사는 곳 주소와 집 종류(아파트 등)를 말해요.",
+        "언제부터, 어떤 소리가 나는지 말해요."
+      ],
+      "summary_fields": [
+        {
+          "id": "address",
+          "label": "사는 곳(동·호수)"
+        },
+        {
+          "id": "since",
+          "label": "언제부터"
+        },
+        {
+          "id": "noise",
+          "label": "어떤 소리·언제 주로"
+        },
+        {
+          "id": "receipt",
+          "label": "상담 신청 접수번호"
+        },
+        {
+          "id": "questions",
+          "label": "물어볼 것"
+        }
+      ],
+      "status_labels": {
+        "SUBMITTED": "중재·상담 신청함",
+        "IN_PROGRESS": "상담·측정 진행 중",
+        "RESULT": "상담·조정 결과 받음",
+        "RESOLVED": "소음이 줄어듦"
+      }
+    },
+    {
+      "id": "OTHER_LEGAL",
+      "order": 5,
+      "title": "그 밖의 법률 고민",
+      "subtitle": "어디에 물어야 할지 모르겠어요",
+      "notice": "참고용이에요. 정확한 답은 상담 기관에 물어보세요.",
+      "receipt_field_id": null,
+      "questions": [
+        {
+          "id": "topic",
+          "text": "어떤 문제인가요?",
+          "options": [
+            {
+              "id": "money",
+              "label": "돈 문제"
+            },
+            {
+              "id": "house",
+              "label": "집 문제"
+            },
+            {
+              "id": "work",
+              "label": "일 문제"
+            },
+            {
+              "id": "family_other",
+              "label": "가족·그 밖의 문제"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "id": "summary_first",
+          "title": "상황 정리표 먼저 쓰기",
+          "body": "언제, 누구와, 무슨 일이 있었는지, 원하는 것이 무엇인지 아래 정리표에 적어 두세요. 상담할 때 그대로 보여 주면 돼요.",
+          "urgent": false,
+          "status": "PREPARE"
+        },
+        {
+          "id": "work_link",
+          "title": "월급 문제라면",
+          "body": "월급이나 퇴직금을 못 받았다면 '월급 못 받음' 안내를 보세요.",
+          "urgent": false,
+          "status": "PREPARE",
+          "show_if": {
+            "topic": [
+              "work"
+            ]
+          },
+          "goto_situation": "WAGE_ARREARS"
+        },
+        {
+          "id": "call_132",
+          "title": "132에 전화하기",
+          "body": "대한법률구조공단 132에 전화해 상담하세요. 전화로는 간단한 상담을 하고, 복잡하면 방문 상담을 예약해요.",
+          "urgent": false,
+          "status": "SUBMITTED",
+          "channel_ids": [
+            "KLAC_132"
+          ]
+        },
+        {
+          "id": "call_110",
+          "title": "어디에 물을지 모르면 110",
+          "body": "어느 기관 일인지 모르겠으면 국민콜 110에 물어보세요. 알맞은 곳을 알려 줘요.",
+          "urgent": false,
+          "status": "PREPARE",
+          "channel_ids": [
+            "CALL_110"
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "id": "documents",
+          "label": "계약서·문자·영수증 같은 관련 자료"
+        },
+        {
+          "id": "timeline",
+          "label": "있었던 일의 날짜 순서"
+        }
+      ],
+      "references": [
+        {
+          "label": "법률상담 안내(대한법률구조공단)",
+          "url": "https://www.klac.or.kr/legalstruct/consultationGuidance.do"
+        }
+      ],
+      "channel_ids": [
+        "KLAC_132",
+        "CALL_110"
+      ],
+      "call_script": [
+        "법률 상담을 받고 싶어요.",
+        "언제, 누구와, 무슨 일이 있었는지 말해요.",
+        "원하는 것(돈을 받고 싶다 등)을 말해요."
+      ],
+      "summary_fields": [
+        {
+          "id": "what",
+          "label": "무슨 일이 있었나요"
+        },
+        {
+          "id": "when",
+          "label": "언제부터"
+        },
+        {
+          "id": "who",
+          "label": "상대는 누구인가요"
+        },
+        {
+          "id": "want",
+          "label": "원하는 것"
+        },
+        {
+          "id": "questions",
+          "label": "물어볼 것"
+        }
+      ],
+      "status_labels": {
+        "SUBMITTED": "상담함",
+        "IN_PROGRESS": "진행 중",
+        "RESULT": "답을 들음",
+        "RESOLVED": "해결됨"
+      }
+    }
+  ],
+  "channels": [
+    {
+      "id": "KLAC_132",
+      "agency": "대한법률구조공단",
+      "name": "법률상담 132",
+      "role": "생활 법률 문제를 전화로 간단히 상담해요. 복잡하면 방문 상담을 예약해요.",
+      "phone": "132",
+      "hours": "평일 09:00~11:50, 13:00~17:50",
+      "consult_fee": "FREE",
+      "call_cost": "CALLER_PAYS",
+      "procedure_fee": "UNKNOWN",
+      "online_url": "https://www.klac.or.kr/",
+      "online_label": "대한법률구조공단 누리집",
+      "visit": "방문 상담은 예약제예요. 원하는 날 하루 전까지 예약하고, 예약하고 안 가면 1개월 동안 예약이 막혀요.",
+      "visit_url": "https://www.klac.or.kr/legalstruct/visitingConsultation.do",
+      "source_url": "https://www.klac.or.kr/legalstruct/telephoneConsultation.do",
+      "verified_at": "2026-10-10",
+      "other_source_urls": [
+        "https://www.gov.kr/portal/rcvfvrSvc/dtlEx/B27000100005"
+      ],
+      "limits": "전화로는 간단한 상담만 해요. 소송 지원은 소득 기준이 있고, 실비가 들 수 있어요."
+    },
+    {
+      "id": "CALL_110",
+      "agency": "국민권익위원회",
+      "name": "국민콜 110",
+      "role": "어느 기관에 물어야 할지 모를 때 알맞은 곳을 안내해요.",
+      "phone": "110",
+      "hours": "365일 24시간",
+      "consult_fee": "FREE",
+      "call_cost": "UNKNOWN",
+      "procedure_fee": "NONE",
+      "online_url": "https://www.110.go.kr",
+      "online_label": "국민콜 110 누리집",
+      "source_url": "https://www.acrc.go.kr/menu.es?mid=a10104060200",
+      "verified_at": "2026-10-10"
+    },
+    {
+      "id": "MOEL_1350",
+      "agency": "고용노동부",
+      "name": "고객상담센터 1350",
+      "role": "임금체불 진정을 어떻게 내는지 상담해요.",
+      "phone": "1350",
+      "hours": "평일 09:00~18:00",
+      "consult_fee": "UNKNOWN",
+      "call_cost": "CALLER_PAYS",
+      "procedure_fee": "NONE",
+      "online_url": "https://labor.moel.go.kr/minwonSysInfo/wagesolway.do",
+      "online_label": "노동포털 체불임금 해결 방법",
+      "visit": "회사가 있는 지역의 고용노동관서 고객지원실에 가서 상담하고 낼 수도 있어요.",
+      "source_url": "https://labor.moel.go.kr/minwonSysInfo/wagesolway.do",
+      "verified_at": "2026-10-10"
+    },
+    {
+      "id": "COMWEL_1588",
+      "agency": "근로복지공단",
+      "name": "근로복지공단 1588-0075",
+      "role": "대지급금(회사 대신 나라가 먼저 주는 밀린 임금)을 안내해요.",
+      "phone": "1588-0075",
+      "hours": null,
+      "consult_fee": "FREE",
+      "call_cost": "CALLER_PAYS",
+      "procedure_fee": "NONE",
+      "online_url": "https://welfare.comwel.or.kr/default/page.do?mCode=H030010000",
+      "online_label": "간이대지급금 안내(근로복지넷)",
+      "source_url": "https://welfare.comwel.or.kr/default/page.do?mCode=H030010000",
+      "verified_at": "2026-10-10",
+      "limits": "대지급금은 받을 수 있는 조건이 있어요."
+    },
+    {
+      "id": "POLICE_112",
+      "agency": "경찰청",
+      "name": "긴급신고 112",
+      "role": "범죄·사고를 바로 신고해요.",
+      "phone": "112",
+      "hours": "365일 24시간",
+      "consult_fee": "FREE",
+      "call_cost": "FREE",
+      "procedure_fee": "NONE",
+      "online_url": null,
+      "source_url": "https://ecrm.police.go.kr/minwon/main",
+      "verified_at": "2026-10-10"
+    },
+    {
+      "id": "POLICE_182",
+      "agency": "경찰청",
+      "name": "경찰 민원상담 182",
+      "role": "사이버범죄 신고 방법 등을 상담해요.",
+      "phone": "182",
+      "hours": "365일 24시간",
+      "consult_fee": "FREE",
+      "call_cost": "CALLER_PAYS",
+      "procedure_fee": "NONE",
+      "online_url": null,
+      "source_url": "https://ecrm.police.go.kr/minwon/main",
+      "verified_at": "2026-10-10"
+    },
+    {
+      "id": "ECRM",
+      "agency": "경찰청",
+      "name": "사이버범죄 신고시스템",
+      "role": "인터넷 사기 피해를 온라인으로 신고해요. 본인인증이 필요해요.",
+      "phone": null,
+      "hours": null,
+      "consult_fee": "FREE",
+      "call_cost": "UNKNOWN",
+      "procedure_fee": "NONE",
+      "online_url": "https://ecrm.police.go.kr/minwon/main",
+      "online_label": "사이버범죄 신고시스템",
+      "visit": "가까운 경찰서에 가서 신고할 수도 있어요.",
+      "limits": "온라인으로 쓴 것은 임시접수예요. 평일 오전 9시~오후 6시에 관할 경찰서에 가야 정식으로 접수돼요. 야간·주말에 가려면 182로 먼저 물어보세요. 신고는 피해자 본인만 할 수 있어요.",
+      "source_url": "https://ecrm.police.go.kr/minwon/main",
+      "verified_at": "2026-10-10"
+    },
+    {
+      "id": "POLICE_FRAUD_LOOKUP",
+      "agency": "경찰청",
+      "name": "사이버사기 피해신고 이력조회",
+      "role": "거래 상대의 전화번호·계좌가 사기로 신고된 적 있는지 조회해요.",
+      "phone": null,
+      "hours": null,
+      "consult_fee": "FREE",
+      "call_cost": "UNKNOWN",
+      "procedure_fee": "NONE",
+      "online_url": "https://www.police.go.kr/www/security/cyber/cyber04.jsp",
+      "online_label": "경찰청 사기 이력 조회",
+      "limits": "최근 3개월 안에 3번 이상 신고된 번호만 나와요. 안 나와도 안전하다는 뜻은 아니에요.",
+      "source_url": "https://www.police.go.kr/www/security/cyber/cyber04.jsp",
+      "verified_at": "2026-10-10"
+    },
+    {
+      "id": "NOISE_CENTER",
+      "agency": "한국환경공단",
+      "name": "층간소음 이웃사이센터",
+      "role": "층간소음 전화 상담, 방문 상담, 소음 측정을 해요.",
+      "phone": "1661-2642",
+      "hours": "평일 09:00~18:00 (점심 12:00~13:00 제외)",
+      "consult_fee": "FREE",
+      "call_cost": "CALLER_PAYS",
+      "procedure_fee": "NONE",
+      "online_url": "https://floor.noiseinfo.or.kr",
+      "online_label": "층간소음 이웃사이센터 누리집",
+      "limits": "관리사무소가 있는 단지는 관리사무소 중재를 먼저 거쳐요. 2026년 4월부터 전국 다가구주택·주거용 오피스텔도 상담받을 수 있어요. 단독주택·상가는 대상이 아닐 수 있어요.",
+      "source_url": "https://floor.noiseinfo.or.kr/floornoise/home/guide/intro.do",
+      "verified_at": "2026-10-10",
+      "other_source_urls": [
+        "https://www.korea.kr/news/policyNewsView.do?newsId=148961777",
+        "https://floor.noiseinfo.or.kr/floornoise/home/guide/detachedHouse.do"
+      ]
+    },
+    {
+      "id": "NAMC",
+      "agency": "국토교통부",
+      "name": "중앙 공동주택관리 분쟁조정위원회",
+      "role": "층간소음 같은 공동주택 다툼을 조정해요.",
+      "phone": "031-738-3300",
+      "hours": "평일 09:00~12:00, 13:00~18:00",
+      "consult_fee": "UNKNOWN",
+      "call_cost": "CALLER_PAYS",
+      "procedure_fee": "FEE",
+      "procedure_fee_note": "조정 신청 수수료가 건당 1만 원이에요. 500세대 이상 단지 등 신청 조건이 있어요.",
+      "online_url": "https://namc.molit.go.kr/cmmn/main.do",
+      "online_label": "중앙 공동주택관리 분쟁조정위원회",
+      "visit": "500세대가 안 되는 단지는 시·군·구청 주택과에 먼저 물어보세요.",
+      "source_url": "https://namc.molit.go.kr/dpconcil/systemStand.do?menu=1",
+      "verified_at": "2026-10-10"
+    },
+    {
+      "id": "FIRE_119",
+      "agency": "소방청",
+      "name": "긴급 119",
+      "role": "다친 사람이 있으면 구조·구급을 요청해요.",
+      "phone": "119",
+      "hours": "365일 24시간",
+      "consult_fee": "FREE",
+      "call_cost": "FREE",
+      "procedure_fee": "NONE",
+      "online_url": null,
+      "source_url": "https://accident.knia.or.kr/",
+      "verified_at": "2026-10-10"
+    },
+    {
+      "id": "MY_INSURER",
+      "agency": "가입한 자동차보험 회사",
+      "name": "내 보험사 사고 접수",
+      "role": "사고를 접수하고 긴급출동·견인을 요청해요. 번호는 보험증권이나 보험사 앱에 있어요.",
+      "phone": null,
+      "hours": null,
+      "consult_fee": "UNKNOWN",
+      "call_cost": "UNKNOWN",
+      "procedure_fee": "UNKNOWN",
+      "online_url": null,
+      "limits": "과실비율 분쟁심의는 개인이 직접 신청할 수 없어요. 내 보험사 담당자에게 요청해요.",
+      "source_url": "https://accident.knia.or.kr/system",
+      "verified_at": "2026-10-10"
+    },
+    {
+      "id": "KNIA_PORTAL",
+      "agency": "손해보험협회",
+      "name": "과실비율정보포털",
+      "role": "비슷한 사고 유형과 과실비율 인정기준을 찾아볼 수 있어요.",
+      "phone": "02-3702-8500",
+      "hours": null,
+      "consult_fee": "FREE",
+      "call_cost": "CALLER_PAYS",
+      "procedure_fee": "NONE",
+      "online_url": "https://accident.knia.or.kr/",
+      "online_label": "과실비율정보포털",
+      "limits": "포털의 기준은 참고자료예요. 최종 과실은 보험사가 정하고, 다툼이 있으면 법원이 정해요.",
+      "source_url": "https://accident.knia.or.kr/index",
+      "verified_at": "2026-10-10",
+      "other_source_urls": [
+        "https://consumer.knia.or.kr/consumer/center/counsel.do"
+      ]
+    }
+  ]
+}

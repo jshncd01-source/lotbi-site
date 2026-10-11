@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js?v=aset-f6e2cba23952';
-import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=aset-f6e2cba23952';
-import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs?v=aset-f6e2cba23952';
-import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=aset-f6e2cba23952';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js?v=aset-0428ff94b761';
+import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=aset-0428ff94b761';
+import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs?v=aset-0428ff94b761';
+import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=aset-0428ff94b761';
 
 // SITE-AVATAR-LOGO-ALIGN-01: the home character now matches the header logo
 // character (crest fin, ear, eye and badge colours). Built from the approved
