@@ -1,14 +1,14 @@
 READY_FOR_DEPLOY=YES
-STATUS=구현 및 검증 완료 / READY 브랜치 준비 / Codex 배포 대기
+STATUS=구현 및 검증 완료 / READY 브랜치 준비 / Claude 배포 대기
 REPO=lotbi-site
 OWNER=jshncd01-source
 FEATURE_BRANCH=feature/calendar-home-redesign-01-site
 PR=없음 (Ncloud Git 브랜치 인계)
-READY_CODE_SHA=017f421b90486909dbf0da3c4d7583fd0c6b10d4
-BASE_MAIN_SHA=9147419fb079e6452ff26d82c52a1b8f1dca36e4
+READY_CODE_SHA=69268b559c49fec7abf64679eca953ddc36ac27d
+BASE_MAIN_SHA=300859c4829b414fb333558a2df545e5c40933ce
 INITIAL_MAIN_SHA=7c4f09445676287f242271cbdfb32d91ec33891e (SITE-T54, 작업 시작 기준)
 REMOTE=ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git
-ASSET_VERSION=aset-951201bb4e11
+ASSET_VERSION=aset-d7ec850630cb
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 SECRET_CHANGE_REQUIRED=NO
@@ -26,7 +26,7 @@ DEPLOYED=NO
 - 일정·지출·날씨·음력·공휴일·설정·주/월/목록·이전/다음/오늘·일정 추가의 기존 저장·조회 경로를 재사용했다.
 - 운영 데이터에 예시 일정·날씨·음력·금액을 넣지 않았다. 6개 일정과 208,000원/628,000원은 검사 fixture와 스크린샷에서만 사용한다.
 - T56에 배포된 `feature/calendar-add-ux-01-site`의 상시 추가 동작, `오전/오후` 12시간제, 48px 편집 동작을 유지했다. T56의 `feature/festival-calendar-sheet-pc-01-site` PC/모바일 등록 흐름과 기존 대화형 일정 제안도 병합 후 재검증했다.
-- Ncloud 최신 `main` `9147419fb079e6452ff26d82c52a1b8f1dca36e4`를 rebase 없이 정상 merge했고, 최신 main의 메뉴·대화 UI·분쟁/사기방지 관련 동작을 유지한 상태로 회귀 검증했다.
+- Ncloud 최신 `main` `300859c4829b414fb333558a2df545e5c40933ce`를 rebase 없이 정상 merge했고, 새 대화 UI와 캘린더 확정 시안을 함께 보존한 상태로 회귀 검증했다.
 - main 직접 수정·배포·배포 브랜치 병합은 하지 않았다.
 
 ## 2026-10-11 최신 main 재READY
@@ -49,6 +49,17 @@ DEPLOYED=NO
 - 자산 버전: `aset-951201bb4e11`; `asset_cache_version --write` 후 `--check` PASS (`targets=169`, `refs=206`).
 - 증거: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\gate-return-610-temperature\` (`610-auth.png`, `610-auth-wide.png`, 600/700/768 및 기존 최종 시안 상태 포함).
 
+## 2026-10-12 최신 main 300859c4 재통합
+
+- 작업 직전 Ncloud 원격을 다시 조회해 `main=300859c4829b414fb333558a2df545e5c40933ce`, 원격 feature=`7185b83d096c88e2cbb360040f9c94406f7cb3bf`를 확인했다.
+- rebase/reset 없이 만든 정상 merge 커밋: `c07afed994643d79a12405f54084c03bc2f9fe09` (`parents=7185b83d... 300859c4...`).
+- merge 중 88개 파일이 충돌했다. 85개는 양쪽 자산 버전 토큰만 다른 동일 내용이었다. 실질 차이가 있던 `site-calendar-manager.js`, `site-calendar-product.js`는 승인된 캘린더 구현을 유지했고, `site-conversation.js`는 새 main의 대화 UI를 유지했다. 이후 공식 자산 도구로 토큰을 다시 생성했다.
+- 기존 실패였던 `validate_calendar_quiet_location_01.mjs`는 모달 상단으로 확정된 설정 버튼을 실제 위치에서 찾도록 수정했다. 위치 ON/OFF·권한·토스트·달력 생존 단언은 유지했다.
+- `validate_calendar_touch_monthnav_daysheet_01.mjs`와 메타 검사 `validate_calendar_secondary_surfaces_01.mjs`는 구형 SHEET/MODAL 전제를 제거하고 확정 시안의 데스크톱 SIDE·모바일 FLOW 지속 상세를 검사한다. 날짜 재선택·스와이프·포커스 복귀·가로 넘침·배경막 부재·액션 중복 부재를 더 엄격히 확인한다.
+- 검사 계약 정합화 코드 커밋: `69268b559c49fec7abf64679eca953ddc36ac27d`.
+- 최종 자산 버전: `aset-d7ec850630cb`; `asset_cache_version --write` 후 `--check` PASS (`targets=169`, `refs=206`).
+- 최종 스크린샷: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\reready-main-300859c4\`.
+
 ## 구현 범위
 
 1. 상단: 제목/설명, `+ 일정 추가`, 설정, 닫기. 추가 버튼은 현재 선택 날짜로 실제 편집기를 연다.
@@ -68,10 +79,10 @@ DEPLOYED=NO
 
 ## 변경 파일
 
-`BASE_MAIN_SHA..READY_CODE_SHA` 기준 116개다. 정확한 목록은 다음 명령으로 재현한다.
+`BASE_MAIN_SHA..READY_CODE_SHA` 기준 118개다. 정확한 목록은 다음 명령으로 재현한다.
 
 ```text
-git diff --name-status 9147419fb079e6452ff26d82c52a1b8f1dca36e4..017f421b90486909dbf0da3c4d7583fd0c6b10d4
+git diff --name-status 300859c4829b414fb333558a2df545e5c40933ce..69268b559c49fec7abf64679eca953ddc36ac27d
 ```
 
 직접 기능 변경:
@@ -99,11 +110,13 @@ git diff --name-status 9147419fb079e6452ff26d82c52a1b8f1dca36e4..017f421b9048690
 - `scripts/validate_calendar_modal_runtime_02.mjs`
 - `scripts/validate_calendar_month_geometry_01.mjs`
 - `scripts/validate_calendar_month_temperature_01.mjs`
+- `scripts/validate_calendar_quiet_location_01.mjs`
 - `scripts/validate_calendar_recurring_events_01.mjs`
 - `scripts/validate_calendar_secondary_surfaces_01.mjs`
 - `scripts/validate_calendar_settings_expansion_01.mjs`
 - `scripts/validate_calendar_system_dark_01.mjs`
 - `scripts/validate_calendar_toolbar_polish_01.mjs`
+- `scripts/validate_calendar_touch_monthnav_daysheet_01.mjs`
 - `scripts/validate_calendar_weather_attribution_01.mjs`
 - `scripts/validate_calendar_weather_glyph_legibility_01.mjs`
 - `scripts/validate_calendar_weather_region_province_01.mjs`
@@ -111,15 +124,20 @@ git diff --name-status 9147419fb079e6452ff26d82c52a1b8f1dca36e4..017f421b9048690
 
 자산 캐시 생성 결과:
 
-- `site-asset-version.json`과 HTML/JS의 자산 query 참조가 `aset-951201bb4e11`로 함께 갱신됐다.
+- `site-asset-version.json`과 HTML/JS의 자산 query 참조가 `aset-d7ec850630cb`로 함께 갱신됐다.
 - 새 CSS 파일은 추가하지 않았다. `index.html`, `auth/callback/index.html`, 기타 정적 진입점의 기존 CSS 순서를 바꾸지 않았다.
 
 ## 검사 결과
 
+- 최신 main `300859c4` 최종 통합본: 캘린더 `validate_calendar*.mjs` 50개 전체 PASS (`50/50`, 실패 0).
+- 기존 2개 실패 해소: `validate_calendar_quiet_location_01.mjs`, `validate_calendar_touch_monthnav_daysheet_01.mjs` PASS. 연동 메타 검사 `validate_calendar_secondary_surfaces_01.mjs`도 PASS.
+- 새 main 영향 검사: `validate_conversation_design_01.mjs` PASS, `validate_place_card_carousel_no_drift_01.mjs` PASS. 캘린더와 대화 UI의 가로 넘침·카드 중심 이동 없음·라이트/다크를 확인했다.
+- 최종 증거 재캡처: PC 1280 및 모바일 360, 빈 상태/6개 상태, 라이트/다크, 상세/월 합계와 610px 기본·넓은 글꼴을 `reready-main-300859c4`에 저장하고 육안 확인했다.
+
 - Gate 1.0.6 반환 수정: PASS.
   - `validate_calendar_month_temperature_01`: 41개 조합 PASS. 기존 40개에 `610-auth-wide`를 추가했고 610px 인증 기본/넓은 글꼴/음력/다크/한파 조합이 모두 PASS.
   - 자산 갱신 후 인접 핵심 검사 10개 PASS: holiday surface/settings icon, modal runtime, month geometry, mobile week/weather, cross-platform UX, system dark, toolbar polish, lunar compact layout, responsive, weather glyph legibility.
-  - 캘린더 `validate_calendar*.mjs` 50개 전체 실행: 48 PASS, 2 기존 실패. `validate_calendar_quiet_location_01`은 설정 위치 토글 DOM 없음, `validate_calendar_touch_monthnav_daysheet_01`은 월 보기가 자동 상세 없이 열려야 한다는 구 계약으로 실패했다. 두 검사는 수정 전 READY SHA `e26de09062a91612620aba7458b149942c5cdfd9`의 분리 checkout에서도 같은 오류로 실패해 이번 변경의 신규 회귀가 아니다.
+  - 이 시점에는 48 PASS/2 구계약 실패였으나, 최신 main 재통합에서 확정 시안의 실제 설정 버튼 위치와 지속 상세 계약으로 정합화해 최종 50 PASS/0 실패로 해소했다. 단언 삭제·허용 오차 확대·skip은 하지 않았다.
   - 스크린샷 확인: 610px 인증 기본/넓은 글꼴, 600px 다크, 700px 음력 넓은 글꼴에서 날짜·최저/최고 온도·날씨 아이콘·일정이 겹치지 않는다.
 
 - 최신 main `9147419f` 재READY 핵심 검사: 모두 PASS.
@@ -173,6 +191,7 @@ git diff --name-status 9147419fb079e6452ff26d82c52a1b8f1dca36e4..017f421b9048690
 - 반환 수정 후 재캡처: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\gate-return\`
 - 최신 main 재READY 후 재캡처: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\reready-main-9147419f\`
 - Gate 1.0.6 610px 반환 수정 후: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\gate-return-610-temperature\`
+- 최신 main `300859c4` 통합 후: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\reready-main-300859c4\`
 
 시안 1 대응 빈 상태:
 
@@ -202,11 +221,12 @@ git diff --name-status 9147419fb079e6452ff26d82c52a1b8f1dca36e4..017f421b9048690
 - Production 배포 및 Production 사용자 계정의 실제 일정·지출 저장/재조회.
 - Production 날씨/음력 공급자의 실시간 응답과 장애 전환. 로컬은 API 계약 fixture/실패 fixture 기반.
 - Linux 전체 merge gate. 반환된 단일 검사기는 Linux gate 조건과 같은 `mkdtemp` 격리 프로필로 직접 PASS했지만, 이 Windows 작업 호스트에는 WSL 배포판이 없어 전체 Linux gate 자체는 실행하지 않았다.
-- Codex 배포방의 main 병합, 배포 브랜치 병합, Production 배포, 배포 후 사용자 검증.
+- 새 main의 `validate_place_card_rotation_01.mjs`는 Windows에서 임시 Chrome 프로필 삭제가 `EPERM`으로 끝나 clean PASS를 확인하지 못했다. 대화 디자인과 카드 무이동 검사는 별도로 PASS했다. Linux trusted gate에서 재확인한다.
+- Claude 배포방의 main 병합, 배포 브랜치 병합, Production 배포, 배포 후 사용자 검증.
 
-## Codex 배포 절차와 확인 항목
+## Claude 배포 절차와 확인 항목
 
-배포 대상은 공식 Web/대화 Site인 Render `lotbi-site-prod`의 기존 nginx 정적 Site다. 이 개발방은 배포하지 않는다.
+배포 대상은 공식 Web/대화 Site의 기존 Ncloud Production 배포 절차다. 이 개발방은 배포하지 않는다.
 
 1. Ncloud에서 `feature/calendar-home-redesign-01-site`의 remote HEAD와 이 문서의 `READY_CODE_SHA`가 포함됐는지 확인한다.
 2. 기존 Ncloud merge gate 절차로 배포 브랜치/`main`에 정상 merge한다. rebase·force-push 없이 merge하고, gate가 자산 토큰을 다시 만들면 `asset_cache_version --check` 결과를 기준으로 한다.
