@@ -4,7 +4,7 @@ REPO=lotbi-site
 OWNER=jshncd01-source
 FEATURE_BRANCH=feature/calendar-home-redesign-01-site
 PR=없음 (Ncloud Git 브랜치 인계)
-READY_CODE_SHA=bdd06d53c7ef2cc13855735e4607586530700e8a
+READY_CODE_SHA=bdd06d53c575df97f30bb91cf306c5653124d5d9
 BASE_MAIN_SHA=9147419fb079e6452ff26d82c52a1b8f1dca36e4
 INITIAL_MAIN_SHA=7c4f09445676287f242271cbdfb32d91ec33891e (SITE-T54, 작업 시작 기준)
 REMOTE=ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git
@@ -33,7 +33,7 @@ DEPLOYED=NO
 
 - 작업 시작 직전 Ncloud 원격을 다시 조회해 `main=9147419fb079e6452ff26d82c52a1b8f1dca36e4`, 원격 feature=`104fe909d6f45bd398f408300038daf38b0272aa`를 확인했다.
 - 정상 merge 커밋: `f99b62738a582258bf7fd5f41ce2bbffa9e95380`.
-- 최신 main의 기존 CRLF 파일 9개가 전역 LF 정규화 때문에 범위 밖 차이로 잡혀, 내용 변경 없이 main 원본 blob을 복원한 보정 커밋: `bdd06d53c7ef2cc13855735e4607586530700e8a`.
+- 최신 main의 기존 CRLF 파일 9개가 전역 LF 정규화 때문에 범위 밖 차이로 잡혀, 내용 변경 없이 main 원본 blob을 복원한 보정 커밋: `bdd06d53c575df97f30bb91cf306c5653124d5d9`.
 - 실질 기능 충돌 파일은 `site-calendar-manager.js`, `site-calendar-product.js` 두 개였다. 최신 main 쪽 변경이 자산 버전 문자열뿐임을 기준점 비교로 확인해 승인된 캘린더 구현을 유지하고 공식 자산 버전 도구로 다시 생성했다.
 - 나머지 충돌 파일은 feature 쪽이 이전 자산 버전 문자열만 바꾼 파일이므로 최신 main을 채택했다. 이에 따라 최신 main의 `index.html`, `site-conversation.js`, `site-bottom-sheet.css`, 아바타·분쟁 도우미·공통 메뉴 변경을 그대로 보존했다.
 - 새 자산 버전은 `aset-b12b92fabdba`; `--write` 후 `--check` PASS (`targets=169`, `refs=206`).
@@ -61,7 +61,7 @@ DEPLOYED=NO
 `BASE_MAIN_SHA..READY_CODE_SHA` 기준 116개다. 정확한 목록은 다음 명령으로 재현한다.
 
 ```text
-git diff --name-status 9147419fb079e6452ff26d82c52a1b8f1dca36e4..bdd06d53c7ef2cc13855735e4607586530700e8a
+git diff --name-status 9147419fb079e6452ff26d82c52a1b8f1dca36e4..bdd06d53c575df97f30bb91cf306c5653124d5d9
 ```
 
 직접 기능 변경:
