@@ -8,7 +8,7 @@ const conversation = read('site-conversation.js');
 const ui = read('site-scam-shield.js');
 const css = read('site-scam-shield.css');
 
-const start = html.indexOf('<dialog class="scam-page"');
+const start = html.indexOf('<dialog class="scam-dialog" data-scam-page');
 assert.ok(start >= 0, 'independent scam page exists');
 const page = html.slice(start, html.indexOf('<!-- TROUBLE-HELPER-01', start));
 

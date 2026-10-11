@@ -118,9 +118,16 @@ function invalidateResult(message = '내용이 바뀌어 다시 확인해야 해
 function updateInputPanels() {
   if (!form) return;
   const active = selectedInput();
-  if (methodChooser) methodChooser.hidden = false;
-  if (checkStep) checkStep.hidden = false;
-  if (methodDescription) methodDescription.hidden = false;
+  const hasSelection = Boolean(active);
+  const directEntry = active === 'text' || active === 'url';
+  if (directEntry) {
+    if (methodChooser) methodChooser.hidden = false;
+    if (checkStep) checkStep.hidden = false;
+  } else {
+    if (methodChooser) methodChooser.hidden = hasSelection;
+    if (checkStep) checkStep.hidden = !hasSelection;
+  }
+  if (methodDescription) methodDescription.hidden = hasSelection && !directEntry;
   form.querySelectorAll('[data-scam-input-panel]').forEach(panel => {
     const visible = panel.dataset.scamInputPanel === active;
     panel.hidden = !visible;
