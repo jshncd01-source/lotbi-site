@@ -705,6 +705,7 @@ async function runCase(browser, origin, workDir, testCase) {
     await problem('empty', 'pharmacy', st => none(st) && /내 주변에서 약국을 찾지 못했어요\. 다른 지역을 골라 보세요\./u.test(st.errorText) && st.errorButtons.join('|') === '지역 고르기', 'nothing found → says so, [지역 고르기] (not a retry of the same nothing)');
     await shot('empty-light');
     await problem('unavailable', 'hospital', st => none(st) && /가까운 병원·의원이 없다는 뜻은 아니에요/u.test(st.errorText) && st.errorButtons.join('|') === '다시 시도|지역 고르기', 'provider down → "does not mean there is none", [다시 시도] [지역 고르기]');
+    await shot('unavailable-light');
     await problem('unavailable', 'emergency', st => none(st) && /119에 전화하세요/u.test(st.errorText) && st.errorButtons.join('|') === '다시 시도|지역 고르기|119 전화' && st.errorTel.join() === 'tel:119' && st.emergency, 'emergency provider down → 119 stays one tap away (banner and button)');
     await problem('empty', 'emergency', st => none(st) && /119에 전화하세요/u.test(st.errorText) && st.errorTel.join() === 'tel:119', 'no emergency room found → 119');
     await problem('disabled', 'hospital', st => none(st) && /병원·의원 정보 연결을 준비하고 있어요/u.test(st.errorText) && st.errorButtons.join('|') === '다시 시도', 'connection off → says it is being prepared, [다시 시도], the other choices stay');
