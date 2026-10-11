@@ -58,7 +58,8 @@ CAMERA=그대로(검사기가 고정한 위치·시선 유지). 모델을 그 �
 FLOOR=site-avatar.js의 바닥 원판(CircleGeometry) 삭제 — 로고 캐릭터는 바닥 없이 떠 있음. 검사기가 원판 없음을 단정.
 OLD_MODEL=lotbi-faithful-v2-rigged.glb 그대로 둠(옛 site-avatar.js를 캐시한 화면용, App iOS도 이 파일을 씀). v3 GLB·v3 스크립트는 운영에 나간 적 없어 이 branch에서 삭제.
 
-FAVICONS=tools/build_site_favicons.py가 lotbi-mark-512.png에서 생성(결정적, 재생성 sha 일치).
+FAVICONS=tools/build_site_favicons.py가 공식 그림에서 생성(결정적, 재생성 sha 일치).
+  투명도 정리: lotbi-mark-512.png는 흰 배경 원본(assets/lotbi-main-logo.png)에서 tools/build-brand-assets.py가 잘라낸 것인데, 배경 기준이 느슨해(밝기 237 이상) 로봇의 흰 반사광까지 투명으로 뚫려 있음 — 흰 바탕에선 안 보이지만 어두운 바탕(다크 브라우저 탭 줄·앱 다크 모드)에선 검은 줄무늬. 도구가 먼저 원본에서 mark-512를 바이트 그대로 재현(검사 내장, 다르면 중단)한 뒤, 엄격한 배경(249 이상, 새지 않음) 안쪽을 원본 색으로 채움 → 같은 그림·같은 위치, 안쪽 불투명. 흰 바탕 비교 평균 차 1.3/765.
   favicon.ico(16·32·48·64·128·256) / favicon-16x16.png / favicon-32x32.png / icon-192.png / icon-512.png / apple-touch-icon.png(180, 흰 바탕 — iOS는 투명을 검게 채움)
   왜: 이 6개는 2026-09-19에 옛 그림(머리·가슴만, 빨간 귀 없음)으로 만든 것. Home 외 모든 페이지(404·약관·auth 등)는 /favicon.ico를 쓰고, iOS는 /apple-touch-icon.png를 스스로 가져가서 옛 그림이 보였음. Home의 lotbi-mark-* 링크는 원래 공식 그림(무변경).
 
@@ -118,7 +119,7 @@ EVIDENCE_DIR=D:\LOTBI-WORK\evidence\avatar-logo-align-01\
   ANIM_V4_BLINK_WAVE_CELEBRATE_THINKING_SURPRISED.png — 동작 6장면
   SCENARIO_V4_390.png, scenario-v4\ — 시나리오 화면·json
   page-v4\ — v4 홈 10장 + report.json / page\before-* — 변경 전(V5) 10장
-  FAVICONS_FROM_MARK512.png — 새 탭 아이콘(16·32·180·192)
+  SITE_ICONS_BEFORE_AFTER.png — 탭 아이콘 전후(흰 탭·어두운 탭)
   v3-superseded\ — 반려된 v3 증거(참고용)
 
 ## 사용자 시나리오 (USER_FIRST_STANDARD 8)
@@ -138,6 +139,7 @@ USER_FIRST_CHECK= 1 탭 수 0/1탭 그대로 · 3 막다른 화면 없음(S4) ·
 2. 같은 캐릭터 통일의 나머지(각 저장소 별도 READY): Account(web) 탭 아이콘 3개, Admin 탭 아이콘 4개, App 캐릭터 그림(lotbi-brand-character.png). App 대화 3D(iOS V5·Android refined-v1)는 소유자가 v4를 승인하면 v4로 교체.
 3. 범위 밖 보고만: 전송 버튼 44×44px(USER_FIRST 6 미달, 변경 전과 같음). Site의 안 쓰는 옛 그림 파일 4개 정리 후보.
 4. validate_social_signup_profile_ux_01은 지금 이 PC에서 main도 실패(환경) — CI 결과로 확인.
+5. **발견(결정 필요, 이번엔 안 바꿈)**: 공식 그림 파일 자체(assets/brand/lotbi-mark-32~512.png)와 헤더 로고 다크판(lotbi-lockup-dark-*.png)의 캐릭터도 위와 같은 투명 구멍이 있음 → 다크 화면에서 3D 대신 그림이 보일 때(WebGL 없음)와 다크 헤더 로고의 캐릭터 흰 테두리에 검은 틈. 헤더 로고는 「임의 변경 금지」라 손대지 않음. tools/build-brand-assets.py의 배경 기준을 237→249로 바꾸면 같은 그림 그대로 고쳐짐(이 READY의 깨끗한 버전과 같은 방법). 디자인 책임 방·소유자 결정 후 별도 READY 가능.
 
 ## 작업 위생
 
