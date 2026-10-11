@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js?v=aset-c51b254b23d8';
-import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=aset-c51b254b23d8';
-import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs?v=aset-c51b254b23d8';
-import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=aset-c51b254b23d8';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js?v=aset-8717029a1571';
+import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=aset-8717029a1571';
+import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs?v=aset-8717029a1571';
+import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=aset-8717029a1571';
 
 // SITE-AVATAR-LOGO-ALIGN-01: the home character is the header logo character
 // (assets/brand/lotbi-mark-512.png) in 3D -- head, visor, glowing eyes, ears,
