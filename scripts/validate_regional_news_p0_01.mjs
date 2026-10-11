@@ -779,7 +779,7 @@ async function runCase(browser, origin, dir, testCase) {
     }
 
 
-    // 7. Desktop: ten categories (병원·응급실, 약국, 전기차 충전소 … 지역생활정보, 내 아이 학교·유치원)
+    // 7. Desktop: the categories (병원·응급실·약국, 전기차 충전소 … 내 아이 학교·유치원; 지역생활정보 only while its switch is on)
     //    fill every row of two — no empty cell. With an odd count the last card
     //    takes its whole row and the row before it is full.
     if (!testCase.mobile) {
@@ -790,7 +790,7 @@ async function runCase(browser, origin, dir, testCase) {
       const beforeLast = state.shortcuts.at(-2).box;
       const pair = state.shortcuts.at(-3).box;
       const rowRight = Math.max(...state.shortcuts.slice(0, -1).map(item => item.box.right));
-      assert.equal(state.shortcuts.length, 10);
+      assert.equal(state.shortcuts.length, LIFE_SHORTCUTS.length);
       assert.equal(state.shortcuts.at(-1).id, 'my-child');
       if (state.shortcuts.length % 2 === 0) {
         assert.ok(Math.abs(last.w - first.w) <= 1, `${testCase.label}: last card keeps the column width (${Math.round(last.w)} vs ${Math.round(first.w)})`);

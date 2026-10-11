@@ -42,9 +42,10 @@ const check = async (name, fn) => { await fn(); passed += 1; console.log(`ok - $
 const sections = await import('../site-consumer-sections.js');
 const screen = await import('../site-life-my-child.js');
 const client = await import('../site-my-child-client.js');
+const {LIFE_LOCAL_CARD_ENABLED: LOCAL_ON} = await import('../site-feature-flags.js');
 
 await check('지역정보: 내 아이 학교·유치원 is the last card and opens the saved schools / 유치원 screen at once', () => {
-  assert.deepEqual(sections.LIFE_SHORTCUTS.map(item => item.id), ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'local', 'my-child']);
+  assert.deepEqual(sections.LIFE_SHORTCUTS.map(item => item.id), ['medical', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', ...(LOCAL_ON ? ['local'] : []), 'my-child']);
   const item = sections.LIFE_SHORTCUTS.at(-1);
   assert.equal(item.label, '내 아이 학교·유치원');
   assert.ok(!item.prompt && !item.medical);
@@ -584,7 +585,7 @@ try {
     const label = testCase.label;
     await check(`${label}: the last card opens the saved screen at once with 지역정보로 돌아가기; empty list explains storage`, () => {
       assert.deepEqual(r.choices, [], 'no 내 아이 정보 / 유치원·학교 찾기 choice');
-      assert.deepEqual(r.cards, ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'local', 'my-child']);
+      assert.deepEqual(r.cards, ['medical', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', ...(LOCAL_ON ? ['local'] : []), 'my-child']);
       assert.equal(r.card.label, '내 아이 학교·유치원');
       assert.ok(r.card.box.h >= 44, JSON.stringify(r.card.box));
       assert.equal(r.back, '지역정보로 돌아가기');
