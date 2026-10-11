@@ -177,6 +177,7 @@ try {
     sideMediaPlaceholder:side.querySelectorAll('.lotbi-rich-card-media, .lotbi-rich-card-placeholder, .lotbi-rich-card-media-empty').length,
     railPhotoClass:rail.classList.contains('has-place-photo'),
     sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
+    sidePointer:getComputedStyle(side).pointerEvents,
     // A side card is shown dimmed (on phones only its edge, LIFE-MEDICAL-AUTO-SEARCH-CARD-01);
     // its phone / map links are never shown or pressable.
     sideActionsVisible:Number.parseFloat(getComputedStyle(side).opacity)>0&&[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0&&getComputedStyle(n).visibility==='visible'),
@@ -276,7 +277,13 @@ try {
     const maxCardWidth=testCase.mobile?Math.min(reading.rail.w-16,400):286;
     assert.ok(reading.card.w<=maxCardWidth+2,`${testCase.label}: card width ${reading.card.w} (max ${maxCardWidth})`);
     assert.ok(reading.card.x>=reading.rail.x-1&&reading.card.x+reading.card.w<=reading.rail.x+reading.rail.w+1,`${testCase.label}: card cut by the rail`);
-    assert.ok(reading.sideOpacity>=.3&&reading.sideOpacity<=.6,`${testCase.label}: side card shown dimmed (${reading.sideOpacity})`);
+    // Phones show the next card's edge dimmed; a wide screen shows one card and
+    // its arrows, nothing half shown behind it (PLACE-CARD-RAIL-ALL-RESULTS-01).
+    if(testCase.mobile) assert.ok(reading.sideOpacity>=.3&&reading.sideOpacity<=.6,`${testCase.label}: side card shown dimmed (${reading.sideOpacity})`);
+    else {
+      assert.equal(reading.sideOpacity,0,`${testCase.label}: side card hidden on a wide screen (${reading.sideOpacity})`);
+      assert.equal(reading.sidePointer,'none',`${testCase.label}: side card not pressable on a wide screen`);
+    }
     assert.equal(reading.sideActionsVisible,false,`${testCase.label}: side actions visible`);
     assert.ok(reading.sideActionTabIndexes.every(x=>x===-1),`${testCase.label}: side focusable`);
     assert.equal(reading.noPhoneActions,0,`${testCase.label}: dead phone visible`);

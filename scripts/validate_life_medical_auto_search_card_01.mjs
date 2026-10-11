@@ -7,7 +7,9 @@
 //  - 위치: 위치 사용 + 권한 허용이면 현재 위치, 아니면 저장 지역, 둘 다 없으면
 //    아무것도 보내지 않는다(Core 가 지역을 묻는다). 권한은 한 페이지에서 한 번만 묻는다.
 //  - 답변은 Core 의 한 문장 그대로. 카드: 가운데 카드가 가장 크고 휴대폰에서는
-//    양옆 카드 끝이 보인다. 스와이프·1/3·최대 3곳·"다른 … 보기"·한 장이면 회전 표시 없음.
+//    양옆 카드 끝이 보인다. 스와이프·1/5·Core 가 보낸 곳 전부(PLACE-CARD-RAIL-ALL-
+//    RESULTS-01: "다른 … 보기" 없음)·한 장이면 회전 표시 없음. 넓은 화면은 가운데
+//    카드 한 장(옆 카드는 보이지도 눌리지도 않는다)과 그 바로 옆 ‹ ›.
 //  - 전화·지도: 원형 44px 버튼 두 개, 22px 선 아이콘, 이름 "전화하기"·"길찾기".
 //  - 카드 안 한 줄: "실제 … 여부는 전화로 확인"(응급실: "수용 여부는 출발 전 전화로 확인").
 //  - 일반 응급실 검색: 119 박스 없음. 응급 증상 메시지(CALL_119): 작은 119 버튼 하나.
@@ -236,8 +238,10 @@ const PROBE = `(() => {
     rail: rail ? {box: box(rail), count: rail.dataset.cardCount, position: rail.querySelector('.lotbi-place-orbit-position')?.hidden ? '' : (rail.querySelector('.lotbi-place-orbit-position')?.textContent || ''),
       more: rail.querySelector('.lotbi-place-orbit-more')?.hidden ? '' : (rail.querySelector('.lotbi-place-orbit-more')?.textContent || ''),
       moreBox: box(rail.querySelector('.lotbi-place-orbit-more')),
-      arrowsShown: [...rail.querySelectorAll('.lotbi-place-orbit-control')].some(node => getComputedStyle(node).display !== 'none')} : null,
-    cards: cards.map(card => ({slot: card.dataset.orbitSlot, box: box(card), opacity: Number(getComputedStyle(card).opacity),
+      arrowsShown: [...rail.querySelectorAll('.lotbi-place-orbit-control')].some(node => getComputedStyle(node).display !== 'none'),
+      arrows: [...rail.querySelectorAll('.lotbi-place-orbit-control')].map(box),
+      footerButtons: rail.querySelectorAll('.lotbi-place-orbit-footer button').length} : null,
+    cards: cards.map(card => ({slot: card.dataset.orbitSlot, box: box(card), opacity: Number(getComputedStyle(card).opacity), pointer: getComputedStyle(card).pointerEvents,
       name: card.querySelector('.lotbi-rich-card-title')?.textContent || '',
       lines: [...card.querySelectorAll('.lotbi-place-medical-line')].map(line => line.textContent),
       sideControlsVisible: card.dataset.orbitSlot !== 'CENTER' && [...card.querySelectorAll('a')].some(link => getComputedStyle(link).visibility === 'visible' && getComputedStyle(link.closest('.lotbi-place-card-actions') || link).display !== 'none' && link.getBoundingClientRect().width > 1)})),
@@ -452,6 +456,10 @@ async function runCase(browser, origin, dir, testCase) {
       assert.ok(rail.box.x >= -0.5 && rail.box.right <= state.viewport.w + 0.5, `${label}: ${step}: rail inside the viewport ${JSON.stringify(rail.box)}`);
       assert.ok(rail.box.y < state.viewport.h && rail.box.bottom > 0, `${label}: ${step}: the cards are on screen after the answer`);
       assert.equal(rail.position, count > 1 ? `1/${count}` : '', `${label}: ${step}: position`);
+      assert.equal(Number(rail.count), count, `${label}: ${step}: every place Core sent is a card`);
+      assert.equal(state.cards.length, count, `${label}: ${step}: ${state.cards.length} cards`);
+      assert.equal(rail.more, '', `${label}: ${step}: no 다른 … 보기`);
+      assert.equal(rail.footerButtons, 0, `${label}: ${step}: nothing to press under the card`);
       const center = state.cards.find(card => card.slot === 'CENTER');
       assert.ok(center, `${label}: ${step}: center card`);
       for (const card of state.cards.filter(item => item.slot !== 'CENTER')) {
@@ -479,6 +487,16 @@ async function runCase(browser, origin, dir, testCase) {
           assert.equal(state.cards.length, 1, `${label}: ${step}: one card, no side cards`);
           assert.ok(center.box.w >= Math.min(rail.box.w - 16, 380) - 1, `${label}: ${step}: a single card uses the width`);
         }
+      } else {
+        // PLACE-CARD-RAIL-ALL-RESULTS-01: one card on a wide screen, nothing half
+        // shown behind it, and the arrows right beside it.
+        for (const card of state.cards.filter(item => item.slot !== 'CENTER')) {
+          assert.equal(card.opacity, 0, `${label}: ${step}: side card ${card.name} (${card.slot}) hidden on a wide screen`);
+          assert.equal(card.pointer, 'none', `${label}: ${step}: side card ${card.name} not pressable`);
+        }
+        const [prevArrow, nextArrow] = rail.arrows;
+        assert.ok(prevArrow.right <= center.box.x + 0.5 && center.box.x - prevArrow.right <= 16, `${label}: ${step}: ‹ beside the card (${prevArrow.right} / ${center.box.x})`);
+        assert.ok(nextArrow.x >= center.box.right - 0.5 && nextArrow.x - center.box.right <= 16, `${label}: ${step}: › beside the card (${nextArrow.x} / ${center.box.right})`);
       }
       assert.deepEqual(state.actions.map(action => action.action), ['phone', 'naver-map'], `${label}: ${step}: phone + map`);
       for (const action of state.actions) {
@@ -577,12 +595,18 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(state.sent[3], '근처 응급실 찾아줘');
     assertNoKeyboard(state, '응급실');
     assert.equal(state.answers.at(-1), '근처 응급실 5곳을 찾았어요.');
-    assertCards(state, '응급실', {count: 3, kind: 'EMERGENCY'});
+    assertCards(state, '응급실', {count: 5, kind: 'EMERGENCY'});
     assert.equal(state.emergency.length, 0, `${label}: plain 응급실 search has no 119 box`);
-    assert.equal(state.rail.more, '다른 응급실 보기');
     await shot('02-emergency');
-    await tap(await reveal('[data-lmas-last] .lotbi-place-orbit-more'));
-    assert.equal((await probe()).rail.position, '4/5', `${label}: 다른 응급실 보기 → 4/5`);
+    // The fourth and fifth places are in the rail itself: one turn back from
+    // 1/5 is 5/5, and on round to 4/5.
+    const emergencyTitle = await reveal('[data-lmas-last] [data-orbit-slot="CENTER"] .lotbi-rich-card-title');
+    await swipe(emergencyTitle.cx - 60, emergencyTitle.cx + 60, emergencyTitle.cy);
+    state = await probe();
+    assert.equal(state.rail.position, '5/5', `${label}: 1/5 → back → 5/5`);
+    assert.equal(state.centerName, '엠마오사랑병원', `${label}: the fifth place`);
+    await swipe(emergencyTitle.cx - 60, emergencyTitle.cx + 60, emergencyTitle.cy);
+    assert.equal((await probe()).rail.position, '4/5', `${label}: 5/5 → back → 4/5`);
 
     // 6. Back / forward over 생활정보 (the screen is restored) and a reload
     // never send a question again.
@@ -662,4 +686,4 @@ try {
   }
 }
 
-console.log('LIFE-MEDICAL-AUTO-SEARCH-CARD-01 OK — 생활정보 병원·약국·응급실 ask at once without the keyboard, one-sentence answers over turning cards with side edges showing, round phone/map icons, no 119 box for a plain search (viewport emulation, not a device run)');
+console.log('LIFE-MEDICAL-AUTO-SEARCH-CARD-01 OK — 생활정보 병원·약국·응급실 ask at once without the keyboard, one-sentence answers over turning cards with side edges showing (every place Core sent, one card and its arrows on a wide screen), round phone/map icons, no 119 box for a plain search (viewport emulation, not a device run)');

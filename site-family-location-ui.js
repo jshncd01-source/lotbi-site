@@ -16,11 +16,11 @@ import {
   familyInviteRef, familyMapLinks, familyPlaceCenterFromFix, familyPresenceText, familySosMissingReport, getFamilyOverview, getFamilyRequest,
   getFamilyStatusCheck, listFamilyPlaces, pauseFamilySharing, previewFamilyInvite, putFamilyAlertSettings, reconfirmFamilySharing,
   reportFamilyTracking, resumeFamilySharing, revokeFamilyInvite, sendFamilyLocationOnce, sendFamilySos, updateFamilyPlace,
-} from './site-family-location.js?v=aset-577fd151dea9';
-import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-577fd151dea9';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-577fd151dea9';
-import {shareWithKakaoTalk} from './site-kakao-share.js?v=aset-577fd151dea9';
-import {takeFamilyInviteIntent} from './site-route.js?v=aset-577fd151dea9';
+} from './site-family-location.js?v=aset-65100b69715e';
+import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-65100b69715e';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-65100b69715e';
+import {shareWithKakaoTalk} from './site-kakao-share.js?v=aset-65100b69715e';
+import {takeFamilyInviteIntent} from './site-route.js?v=aset-65100b69715e';
 
 const SHARER_RELATIONS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모님'], ['SPOUSE', '배우자'], ['FAMILY', '가족']]);
 const RELATION_LABEL = Object.freeze({CHILD: '자녀', PARENT: '부모님', SPOUSE: '배우자', FAMILY: '가족', GUARDIAN: '함께 보는 보호자', OWNER: '가족 주인'});
