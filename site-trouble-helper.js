@@ -4,9 +4,16 @@
 // (data-trouble-open, desktop sidebar and mobile drawer) open the dialog that
 // index.html carries; this module owns it. Unlike 진위확인 it needs no login:
 // the guide is Core's public GET /v2/trouble-helper/guides and nothing is sent
-// back. One screen, one main action:
-//   ① 상황 고르기 → ② 질문 (one at a time, show_if) → ③ 할 일 →
-//   ④ 모을 증거·참고 기준·공식 창구 → ⑤ 상황 정리표.
+// back.
+//
+// TROUBLE-HELPER-URGENT-FIRST-01 (배포총괄방 decision, App the same names and
+// order): a situation tap opens the result at once — no question screen first.
+//   ① 상황 고르기 → result tabs "할 일" / "증거·창구" / "정리표".
+//   할 일: '바로 전화' (112 · 119 among the steps on screen, step order) →
+//   the step cards → "내 상황에 맞게 좁히기" (every question at once, optional;
+//   an answer redraws the cards, a second press on it clears it).
+// A step or question rule counts only the questions already answered: what is
+// not known yet is shown (site-trouble-helper-model.js isShown).
 // Guide sentences are drawn from Core's answer; only the controls and the
 // "could not load" fallback are written here.
 //
@@ -18,10 +25,16 @@
 import {
   FALLBACK_CALLS,
   FALLBACK_MESSAGE,
+  NARROW_HINT,
+  NARROW_TITLE,
+  PORTAL_SENTENCE_HINT,
+  RESULT_TAB_LABELS,
+  RESULT_VIEWS,
   SHARE_TITLE,
   SHARE_URL,
   SUBMITTED_STATUS,
   TROUBLE_HELPER_STORAGE_KEY,
+  answeredCount,
   canChooseStatus,
   faultPortalGuide,
   feeLine,
@@ -30,6 +43,7 @@ import {
   hoursLine,
   localDay,
   normalizeRecord,
+  quickCalls,
   receiptWritten,
   savedAtLabel,
   shareText,
@@ -39,8 +53,8 @@ import {
   visibleQuestions,
   visibleSteps,
   cleanAnswers,
-} from './site-trouble-helper-model.js?v=aset-aa70e560957f';
-import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-aa70e560957f';
+} from './site-trouble-helper-model.js?v=aset-b5cad52dd46b';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-b5cad52dd46b';
 
 const OPEN_FLAG_KEY = 'lotbi.trouble-helper.open.v1';
 const ROUTE_HASH_RE = /^#[a-z][a-z-]{1,30}$/u;
@@ -50,7 +64,6 @@ let dialog = null;
 let viewHost = null;
 let scrollHost = null;
 let statusNode = null;
-let progressNode = null;
 let dialogTrigger = null;
 let guides = null;
 let loading = null;
@@ -112,7 +125,7 @@ function currentSituation() {
 function currentRecord() {
   const situation = currentSituation();
   if (!situation) return null;
-  if (!store.cases[situation.id]) store.cases[situation.id] = normalizeRecord(situation, {view: 'question', createdOn: localDay()});
+  if (!store.cases[situation.id]) store.cases[situation.id] = normalizeRecord(situation, {view: 'steps', createdOn: localDay()});
   return store.cases[situation.id];
 }
 
@@ -155,14 +168,15 @@ function heading(textValue, level = 'h3') {
   return el(level, {className: 'trouble-heading', text: textValue, attrs: {tabindex: '-1', id: nextHeadingId()}, data: {troubleHeading: ''}});
 }
 
-function announce(message) {
-  if (statusNode) statusNode.textContent = message || '';
+// Puts a screen's parts in the view. A part a screen does not have is null
+// (no '바로 전화' without 112/119, no portal outside 자동차 사고 …) and is
+// left out — Element.append would write it as the text "null".
+function show(...parts) {
+  viewHost.append(...parts.flat().filter(Boolean));
 }
 
-function setProgress(message) {
-  if (!progressNode) return;
-  progressNode.textContent = message || '';
-  progressNode.hidden = !message;
+function announce(message) {
+  if (statusNode) statusNode.textContent = message || '';
 }
 
 // ── rendering ──────────────────────────────────────────────────────────
@@ -170,7 +184,6 @@ function render({focus = true} = {}) {
   if (!viewHost) return;
   stopReading();
   viewHost.replaceChildren();
-  setProgress('');
   announce('');
   if (!guides) return;
   const situation = currentSituation();
@@ -179,10 +192,9 @@ function render({focus = true} = {}) {
     renderPick();
   } else {
     const record = currentRecord();
-    if (!situation.questions.length && record.view === 'question') record.view = 'steps';
+    if (!RESULT_VIEWS.includes(record.view)) record.view = 'steps';
     viewHost.dataset.troubleView = record.view;
-    if (record.view === 'question') renderQuestion(situation, record);
-    else if (record.view === 'steps') renderSteps(situation, record);
+    if (record.view === 'steps') renderSteps(situation, record);
     else if (record.view === 'help') renderHelp(situation, record);
     else renderSummary(situation, record);
   }
@@ -208,13 +220,14 @@ function renderPick() {
       situation.subtitle ? el('span', {text: situation.subtitle}) : null,
       resumable ? el('span', {className: 'trouble-resume', text: '적어 둔 내용이 있어요 · 이어서 보기'}) : null));
   });
-  viewHost.append(noticeLine(), heading('어떤 일이 있었나요?'), el('ul', {className: 'trouble-situations'}, items));
+  show(noticeLine(), heading('어떤 일이 있었나요?'), el('ul', {className: 'trouble-situations'}, items));
 }
 
+// A situation tap is the second tap: it opens straight on 할 일 with the
+// calls on top. What was answered or written before is kept.
 function chooseSituation(id) {
   store.current = id;
-  const record = currentRecord();
-  if (!record.view) record.view = 'question';
+  currentRecord().view = 'steps';
   render();
 }
 
@@ -223,12 +236,11 @@ function goToPicker() {
   render();
 }
 
-// On the first question its own ← already goes back to the situations.
-function footer({pick = true} = {}) {
+function footer() {
   const reset = button(resetArmedUntil > Date.now() ? '한 번 더 누르면 지우고 처음부터 해요' : '처음부터 다시', () => resetCurrent(reset),
     {className: 'trouble-button trouble-button-quiet', data: {troubleReset: ''}});
   return el('div', {className: 'trouble-footer'},
-    pick ? button('다른 상황 고르기', goToPicker, {className: 'trouble-button trouble-button-quiet', data: {troublePick: ''}}) : null,
+    button('다른 상황 고르기', goToPicker, {className: 'trouble-button trouble-button-quiet', data: {troublePick: ''}}),
     reset);
 }
 
@@ -250,88 +262,113 @@ function resetCurrent(control) {
   announce('지웠어요. 상황을 다시 골라 주세요.');
 }
 
-function renderQuestion(situation, record) {
-  const questions = visibleQuestions(situation, record.answers);
-  const index = Math.min(Math.max(0, record.question || 0), Math.max(0, questions.length - 1));
-  record.question = index;
-  const question = questions[index];
-  if (!question) {
-    record.view = 'steps';
-    viewHost.dataset.troubleView = 'steps';
-    renderSteps(situation, record);
-    return;
-  }
-  setProgress(`질문 ${index + 1}/${questions.length}`);
-  const title = heading(question.text);
-  const options = question.options.map(option => el('button', {
-    className: 'trouble-option',
-    text: option.label,
-    attrs: {type: 'button', 'aria-pressed': record.answers[question.id] === option.id ? 'true' : 'false'},
-    data: {troubleOption: option.id},
-    on: {click: () => answerQuestion(situation, record, question.id, option.id)},
-  }));
-  const back = index === 0
-    ? button('← 상황 다시 고르기', goToPicker, {className: 'trouble-button trouble-button-secondary', data: {troubleBack: ''}})
-    : button('← 이전 질문', () => { record.question = index - 1; render(); }, {className: 'trouble-button trouble-button-secondary', data: {troubleBack: ''}});
-  // Came back to look at the answers: every question already answered, so the
-  // 할 일 are one tap away without answering them all again.
-  const answeredAll = questions.every(item => record.answers[item.id]);
-  const resume = answeredAll
-    ? button('답 그대로 할 일 보기 →', () => { record.view = 'steps'; render(); }, {className: 'trouble-button trouble-button-primary', data: {troubleResumeSteps: ''}})
-    : null;
-  viewHost.append(
-    noticeLine(),
-    el('p', {className: 'trouble-kicker', text: situation.title}),
-    title,
-    el('div', {className: 'trouble-options', attrs: {role: 'group', 'aria-labelledby': title.id}}, options),
-    el('div', {className: 'trouble-nav'}, back, resume),
-    footer({pick: index !== 0}),
-  );
-}
-
-function answerQuestion(situation, record, questionId, optionId) {
-  record.answers = cleanAnswers(situation, {...record.answers, [questionId]: optionId});
-  const questions = visibleQuestions(situation, record.answers);
-  const next = questions.findIndex(item => item.id === questionId) + 1;
-  if (next > 0 && next < questions.length) {
-    record.question = next;
-  } else {
-    record.view = 'steps';
-  }
-  render();
-}
-
+// The result screen's top, the same on every tab (App the same): the three
+// tabs, the situation (focus lands here) and its own 참고용 line. The shared
+// 참고용 box stays on the situation list, so the first screen has room for
+// '바로 전화' and the first card.
 function tabs(record) {
-  const entries = [['steps', '할 일'], ['help', '증거·창구'], ['summary', '정리표']];
   return el('nav', {className: 'trouble-tabs', attrs: {'aria-label': '안내 단계'}},
-    entries.map(([view, label]) => button(label, () => { record.view = view; render(); }, {
+    RESULT_VIEWS.map(view => button(RESULT_TAB_LABELS[view], () => { record.view = view; render(); }, {
       className: 'trouble-tab',
       attrs: {'aria-current': record.view === view ? 'step' : null},
       data: {troubleTab: view},
     })));
 }
 
-function resultHeader(situation, record, title) {
-  return [noticeLine(), el('p', {className: 'trouble-kicker', text: situation.title}), tabs(record), heading(title)];
+function resultHeader(situation, record) {
+  const title = heading(situation.title);
+  title.classList.add('trouble-result-title');
+  return [tabs(record), title,
+    el('p', {className: 'trouble-result-notice', text: situation.notice || guides.notice, data: {troubleSituationNotice: ''}})];
 }
 
-// ③ 할 일 — numbered cards; urgent ones carry a band.
+// '바로 전화': 112 · 119 from the steps on screen, before anything else on 할 일.
+function quickCallRow(situation, record) {
+  const calls = quickCalls(guides, situation, record.answers);
+  if (!calls.length) return null;
+  return el('section', {className: 'trouble-quick', attrs: {'aria-label': '바로 전화'}, data: {troubleQuickCalls: ''}},
+    calls.map(channel => callLink(`${channel.phone} 전화`, channel.phone, {
+      className: 'trouble-button trouble-call trouble-quick-call',
+      ariaLabel: `${channel.phone}에 바로 전화 걸기`,
+      data: {troubleQuickCall: channel.phone},
+    })));
+}
+
+// ③ 할 일 — '바로 전화', numbered cards (urgent ones carry a band), the
+// 과실비율정보포털 way in, then 내 상황에 맞게 좁히기.
 function renderSteps(situation, record) {
   const steps = visibleSteps(situation, record.answers);
-  const cards = steps.map((step, index) => stepCard(situation, record, step, index + 1));
-  const portal = faultPortalSection(situation, record);
-  viewHost.append(
-    ...resultHeader(situation, record, '이렇게 하세요'),
-    situation.notice ? el('p', {className: 'trouble-situation-notice', text: situation.notice, data: {troubleSituationNotice: ''}}) : null,
-    el('ol', {className: 'trouble-steps'}, cards),
-    portal,
+  show(
+    ...resultHeader(situation, record),
+    quickCallRow(situation, record),
+    el('ol', {className: 'trouble-steps', attrs: {'aria-label': '할 일'}}, steps.map((step, index) => stepCard(situation, record, step, index + 1))),
+    faultPortalSection(situation, record),
+    narrowSection(situation, record),
     el('div', {className: 'trouble-nav'},
-      situation.questions.length
-        ? button('← 답 다시 고르기', () => { record.view = 'question'; record.question = 0; render(); }, {className: 'trouble-button trouble-button-secondary', data: {troubleBack: ''}})
-        : null,
       button('다음: 모을 증거와 창구 →', () => { record.view = 'help'; render(); }, {className: 'trouble-button trouble-button-primary', data: {troubleNext: ''}})),
     footer(),
   );
+}
+
+// 내 상황에 맞게 좁히기 — every question on screen at once (a question's own
+// rule counts only what was answered). Optional: nothing waits for it.
+function narrowSection(situation, record) {
+  const questions = visibleQuestions(situation, record.answers);
+  if (!questions.length) return null;
+  const titleId = nextHeadingId();
+  const count = answeredCount(situation, record.answers);
+  const groups = questions.map(question => {
+    const questionId = nextHeadingId();
+    return el('div', {className: 'trouble-question', attrs: {role: 'group', 'aria-labelledby': questionId}, data: {troubleQuestion: question.id}},
+      el('h5', {text: question.text, attrs: {id: questionId}}),
+      el('div', {className: 'trouble-options'}, question.options.map(option => el('button', {
+        className: 'trouble-option',
+        text: option.label,
+        attrs: {type: 'button', 'aria-pressed': record.answers[question.id] === option.id ? 'true' : 'false'},
+        data: {troubleOption: option.id},
+        on: {click: () => chooseAnswer(situation, record, question.id, option.id)},
+      }))));
+  });
+  return el('section', {className: 'trouble-narrow', attrs: {'aria-labelledby': titleId}, data: {troubleNarrow: ''}},
+    el('h4', {className: 'trouble-narrow-title', text: NARROW_TITLE, attrs: {id: titleId}}),
+    el('p', {className: 'trouble-narrow-hint', text: NARROW_HINT, data: {troubleNarrowHint: ''}}),
+    el('p', {className: 'trouble-narrow-count', text: `답한 질문 ${count.answered}/${count.total}`, data: {troubleAnswered: ''}}),
+    ...groups);
+}
+
+function stepTitles(situation, ids) {
+  return situation.steps.filter(step => ids.includes(step.id)).map(step => `‘${step.title}’`);
+}
+
+// An answer redraws 할 일 in place: the pressed button stays where it was
+// under the finger and keeps the focus; the status line says what changed
+// up there (it may be off screen).
+function chooseAnswer(situation, record, questionId, optionId) {
+  const selector = `[data-trouble-question="${questionId}"] [data-trouble-option="${optionId}"]`;
+  const offsetOf = node => (node && scrollHost ? node.getBoundingClientRect().top - scrollHost.getBoundingClientRect().top : null);
+  const offset = offsetOf(viewHost.querySelector(selector));
+  const before = visibleSteps(situation, record.answers).map(step => step.id);
+  const cleared = record.answers[questionId] === optionId;
+  const next = {...record.answers};
+  if (cleared) delete next[questionId]; else next[questionId] = optionId;
+  record.answers = cleanAnswers(situation, next);
+  const after = visibleSteps(situation, record.answers).map(step => step.id);
+  const removed = stepTitles(situation, before.filter(id => !after.includes(id)));
+  const added = stepTitles(situation, after.filter(id => !before.includes(id)));
+  const parts = [cleared ? '답을 지웠어요.' : '답을 골랐어요.'];
+  if (removed.length) parts.push(removed.length === 1 ? `${removed[0]} 할 일이 빠졌어요.` : `할 일 ${removed.length}개가 빠졌어요.`);
+  if (added.length) parts.push(added.length === 1 ? `${added[0]} 할 일이 다시 보여요.` : `할 일 ${added.length}개가 다시 보여요.`);
+  if (!removed.length && !added.length) parts.push('할 일은 그대로예요.');
+  render({focus: false});
+  // The status line first: it takes room under the scroller, so the place of
+  // the pressed button is put back with the line already there.
+  announce(parts.join(' '));
+  const pressed = viewHost.querySelector(selector);
+  if (pressed) {
+    const now = offsetOf(pressed);
+    if (offset !== null && now !== null) scrollHost.scrollTop += now - offset;
+    pressed.focus({preventScroll: true});
+  }
 }
 
 function stepCard(situation, record, step, number) {
@@ -349,7 +386,7 @@ function stepCard(situation, record, step, number) {
   if (step.linkScamShield) actions.append(button('진위확인으로 확인하기', openScamShield, {className: 'trouble-button trouble-button-secondary', data: {troubleScamShield: ''}}));
   const target = step.gotoSituation ? findSituation(guides, step.gotoSituation) : null;
   if (target) {
-    actions.append(button(`‘${target.title}’ 안내 보기`, () => { store.current = target.id; currentRecord(); render(); },
+    actions.append(button(`‘${target.title}’ 안내 보기`, () => chooseSituation(target.id),
       {className: 'trouble-button trouble-button-secondary', data: {troubleGoto: target.id}}));
   }
   // 읽어주기: the device voice reads this card (site-message-read-aloud.js).
@@ -409,11 +446,21 @@ function faultPortalSection(situation, record) {
   const guide = faultPortalGuide(situation, record.answers);
   if (!guide) return null;
   const section = el('section', {className: 'trouble-portal', data: {troublePortal: ''}, attrs: {'aria-label': '과실비율정보포털 찾는 법'}});
+  // The order of the portal's two choices, only as far as it was answered.
   if (guide.order.length) {
     section.append(el('h4', {text: '과실비율정보포털에서 고르는 순서'}),
       el('p', {className: 'trouble-portal-order', data: {troublePortalOrder: ''}}, guide.order.join(' → ')));
+  } else {
+    section.append(el('h4', {text: '과실비율정보포털'}));
   }
   if (guide.selectUrl) section.append(externalLink('포털에서 직접 고르기', guide.selectUrl, {data: {troublePortalSelect: ''}}));
+  // Not enough answered for the "대화로 찾기" sentence yet: say where it
+  // comes from, and the portal opens anyway.
+  if (!guide.sentence && guide.describeUrl) {
+    section.append(el('h4', {text: '대화로 찾기'}),
+      el('p', {className: 'trouble-note', text: PORTAL_SENTENCE_HINT, data: {troublePortalHint: ''}}),
+      el('div', {className: 'trouble-step-actions'}, externalLink('대화로 찾기 열기', guide.describeUrl, {data: {troublePortalDescribe: ''}})));
+  }
   if (guide.sentence && guide.describeUrl) {
     const copy = button('이 문장 복사하기', async () => {
       try { await copyText(guide.sentence); announce('문장을 복사했어요. 포털의 ‘대화로 찾기’에 붙여 넣어 주세요.'); }
@@ -443,8 +490,8 @@ function renderHelp(situation, record) {
   const channels = store.preferOffline
     ? [...listed.filter(channel => channel.phone || channel.visit), ...listed.filter(channel => !channel.phone && !channel.visit)]
     : listed;
-  viewHost.append(
-    ...resultHeader(situation, record, '모을 증거와 공식 창구'),
+  show(
+    ...resultHeader(situation, record),
     evidence.length ? el('section', {className: 'trouble-section', data: {troubleSection: 'evidence'}},
       el('h4', {text: '모을 증거'}), el('ul', {className: 'trouble-checklist'}, evidence)) : null,
     references.length ? el('section', {className: 'trouble-section', data: {troubleSection: 'references'}},
@@ -538,8 +585,8 @@ function renderSummary(situation, record) {
   }, {className: 'trouble-button trouble-button-primary', data: {troubleSave: ''}});
   const printButton = button('인쇄', () => printSummary(situation, record), {className: 'trouble-button trouble-button-secondary', data: {troublePrint: ''}});
   const shareButton = button('카카오로 보내기', () => shareSummary(situation, record), {className: 'trouble-button trouble-button-secondary', data: {troubleShare: ''}});
-  viewHost.append(
-    ...resultHeader(situation, record, '상황 정리표'),
+  show(
+    ...resultHeader(situation, record),
     el('div', {className: 'trouble-sheet', data: {troubleSheet: ''}},
       el('dl', {className: 'trouble-sheet-facts'},
         el('div', {}, el('dt', {text: '상황'}), el('dd', {text: model.title})),
@@ -614,7 +661,7 @@ function printSummary(situation, record) {
 }
 
 async function loadKakaoShare() {
-  try { return await import('./site-kakao-share.js?v=aset-aa70e560957f'); } catch { return null; }
+  try { return await import('./site-kakao-share.js?v=aset-b5cad52dd46b'); } catch { return null; }
 }
 
 // Opening the 정리표 readies the KakaoTalk SDK, so the tap on 카카오로 보내기
@@ -686,8 +733,7 @@ function stopReading() {
 function renderFailure() {
   viewHost.replaceChildren();
   viewHost.dataset.troubleView = 'error';
-  setProgress('');
-  viewHost.append(
+  show(
     el('p', {className: 'trouble-failure', text: FALLBACK_MESSAGE, attrs: {tabindex: '-1'}, data: {troubleFailure: '', troubleHeading: ''}}),
     el('div', {className: 'trouble-failure-calls'}, FALLBACK_CALLS.map(entry => callLink(entry.label, entry.phone, {data: {troubleFallbackCall: entry.phone}}))),
     button('다시 불러오기', () => { void loadGuides(); }, {className: 'trouble-button trouble-button-secondary', data: {troubleRetry: ''}}),
@@ -783,7 +829,6 @@ function bindTroubleHelper() {
     viewHost = dialog.querySelector('[data-trouble-view]');
     scrollHost = dialog.querySelector('[data-trouble-scroll]');
     statusNode = dialog.querySelector('[data-trouble-status]');
-    progressNode = dialog.querySelector('[data-trouble-progress]');
   }
   if (dialog && dialog.dataset.troubleBound !== 'true') {
     dialog.dataset.troubleBound = 'true';

@@ -10,8 +10,8 @@
 //  - the map action uses the user's default map app (site-navigation.js), the
 //    phone action is a plain tel: link, a fax is text, never a link;
 //  - every card names its official source and says "공식 등록정보 기준".
-import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-aa70e560957f';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-aa70e560957f';
+import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-b5cad52dd46b';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-b5cad52dd46b';
 
 export const REGIONAL_FOOD_CONTRACT = 'CORE-REGIONAL-FOOD-RESULT-01';
 export const REGIONAL_CONTACT_CONTRACT = 'CORE-REGIONAL-CONTACT-RESULT-01';
