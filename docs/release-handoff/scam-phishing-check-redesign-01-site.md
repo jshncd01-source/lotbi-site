@@ -10,9 +10,20 @@ READY_FOR_DEPLOY=YES
 - PR: 없음(Ncloud feature 브랜치 직접 인계)
 - 기준 Ncloud main: `9147419fb079e6452ff26d82c52a1b8f1dca36e4` (SITE-T57a3)
 - 통합·검증 SHA: `4192b875263aa8a16dab1b1ceb5a92312ff99540`
+- Gate 반환 수정·재검증 SHA: `99434a4de5008920d4e98855924d5d0da963fc28`
 - 이전 READY checkpoint: `a50b29b01be40105f94522f9dfef687a93d372b0`
 - 최종 push HEAD: 이 문서를 포함한 READY 커밋 SHA를 최종 보고에서 별도 기재한다.
 - asset cache: `aset-976ee65147ba` (`targets=169`, `refs=206`)
+
+## Gate 1.0.6 반환과 수정
+
+- 반환 release: `release/20261010-site-t57b-work`
+- 반환 release HEAD: `d193c1487b510c34ff1cf0f2206bba5a2bcdba1a`
+- Gate run: `20261011T145428Z-4094983-1111125048`
+- 결과: `TEST_FAILED`, 실패 단계 `PUBLIC HARDENING`. main `9147419f`와 Production은 변경되지 않았다.
+- 원인: C안의 사용자 UI 명칭을 정리하면서 잠긴 `terms.html` 제8조 법적 문구 `진위확인 심층분석`까지 `사기·피싱 심층분석`으로 변경했다. 이번 범위에는 약관 재승인·relock 승인이 없었다.
+- 수정: 제8조 잠긴 문구만 최신 main의 `진위확인 심층분석`으로 복원했다. asset token `aset-976ee65147ba`와 다른 C안 UI의 `사기·피싱 확인`은 유지했다.
+- `scripts/validate_hardening.py`의 잠금 해시·검사 로직은 변경하지 않았다.
 
 ## 확정 C안 보존
 
@@ -72,6 +83,17 @@ READY_FOR_DEPLOY=YES
 - `validate_conversation_answer_ux_01.mjs`: PASS — 320/360/390/412/1280 대화·지역·장소 카드.
 - `validate_calendar_recurring_events_01.mjs`: PASS. Windows Chrome 자동 탐색 실패 후 `CHROME_BIN=C:/Program Files/Google/Chrome/Application/chrome.exe`를 명시해 동일 검사를 재실행했다.
 - 대표 desktop/mobile, light/dark 시작·결과 화면 직접 확인: 가로 넘침·버튼 잘림·본문 겹침 없음.
+
+### Gate 반환 수정 SHA `99434a4de...` 재검증
+
+- `python scripts/validate_hardening.py`: PASS — locked content 포함 PUBLIC HARDENING 전체.
+- `python scripts/validate_legal_pages.py`: PASS.
+- `python scripts/validate_social_legal_manifest_01.py`: PASS — consent digest와 hardening lock 일치, asset-token rewrite 정규화 확인.
+- `python scripts/emit_social_signup_legal_manifest.py`: PASS — 승인된 terms/privacy version·digest 출력 확인(비밀값 없음).
+- `node scripts/asset_cache_version.mjs --check`: PASS — `aset-976ee65147ba`, targets 169 / refs 206.
+- `validate_scam_shield_mvp_01.mjs`, `validate_scam_shield_connection_01.mjs`, `validate_connected_services_menu_hidden_01.mjs`: PASS.
+- `validate_scam_shield_photo_picker_01.mjs`: PASS — 360/390/412/1280, light/dark 실제 Chrome 파일 chooser 회귀.
+- `validate_scam_shield_double_check_p0.mjs`: PASS — 16 renders, 가로 넘침 0, WCAG AA.
 
 ## 최신 통합 사용자 시나리오
 
