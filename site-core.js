@@ -535,6 +535,10 @@ export function normalizeSmartCalendarDraft(value) {
   const documentKind = normalizeCalendarDraftText(value.document_kind, 24);
   const detectionConfidence = normalizeCalendarDraftText(value.detection_confidence, 8);
   const dedupeFingerprint = normalizeCalendarDraftText(value.dedupe_fingerprint, 64);
+  const reviewNotices = value.review_notices == null ? [] : value.review_notices;
+  if (!Array.isArray(reviewNotices) || reviewNotices.length > 5 || reviewNotices.some(item => typeof item !== 'string' || !item.trim() || item.length > 240)) {
+    throw new SiteCoreError('LOTBI 사진 확인 안내 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
   const entry = value.entry && typeof value.entry === 'object' ? value.entry : null;
   const sourceIds = Array.isArray(value.source_attachment_ids) ? value.source_attachment_ids.map(item => String(item || '').trim()) : null;
   const amountMinor = entry?.amount_minor == null ? null : Number(entry.amount_minor);
@@ -588,6 +592,7 @@ export function normalizeSmartCalendarDraft(value) {
     documentKind,
     detectionConfidence,
     dedupeFingerprint,
+    reviewNotices: Object.freeze(reviewNotices.map(item => item.trim())),
     // Core decides whether a draft nobody asked for may raise a save card. The
     // Site does not re-derive that judgement; it only reports what it was told,
     // and an older Core that says nothing is treated as not volunteering.
