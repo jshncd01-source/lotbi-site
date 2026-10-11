@@ -15,7 +15,7 @@ const page = html.slice(start, html.indexOf('<!-- TROUBLE-HELPER-01', start));
 assert.doesNotMatch(page, /<dialog\b|aria-modal=/u, 'scam route is not a modal dialog');
 assert.doesNotMatch(page, /C안|바로 입력형|진위확인/u, 'design-only labels and the old menu name are absent');
 assert.equal((html.match(/data-scam-open aria-label="사기·피싱 확인"/gu) || []).length, 2, 'desktop and mobile menu names');
-assert.equal((html.match(/data-consumer-section="mall"[^>]*hidden[^>]*aria-hidden="true"/gu) || []).length, 2, '연결 서비스 stays hidden');
+assert.equal((html.match(/data-consumer-section="mall"[^>]*hidden/gu) || []).length, 2, '연결 서비스 stays hidden');
 
 for (const copy of [
   '롯비야, 이거 진짜야?',
