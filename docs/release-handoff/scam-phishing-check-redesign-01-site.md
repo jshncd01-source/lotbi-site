@@ -14,7 +14,7 @@ READY_FOR_DEPLOY=YES
 - Gate 반환 수정·재검증 SHA: `99434a4de5008920d4e98855924d5d0da963fc28`
 - 이전 READY checkpoint: `a50b29b01be40105f94522f9dfef687a93d372b0`
 - 최종 push HEAD: 이 문서를 포함한 READY 커밋 SHA를 최종 보고에서 별도 기재한다.
-- asset cache: `aset-976ee65147ba` (`targets=169`, `refs=206`)
+- asset cache: `aset-c6baa4c56658` (`targets=169`, `refs=206`)
 
 ## Gate 1.0.6 반환과 수정
 
@@ -25,6 +25,18 @@ READY_FOR_DEPLOY=YES
 - 원인: C안의 사용자 UI 명칭을 정리하면서 잠긴 `terms.html` 제8조 법적 문구 `진위확인 심층분석`까지 `사기·피싱 심층분석`으로 변경했다. 이번 범위에는 약관 재승인·relock 승인이 없었다.
 - 수정: 제8조 잠긴 문구만 최신 main의 `진위확인 심층분석`으로 복원했다. asset token `aset-976ee65147ba`와 다른 C안 UI의 `사기·피싱 확인`은 유지했다.
 - `scripts/validate_hardening.py`의 잠금 해시·검사 로직은 변경하지 않았다.
+
+## Gate 1.0.6 두 번째 반환과 수정
+
+- 반환 release: `release/20261010-site-t57b2-work`
+- 반환 release HEAD: `4e59a52027bb04184315a1d72893a6a7651c575d`
+- Gate run: `20261011T150319Z-4099918-1092112756`
+- 결과: `TEST_FAILED`, 실패 단계 `scripts/validate_common_ui_polish_01.mjs`. main `9147419f`와 Production은 변경되지 않았다.
+- 원인: C안 독립 화면을 구현하면서 `[data-scam-dialog]`를 `<dialog>`에서 `<section>`으로 바꾸고 `showModal()`/`close()`를 수동 `open`·`hidden` 처리로 대체했다. 모바일 drawer를 먼저 닫는 순서는 남아 있었지만 Gate가 보호하는 네이티브 모달 계약을 잃었다.
+- 수정: C안의 독립 전체 화면·입력·결과 UX는 유지하면서 요소를 네이티브 `<dialog>`로 복원했다. `openDialog()`는 drawer 닫기 이후 `dialog.showModal()`을 호출하고, 닫기는 `dialog.close()`를 사용한다.
+- 닫기 안정성: `finishDialogClose()`가 body 상태·메뉴 `aria-current`·초점·라우팅 알림을 멱등 처리한다. route owner가 즉시 닫은 뒤 네이티브 `close` 이벤트가 늦게 와도 중복 알림이나 중복 초점 이동이 발생하지 않는다. Escape의 네이티브 `cancel` 이벤트도 기존 dismiss/history 흐름으로 연결했다.
+- 검증 보존: `validate_common_ui_polish_01.mjs`의 drawer-before-`showModal()` 단언은 변경하지 않았다. MVP와 route restore 검증은 네이티브 `<dialog>`·`showModal()`·`close()` 및 멱등 닫기를 더 강하게 확인하도록 갱신했다.
+- cache: 변경된 HTML/CSS/JS를 반영해 공식 생성기로 `aset-c6baa4c56658`을 재생성했다.
 
 ## 확정 C안 보존
 
@@ -95,6 +107,17 @@ READY_FOR_DEPLOY=YES
 - `validate_scam_shield_mvp_01.mjs`, `validate_scam_shield_connection_01.mjs`, `validate_connected_services_menu_hidden_01.mjs`: PASS.
 - `validate_scam_shield_photo_picker_01.mjs`: PASS — 360/390/412/1280, light/dark 실제 Chrome 파일 chooser 회귀.
 - `validate_scam_shield_double_check_p0.mjs`: PASS — 16 renders, 가로 넘침 0, WCAG AA.
+
+### 두 번째 Gate 반환 수정 재검증
+
+- `validate_common_ui_polish_01.mjs`: PASS — 11 checks. 기존 drawer-before-`showModal()` 단언 유지.
+- `validate_scam_shield_mvp_01.mjs`, `validate_scam_shield_connection_01.mjs`: PASS.
+- `validate_scam_shield_photo_picker_01.mjs`: PASS — 360 light/dark, 390 KakaoTalk UA, 412 Android UA, 1280 desktop light/dark의 실제 Chrome 탭·chooser 흐름.
+- `validate_site_refresh_route_restore_01.mjs`: PASS — iPhone 375/390 각 170 checks, desktop 1280 168 checks. 직접 진입·새로고침·뒤로/앞으로·로그인 복귀·닫기 경로 포함.
+- `validate_accessibility.py`: PASS.
+- `validate_hardening.py`, `validate_legal_pages.py`, `validate_social_legal_manifest_01.py`: PASS. 검증 파일의 단언 완화 없음.
+- `asset_cache_version.mjs --check`: PASS — `aset-c6baa4c56658`, targets 169 / refs 206.
+- desktop 1280 light/dark 및 mobile 360 시작 화면 렌더 직접 확인: 기존 C안 구성, desktop sidebar 보존, mobile 전체 화면, 가로 넘침 없음.
 
 ## 최신 통합 사용자 시나리오
 

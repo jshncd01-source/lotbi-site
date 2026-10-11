@@ -393,9 +393,7 @@ async function openDialog(event) {
   if (loginGate) loginGate.hidden = true;
   if (workspace) workspace.hidden = true;
   if (status) status.textContent = '로그인 상태를 확인하고 있어요.';
-  dialog.hidden = false;
-  dialog.open = true;
-  dialog.setAttribute('open', '');
+  dialog.showModal();
   document.body.classList.add('scam-page-open');
   document.querySelectorAll('[data-scam-open]').forEach(entry => entry.setAttribute('aria-current', 'page'));
   notifyScamShieldVisibility();
@@ -434,11 +432,18 @@ function closeDialog() {
   if (!dialog) return;
   openSequence += 1;
   stopVoiceRecognition();
-  dialog.removeAttribute('open');
-  dialog.open = false;
-  dialog.hidden = true;
+  if (dialog.open) dialog.close();
+  finishDialogClose();
+}
+
+// Native <dialog> can deliver its close event after the route owner has already
+// asked for a synchronous close. Keep cleanup idempotent so the URL, focus and
+// aria-current state each change exactly once without waiting for a frame.
+function finishDialogClose() {
+  const wasVisible = document.body.classList.contains('scam-page-open');
   document.body.classList.remove('scam-page-open');
   document.querySelectorAll('[data-scam-open]').forEach(entry => entry.removeAttribute('aria-current'));
+  if (!wasVisible) return;
   restoreDialogFocus();
   notifyScamShieldVisibility();
 }
@@ -707,6 +712,11 @@ function bindScamShield() {
   loginStatus = document.querySelector('[data-scam-login-status]');
   if (dialog && dialog.dataset.scamOutsideBound !== 'true') {
     dialog.dataset.scamOutsideBound = 'true';
+    dialog.addEventListener('cancel', event => {
+      event.preventDefault();
+      dismissDialog();
+    });
+    dialog.addEventListener('close', finishDialogClose);
   }
 
   document.querySelectorAll('[data-scam-open]').forEach(button => {

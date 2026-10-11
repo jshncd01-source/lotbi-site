@@ -8,11 +8,13 @@ const conversation = read('site-conversation.js');
 const ui = read('site-scam-shield.js');
 const css = read('site-scam-shield.css');
 
-const start = html.indexOf('<section class="scam-page"');
+const start = html.indexOf('<dialog class="scam-page"');
 assert.ok(start >= 0, 'independent scam page exists');
 const page = html.slice(start, html.indexOf('<!-- TROUBLE-HELPER-01', start));
 
-assert.doesNotMatch(page, /<dialog\b|aria-modal=/u, 'scam route is not a modal dialog');
+assert.match(page, /^<dialog\b/u, 'independent scam page keeps the native modal contract');
+assert.match(ui, /dialog\.showModal\(\)/u, 'scam page opens through native showModal');
+assert.match(ui, /if \(dialog\.open\) dialog\.close\(\)/u, 'scam page closes through native close');
 assert.doesNotMatch(page, /C안|바로 입력형|진위확인/u, 'design-only labels and the old menu name are absent');
 assert.equal((html.match(/data-scam-open aria-label="사기·피싱 확인"/gu) || []).length, 2, 'desktop and mobile menu names');
 assert.equal((html.match(/data-consumer-section="mall"[^>]*hidden/gu) || []).length, 2, '연결 서비스 stays hidden');

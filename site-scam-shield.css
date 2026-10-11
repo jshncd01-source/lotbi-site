@@ -93,7 +93,21 @@ body.scam-page-open .chat-topbar,
 body.scam-page-open .chat-hero,
 body.scam-page-open .chat-home-footer { display: none !important; }
 body.scam-page-open .chat-home-shell { overflow-y: auto; background: var(--lotbi-surface-primary, #fff); }
-.scam-page { min-height: 100%; color: var(--lotbi-text-primary, #10204a); background: radial-gradient(circle at 38% 5%, rgb(31 112 255 / 8%), transparent 34%), var(--lotbi-surface-primary, #fff); }
+.scam-page {
+  position: fixed;
+  inset: 0 0 0 220px;
+  width: calc(100% - 220px);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  overflow-y: auto;
+  color: var(--lotbi-text-primary, #10204a);
+  background: radial-gradient(circle at 38% 5%, rgb(31 112 255 / 8%), transparent 34%), var(--lotbi-surface-primary, #fff);
+}
+.scam-page::backdrop { background: transparent; }
 .scam-page-shell { width: min(1132px, calc(100% - 48px)); margin: 0 auto; padding: 28px 0 56px; }
 .scam-page-nav { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; min-height: 54px; }
 .scam-page-nav strong { font-size: 1.05rem; }
@@ -165,4 +179,8 @@ body.scam-page-open .chat-home-shell { overflow-y: auto; background: var(--lotbi
   .scam-upload-icon { width: 56px; height: 56px; }
   .scam-page .scam-result { padding: 18px 16px; }
   .scam-incident { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  .scam-page { inset-inline-start: 0; width: 100%; }
 }
