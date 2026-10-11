@@ -8,10 +8,12 @@ TASK=SITE-AVATAR-LOGO-ALIGN-01 (배포총괄방 → 이 방, 소유자 원문 "�
 REPO=lotbi-site
 FEATURE_BRANCH=feature/avatar-logo-align-01-site
 READY_SHA=this document's commit (branch HEAD; `git ls-remote ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git refs/heads/feature/avatar-logo-align-01-site`)
-BASE_MAIN_SHA=7c4f0944 (Ncloud main, SITE-T54). T55 운영 반영 뒤 그 main 병합 — 아래 MERGES 참고.
+BASE_MAIN_SHA=68b3161e695d926a4c2fc7e53d315fcb958756ac (Ncloud main, SITE-T55 병합 — 분쟁·사고 도우미·우리 가족 위치 등). 작업 시작 기준은 7c4f0944(SITE-T54). push 직전 ls-remote 재확인.
 CODE_COMMITS=
   1eb191d5 feat(site): home 3D character matches the header logo character
   4f4ca55c chore(site): asset token regenerated (token lines only)
+  b5317fd0 docs(site): READY handoff
+  3921ee72 merge main 68b3161e(SITE-T55) — 충돌 81개 모두 토큰 줄, main 쪽 선택 후 토큰 재생성. site-avatar.js는 이 branch의 모델 주소 유지, 워크플로 smoke 목록은 main 경로 + 새 GLB 1개
 CHANGED_FILES(main 대비, 토큰 제외)=
   assets/models/lotbi-logo-aligned-v3-rigged.glb (신규)
   tools/build_logo_aligned_avatar.py (신규, GLB 생성 스크립트 — .dockerignore가 tools/ 제외, 배포 안 됨)
@@ -19,7 +21,7 @@ CHANGED_FILES(main 대비, 토큰 제외)=
   scripts/validate_site_avatar_integration.mjs (단정 추가만, 기존 단정 삭제·완화 0)
   .github/workflows/site-review.yml (smoke 경로 목록에 새 GLB 1개 추가)
   이 문서
-ASSET_VERSION=aset-f6e2cba23952 (`node scripts/asset_cache_version.mjs --write`, check PASS targets=159 refs=193)
+ASSET_VERSION=aset-0428ff94b761 (T55 병합 뒤 `node scripts/asset_cache_version.mjs --write`, check PASS targets=166 refs=202)
 NEW_CSS=NONE (auth/callback/index.html 변경 불필요)
 DEPLOY_SCOPE=lotbi-site only. Core·Web·Admin·App 무변경.
 DEPLOY_ORDER=단독(SITE).
@@ -82,6 +84,7 @@ SITE_TEST_RESULTS=
     validate_theme_auto_schedule_02.mjs PASS
     validate_user_bubble_content_fit.mjs PASS
   asset_cache_version --check PASS
+MERGED_TREE_RETEST(3921ee72, main 68b3161e 병합 뒤)=site_avatar_integration·avatar_refresh_flash_01·brand_official_logo_01·auth_continuity_02·bare_white_home_render_01·home_fresh_entry_01·mobile_home_initial_scroll_01·hardening.py·home_chat.py·bare_white_home_skin_01.py·document_cache_policy_01.py·nginx_module_mime_01.py 12/12 PASS + fallback_runtime(Windows 서버 사본) PASS + asset check PASS. 홈 화면 5폭×라이트·다크 10/10 ready, 페이지 오류 0 (EVIDENCE_DIR\page-merged\)
 VALIDATOR_WEAKENED=NO (validate_site_avatar_integration.mjs: V5 봉인 단정 그대로 + 새 모델 단정 추가. 다른 아바타 검사기 무변경)
 
 ## 화면 검사 (전·후 같은 방법: 실제 index.html, headless Chrome + SwiftShader WebGL, DPR 2)
