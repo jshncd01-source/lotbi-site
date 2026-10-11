@@ -2,7 +2,8 @@
 // answers, in a real browser (DevTools protocol, real time) against the real
 // index.html with a fake Core, at 320/360/390/412 (phone) and 1280 (desktop).
 //
-//   #7 지역정보 → 약국 with no location: Core asks "어느 지역에서 찾을까요?" with
+//   #7 "근처 약국 찾아줘" with no location (typed: since LIFE-MEDICAL-MERGE-01 the
+//      지역정보 병원·응급실·약국 card opens its own list and sends nothing): Core asks "어느 지역에서 찾을까요?" with
 //      follow_up.reason LOCATION_REQUIRED, and the answer offers the shared
 //      위치 허용 row (NEARBY-LOCATION-ALLOW-PROMPT-01, site-location-allow.js):
 //      [현재 위치로 찾기] [지역 고르기], and with LOTBI location use off
@@ -222,16 +223,25 @@ try {
   const snapshot = () => ({requests: mine(), users: users(), promptValue: prompt.value, focus: {events: focusEvents, calls: focusCalls},
     activeIsPrompt: document.activeElement === prompt, status: document.querySelector('[data-site-status], #site-status, .site-status')?.textContent?.trim() || ''});
   const result = {ok: true, phase: PHASE};
-  const openPharmacy = async () => {
-    document.querySelector('[data-consumer-section="life"]').click();
-    const shortcut = await wait(() => document.querySelector('[data-life-shortcut="pharmacy"]'), 'pharmacy shortcut');
-    shortcut.click();
+  // LIFE-MEDICAL-MERGE-01 (SITE-T56): 지역정보's 병원·응급실·약국 card opens its
+  // own list screen and sends nothing to the chat, so the "where?" answer is
+  // reached the way a person still reaches it — typing the question. A PC puts
+  // the cursor back in the composer when a typed turn ends
+  // (CHAT-MOBILE-KEYBOARD-DISMISS-01) and a phone keeps its keyboard closed;
+  // that entry is recorded on its own, then the quiet-composer checks below count
+  // from the "where?" answer on: what the location buttons do.
+  const askPharmacy = async () => {
+    await sendTyped('근처 약국 찾아줘');
+    await settle(1);
+    result.typedEntry = {promptValue: prompt.value, focus: {events: focusEvents, calls: focusCalls}, activeIsPrompt: document.activeElement === prompt,
+      coarse: matchMedia('(pointer: coarse)').matches};
+    if (document.activeElement === prompt) prompt.blur();
+    focusEvents = 0; focusCalls = 0;
   };
 
   if (PHASE === 'clarify' || PHASE === 'reload') {
     if (PHASE === 'clarify') {
-      await openPharmacy();
-      await settle(1);
+      await askPharmacy();
     } else {
       await wait(() => document.body.dataset.conversationRestore === 'ready', 'restore');
       await sleep(1200);
@@ -488,8 +498,12 @@ try {
 
       // #7 지역 선택: 약국 → "where?" → region list → one question with the region.
       const region = await runPhase(devtools, page('phase=clarify&perm=prompt&action=region'), `${label}/region`);
-      console.log(`CAU ${label} region`, JSON.stringify({rows: region.rowButtons, picker: region.picker, requests: region.final.requests, users: region.final.users}));
-      assert.deepEqual(region.afterFirst.requests.map(item => item.text), [PHARMACY], `${label}: one tap sends 약국 once`);
+      console.log(`CAU ${label} region`, JSON.stringify({rows: region.rowButtons, picker: region.picker, requests: region.final.requests, users: region.final.users, typedEntry: region.typedEntry}));
+      assert.deepEqual(region.afterFirst.requests.map(item => item.text), [PHARMACY], `${label}: one send asks 약국 once`);
+      assert.equal(region.typedEntry.promptValue, '', `${label}: the typed question leaves the composer`);
+      // A phone keeps the keyboard closed after the send; a PC gets its cursor back.
+      if (testCase.mobile && region.typedEntry.coarse) assert.equal(region.typedEntry.activeIsPrompt, false, `${label}: the phone keyboard stays closed after the send`);
+      if (!testCase.mobile) assert.equal(region.typedEntry.activeIsPrompt, true, `${label}: a PC gets the cursor back after the answer`);
       assert.equal(region.afterFirst.requests[0].location, null, `${label}: the first question went without a location`);
       assert.ok(region.answerText.startsWith('어느 지역에서 찾을까요?'), `${label}: Core asked where`);
       assertRow(region, `${label}/region`, testCase, ['current', 'region']);
