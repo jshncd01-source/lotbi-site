@@ -3208,6 +3208,15 @@ body[data-site-theme="dark"] .calendar-day-panel[data-presentation="SIDE"],
 body[data-site-theme="dark"] .calendar-day-weather-card,
 body[data-site-theme="dark"] .calendar-day-empty { background: #171c25; }
 
+/* At the tablet edge the 9px forecast line begins immediately below the
+   18px glyph. Linux's taller default line box let a two-digit date reach
+   into that line by about 1px, even though the visible glyphs were separate.
+   Tighten only the date line box; its font size and approved position stay
+   unchanged, and phone/desktop layouts keep their existing metrics. */
+@media (min-width: 601px) and (max-width: 900px) {
+  .calendar-month-grid .calendar-date-number { line-height: 1; }
+}
+
 @media (max-width: 900px) {
   body.chat-home-page .site-modal.site-calendar-chat-popup { width: calc(100vw - 16px); height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); padding: 14px; }
   body.chat-home-page .site-calendar-chat-popup > .site-modal-header { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }

@@ -308,6 +308,7 @@ const ALL_CASES = [
   ['412-guest-lunar', 412, 'auth=0&lunar=1'],
   ['600-auth-dark', 600, 'auth=1&theme=dark'],
   ['610-auth', 610, 'auth=1'],
+  ['610-auth-wide', 610, 'auth=1&font=wide'],
   ['610-auth-lunar-dark', 610, 'auth=1&lunar=1&theme=dark'],
   ['610-auth-cold-wide', 610, 'auth=1&fix=cold&font=wide'],
   ['700-auth-lunar', 700, 'auth=1&lunar=1'],
