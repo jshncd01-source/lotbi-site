@@ -22,14 +22,14 @@
 // TODO(site-location-allow.js): the 대화·답변 UX room's shared 위치 허용/지역 선택
 // part is not in main yet. This screen implements the same rules itself (the EV
 // charger screen's); replace it with the shared part when that lands.
-import {CORE_ORIGIN} from './site-core.js?v=aset-d7ec850630cb';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-d7ec850630cb';
-import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-d7ec850630cb';
-import {buildDefaultMapHref, buildNaverPlaceSearchUrl, buildVerifiedPhoneHref, formatDistanceMeters, normalizePlaceResult} from './site-navigation.js?v=aset-d7ec850630cb';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-d7ec850630cb';
-import {savedRegionLabel} from './site-life-location.js?v=aset-d7ec850630cb';
-import {medicalStatusLines} from './site-life-medical.js?v=aset-d7ec850630cb';
-import {EV_MAP_ICON_BASE, EV_MAP_ICON_VERSION, evMapIcon} from './site-life-ev-chargers.js?v=aset-d7ec850630cb';
+import {CORE_ORIGIN} from './site-core.js?v=aset-b3fb2b84997d';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-b3fb2b84997d';
+import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-b3fb2b84997d';
+import {buildDefaultMapHref, buildNaverPlaceSearchUrl, buildVerifiedPhoneHref, formatDistanceMeters, normalizePlaceResult} from './site-navigation.js?v=aset-b3fb2b84997d';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-b3fb2b84997d';
+import {savedRegionLabel} from './site-life-location.js?v=aset-b3fb2b84997d';
+import {medicalStatusLines} from './site-life-medical.js?v=aset-b3fb2b84997d';
+import {EV_MAP_ICON_BASE, EV_MAP_ICON_VERSION, evMapIcon} from './site-life-ev-chargers.js?v=aset-b3fb2b84997d';
 
 export const MEDICAL_MENU_LABEL = '병원·응급실·약국';
 export const MEDICAL_CONTRACT_ID = 'CORE-LIFE-MEDICAL-NEARBY-01';

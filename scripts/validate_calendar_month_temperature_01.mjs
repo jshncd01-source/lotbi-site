@@ -67,9 +67,11 @@ const AUTH = q.get('auth') === '1', LUNAR = q.get('lunar') === '1', COLD = q.get
 const TODAY = FINAL ? '2026-10-11' : (COLD ? '2027-01-05' : '2026-10-10');
 document.body.dataset.siteTheme = q.get('theme') || 'light';
 document.body.dataset.siteAuthState = AUTH ? 'authenticated' : 'guest';
-if (q.get('font') === 'wide') {
+if (q.get('font') === 'wide' || q.get('font') === 'linux') {
   const style = document.createElement('style');
-  style.textContent = "body, body * { font-family: 'DejaVu Sans', Verdana, 'Noto Sans CJK KR', 'Noto Sans KR', sans-serif !important; }";
+  style.textContent = q.get('font') === 'linux'
+    ? "body, body * { font-family: 'DejaVu Sans', Verdana, 'Noto Sans CJK KR', 'Noto Sans KR', sans-serif !important; line-height: 1.2; }"
+    : "body, body * { font-family: 'DejaVu Sans', Verdana, 'Noto Sans CJK KR', 'Noto Sans KR', sans-serif !important; }";
   document.head.appendChild(style);
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -316,6 +318,12 @@ const ALL_CASES = [
   ['768-auth-dark', 768, 'auth=1&theme=dark'],
   ['768-guest-lunar', 768, 'auth=0&lunar=1'],
   ['1024-auth', 1024, 'auth=1'],
+  ['1023-auth-linux', 1023, 'auth=1&font=linux'],
+  ['1024-auth-linux', 1024, 'auth=1&font=linux'],
+  ['1025-auth-linux', 1025, 'auth=1&font=linux'],
+  ['1100-auth-linux', 1100, 'auth=1&font=linux'],
+  ['1101-auth-linux', 1101, 'auth=1&font=linux'],
+  ['1280-auth-linux', 1280, 'auth=1&font=linux'],
   ['1280-auth-lunar-dark', 1280, 'auth=1&lunar=1&theme=dark'],
   // Wide fonts with lunar dates at every width: the gate's Linux fonts made
   // the 610px lunar label reach under the glyph (SITE-T52 return).
