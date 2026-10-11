@@ -48,3 +48,12 @@
 .lotbi-news .lotbi-news-day-title { margin: 0 0 4px; color: var(--lotbi-text-secondary); font-size: 14px; font-weight: 700; }
 .lotbi-news .lotbi-news-more { justify-self: center; min-height: 44px; min-width: 120px; }
 .lotbi-news .lotbi-news-more[hidden] { display: none; }
+/* REGIONAL-NEWS-CITY-SELECT-01 chips: one tap per 시·도, a single 시·군·구 row
+   that scrolls inside itself, nothing taller than the news it sits above. */
+.lotbi-news .lotbi-news-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.lotbi-news .lotbi-news-chip { flex: 0 0 auto; min-height: 44px; min-width: 56px; padding: 0 14px; border: 1px solid var(--lotbi-border-default); border-radius: 999px; background: transparent; color: inherit; font: inherit; font-size: 15px; white-space: nowrap; cursor: pointer; }
+.lotbi-news .lotbi-news-chip[aria-pressed="true"] { border-color: var(--lotbi-text-primary); background: var(--lotbi-text-primary); color: var(--lotbi-surface-primary); font-weight: 600; }
+.lotbi-news .lotbi-news-chip:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.lotbi-news .lotbi-news-cities { display: flex; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; min-width: 0; padding-bottom: 2px; }
+.lotbi-news .lotbi-news-cities::-webkit-scrollbar { display: none; }
+.lotbi-news .lotbi-news-cities[hidden] { display: none; }

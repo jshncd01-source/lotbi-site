@@ -1,5 +1,5 @@
-import {eyeWeights, smooth} from './animation.mjs?v=aset-868e88390b8e';
-import {deriveSpeechVariation,sampleSpeechVariation} from './speech-variation.mjs?v=aset-868e88390b8e';
+import {eyeWeights, smooth} from './animation.mjs?v=aset-c38d7a63e4ad';
+import {deriveSpeechVariation,sampleSpeechVariation} from './speech-variation.mjs?v=aset-c38d7a63e4ad';
 
 // Presentation only. Call after controller.sample(t). The host owns listening,
 // progress and verifiedCompletion; an AI expression cannot set these states.

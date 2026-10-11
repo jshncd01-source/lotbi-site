@@ -7,20 +7,22 @@
 // Region: the current location when location use is on and the browser already
 // allows it, else the saved region, else the reader picks one of 17 시·도.
 // REGIONAL-NEWS-CITY-SELECT-01 (QA #13): two ways to choose, [현재 위치] and
-// [시·도 선택] — [현재 위치] is also what asks the browser for permission, so
-// there is no separate 위치 허용 button and no 지역 변경 icon. After a 시·도 is
-// read, an optional 시·군·구 (전체 by default, the list Core sends) narrows the
-// news to that place. A title opens the article itself; a failed read says so
+// the 시·도 button — [현재 위치] is also what asks the browser for permission,
+// so there is no separate 위치 허용 button and no 지역 변경 icon. The 시·도 button
+// says what is read ("전북 · 전주시 ▾") and opens one chip per 시·도 (one tap,
+// no dropdown); once picked the chips fold away and a single row of 시·군·구
+// chips (전체 first, the list Core sends) narrows the news to that place:
+// 지역뉴스 → 시·도 → 시·군·구 is three taps and the first article stays near the top. A title opens the article itself; a failed read says so
 // and offers 다시 시도 — nothing old or made up is shown in its place.
 //
 // REGIONAL-NEWS-CATEGORIES-01: Core's view=feed adds 분야 tabs (a 분야 with no
 // story is hidden), 오늘 in pages of 20 with 더보기 (Core's order: under 전체
 // sports and photo items come last) and 1주일 as one heading per day with up
 // to ten representative stories.
-import {CORE_ORIGIN} from './site-core.js?v=aset-868e88390b8e';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-868e88390b8e';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-868e88390b8e';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-868e88390b8e';
+import {CORE_ORIGIN} from './site-core.js?v=aset-c38d7a63e4ad';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-c38d7a63e4ad';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-c38d7a63e4ad';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-c38d7a63e4ad';
 
 export const NEWS_PROVINCES = Object.freeze([
   '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시', '세종특별자치시',
@@ -31,6 +33,12 @@ export const NEWS_PERIODS = Object.freeze([
   Object.freeze({id: 'week', label: '1주일'}),
 ]);
 export const NEWS_LIST_LIMIT = 20;
+const PROVINCE_SHORT = Object.freeze({
+  '서울특별시': '서울', '부산광역시': '부산', '대구광역시': '대구', '인천광역시': '인천', '광주광역시': '광주',
+  '대전광역시': '대전', '울산광역시': '울산', '세종특별자치시': '세종', '경기도': '경기', '강원특별자치도': '강원',
+  '충청북도': '충북', '충청남도': '충남', '전북특별자치도': '전북', '전라남도': '전남', '경상북도': '경북',
+  '경상남도': '경남', '제주특별자치도': '제주',
+});
 const TIMEOUT_MS = 12_000;
 const KST = 'Asia/Seoul';
 const SVG_NS = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/');
@@ -42,6 +50,7 @@ const ICONS = Object.freeze({
 const inKorea = (latitude, longitude) => Number.isFinite(latitude) && Number.isFinite(longitude)
   && latitude >= 31 && latitude <= 44.5 && longitude >= 122 && longitude <= 132.5;
 const text = value => String(value ?? '').replace(/\s+/gu, ' ').trim();
+export const provinceShort = name => PROVINCE_SHORT[name] || text(name);
 
 export function newsListUrl({latitude, longitude, region = '', city = '', period = 'today', category = 'all', offset = 0, limit = NEWS_LIST_LIMIT} = {}, origin = CORE_ORIGIN) {
   const params = new URLSearchParams();
@@ -149,7 +158,7 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
   let controller;
   const saved = savedLifeRegionLabel();
   const state = {source: '', mode: '', region: '', city: '', province: '', cities: [], coords: null, period: 'today',
-    label: '', category: 'all', offset: 0, categories: []};
+    label: '', category: 'all', offset: 0, categories: [], panelOpen: false};
 
   const surface = el('section', 'lotbi-news');
   surface.dataset.newsState = 'LOADING';
@@ -166,28 +175,33 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
   modeCurrent.type = 'button';
   modeCurrent.dataset.newsMode = 'current';
   modeCurrent.hidden = true;
-  const modePick = el('button', 'lotbi-news-mode', '시·도 선택');
+  const modePick = el('button', 'lotbi-news-mode', '시·도 선택 ▾');
   modePick.type = 'button';
   modePick.dataset.newsMode = 'pick';
+  modePick.setAttribute('aria-expanded', 'false');
   modes.append(modeCurrent, modePick);
 
   const picker = el('div', 'lotbi-news-picker');
   picker.hidden = true;
-  const option = (value, content) => { const entry = el('option', '', content); entry.value = value; return entry; };
-  const provinceField = el('label', 'lotbi-news-field', '시·도');
-  const select = el('select');
-  select.dataset.newsRegion = 'true';
-  select.setAttribute('aria-label', '시·도');
-  select.append(saved ? option('saved', `저장 지역 (${saved})`) : option('', '시·도 선택'));
-  for (const province of NEWS_PROVINCES) select.append(option(province, province));
-  provinceField.append(select);
-  const cityField = el('label', 'lotbi-news-field', '시·군·구');
-  const citySelect = el('select');
-  citySelect.dataset.newsCity = 'true';
-  citySelect.setAttribute('aria-label', '시·군·구');
-  cityField.append(citySelect);
-  cityField.hidden = true;
-  picker.append(provinceField, cityField);
+  const chip = (key, value, content, full) => {
+    const button = el('button', 'lotbi-news-chip', content);
+    button.type = 'button';
+    button.dataset[key] = value;
+    if (full) button.setAttribute('aria-label', full);
+    return button;
+  };
+  const provinceChips = el('div', 'lotbi-news-chips');
+  provinceChips.setAttribute('role', 'group');
+  provinceChips.setAttribute('aria-label', '시·도');
+  const provinceButtons = [];
+  if (saved) provinceButtons.push(chip('newsProvince', 'saved', `저장 지역 (${saved})`));
+  for (const province of NEWS_PROVINCES) provinceButtons.push(chip('newsProvince', province, provinceShort(province), province));
+  provinceChips.append(...provinceButtons);
+  picker.append(provinceChips);
+  const cityRow = el('div', 'lotbi-news-cities');
+  cityRow.setAttribute('role', 'group');
+  cityRow.setAttribute('aria-label', '시·군·구');
+  cityRow.hidden = true;
 
   const periods = el('div', 'lotbi-news-periods');
   periods.setAttribute('role', 'group');
@@ -222,7 +236,7 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
   retry.type = 'button';
   retry.hidden = true;
   retry.addEventListener('click', () => { if (!disposed) void load(); });
-  surface.append(head, basis, modes, picker, periods, tabs, list, days, more, status, retry);
+  surface.append(head, basis, modes, picker, cityRow, periods, tabs, list, days, more, status, retry);
   root.replaceChildren(surface);
 
   const sourceText = () => (state.city ? '선택한 지역' : state.source === 'current' ? '현재 위치 기준' : state.source === 'saved' ? '저장 지역 기준' : '선택한 지역');
@@ -234,20 +248,26 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
     periods.hidden = !state.source;
     paintRegion();
   };
+  const pickSummary = () => (state.mode === 'pick' && state.province
+    ? `${provinceShort(state.province)}${state.city ? ` · ${state.city}` : ''} ▾`
+    : '시·도 선택 ▾');
   const paintRegion = () => {
-    // One choice is no choice: without [현재 위치] the lone [시·도 선택] is not shown.
-    modes.hidden = modeCurrent.hidden;
+    // Nothing to show yet and no [현재 위치]: the open chips are the whole choice.
+    modes.hidden = modeCurrent.hidden && !state.source;
     modeCurrent.setAttribute('aria-pressed', String(state.mode === 'current'));
     modePick.setAttribute('aria-pressed', String(state.mode === 'pick'));
-    provinceField.hidden = state.mode !== 'pick';
+    modePick.setAttribute('aria-expanded', String(state.panelOpen));
+    modePick.textContent = pickSummary();
+    picker.hidden = !state.panelOpen;
+    const picked = state.source === 'saved' ? 'saved' : state.mode === 'pick' ? state.region : '';
+    for (const button of provinceButtons) button.setAttribute('aria-pressed', String(button.dataset.newsProvince === picked));
     const cities = state.source ? state.cities : [];
-    cityField.hidden = cities.length === 0;
-    if (!cityField.hidden && citySelect.dataset.filled !== cities.join('|')) {
-      citySelect.replaceChildren(option('', '전체'), ...cities.map(name => option(name, name)));
-      citySelect.dataset.filled = cities.join('|');
+    cityRow.hidden = cities.length === 0;
+    if (!cityRow.hidden && cityRow.dataset.filled !== cities.join('|')) {
+      cityRow.replaceChildren(chip('newsCity', '', '전체'), ...cities.map(name => chip('newsCity', name, name)));
+      cityRow.dataset.filled = cities.join('|');
     }
-    if (!cityField.hidden) citySelect.value = state.city || '';
-    picker.hidden = provinceField.hidden && cityField.hidden;
+    for (const button of cityRow.children) button.setAttribute('aria-pressed', String((button.dataset.newsCity || '') === (state.city || '')));
   };
   const setStatus = (message, {canRetry = false} = {}) => {
     status.textContent = message;
@@ -327,6 +347,7 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
       surface.dataset.newsState = 'ERROR';
       if (response.status === 422) {
         state.mode = 'pick';
+        state.panelOpen = true;
         paint();
         setStatus('지역을 골라 주세요.');
       } else if (response.status === 429) {
@@ -372,7 +393,7 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
     state.mode = 'current';
     state.city = '';
     state.label = '';
-    select.selectedIndex = 0;
+    state.panelOpen = false;
   };
   const locate = async allowPrompt => {
     try {
@@ -387,9 +408,9 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
 
   modePick.addEventListener('click', () => {
     if (disposed) return;
-    state.mode = 'pick';
+    state.panelOpen = !state.panelOpen;
     paintRegion();
-    select.focus();
+    if (state.panelOpen) provinceButtons[0]?.focus();
   });
   modeCurrent.addEventListener('click', async () => {
     if (disposed || modeCurrent.disabled) return;
@@ -401,22 +422,27 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
     if (coords) { useCurrent(coords); void load(); }
     else {
       state.mode = 'pick';
+      state.panelOpen = true;
       paintRegion();
       setStatus('위치를 확인하지 못했어요. 시·도를 골라 주세요.');
     }
   });
-  select.addEventListener('change', () => {
-    if (disposed || !select.value) return;
+  provinceChips.addEventListener('click', event => {
+    const button = event.target.closest?.('[data-news-province]');
+    if (disposed || !button) return;
+    const value = button.dataset.newsProvince;
     state.mode = 'pick';
     state.city = '';
-    state.source = select.value === 'saved' ? 'saved' : 'pick';
-    state.region = select.value === 'saved' ? '' : select.value;
-    state.label = select.value === 'saved' ? '' : select.value;
+    state.panelOpen = false;
+    state.source = value === 'saved' ? 'saved' : 'pick';
+    state.region = value === 'saved' ? '' : value;
+    state.label = value === 'saved' ? '' : value;
     void load();
   });
-  citySelect.addEventListener('change', () => {
-    if (disposed) return;
-    state.city = citySelect.value;
+  cityRow.addEventListener('click', event => {
+    const button = event.target.closest?.('[data-news-city]');
+    if (disposed || !button) return;
+    state.city = button.dataset.newsCity || '';
     state.label = state.city || state.province;
     void load();
   });
@@ -434,7 +460,8 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
       if (coords) { useCurrent(coords); void load(); return; }
     }
     state.mode = 'pick';
-    if (saved) { state.source = 'saved'; select.value = 'saved'; void load(); return; }
+    if (saved) { state.source = 'saved'; void load(); return; }
+    state.panelOpen = true;
     surface.dataset.newsState = 'PICK';
     paint();
     setStatus('지역을 골라 주세요.');

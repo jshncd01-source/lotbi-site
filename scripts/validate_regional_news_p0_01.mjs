@@ -305,7 +305,8 @@ try {
       const province = current || /전주|전북/u.test(asked) ? '전북특별자치도' : asked;
       const city = params.get('city') || '';
       const source = current ? 'CURRENT_LOCATION' : 'TEXT';
-      return json(SCREEN_FEED(Date.now(), city || province, source, Object.fromEntries(params), province));
+      const label = city && !/전북/u.test(province) ? province + ' ' + city : (city || province);
+      return json(SCREEN_FEED(Date.now(), label, source, Object.fromEntries(params), province));
     }
     if (parsed.origin !== location.origin) return json({items:[]});
     return nativeFetch(url, init);
@@ -354,13 +355,13 @@ const PROBE = `(() => {
     modes: [...newsRoot.querySelectorAll('[data-news-mode]')].map(b => ({mode: b.dataset.newsMode, pressed: b.getAttribute('aria-pressed'), shown: !b.hidden && b.getClientRects().length > 0, h: b.getBoundingClientRect().height, w: b.getBoundingClientRect().width})),
     iconToggle: Boolean(newsRoot.querySelector('[data-news-region-toggle], .lotbi-news-region-toggle')),
     allowWords: /위치 허용/u.test(newsRoot.textContent || ''),
-    cityShown: (() => { const c = newsRoot.querySelector('[data-news-city]'); return Boolean(c) && !c.closest('label').hidden; })(),
-    cityOptions: [...newsRoot.querySelectorAll('[data-news-city] option')].map(o => o.value + ':' + o.textContent),
-    cityValue: newsRoot.querySelector('[data-news-city]')?.value ?? '',
-    provinceShown: (() => { const c = newsRoot.querySelector('[data-news-region]'); return Boolean(c) && !c.closest('label').hidden; })(),
+    cityShown: Boolean(newsRoot.querySelector('.lotbi-news-cities') && !newsRoot.querySelector('.lotbi-news-cities').hidden),
+    cityChips: [...newsRoot.querySelectorAll('[data-news-city]')].map(b => ({id: b.dataset.newsCity, label: b.textContent, pressed: b.getAttribute('aria-pressed'), h: b.getBoundingClientRect().height, shown: b.getClientRects().length > 0})),
+    cityRowBox: (() => { const r = newsRoot.querySelector('.lotbi-news-cities'); return r && !r.hidden ? box(r) : null; })(),
+    provinceShown: [...newsRoot.querySelectorAll('[data-news-province]')].some(b => b.getClientRects().length > 0),
+    provinceChips: [...newsRoot.querySelectorAll('[data-news-province]')].map(b => ({id: b.dataset.newsProvince, label: b.textContent, pressed: b.getAttribute('aria-pressed'), h: b.getBoundingClientRect().height, w: b.getBoundingClientRect().width, right: b.getBoundingClientRect().right})),
+    summary: newsRoot.querySelector('[data-news-mode="pick"]')?.textContent || '',
     pickerOpen: !newsRoot.querySelector('.lotbi-news-picker').hidden,
-    options: [...newsRoot.querySelectorAll('[data-news-region] option')].map(o => o.value),
-    selected: newsRoot.querySelector('[data-news-region]')?.value ?? '',
     periods: [...newsRoot.querySelectorAll('[data-news-period]')].map(b => ({id: b.dataset.newsPeriod, pressed: b.getAttribute('aria-pressed'), visible: b.getClientRects().length > 0, h: b.getBoundingClientRect().height})),
     items: [...newsRoot.querySelectorAll('.lotbi-news-item')].map(a => ({href: a.href, target: a.target, rel: a.rel, box: box(a),
       title: a.querySelector('.lotbi-news-item-title')?.textContent || '', meta: a.querySelector('.lotbi-news-item-meta')?.textContent || '',
@@ -584,12 +585,17 @@ async function runCase(browser, origin, dir, testCase) {
       await openLife();
       await tap(await reveal('.consumer-workspace [data-life-shortcut="news"]'));
     };
-    const pickCity = async value => {
-      await evaluate(`(() => { const s = document.querySelector('[data-news-city]'); s.value = ${JSON.stringify(value)}; s.dispatchEvent(new Event('change', {bubbles: true})); return true; })()`);
-    };
     const mode = (news, name) => news.modes.find(item => item.mode === name);
+    // One tap on a 시·도 chip (opening the chips first when they are folded) and
+    // one on a 시·군·구 chip — real touches, counted by the callers.
+    let taps = 0;
+    const countedTap = async center => { taps += 1; await tap(center); };
     const pick = async value => {
-      await evaluate(`(() => { const s = document.querySelector('[data-news-region]'); s.value = ${JSON.stringify(value)}; s.dispatchEvent(new Event('change', {bubbles: true})); return true; })()`);
+      if (!(await probe()).news?.provinceShown) await countedTap(await reveal('[data-news-mode="pick"]'));
+      await countedTap(await reveal(`[data-news-province="${value}"]`));
+    };
+    const pickCity = async value => {
+      await countedTap(await reveal(`[data-news-city="${value}"]`));
     };
     const checkList = (value, step, count = 20) => {
       const list = value.news;
@@ -617,8 +623,11 @@ async function runCase(browser, origin, dir, testCase) {
     state = await newsState(news => news.state === 'PICK', 'pick a region');
     assert.equal(state.news.title, '지역뉴스');
     assert.equal(state.news.pickerOpen, true);
-    assert.equal(state.news.options[0], '', 'placeholder first');
-    assert.equal(state.news.options.length, 18, '시·도 선택 + 17 시·도');
+    assert.equal(state.news.provinceChips.length, 17, '17 시·도, one chip each (no dropdown)');
+    assert.ok(state.news.provinceChips.every(chip => chip.h >= 44 && chip.right <= state.viewport.w), `${testCase.label}: every 시·도 chip is a 44px target inside the screen`);
+    assert.deepEqual(state.news.provinceChips.slice(0, 3).map(chip => chip.label), ['서울', '부산', '대구']);
+    assert.equal(state.news.summary, '시·도 선택 ▾');
+    assert.equal(await evaluate("document.querySelectorAll('.consumer-workspace select').length"), 0, `${testCase.label}: no dropdown on the 지역뉴스 screen`);
     assert.deepEqual(state.news.modes.map(item => item.mode), ['current', 'pick'], `${testCase.label}: exactly two ways to choose`);
     assert.ok(mode(state.news, 'current').shown && mode(state.news, 'current').h >= 44, `${testCase.label}: [현재 위치] offered while location use is on but not allowed`);
     assert.ok(mode(state.news, 'pick').shown && mode(state.news, 'pick').h >= 44 && mode(state.news, 'pick').pressed === 'true');
@@ -645,8 +654,12 @@ async function runCase(browser, origin, dir, testCase) {
     const sentBefore = await evaluate('globalThis.__sent.length');
     await openNews();
     await newsState(news => news.state === 'PICK', 'pick again');
+    taps = 0;
     await pick('전북특별자치도');
     state = await newsState(news => news.state === 'READY', 'province list');
+    assert.equal(taps, 1, `${testCase.label}: a 시·도 is one tap (the chips are already open)`);
+    assert.equal(state.news.provinceShown, false, `${testCase.label}: the 시·도 chips fold away once one is picked`);
+    assert.equal(state.news.summary, '전북 ▾', `${testCase.label}: the one-line summary says what is read`);
     assert.equal(state.news.title, '전북특별자치도 지역뉴스');
     assert.equal(state.news.basis, '선택한 지역 · 오늘 · 최신순');
     assert.deepEqual(await evaluate('globalThis.__newsRequests.at(-1)'), {region: '전북특별자치도', period: 'today', limit: '20', view: 'feed'});
@@ -693,18 +706,37 @@ async function runCase(browser, origin, dir, testCase) {
     // REGIONAL-NEWS-CITY-SELECT-01: after a 시·도 is read, a 시·군·구 (전체 by
     // default, Core's list) narrows the news; 전체 goes back to the 시·도.
     assert.equal(state.news.cityShown, true);
-    assert.deepEqual(state.news.cityOptions, [':전체', '전주시:전주시', '군산시:군산시', '익산시:익산시', '완주군:완주군']);
-    assert.equal(state.news.cityValue, '');
+    assert.deepEqual(state.news.cityChips.map(chip => `${chip.id}:${chip.label}`), [':전체', '전주시:전주시', '군산시:군산시', '익산시:익산시', '완주군:완주군']);
+    assert.equal(state.news.cityChips[0].pressed, 'true');
+    assert.ok(state.news.cityChips.every(chip => chip.h >= 44 && chip.shown), `${testCase.label}: 시·군·구 chips are 44px targets in one row`);
     await pickCity('전주시');
     state = await newsState(news => news.state === 'READY' && news.title === '전주시 지역뉴스', '시·군 list');
+    assert.equal(state.news.summary, '전북 · 전주시 ▾');
     assert.deepEqual(await evaluate('globalThis.__newsRequests.at(-1)'), {region: '전북특별자치도', city: '전주시', period: 'week', limit: '20', view: 'feed'});
     assert.equal(state.news.basis, '선택한 지역 · 1주일 · 날짜별 대표 기사');
-    assert.equal(state.news.cityValue, '전주시');
+    assert.equal(state.news.cityChips.find(chip => chip.id === '전주시').pressed, 'true');
     assert.ok(state.news.items.length > 0 && state.news.items.every(item => item.title.includes('전주')), `${testCase.label}: only 전주 stories`);
     await shot('03d-news-city');
     await pickCity('');
     state = await newsState(news => news.state === 'READY' && news.title === '전북특별자치도 지역뉴스', '전체 again');
     assert.equal((await evaluate('globalThis.__newsRequests.at(-1)')).city, undefined, `${testCase.label}: 전체 sends no city`);
+
+    // 대전 서구: 지역뉴스 → 시·도 chip → 시·군·구 chip = three taps; on a phone the
+    // first article is on the first screen once the choice is made.
+    await tap(await reveal('.consumer-workspace .site-modal-close'));
+    await waitFor(async () => !(await probe()).detail, `${testCase.label}: back to 지역정보`);
+    taps = 0;
+    await countedTap(await reveal('.consumer-workspace [data-life-shortcut="news"]'));
+    await newsState(news => news.state === 'PICK' || news.state === 'READY', 'news screen again');
+    await pick('대전광역시');
+    await newsState(news => news.state === 'READY' && news.title === '대전광역시 지역뉴스', '대전 list');
+    await pickCity('서구');
+    state = await newsState(news => news.state === 'READY' && news.title === '대전광역시 서구 지역뉴스', '서구 list');
+    assert.equal(taps, 3, `${testCase.label}: 대전 서구 in three taps (지역뉴스 → 시·도 → 시·군·구)`);
+    assert.equal(state.news.summary, '대전 · 서구 ▾');
+    const first = state.news.items[0];
+    assert.ok(first && first.box.bottom <= state.viewport.h, `${testCase.label}: the first article is on the first screen (bottom ${first && Math.round(first.box.bottom)} of ${state.viewport.h})`);
+    await shot('03e-news-seogu-three-taps');
 
     // 3b. Core news off or failing: a plain error with 다시 시도, no list and
     //     nothing old shown in its place.
@@ -769,7 +801,10 @@ async function runCase(browser, origin, dir, testCase) {
     await openNews();
     state = await newsState(news => news.state === 'READY' && news.basis.startsWith('저장 지역'), 'location use off');
     assert.equal(mode(state.news, 'current').shown, false, `${testCase.label}: location use off → no [현재 위치]`);
-    assert.equal(state.news.modes.every(item => !item.shown), true, `${testCase.label}: a lone [시·도 선택] is not shown`);
+    // Without [현재 위치] the only button left is the summary line: it says what is read
+    // and opens the 시·도 chips, so it stays.
+    assert.deepEqual(state.news.modes.filter(item => item.shown).map(item => item.mode), ['pick'], `${testCase.label}: only the summary line, no [현재 위치]`);
+    assert.equal(state.news.summary, '전북 ▾');
     await shot('04b-news-location-off');
     assert.equal(state.news.allowWords, false);
     assert.equal(await evaluate('globalThis.__geolocationCalls'), geoBeforeOff, `${testCase.label}: location use off → no position asked`);
