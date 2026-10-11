@@ -235,10 +235,21 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
       const row = state.people.find(item => item.person_id === m[1]);
       Object.assign(row, setFields(state.photos[key]), {identity_photo_count: state.photos[key].length});
       row.has_photo = row.identity_photo_complete;
+      row.identity_photo_state = row.identity_photo_complete ? 'CURRENT' : 'INCOMPLETE';
       return json({photo: {slot_index: slot, slot_code: 'S' + slot, category: categoryOf(slot), revision: 2, width: 640, height: 640}, category: categoryOf(slot), identity_check: 'SAME', idempotent_replay: false,
         validity: {photo_count: row.identity_photo_count, face_count: row.identity_photo_face_count, body_count: row.identity_photo_body_count, complete: row.identity_photo_complete}}, 201);
     }
     if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos$/))) return json({photos: photosFor(state.photos[m[1].slice(-1)] || [])});
+    if ((m = target.match(/^\/v2\/person-profiles\/([^/?]+)$/)) && method === 'PATCH') {
+      const row = state.people.find(item => item.person_id === m[1]);
+      const body = JSON.parse(init.body);
+      if (body.expected_revision !== row.revision) return json({detail:{code:'PERSON_REVISION_CONFLICT'}},409);
+      const fields = ['display_name','nickname','relationship','birth_year','birthday_month'];
+      let changed = false;
+      for (const field of fields) if (Object.hasOwn(body,field) && body[field] !== row[field]) {row[field]=body[field];changed=true;}
+      if (changed) row.revision++;
+      return json({person:row});
+    }
     if ((m = target.match(/^\/v2\/person-profiles\/([^/?]+)$/))) return json({person: state.people.find(item => item.person_id === m[1])});
     if (target.startsWith('/v2/person-sos?status=ACTIVE')) return json({items: state.sos.filter(item => item.status === 'ACTIVE')});
     if (target === '/v2/person-sos/notices/candidates') return json({notices: []});
@@ -394,9 +405,13 @@ const shots = [];
 
 async function run() {
   const fixtureName = `.safecare-redesign-${process.pid}.html`;
-  const fixtureHtml = process.env.SAFECARE_BASELINE_ROOT
+  let fixtureHtml = process.env.SAFECARE_BASELINE_ROOT
     ? FIXTURE_HTML.replace('<link rel="stylesheet" href="/site-family-guardian.css" />', '')
     : FIXTURE_HTML;
+  // A deployment-room server may expose this worktree under a temporary path.
+  // Import the actual reviewed tree, never another branch served at URL root.
+  const servedPath = process.env.SAFECARE_BASE_URL ? new URL(process.env.SAFECARE_BASE_URL).pathname.replace(/\/$/,'') : '';
+  if (servedPath) fixtureHtml = fixtureHtml.replaceAll('href="/site-', `href="${servedPath}/site-`).replaceAll("from '/site-", `from '${servedPath}/site-`);
   fs.writeFileSync(path.join(ROOT, fixtureName), fixtureHtml, 'utf8');
   const server = process.env.SAFECARE_BASE_URL ? null : await serve();
   const baseUrl = process.env.SAFECARE_BASE_URL || `http://127.0.0.1:${server.address().port}`;
@@ -706,6 +721,10 @@ async function run() {
         return document.querySelector('[data-person-register-done]').textContent;
       `);
       await shoot('person-09-complete');
+      if (process.env.FAMILY_GUARDIAN_REGISTRATION_REVIEW === '1') {
+        assert.ok(r.personComplete.done.includes('aaaaaaaa-0000-4000-8000-000000000005'),'완료 화면 실제 대상 번호');
+        assert.ok(r.personComplete.done.includes('2018년 8월'),'기존 아동 등록 출생정보 완료 표시 유지');
+      }
       await cdp.evaluate(`
         await __mountPerson(); await __until(() => document.querySelector('[data-person-list]'));
         document.querySelector('[data-person-card="aaaaaaaa-0000-4000-8000-000000000005"] .person-text-button').click();
@@ -713,6 +732,32 @@ async function run() {
         return true;
       `);
       await shoot('person-10-info-edit');
+      if (process.env.FAMILY_GUARDIAN_REGISTRATION_REVIEW === '1') {
+        r.personPartialEdit = await cdp.evaluate(`
+          const before = __calls.filter(call => call.startsWith('PATCH /v2/person-profiles/')).length;
+          document.querySelector('[data-person-basic-form]').requestSubmit();
+          await __until(() => document.querySelector('[data-person-list]'));
+          const unchanged = __calls.filter(call => call.startsWith('PATCH /v2/person-profiles/')).length === before;
+          const unchangedCopy = document.querySelector('.person-status').textContent;
+          document.querySelector('[data-person-card="aaaaaaaa-0000-4000-8000-000000000005"] .person-text-button').click();
+          await __until(() => document.querySelector('[data-person-basic-form]'));
+          document.querySelector('[data-person-birth-trigger]').click();
+          document.querySelector('[data-person-birth-year-option="2000"]').click();
+          document.querySelector('[data-person-birth-month-option="1"]').click();
+          document.querySelector('[data-person-birth-confirm]').click();
+          document.querySelector('[data-person-basic-form]').requestSubmit();
+          await __until(() => document.querySelector('[data-person-list]'));
+          await __mountPerson(); await __until(() => document.querySelector('[data-person-list]'));
+          const storedCard = document.querySelector('[data-person-card="aaaaaaaa-0000-4000-8000-000000000005"]');
+          return {unchanged,unchangedCopy,text:storedCard.textContent,revision:__fixtureState.people.find(row=>row.person_id.endsWith('5')).revision};
+        `);
+        assert.equal(r.personPartialEdit.unchanged,true,'무변경 저장은 PATCH 0건');
+        assert.ok(r.personPartialEdit.unchangedCopy.includes('변경한 정보가 없습니다.'));
+        assert.ok(r.personPartialEdit.text.includes('2000년 1월'),'정보 수정 후 실제 화면 재조회 출생정보 유지');
+        assert.ok(r.personPartialEdit.text.includes('등록 완료'),'필수 사진 완료와 재조회 등록 상태 일치');
+        assert.equal(r.personPartialEdit.revision,2);
+        await shoot('person-12-birth-2000-reloaded');
+      }
 
       // -------------------------------------------------- person: SOS rules
       r.personSos = await cdp.evaluate(`

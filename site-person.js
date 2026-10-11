@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-58bd1f7cb22a';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-7650f7af1967';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
@@ -20,7 +20,7 @@ async function request(path, sessionToken, {method = 'GET', body, requestKey = '
   }
   return payload;
 }
-function person(row) { return Object.freeze({personId: row.person_id, displayName: row.display_name, nickname: row.nickname || '', relationship: row.relationship, birthYear: row.birth_year == null ? null : Number(row.birth_year), birthMonth: row.birthday_month == null ? null : Number(row.birthday_month), revision: row.revision, hasPhoto: row.has_photo === true, identityPhotoCount: Number(row.identity_photo_count || 0), identityPhotoRequired: Number(row.identity_photo_required || 10), ...identityPhotoSet(row), identityPhotoState: row.identity_photo_state || 'INCOMPLETE', identityPhotoExpiresAt: row.identity_photo_expires_at || null, identityPhotoDaysRemaining: row.identity_photo_days_remaining ?? null, identityPhotoRenewalReminderDays: row.identity_photo_renewal_reminder_days ?? null, identityPhotoValidityDays: row.identity_photo_validity_days ?? null, identityPhotoRenewalPolicy: row.identity_photo_renewal_policy || null}); }
+function person(row) { return Object.freeze({personId: row.person_id, registrationNumber: typeof row.registration_number === 'string' && row.registration_number.trim() ? row.registration_number : (typeof row.person_id === 'string' ? row.person_id : ''), displayName: row.display_name, nickname: row.nickname || '', relationship: row.relationship, birthYear: row.birth_year == null ? null : Number(row.birth_year), birthMonth: row.birthday_month == null ? null : Number(row.birthday_month), revision: row.revision, hasPhoto: row.has_photo === true, identityPhotoCount: Number(row.identity_photo_count || 0), identityPhotoRequired: Number(row.identity_photo_required || 10), ...identityPhotoSet(row), identityPhotoState: row.identity_photo_state || 'INCOMPLETE', identityPhotoExpiresAt: row.identity_photo_expires_at || null, identityPhotoDaysRemaining: row.identity_photo_days_remaining ?? null, identityPhotoRenewalReminderDays: row.identity_photo_renewal_reminder_days ?? null, identityPhotoValidityDays: row.identity_photo_validity_days ?? null, identityPhotoRenewalPolicy: row.identity_photo_renewal_policy || null}); }
 function identityPhoto(row) { return Object.freeze({slotIndex: Number(row.slot_index), slotCode: row.slot_code || row.angle_code, category: row.category === 'BODY' || row.category === 'FACE' ? row.category : (/BODY/.test(row.slot_code || '') ? 'BODY' : 'FACE'), revision: Number(row.revision), width: Number(row.width), height: Number(row.height), updatedAt: row.updated_at}); }
 // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): three face photos and two body
 // photos (five) complete a registration and allow an SOS; ten are recommended.
@@ -104,7 +104,30 @@ export async function createPerson(sessionToken, input, fetchImpl) {
     }
   }
 }
-export async function updatePerson(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}`, sessionToken, {method: 'PATCH', body: {expected_revision: input.revision, display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), nickname: input.nickname || null}}, fetchImpl); return person(payload.person); }
+export async function updatePerson(sessionToken, input, fetchImpl) {
+  const original = input.original;
+  const body = {expected_revision: input.revision};
+  for (const [clientKey, serverKey] of [['displayName','display_name'],['relationship','relationship'],['nickname','nickname']]) {
+    if (!Object.hasOwn(input,clientKey)) continue;
+    const value = clientKey === 'nickname' ? input[clientKey] || null : input[clientKey];
+    const previous = clientKey === 'nickname' ? original?.[clientKey] || null : original?.[clientKey];
+    if (!original || value !== previous) body[serverKey] = value;
+  }
+  if (Object.hasOwn(input,'birthYear') || Object.hasOwn(input,'birthMonth')) {
+    const year = Number(input.birthYear ?? original?.birthYear);
+    const month = Number(input.birthMonth ?? original?.birthMonth);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+      throw new SiteCoreError('출생 연도와 월을 확인해 주세요.',{code:'PERSON_FIELD_INVALID'});
+    }
+    // Core validates birth year/month together even if only the month changed.
+    if (!original || year !== original.birthYear || month !== original.birthMonth) {
+      body.birth_year = year; body.birthday_month = month;
+    }
+  }
+  if (original && Object.keys(body).length === 1) return original;
+  const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}`, sessionToken, {method:'PATCH',body}, fetchImpl);
+  return person(payload.person);
+}
 // registrationCancel: Core deletes only an unfinished registration (identity photo
 // set not complete, no missing-person case ever) — SAFECARE-PERSON-DARK-CANCEL-01.
 export async function deletePerson(sessionToken, value, fetchImpl, {registrationCancel = false} = {}) { await request(`/v2/person-profiles/${encodeURIComponent(value.personId)}?expected_revision=${value.revision}${registrationCancel ? '&registration_cancel=1' : ''}`, sessionToken, {method: 'DELETE'}, fetchImpl); }

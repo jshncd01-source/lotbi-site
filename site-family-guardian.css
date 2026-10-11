@@ -66,3 +66,10 @@ body:not([data-site-theme="dark"]) :is(
 @media (max-width: 480px) {
   .family-guardian-welcome { padding: 18px; }
 }
+/* Stable public registration IDs can be long; never widen a 360px card. */
+.person-care-surface .person-card-facts dd,
+.person-care-surface .person-review dd,
+.person-care-surface .person-card-meta,
+.pet-family-surface .pet-number-value {
+  overflow-wrap: anywhere;
+}

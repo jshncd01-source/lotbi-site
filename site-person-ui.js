@@ -15,16 +15,16 @@ import {
   personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, personSosReceivedMessage, putHumanSightingPhoto,
   respondGuardianNotice, PERSON_FOUND_EMERGENCY_TEXT, PERSON_FOUND_FORM_NOTE, PERSON_SOS_ACTIVE_NOTE, PERSON_SOS_EMERGENCY_TEXT, PERSON_SOS_FORM_NOTE,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-58bd1f7cb22a';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-58bd1f7cb22a';
+} from './site-person.js?v=aset-7650f7af1967';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-7650f7af1967';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, birthYearStart, formatDate, formatMoment, foundPhotoProgress, personFoundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge, safecareEmergencyNotice,
-} from './site-safecare-common.js?v=aset-58bd1f7cb22a';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-58bd1f7cb22a';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-58bd1f7cb22a';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-58bd1f7cb22a';
-import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-58bd1f7cb22a';
+} from './site-safecare-common.js?v=aset-7650f7af1967';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-7650f7af1967';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-7650f7af1967';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-7650f7af1967';
+import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-7650f7af1967';
 
 const RELATIONSHIPS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'], ['FAMILY', '가족'], ['DEPENDENT', '돌봄 대상'], ['OTHER', '기타']]);
 const SIGHTING_SLOT_LABELS = Object.freeze(['얼굴 정면', '얼굴 왼쪽', '얼굴 오른쪽', '상반신', '전신', '추가 사진 1', '추가 사진 2', '추가 사진 3', '추가 사진 4', '추가 사진 5']);
@@ -332,6 +332,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
 
     const facts = el('dl', 'person-card-facts');
     const fact = (term, value) => { if (!value) return; facts.append(el('dt', '', term), el('dd', '', value)); };
+    fact('등록번호', item.registrationNumber);
     fact('식별 사진', photoCountLabel(item));
     if (item.identityPhotoExpiresAt) {
       const days = Number.isInteger(item.identityPhotoDaysRemaining) ? ` · ${Math.max(0, item.identityPhotoDaysRemaining)}일 남음` : '';
@@ -535,11 +536,11 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
         busy = true; submit.disabled = true; error.hidden = true; showStatus('저장 중…');
         try {
           let saved;
-          if (person) saved = await updatePerson(sessionToken, {personId: person.personId, revision: person.revision, displayName: name.value.trim(), nickname: person.nickname || '', relationship: relationship.value, birthYear: year, birthMonth: month});
+          if (person) saved = await updatePerson(sessionToken, {personId: person.personId, revision: person.revision, original: person, displayName: name.value.trim(), nickname: person.nickname || '', relationship: relationship.value, birthYear: year, birthMonth: month});
           else saved = await createPerson(sessionToken, {displayName: name.value.trim(), relationship: relationship.value, birthYear: year, birthMonth: month, requestKey: personRequestKey('create')});
           await reloadPerson(saved.personId);
           showStatus('');
-          if (view.edit) { showStatus('정보를 저장했습니다.'); go({name: 'list'}); }
+          if (view.edit) { showStatus(saved === person ? '변경한 정보가 없습니다.' : '정보를 저장했습니다.'); go({name: 'list'}); }
           else go({name: 'register', step: 2, personId: saved.personId});
         } catch (value) {
           showStatus('');
@@ -655,6 +656,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const set = personPhotoSet(person, photos);
     const header = el('div', 'safecare-photo-header');
     header.append(el('h4', 'person-form-title', view.manage ? `${person.displayName} 사진 갱신·관리` : `${person.displayName} 식별 사진`));
+    header.append(el('p', 'person-card-meta', `등록번호 ${person.registrationNumber}`));
     const counter = el('div', 'safecare-photo-counter');
     counter.dataset.safecarePhotoCount = String(photos.length);
     counter.dataset.safecarePhotoComplete = set.complete ? 'true' : 'false';
@@ -708,6 +710,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const fact = (term, value) => facts.append(el('dt', '', term), el('dd', '', value));
     fact('이름', person.displayName);
     fact('관계', relationshipLabel(person.relationship));
+    fact('등록번호', person.registrationNumber);
     fact('출생', person.birthYear ? `${person.birthYear}년 ${person.birthMonth}월` : '출생정보 없음');
     fact('식별 사진', photoCountLabel(person));
     if (person.identityPhotoValidityDays) fact('갱신 주기', validityLabel(person.identityPhotoValidityDays));
@@ -738,6 +741,8 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     box.dataset.personRegisterDone = person.personId;
     box.append(el('h4', 'person-form-title', `${person.displayName} 등록이 완료되었습니다`));
     const facts = el('dl', 'person-review');
+    facts.append(el('dt', '', '등록번호'), el('dd', '', person.registrationNumber));
+    facts.append(el('dt', '', '출생'), el('dd', '', person.birthYear ? `${person.birthYear}년 ${person.birthMonth}월` : '출생정보 없음'));
     facts.append(el('dt', '', '다음 사진 갱신일'), el('dd', '', person.identityPhotoExpiresAt ? formatDate(person.identityPhotoExpiresAt) : '목록에서 확인할 수 있습니다'));
     if (person.identityPhotoValidityDays) facts.append(el('dt', '', '갱신 주기'), el('dd', '', validityLabel(person.identityPhotoValidityDays)));
     box.append(facts, el('p', 'person-consent', '만료 30일·7일·1일 전에 갱신을 안내합니다. 실종 시 목록의 "실종 상태로 전환"을 눌러 주세요.'));
@@ -754,6 +759,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     content.replaceChildren(backBar());
     const box = el('form', 'person-form');
     box.dataset.personSosForm = person.personId;
+    box.append(el('p', 'person-card-meta', `등록번호 ${person.registrationNumber}`));
     box.noValidate = true;
     box.append(el('h4', 'person-form-title', `${person.displayName} 실종 상태로 전환`), safecareEmergencyNotice(PERSON_SOS_EMERGENCY_TEXT));
     if (!availability.sos) {

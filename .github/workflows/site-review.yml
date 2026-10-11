@@ -613,6 +613,9 @@ jobs:
       - name: Validate Family Guardian scoped light and dark design
         run: node scripts/validate_family_guardian_design_01.mjs
 
+      - name: 가족 지킴이 등록번호와 정보 수정 계약
+        run: node scripts/validate_family_guardian_registration_02.mjs
+
       # SAFECARE-PHOTO-BULK-UPLOAD-01: up to ten identity photos at once —
       # classify hint only, never outside the suggested slots, fronts first
       # (1,8,2,3,9,10,6,4,5,7), successes kept, per-photo replacement; the
