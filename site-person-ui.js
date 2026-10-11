@@ -15,16 +15,16 @@ import {
   personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, personSosReceivedMessage, putHumanSightingPhoto,
   respondGuardianNotice, PERSON_FOUND_EMERGENCY_TEXT, PERSON_FOUND_FORM_NOTE, PERSON_SOS_ACTIVE_NOTE, PERSON_SOS_EMERGENCY_TEXT, PERSON_SOS_FORM_NOTE,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-b2fb0773d049';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-b2fb0773d049';
+} from './site-person.js?v=aset-ec76ce0fd86f';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-ec76ce0fd86f';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, birthYearStart, formatDate, formatMoment, foundPhotoProgress, personFoundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge, safecareEmergencyNotice,
-} from './site-safecare-common.js?v=aset-b2fb0773d049';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-b2fb0773d049';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-b2fb0773d049';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-b2fb0773d049';
-import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-b2fb0773d049';
+} from './site-safecare-common.js?v=aset-ec76ce0fd86f';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-ec76ce0fd86f';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-ec76ce0fd86f';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-ec76ce0fd86f';
+import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-ec76ce0fd86f';
 
 const RELATIONSHIPS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'], ['FAMILY', '가족'], ['DEPENDENT', '돌봄 대상'], ['OTHER', '기타']]);
 const SIGHTING_SLOT_LABELS = Object.freeze(['얼굴 정면', '얼굴 왼쪽', '얼굴 오른쪽', '상반신', '전신', '추가 사진 1', '추가 사진 2', '추가 사진 3', '추가 사진 4', '추가 사진 5']);
@@ -50,7 +50,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const empty = el('div', 'person-empty person-empty-panel');
     const login = el('a', 'site-button site-button-primary person-login-link', '로그인');
     login.href = '/auth/start/';
-    empty.append(el('p', '', '로그인하면 사람 안심케어를 사용할 수 있습니다.'), login);
+    empty.append(el('p', '', '로그인하면 사람 가족 지킴이를 사용할 수 있습니다.'), login);
     surface.append(empty);
     if (typeof onCountChange === 'function') onCountChange({people: 0});
     return {};
@@ -1037,7 +1037,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     if (view.name === 'list' && !status.textContent) showStatus(partialAvailabilityMessage());
   };
 
-  showStatus('사람 안심케어 정보를 불러오는 중입니다.');
+  showStatus('사람 가족 지킴이 정보를 불러오는 중입니다.');
   content.replaceChildren(el('p', 'person-empty safecare-loading', '불러오는 중…'));
   try { await refresh(); showStatus(missingPrefill ? "가족 위치 SOS에서 이어 왔어요. 사람을 골라 '실종 상태로 전환'을 누르면 마지막 장소가 채워져 있어요." : ''); render(); }
   catch (error) {

@@ -33,7 +33,7 @@ summary = re.search(r"<p[^>]*data-trusted-device-limit-summary>(.*?)</p>", SUBSC
 assert summary and summary.group(1).strip() == SUMMARY, "the Free/Basic/Plus/Pro limit summary must be shown"
 
 # The care profile counts (also 1 / 5 / 15) stay a separate, unchanged row.
-assert '<tr><th scope="row">안심케어 프로필</th><td>1개</td><td>5개</td><td>15개</td></tr>' in SUBSCRIBE
+assert '<tr><th scope="row">가족 지킴이 프로필</th><td>1개</td><td>5개</td><td>15개</td></tr>' in SUBSCRIBE
 assert SUBSCRIBE.count("신뢰 기기 등록</span>") == 3
 assert "로그인 가능한 기기" not in SUBSCRIBE
 

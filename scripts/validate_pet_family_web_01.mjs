@@ -55,8 +55,8 @@ const desktopAside = index.match(/<aside class="chat-sidebar chat-sidebar-deskto
 const mobileAside = index.match(/<aside(?=[^>]*id="mobile-nav-drawer")[\s\S]*?<\/aside>/)?.[0] || '';
 for (const [label, block] of [['desktop', desktopAside], ['mobile', mobileAside]]) {
   assert.ok(block, `${label} sidebar markup missing`);
-  assert.ok(block.includes('data-consumer-section="care"'), `${label} must expose 안심케어`);
-  assert.match(block, /<span class="nav-item-label">안심케어<\/span>/, `${label} care label missing`);
+  assert.ok(block.includes('data-consumer-section="care"'), `${label} must expose 가족 지킴이`);
+  assert.match(block, /<span class="nav-item-label">가족 지킴이<\/span>/, `${label} care label missing`);
   assert.ok(!block.includes('data-pet-family-open'), `${label} must not duplicate pets as a primary menu`);
   // 캘린더 → 반려동물 → 최근 대화
   const calendarPos = block.indexOf('data-calendar-view="all"');

@@ -179,10 +179,10 @@ assert.equal(bulk.personPhotoSetMessage({complete: true, faceCount: 8, bodyCount
   assert.equal(old.intake, null);
   assert.equal(client.personSosReceivedMessage('민수', old), `민수 실종 상태로 전환했습니다. ${NOT_POLICE}`);
   const expected = {
-    DELIVERED: '민수 실종 상태로 전환했고 LOTBI 안심케어 관리자 접수함에 등록했습니다. 담당 관리자에게 알림을 보냈습니다.',
-    PENDING: '민수 실종 상태로 전환했고 LOTBI 안심케어 관리자 접수함에 등록했습니다. 관리자 알림을 다시 보내고 있습니다. 접수는 이미 완료되었습니다.',
-    RETRYING: '민수 실종 상태로 전환했고 LOTBI 안심케어 관리자 접수함에 등록했습니다. 관리자 알림을 다시 보내고 있습니다. 접수는 이미 완료되었습니다.',
-    FAILED: '민수 실종 상태로 전환했고 LOTBI 안심케어 관리자 접수함에 등록했습니다. 관리자 알림 전송이 지연되고 있습니다. 접수는 완료되었으며 계속 다시 보냅니다.',
+    DELIVERED: '민수 실종 상태로 전환했고 LOTBI 가족 지킴이 관리자 접수함에 등록했습니다. 담당 관리자에게 알림을 보냈습니다.',
+    PENDING: '민수 실종 상태로 전환했고 LOTBI 가족 지킴이 관리자 접수함에 등록했습니다. 관리자 알림을 다시 보내고 있습니다. 접수는 이미 완료되었습니다.',
+    RETRYING: '민수 실종 상태로 전환했고 LOTBI 가족 지킴이 관리자 접수함에 등록했습니다. 관리자 알림을 다시 보내고 있습니다. 접수는 이미 완료되었습니다.',
+    FAILED: '민수 실종 상태로 전환했고 LOTBI 가족 지킴이 관리자 접수함에 등록했습니다. 관리자 알림 전송이 지연되고 있습니다. 접수는 완료되었으며 계속 다시 보냅니다.',
   };
   for (const [state, text] of Object.entries(expected)) {
     const created = await post({received: true, review_status: 'RECEIVED', admin_notification: state, police_report_filed: false});
@@ -192,7 +192,7 @@ assert.equal(bulk.personPhotoSetMessage({complete: true, faceCount: 8, bodyCount
   // A misbehaving intake block never fails the SOS and never reads as a police report.
   const odd = await post({received: true, admin_notification: 'SOMETHING', police_report_filed: true});
   const oddText = client.personSosReceivedMessage('민수', odd);
-  assert.equal(oddText, `민수 실종 상태로 전환했고 LOTBI 안심케어 관리자 접수함에 등록했습니다. ${NOT_POLICE}`);
+  assert.equal(oddText, `민수 실종 상태로 전환했고 LOTBI 가족 지킴이 관리자 접수함에 등록했습니다. ${NOT_POLICE}`);
   for (const phrase of [...FORBIDDEN, ...POLICE]) assert.ok(!oddText.includes(phrase), phrase);
   assert.equal(client.personSosReceivedMessage('민수', await post({received: false})), `민수 실종 상태로 전환했습니다. ${NOT_POLICE}`);
   // The list keeps working with and without intake.
@@ -711,8 +711,8 @@ try {
 
     // (j) SOS success copy: admin inbox + notification state + always the 112 line.
     for (const [mode, intake, expected] of [
-      ['delivered', {received: true, review_status: 'RECEIVED', admin_notification: 'DELIVERED', police_report_filed: false}, `한지우 실종 상태로 전환했고 LOTBI 안심케어 관리자 접수함에 등록했습니다. 담당 관리자에게 알림을 보냈습니다. ${NOT_POLICE}`],
-      ['retrying', {received: true, review_status: 'RECEIVED', admin_notification: 'RETRYING', police_report_filed: false}, `한지우 실종 상태로 전환했고 LOTBI 안심케어 관리자 접수함에 등록했습니다. 관리자 알림을 다시 보내고 있습니다. 접수는 이미 완료되었습니다. ${NOT_POLICE}`],
+      ['delivered', {received: true, review_status: 'RECEIVED', admin_notification: 'DELIVERED', police_report_filed: false}, `한지우 실종 상태로 전환했고 LOTBI 가족 지킴이 관리자 접수함에 등록했습니다. 담당 관리자에게 알림을 보냈습니다. ${NOT_POLICE}`],
+      ['retrying', {received: true, review_status: 'RECEIVED', admin_notification: 'RETRYING', police_report_filed: false}, `한지우 실종 상태로 전환했고 LOTBI 가족 지킴이 관리자 접수함에 등록했습니다. 관리자 알림을 다시 보내고 있습니다. 접수는 이미 완료되었습니다. ${NOT_POLICE}`],
       ['no-intake', null, `한지우 실종 상태로 전환했습니다. ${NOT_POLICE}`],
     ]) {
       const {result: r, where} = await scenario(`j-sos-${mode}`, {prefill: PREFILL(8, 2), sosIntake: intake}, `

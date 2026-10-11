@@ -16,7 +16,9 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = process.env.SAFECARE_BASELINE_ROOT
+  ? path.resolve(process.env.SAFECARE_BASELINE_ROOT)
+  : path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ------------------------------------------------------------ A. rules
@@ -161,8 +163,10 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
 <link rel="stylesheet" href="/site-person.css" />
 <link rel="stylesheet" href="/site-person-bulk.css" />
 <link rel="stylesheet" href="/site-safecare.css" />
+<link rel="stylesheet" href="/site-family-guardian.css" />
+<link rel="stylesheet" href="/site-consumer-design.css" />
 <link rel="stylesheet" href="/site-bottom-sheet.css" />
-<style>html,body{margin:0;background:var(--lotbi-bg-primary,#fff)}#host{box-sizing:border-box;max-width:960px;margin:0 auto;padding:16px}</style>
+<style>html,body{margin:0;background:var(--lotbi-bg-primary,#fff)}body{min-height:100vh}#host{box-sizing:border-box;max-width:960px;margin:0 auto;padding:16px}</style>
 <script>
   globalThis.__calls = [];
   const P = n => 'aaaaaaaa-0000-4000-8000-00000000000' + n;
@@ -206,6 +210,8 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
   const sightingView = row => ({...row, minimum_photo_count: 5, maximum_photo_count: 10, can_submit: row.review_state === 'DRAFT' && row.photo_count >= 5, message: '', automatic_identity_decision: false, contact_details_exposed: false});
   const png = () => new Response(Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0)), {status: 200, headers: {'Content-Type': 'image/png'}});
   const json = (body, status = 200) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
+  const draftView = () => ({draft_id: 'pdraft_ssssssssssssssssssss', status: 'ACTIVE', revision: 2,
+    current_step: 'PHOTOS', matching_consent_state: 'NOT_GRANTED', photos: [], ...(globalThis.__draft || {})});
   globalThis.fetch = async (url, init = {}) => {
     const target = String(url).replace(/^https?:\/\/[^/]+/, '');
     const method = init.method || 'GET';
@@ -288,12 +294,26 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
       const update = JSON.parse(init.body || '{}');
       globalThis.__draft = {...(globalThis.__draft || {current_step: 'PHOTOS'}), ...update};
       const d = globalThis.__draft;
-      return json({draft: {draft_id: 'pdraft_ssssssssssssssssssss', status: 'ACTIVE', current_step: d.current_step, revision: 2, species: d.species || null, name: d.name || null, sex: d.sex || null, breed_code: d.breed_code || null, breed: d.breed || null, matching_consent_state: 'NOT_GRANTED', photos: []}});
+      return json({draft: draftView()});
+    }
+    if (target === '/v2/pet-registration-drafts/pdraft_ssssssssssssssssssss/photos' && method === 'POST') {
+      const codes = ['FACE_FRONT', 'FACE_LEFT', 'FACE_RIGHT', 'BODY_LEFT', 'BODY_RIGHT'];
+      const photos = globalThis.__draft.photos || [];
+      const photo = {slot_code: codes[photos.length], revision: 1, inspection_state: 'ACCEPTED', detected_species: 'DOG'};
+      globalThis.__draft.photos = [...photos, photo];
+      return json({photo, category: photos.length < 3 ? 'FACE' : 'BODY', draft: draftView()}, 201);
+    }
+    if (target === '/v2/pet-registration-drafts/pdraft_ssssssssssssssssssss/finalize' && method === 'POST') {
+      const draft = draftView();
+      if (draft.photos.length < 5 || draft.current_step !== 'REVIEW') return json({detail: {code: 'PET_DRAFT_INCOMPLETE'}}, 422);
+      const pet = {...draft, pet_id: 'PET_KR_EEEEEEEEEEEEEEEEEEEE', photo_completion_state: 'UPLOAD_COMPLETE'};
+      state.pets.push(pet);
+      return json({pet, draft: {...draft, status: 'COMPLETED', completed_pet_id: pet.pet_id}});
     }
     return json({}, 404);
   };
 </script>
-</head><body><div id="host"></div>
+</head><body data-site-theme="light"><div id="host"></div>
 <script type="module">
   import {mountPersonCareManager} from '/site-person-ui.js';
   import {mountPetFamilyManager} from '/site-pet-ui.js';
@@ -303,6 +323,19 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
   globalThis.__until = async (check, ms = 4000) => { for (let t = 0; t < ms && !check(); t += 50) await __wait(50); return check(); };
   globalThis.__mountPerson = async surface => { host.replaceChildren(); globalThis.__screen = await mountPersonCareManager({sessionToken: 'fixture-token', root: host, initialSurface: surface || 'home'}); };
   globalThis.__mountPet = async surface => { host.replaceChildren(); globalThis.__screen = await mountPetFamilyManager({sessionToken: 'fixture-token', root: host, initialSurface: surface || 'pets'}); };
+  globalThis.__mountGuest = tab => {
+    host.replaceChildren();
+    const counts = {callsBefore: __calls.length, mountedPrivate: 0};
+    globalThis.__screen = mountConsumerSection({section: 'care', root: host, authenticated: false,
+      careTab: tab, mountPeople: () => counts.mountedPrivate++, mountPets: () => counts.mountedPrivate++});
+    return counts;
+  };
+  globalThis.__mountGuestBefore = tab => {
+    host.replaceChildren();
+    globalThis.__screen = mountConsumerSection({section: 'care', root: host, authenticated: false, careTab: tab,
+      mountPeople: (root, initialSurface) => mountPersonCareManager({root, initialSurface}),
+      mountPets: (root, initialSurface) => mountPetFamilyManager({root, initialSurface})});
+  };
   globalThis.__mountCare = () => {
     host.replaceChildren();
     globalThis.__screen = mountConsumerSection({
@@ -318,6 +351,11 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
     const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 640;
     const context = canvas.getContext('2d');
     context.fillStyle = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'); context.fillRect(0, 0, 640, 640);
+    // Synthetic high-frequency texture, so the existing local blur gate runs normally.
+    for (let y = 0; y < 640; y += 4) for (let x = 0; x < 640; x += 4) {
+      context.fillStyle = ((x + y) % 8 === 0) ? '#ffffff' : '#202020';
+      context.fillRect(x, y, 4, 4);
+    }
     canvas.toBlob(blob => resolve(new File([blob], name, {type})), type);
   });
   globalThis.__put = async (input, name) => {
@@ -356,8 +394,12 @@ const shots = [];
 
 async function run() {
   const fixtureName = `.safecare-redesign-${process.pid}.html`;
-  fs.writeFileSync(path.join(ROOT, fixtureName), FIXTURE_HTML, 'utf8');
-  const server = await serve();
+  const fixtureHtml = process.env.SAFECARE_BASELINE_ROOT
+    ? FIXTURE_HTML.replace('<link rel="stylesheet" href="/site-family-guardian.css" />', '')
+    : FIXTURE_HTML;
+  fs.writeFileSync(path.join(ROOT, fixtureName), fixtureHtml, 'utf8');
+  const server = process.env.SAFECARE_BASE_URL ? null : await serve();
+  const baseUrl = process.env.SAFECARE_BASE_URL || `http://127.0.0.1:${server.address().port}`;
   const profile = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'lotbi-safecare-'));
   const browser = spawn(chromePath(), ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], {stdio: 'ignore'});
   try {
@@ -372,13 +414,17 @@ async function run() {
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
     const results = {};
-    for (const [label, width, height] of [['desktop-1440', 1440, 900], ['mobile-390', 390, 844]]) {
+    const viewports = process.env.SAFECARE_VIEWPORTS_JSON
+      ? JSON.parse(process.env.SAFECARE_VIEWPORTS_JSON)
+      : [['desktop-1440', 1440, 900, 'light'], ['mobile-390', 390, 844, 'light']];
+    for (const [label, width, height, theme = 'light'] of viewports) {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 768});
-      await cdp.send('Page.navigate', {url: `http://127.0.0.1:${server.address().port}/${fixtureName}`});
+      await cdp.send('Page.navigate', {url: `${baseUrl}/${fixtureName}`});
       for (let t = 0; t < 100; t += 1) {
         if (await cdp.evaluate('return globalThis.__fixtureReady === true;').catch(() => false)) break;
         await new Promise(resolve => setTimeout(resolve, 100));
       }
+      await cdp.evaluate(`document.body.dataset.siteTheme = ${JSON.stringify(theme)};`);
       const shoot = async name => {
         const overflow = await cdp.evaluate('return __overflow();');
         assert.ok(overflow <= 1, `${label}/${name}: horizontal overflow ${overflow}px`);
@@ -391,6 +437,44 @@ async function run() {
         shots.push(file);
       };
       const r = results[label] = {};
+
+      if (process.env.FAMILY_GUARDIAN_REVIEW === 'before') {
+        for (const tab of ['people', 'pets']) {
+          await cdp.evaluate(`__mountGuestBefore(${JSON.stringify(tab)}); await __wait(200);`);
+          await shoot(`guest-${tab}`);
+        }
+      }
+
+      if (process.env.FAMILY_GUARDIAN_REVIEW === '1') {
+        for (const tab of ['people', 'pets']) {
+          const guest = await cdp.evaluate(`
+            const counts = __mountGuest(${JSON.stringify(tab)});
+            await __wait(100);
+            const welcome = document.querySelector('[data-family-guardian-welcome]');
+            return {tab: welcome?.dataset.familyGuardianWelcome, login: welcome?.querySelector('a')?.getAttribute('href'),
+              text: welcome?.textContent, calls: __calls.length - counts.callsBefore, mountedPrivate: counts.mountedPrivate,
+              background: getComputedStyle(host).backgroundColor,
+              card: welcome && getComputedStyle(welcome).backgroundColor,
+              button: welcome && getComputedStyle(welcome.querySelector('a')).backgroundColor,
+              textColor: welcome && getComputedStyle(welcome).color};
+          `);
+          assert.equal(guest.tab, tab, `${label}: signed-out ${tab} welcome visible`);
+          assert.equal(guest.login, '/auth/start/');
+          assert.ok(guest.text.includes('로그인하고 시작하기'));
+          assert.equal(guest.calls, 0, 'signed-out category never loads target APIs');
+          assert.equal(guest.mountedPrivate, 0, 'signed-out category never mounts a private manager');
+          if (theme === 'light') {
+            assert.equal(guest.background, 'rgb(246, 247, 249)');
+            assert.equal(guest.card, 'rgb(255, 255, 255)');
+            assert.equal(guest.button, 'rgb(37, 99, 235)');
+          } else {
+            assert.notEqual(guest.background, 'rgb(246, 247, 249)');
+            assert.notEqual(guest.card, 'rgb(255, 255, 255)');
+            assert.notEqual(guest.card, guest.textColor);
+          }
+          await shoot(`guest-${tab}`);
+        }
+      }
 
       // --------------------------------------------- SafeCare category counts
       r.categoryCounts = await cdp.evaluate(`
@@ -600,6 +684,35 @@ async function run() {
         return {create: Boolean(create), active: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent, retry, pickers, bulkPick};
       `);
       await shoot('person-05-register-step2');
+      // Visual review uses actual UI actions and synthetic accepted upload responses.
+      // Server photo validation is tested separately, never inferred from this fixture.
+      r.personComplete = await cdp.evaluate(`
+        for (let n = 1; n <= 5; n++) {
+          __fixtureState.nextCategory = n <= 3 ? 'FACE' : 'BODY';
+          await __put(document.querySelector('[data-person-bulk-input]'), 'register-' + n + '.png');
+          await __until(() => document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoCount === String(n));
+        }
+        const next = document.querySelector('[data-person-photos-next]');
+        if (next.disabled) throw new Error('five required photos did not enable review');
+        next.click();
+        await __until(() => document.querySelector('[data-person-finish]'));
+        return {review: document.querySelector('.person-review')?.textContent || ''};
+      `);
+      await shoot('person-08-confirmation');
+      r.personComplete.done = await cdp.evaluate(`
+        document.querySelector('[data-person-finish]').click();
+        await __until(() => document.querySelector('[data-person-register-done]'));
+        if (!document.querySelector('[data-person-register-done]')) throw new Error('completion missing');
+        return document.querySelector('[data-person-register-done]').textContent;
+      `);
+      await shoot('person-09-complete');
+      await cdp.evaluate(`
+        await __mountPerson(); await __until(() => document.querySelector('[data-person-list]'));
+        document.querySelector('[data-person-card="aaaaaaaa-0000-4000-8000-000000000005"] .person-text-button').click();
+        await __until(() => document.querySelector('[data-person-basic-form]'));
+        return true;
+      `);
+      await shoot('person-10-info-edit');
 
       // -------------------------------------------------- person: SOS rules
       r.personSos = await cdp.evaluate(`
@@ -788,12 +901,52 @@ async function run() {
         };
       `);
       await shoot('pet-07-register-resume-step1');
+      await cdp.evaluate(`
+        document.querySelector('[data-pet-register-form]').requestSubmit();
+        await __until(() => document.querySelector('[data-safecare-renewal-dialog="pet"]'));
+        document.querySelector('[data-safecare-consent="privacy"]').click();
+        document.querySelector('[data-safecare-renewal-confirm]').click();
+        await __until(() => document.querySelector('[data-pet-bulk-input]'));
+        for (let n = 1; n <= 5; n++) {
+          await __put(document.querySelector('[data-pet-bulk-input]'), 'pet-register-' + n + '.png');
+          await __until(() => document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoCount === String(n));
+        }
+        const next = document.querySelector('[data-pet-draft-next="REVIEW"]');
+        await __until(() => !document.querySelector('[data-pet-draft-next="REVIEW"]')?.disabled);
+        if (document.querySelector('[data-pet-draft-next="REVIEW"]').disabled) throw new Error('five accepted pet photos did not enable review: ' + JSON.stringify(__draft) + ' / ' + document.querySelector('[data-pet-bulk]').textContent);
+        next.click(); await __until(() => document.querySelector('[data-pet-draft-finalize]'));
+        return true;
+      `);
+      await shoot('pet-08-confirmation');
+      await cdp.evaluate(`
+        document.querySelector('[data-pet-draft-finalize]').click();
+        await __until(() => document.querySelector('[data-pet-register-done]'));
+        if (!document.querySelector('[data-pet-register-done]')) throw new Error('pet completion missing');
+        document.querySelector('[data-pet-gate-notice] button')?.click();
+        return true;
+      `);
+      await shoot('pet-09-complete');
+      await cdp.evaluate(`
+        await __mountPet(); await __until(() => document.querySelector('[data-pet-open]'));
+        document.querySelector('[data-pet-open="PET_KR_DDDDDDDDDDDDDDDDDDDD"]').click();
+        await __until(() => document.querySelector('[data-pet-photos]'));
+        return true;
+      `);
+      await shoot('pet-10-photos-and-info-edit');
+      await cdp.evaluate(`
+        await __mountPet(); await __until(() => document.querySelector('[data-pet-sos-target]'));
+        document.querySelector('[data-pet-sos-target="PET_KR_DDDDDDDDDDDDDDDDDDDD"]').click();
+        await __until(() => document.querySelector('[data-pet-sos-form]'));
+        if (!document.querySelector('[data-pet-sos-form]')) throw new Error('pet SOS form missing');
+        return true;
+      `);
+      await shoot('pet-11-sos-form');
     }
     socket.close();
     return results;
   } finally {
     browser.kill();
-    server.close();
+    server?.close();
     fs.rmSync(path.join(ROOT, fixtureName), {force: true});
     try { fs.rmSync(profile, {recursive: true, force: true}); } catch {}
   }
