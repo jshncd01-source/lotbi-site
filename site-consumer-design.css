@@ -95,8 +95,8 @@ body.chat-home-page .site-pet-modal,
 body.chat-home-page .site-festival-modal { box-shadow: 0 12px 40px rgb(0 0 0 / 10%); }
 /* Calendar is a dialog over the chat, not a workspace that replaces it. */
 body.chat-home-page .site-modal.site-calendar-chat-popup {
-  width: min(1040px, calc(100vw - 48px));
-  height: min(820px, calc(100dvh - 72px));
+  width: min(1180px, calc(100vw - 48px));
+  height: min(880px, calc(100dvh - 72px));
   max-height: calc(100dvh - 72px);
   padding: 24px;
   border: 1px solid var(--lotbi-border-default);

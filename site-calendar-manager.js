@@ -506,7 +506,7 @@ export function readCalendarDisplaySettings(storage = globalThis.localStorage) {
     // Unlike the two settings above, lunar dates are new screen density on
     // every cell rather than a correction to something already shown, so
     // this one ships off until the owner asks for it.
-    showLunarDates: stored.showLunarDates === true,
+    showLunarDates: stored.showLunarDates !== false,
     // Precipitation already shipped on, so it follows showKoreaHolidays/
     // showGridLines rather than showLunarDates: an empty store keeps it on.
     showPrecipitation: stored.showPrecipitation !== false,
@@ -639,7 +639,7 @@ function usesFlowingDayDetail() {
   return globalThis.innerWidth <= 900;
 }
 
-export const DAY_DETAIL_PRESENTATION = Object.freeze({PAGE: 'PAGE', SHEET: 'SHEET', MODAL: 'MODAL'});
+export const DAY_DETAIL_PRESENTATION = Object.freeze({PAGE: 'PAGE', FLOW: 'FLOW', SIDE: 'SIDE', SHEET: 'SHEET', MODAL: 'MODAL'});
 
 // Touch widths keep the selected day in document flow; desktop gives it a
 // stable side rail. Neither presentation covers the month grid.
@@ -652,7 +652,7 @@ export function setDayDetailPresentation(value) {
 
 export function dayDetailPresentation() {
   return dayDetailPresentationOverride
-    || (usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.SHEET : DAY_DETAIL_PRESENTATION.MODAL);
+    || (usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.FLOW : DAY_DETAIL_PRESENTATION.SIDE);
 }
 
 function prefersReducedMotion() {
@@ -1299,6 +1299,12 @@ function lifeRow(item, {date, today, onSelect} = {}) {
   title.className = 'calendar-life-title';
   title.textContent = presentation.title || '제목 없음';
   copy.appendChild(title);
+  if (presentation.categoryLabel) {
+    const category = document.createElement('span');
+    category.className = 'calendar-life-category';
+    category.textContent = presentation.categoryLabel;
+    copy.appendChild(category);
+  }
   const repeating = isRecurringCalendarItem(item);
   if (repeating) {
     const repeat = document.createElement('span');
@@ -1520,12 +1526,98 @@ function addMessageNode(text) {
   return message;
 }
 
+function selectedDateWeatherNode(state, date) {
+  const weather = calendarWeatherByDate(state.weather).get(date) || null;
+  const card = document.createElement('section');
+  card.className = 'calendar-day-weather-card';
+  card.dataset.weatherStatus = weather ? 'ready' : state.weatherLoading ? 'loading' : state.weatherMessage ? 'error' : 'unavailable';
+  card.setAttribute('aria-label', `${longKoreanDate(date)} 날씨`);
+
+  if (!weather) {
+    const message = document.createElement('p');
+    message.className = 'calendar-day-weather-unavailable';
+    message.setAttribute('role', 'status');
+    if (state.weatherLoading) message.textContent = '날씨를 확인하는 중…';
+    else if (state.weatherMessage) message.textContent = state.weatherMessage;
+    else if (date < state.todayDate) message.textContent = '지난 날짜의 날씨는 제공되지 않아요.';
+    else if (date > addCivilDays(state.todayDate, 14)) message.textContent = '예보 제공 기간 밖의 날짜입니다.';
+    else message.textContent = '이 날짜의 날씨가 제공되지 않았어요.';
+    card.appendChild(message);
+    return card;
+  }
+
+  const icon = calendarWeatherIconNode(weather.weatherKind);
+  if (icon) {
+    icon.classList.add('calendar-day-weather-card-icon');
+    card.appendChild(icon);
+  }
+  const copy = document.createElement('div');
+  copy.className = 'calendar-day-weather-card-copy';
+  const location = document.createElement('p');
+  location.className = 'calendar-day-weather-location';
+  location.textContent = [state.weatherLocationLabel, weather.label].filter(Boolean).join(' · ') || weather.label;
+  const readings = document.createElement('div');
+  readings.className = 'calendar-day-weather-readings';
+  const current = document.createElement('strong');
+  const currentLabel = date === state.todayDate ? '현재' : '예상';
+  current.textContent = Number.isFinite(weather.temperature)
+    ? `${currentLabel} ${Math.round(weather.temperature)}°`
+    : `${currentLabel} 온도 미제공`;
+  const range = document.createElement('span');
+  const rangeParts = [
+    Number.isFinite(weather.minTemperature) ? `최저 ${Math.round(weather.minTemperature)}°` : '',
+    Number.isFinite(weather.maxTemperature) ? `최고 ${Math.round(weather.maxTemperature)}°` : '',
+  ].filter(Boolean);
+  range.textContent = rangeParts.length ? rangeParts.join(' · ') : '최저·최고 온도 미제공';
+  readings.append(current, range);
+  copy.append(location, readings);
+  card.appendChild(copy);
+  return card;
+}
+
+function selectedDateExpenseNode(state, date) {
+  const section = document.createElement('section');
+  section.className = 'calendar-day-expense-card';
+  section.dataset.calendarDayExpense = state.loading ? 'loading' : 'ready';
+  const label = document.createElement('span');
+  label.className = 'calendar-day-expense-label';
+  label.textContent = date === state.todayDate ? '오늘 지출' : '선택일 지출';
+  const amount = document.createElement('strong');
+  amount.className = 'calendar-day-expense-value';
+  if (state.loading) amount.textContent = '불러오는 중…';
+  else {
+    const totals = dayAmountTotals(state.items, date);
+    amount.textContent = totals.length ? totals.map(total => total.label).join(' · ') : '0원';
+  }
+  section.append(label, amount);
+  return section;
+}
+
+function selectedDateEmptyNode(state, actions, date) {
+  const empty = document.createElement('section');
+  empty.className = 'calendar-day-empty';
+  const icon = toolbarIcon([
+    ['rect', {x: '5', y: '6.5', width: '14', height: '13', rx: '2'}],
+    ['path', {d: 'M8 4v5M16 4v5M5 10.5h14'}],
+  ]);
+  icon.classList.add('calendar-day-empty-icon');
+  const heading = document.createElement('strong');
+  heading.textContent = '등록된 일정이 없습니다.';
+  const copy = document.createElement('p');
+  copy.textContent = '이 날짜의 일정을 추가하고 더 알찬 하루를 만들어보세요.';
+  const add = button('이 날짜에 일정 추가', 'calendar-day-empty-add');
+  add.dataset.calendarAdd = '';
+  add.addEventListener('click', () => actions.onAdd?.(date));
+  empty.append(icon, heading, copy, add);
+  return empty;
+}
+
 // The selected day, read as one day of a life: its weather, what was recorded
 // as an amount, then its records in day order. It is part of the page rather
 // than a window over it -- it shows today when the Calendar opens and follows
 // whichever date is picked, so there is nothing to close and nothing covers the
 // month.
-function dayPanel(state, actions, {includeActions = false, presentation = DAY_DETAIL_PRESENTATION.PAGE, closable = false} = {}) {
+function dayPanel(state, actions, {includeActions = false, includeMonthSummary = false, presentation = DAY_DETAIL_PRESENTATION.PAGE, closable = false} = {}) {
   const date = state.selectedDate;
   const {month, day} = civilDateParts(date);
   const panel = document.createElement('aside');
@@ -1542,25 +1634,26 @@ function dayPanel(state, actions, {includeActions = false, presentation = DAY_DE
   // Focus lands here when a date is chosen from the keyboard, so a screen
   // reader hears which day it is now reading.
   heading.tabIndex = -1;
+  heading.append(longKoreanDate(date));
   if (date === state.todayDate) {
     const todayBadge = document.createElement('span');
     todayBadge.className = 'calendar-day-today';
     todayBadge.textContent = '오늘';
-    heading.append(todayBadge, ' ');
+    heading.append(' ', todayBadge);
   }
-  heading.append(longKoreanDate(date));
   head.appendChild(heading);
+  const submeta = document.createElement('div');
+  submeta.className = 'calendar-day-submeta';
   if (state.showLunarDates) {
     const lunarLabel = lunarDateLabel(solarToLunar(date));
     if (lunarLabel) {
       const lunar = document.createElement('span');
       lunar.className = 'calendar-day-lunar';
       lunar.textContent = `음력 ${lunarLabel}`;
-      head.appendChild(lunar);
+      submeta.appendChild(lunar);
     }
   }
-  const weather = dayWeatherNode(calendarWeatherByDate(state.weather).get(date), {precipitation: state.showPrecipitation !== false});
-  if (weather) head.appendChild(weather);
+  if (submeta.childElementCount) head.appendChild(submeta);
   if (closable) {
     const close = button('닫기', 'calendar-day-close');
     close.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
@@ -1571,6 +1664,7 @@ function dayPanel(state, actions, {includeActions = false, presentation = DAY_DE
 
   const body = document.createElement('div');
   body.className = 'calendar-day-body';
+  body.appendChild(selectedDateWeatherNode(state, date));
   const selectedHoliday = state.showKoreaHolidays ? holidaysByDate(state.holidays).get(date) : null;
   if (selectedHoliday) {
     const holiday = document.createElement('p');
@@ -1579,28 +1673,27 @@ function dayPanel(state, actions, {includeActions = false, presentation = DAY_DE
     holiday.textContent = `${selectedHoliday.name} · 공휴일`;
     body.appendChild(holiday);
   }
-  const totals = dayAmountTotals(state.items, date);
-  if (totals.length) {
-    // "입력 금액", never "쓴 돈": an amount on a record can be a booking's price
-    // as easily as money already paid, and the contract does not say which.
-    const amount = document.createElement('p');
-    amount.className = 'calendar-day-amount';
-    amount.dataset.calendarDayAmount = '';
-    const label = document.createElement('span');
-    label.textContent = '입력 금액';
-    const value = document.createElement('strong');
-    value.textContent = totals.map(total => total.label).join(' · ');
-    amount.append(label, value);
-    body.appendChild(amount);
-  }
   const timeline = lifeTimelineNodes(state.items, date, {today: state.todayDate, onSelect: actions.onEvent});
-  if (timeline) body.appendChild(timeline);
+  if (timeline) {
+    const timelineSection = document.createElement('section');
+    timelineSection.className = 'calendar-day-timeline';
+    const count = lifeTimelineForDate(state.items, date).count;
+    const title = document.createElement('h4');
+    title.textContent = `일정 ${count}개`;
+    timelineSection.append(title, timeline);
+    body.appendChild(timelineSection);
+  }
   // While the read is in flight, nothing is claimed about the day yet.
   else if (state.loading) body.appendChild(emptyMessage('기록을 불러오는 중…'));
-  else body.appendChild(emptyMessage(date === state.todayDate ? '오늘은 아직 기록이 없어요.' : '이 날은 기록이 없어요.'));
+  else body.appendChild(selectedDateEmptyNode(state, actions, date));
+  body.appendChild(selectedDateExpenseNode(state, date));
+  if (includeMonthSummary) {
+    const amountSummary = renderAmountSummary(state, actions);
+    if (amountSummary) body.appendChild(amountSummary);
+  }
   if (state.imageMessage && includeActions) body.appendChild(addMessageNode(state.imageMessage));
   if (includeActions) body.appendChild(addActionsRow(state, actions, {placement: 'panel'}));
-  body.dataset.empty = String(!timeline && !selectedHoliday);
+  body.dataset.empty = String(!timeline && !selectedHoliday && !state.loading);
   panel.append(head, body);
   return panel;
 }
@@ -1643,6 +1736,7 @@ function monthEventRow(item, onSelect) {
   const row = button('', 'calendar-event-chip');
   row.dataset.eventChip = '';
   row.dataset.calendarEventId = item.id || item.activity_id || '';
+  row.dataset.expenseCategory = item?.entry?.expense_category || 'UNCLASSIFIED';
   if (!isAllDay(item)) {
     const time = document.createElement('span');
     time.className = 'calendar-event-time';
@@ -2113,7 +2207,7 @@ function renderMonth(state, actions, weatherCredit = null) {
   grid.dataset.weekCount = String(cells.length / 7);
   // Multi-day records become bars; each week row hands out its own lanes.
   const spans = monthSpanSegments(cells, state.items);
-  const VISIBLE_ROWS = 2;
+  const VISIBLE_ROWS = 3;
   const todayParts = civilDateParts(state.todayDate);
   const passiveFocusDate = todayParts.year === state.year && todayParts.month === state.month
     ? state.todayDate
@@ -2122,7 +2216,7 @@ function renderMonth(state, actions, weatherCredit = null) {
   for (const cell of cells) {
     // Everything this date holds, a stay's second night included.
     const events = calendarItemsOnDate(state.items, cell.date);
-    const selected = state.detailOpen && cell.date === state.selectedDate;
+    const selected = cell.date === state.selectedDate;
     const today = cell.date === state.todayDate;
     const hasAttention = attentionDates.has(cell.date);
     const weather = weatherByDate.get(cell.date) || null;
@@ -2281,13 +2375,21 @@ function renderMonth(state, actions, weatherCredit = null) {
     const more = button('', 'calendar-event-overflow');
     more.dataset.eventOverflow = '';
     more.hidden = remaining === 0;
-    more.textContent = remaining ? `+${remaining}` : '';
+    more.textContent = remaining ? `+${remaining}개 더` : '';
     more.setAttribute('aria-label', `${cell.month}월 ${cell.day}일 기록 ${remaining}개 더 보기`);
     more.addEventListener('click', event => {
       event.stopPropagation();
       void actions.selectDate(cell.date, {openDetail: true});
     });
     stack.appendChild(more);
+    const dayTotals = dayAmountTotals(events, cell.date);
+    if (dayTotals.length) {
+      const amount = document.createElement('strong');
+      amount.className = 'calendar-cell-day-amount';
+      amount.textContent = dayTotals.map(total => total.label).join(' · ');
+      amount.setAttribute('aria-label', `${cell.month}월 ${cell.day}일 지출 ${amount.textContent}`);
+      stack.appendChild(amount);
+    }
 
     cellNode.addEventListener('click', event => {
       if (event.target.closest('button')) return;
@@ -2322,8 +2424,11 @@ function renderMonth(state, actions, weatherCredit = null) {
     notice.textContent = state.weatherMessage;
     calendar.appendChild(notice);
   }
-  layout.appendChild(calendar);
-  if (state.detailOpen) layout.appendChild(dayDetailOverlay(state, actions));
+  layout.append(calendar, dayPanel(state, actions, {
+    includeActions: true,
+    includeMonthSummary: true,
+    presentation: dayDetailPresentation(),
+  }));
   if (usesFlowingDayDetail()) {
     bindMonthSwipe(calendar, {
       onPrevious: () => void actions.shiftMonth?.(-1),
@@ -4052,7 +4157,7 @@ function calendarAmountDialog({root, monthLabel, summary, local, opener = null})
   header.className = 'calendar-amount-header';
   const heading = document.createElement('h3');
   heading.id = 'calendar-amount-heading';
-  heading.textContent = `${monthLabel} 입력 금액`;
+  heading.textContent = `${monthLabel} 생활비 합계`;
   const close = button('×', 'calendar-amount-close');
   close.setAttribute('aria-label', '닫기');
   close.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
@@ -4147,14 +4252,15 @@ export async function mountLifeCalendarManager({
     manualWeatherRegion: storedManualWeatherRegion,
     weatherRegionOrigin: storedWeatherRegionOrigin,
     // 날씨 읽기가 실패했을 때 날씨 자리에 남기는 한 줄. 빈 문자열이면 아무 말도 없다.
-    weatherMessage: '',
+    weatherMessage: '', weatherLoading: true,
+    weatherLocationLabel: currentWeatherLocation?.label || storedManualWeatherRegion?.label || '',
     // The selected day is part of the Month page, not a window over it: the
     // Calendar opens on today with today's records under (or beside) the
     // month, and it follows whichever date is picked. (It used to be a panel
     // that raised itself for an arbitrary remembered date -- a window nobody
     // had pressed. Now it is always today until someone picks another day, and
     // it never covers the grid.)
-    detailOpen: false, dayCollapsed: false, agendaScope: 'month',
+    detailOpen: true, dayCollapsed: false, agendaScope: 'month',
     // Week shows a life list by default; a wide screen may switch to 시간표.
     weekLayout: 'list',
     locationInFlight: false,
@@ -4185,6 +4291,9 @@ export async function mountLifeCalendarManager({
   next.dataset.calendarNavigation = 'next';
   const today = button('오늘', 'calendar-today-button');
   today.dataset.calendarMode = 'day';
+  const primaryAddButton = button('+ 일정 추가', 'calendar-primary-add-button');
+  primaryAddButton.dataset.calendarAdd = '';
+  primaryAddButton.setAttribute('aria-label', '선택한 날짜에 일정 추가');
   const settingsButton = button('', 'calendar-settings-button');
   settingsButton.appendChild(toolbarIcon(SETTINGS_ICON_SHAPES));
   const settingsLabel = document.createElement('span');
@@ -4199,7 +4308,20 @@ export async function mountLifeCalendarManager({
     const control = button(label, 'calendar-mode-tab'); control.dataset.calendarMode = mode; control.setAttribute('role', 'tab'); modeButtons.set(mode, control); modes.appendChild(control);
   }
   bindRovingTablist(modes, modeButtons.values());
-  toolbar.append(previous, title, next, today, modes, settingsButton);
+  const modalHeader = root.closest('.site-calendar-modal')?.querySelector(':scope > .site-modal-header') || null;
+  let modalActions = null;
+  if (modalHeader) {
+    modalHeader.querySelector('[data-calendar-modal-actions]')?.remove();
+    modalActions = document.createElement('div');
+    modalActions.className = 'calendar-modal-actions';
+    modalActions.dataset.calendarModalActions = '';
+    modalActions.append(primaryAddButton, settingsButton);
+    const close = modalHeader.querySelector('.site-modal-close');
+    if (close) modalHeader.insertBefore(modalActions, close);
+    else modalHeader.appendChild(modalActions);
+  }
+  toolbar.append(previous, title, next, today, modes);
+  if (!modalHeader) toolbar.append(primaryAddButton, settingsButton);
   const status = document.createElement('div'); status.className = 'calendar-status'; status.setAttribute('aria-live', 'polite');
   const amountSlot = document.createElement('div'); amountSlot.className = 'calendar-amount-slot';
   const locationButton = button('현재 위치 사용', 'calendar-today-button');
@@ -4320,9 +4442,6 @@ export async function mountLifeCalendarManager({
       focusSelectedCalendarTarget({detail: openDetail, date, focusDetail, revealWeekDay});
     },
     closeDayDetail: () => {
-      if (!state.detailOpen) return;
-      state.detailOpen = false;
-      render();
       focusSelectedCalendarTarget({date: state.selectedDate});
     },
     selectMonth: async month => {
@@ -4335,7 +4454,7 @@ export async function mountLifeCalendarManager({
         ? state.todayDate
         : `${state.year}-${String(month).padStart(2, "0")}-01`;
       state.mode = 'month';
-      state.detailOpen = false;
+      state.detailOpen = true;
       await refresh();
     },
     onDateKey: (event, date) => {
@@ -4551,6 +4670,7 @@ export async function mountLifeCalendarManager({
   // 최신으로 맞춰 두는 것은 호출하는 쪽의 책임이다.
   async function refreshWeatherOnly() {
     const requestGeneration = ++weatherGeneration;
+    state.weatherLoading = true;
     seedCachedWeatherForVisibleRange();
     renderPreservingFocus();
     const weather = authenticated
@@ -4572,9 +4692,15 @@ export async function mountLifeCalendarManager({
           });
         })();
     if (!root.isConnected || requestGeneration !== weatherGeneration) return;
-    if (!weather) return;
+    if (!weather) {
+      state.weatherLoading = false;
+      state.weatherMessage = '날씨를 불러오지 못했어요.';
+      renderPreservingFocus();
+      return;
+    }
     state.weather = weather.items || [];
     state.weatherMessage = weatherFailureCopy(weather.failure);
+    state.weatherLoading = false;
     persistCalendarWeatherCache(weather.items);
     renderPreservingFocus();
   }
@@ -4813,6 +4939,7 @@ export async function mountLifeCalendarManager({
 
 
   function render() {
+    state.weatherLocationLabel = currentWeatherLocation?.label || state.manualWeatherRegion?.label || '';
     updateChrome();
     // Release the previous day-sheet visualViewport listeners before the node is
     // replaced, so repeated renders cannot accumulate them.
@@ -4820,11 +4947,9 @@ export async function mountLifeCalendarManager({
     if (staleSheet) staleSheet.dispatchEvent(new CustomEvent('lotbi:day-sheet-release'));
     status.replaceChildren();
     // The month's amount total belongs to the month view only.
-    const showsAmountSummary = state.mode === 'month';
-    const amountSummary = showsAmountSummary ? renderAmountSummary(state, actions) : null;
-    amountSlot.replaceChildren(...(amountSummary ? [amountSummary] : []));
-    amountSlot.hidden = !amountSummary;
-    shell.dataset.amountVisible = String(Boolean(amountSummary));
+    amountSlot.replaceChildren();
+    amountSlot.hidden = true;
+    shell.dataset.amountVisible = 'false';
     if (state.loading) {
       const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '기록을 불러오는 중'; status.appendChild(loading);
     } else {
@@ -5061,8 +5186,8 @@ export async function mountLifeCalendarManager({
         // A 403 here is the server refusing this route, which signing in again
         // does not fix, so it gets the plain failure line.
         message: error instanceof SiteCoreError && error.status === 401
-          ? '입력 금액 합계를 보려면 LOTBI에 다시 로그인해 주세요.'
-          : '입력 금액 합계를 불러오지 못했어요.',
+          ? '생활비 합계를 보려면 LOTBI에 다시 로그인해 주세요.'
+          : '생활비 합계를 불러오지 못했어요.',
       };
     }
     // A delayed accessory response must not discard the Calendar focus chosen
@@ -5093,6 +5218,7 @@ export async function mountLifeCalendarManager({
         state.locationMessage = currentWeatherLocation ? '' : '현재 위치가 오래되어 다시 확인이 필요해요.';
       }
       if (authenticated) {
+        state.weatherLoading = Boolean(visibleWeatherWindow());
         seedCachedWeatherForVisibleRange();
         const viewOptions = {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl, weekStart: state.weekStart};
         const weatherToken = ++weatherGeneration;
@@ -5112,10 +5238,19 @@ export async function mountLifeCalendarManager({
         // refreshGeneration) 위치/지역이 다시 바뀌었으면(새 weatherGeneration) 이
         // 응답은 조용히 버려진다 -- 화면은 이미 최신 요청이 맡고 있다.
         void enrichmentPromise.then(enrichment => {
-          if (!enrichment || !root.isConnected || requestGeneration !== refreshGeneration) return;
+          if (!root.isConnected || requestGeneration !== refreshGeneration) return;
+          if (!enrichment) {
+            if (weatherToken === weatherGeneration) {
+              state.weatherLoading = false;
+              state.weatherMessage = '날씨를 불러오지 못했어요.';
+              renderPreservingFocus();
+            }
+            return;
+          }
           const applyWeather = weatherToken === weatherGeneration;
           const applyHolidays = holidayToken === holidayGeneration;
           if (applyWeather) {
+            state.weatherLoading = false;
             if (result.key === 'day' || result.key === 'month' || result.key === 'week') {
               state.weather = enrichment.weather || [];
               state.weatherMessage = enrichment.weatherFailureMessage || '';
@@ -5132,6 +5267,7 @@ export async function mountLifeCalendarManager({
         });
       } else {
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
+        state.weatherLoading = Boolean(visibleWeatherWindow());
         seedCachedWeatherForVisibleRange();
         const guestItems = repository.list();
         state.items = guestItems.filter(item => validCivilDate(item.local_date));
@@ -5183,6 +5319,7 @@ export async function mountLifeCalendarManager({
           if (applyWeather) {
             state.weather = guestWeather.items || [];
             state.weatherMessage = weatherFailureCopy(guestWeather.failure);
+            state.weatherLoading = false;
             persistCalendarWeatherCache(guestWeather.items);
           }
           if (applyHolidays && (state.mode === 'day' || state.mode === 'month' || state.mode === 'week' || state.mode === 'year')) {
@@ -5205,7 +5342,7 @@ export async function mountLifeCalendarManager({
         state.expense = {
           status: 'error',
           summary: null,
-          message: '입력 금액 합계를 불러오지 못했어요.',
+          message: '생활비 합계를 불러오지 못했어요.',
           monthKey: `${state.year}-${state.month}`,
           local: !authenticated,
         };
@@ -5278,7 +5415,7 @@ export async function mountLifeCalendarManager({
     // existing refresh path below.
     const replacedDayDetail = origin.mode === 'month' && origin.detailOpen;
     if (replacedDayDetail) {
-      state.detailOpen = false;
+      state.detailOpen = state.mode === 'month';
       render();
     }
     const festivalLink = item ? festivalLinkFromCalendarItem(item, settingsStorage) : null;
@@ -5327,6 +5464,7 @@ export async function mountLifeCalendarManager({
   };
 
   settingsButton.addEventListener('click', () => actions.openSettings());
+  primaryAddButton.addEventListener('click', () => actions.onAdd(state.selectedDate));
 
   // One path for "use my current location", shared by the Settings control and
   // any future entry point. Location is an accessory of an accessory: every exit
@@ -5600,7 +5738,7 @@ export async function mountLifeCalendarManager({
           ? state.todayDate
           : `${state.year}-${String(state.month).padStart(2, '0')}-01`;
       }
-      state.detailOpen = false;
+      state.detailOpen = state.mode === 'month';
       if (state.mode === 'agenda') state.agendaScope = 'month';
       await refresh();
     } finally {
@@ -5623,8 +5761,8 @@ export async function mountLifeCalendarManager({
     state.year = parts.year;
     state.month = parts.month;
     state.selectedDate = state.todayDate;
-    state.mode = 'day';
-    state.detailOpen = false;
+    if (state.mode === 'day' || state.mode === 'year') state.mode = 'month';
+    state.detailOpen = state.mode === 'month';
     state.dayCollapsed = false;
     await refresh();
   });
@@ -5632,7 +5770,7 @@ export async function mountLifeCalendarManager({
     markCalendarContextNavigation();
     if (state.mode === 'day') return;
     state.mode = state.mode === 'year' ? 'month' : 'year';
-    state.detailOpen = false;
+    state.detailOpen = state.mode === 'month';
     state.agendaScope = 'month';
     await refresh();
   });
@@ -5640,7 +5778,7 @@ export async function mountLifeCalendarManager({
     if (state.mode !== mode) {
       markCalendarContextNavigation();
       state.mode = mode;
-      state.detailOpen = false;
+      state.detailOpen = mode === 'month';
       state.dayCollapsed = false;
       if (mode !== 'agenda') state.agendaScope = 'month';
       await refresh();

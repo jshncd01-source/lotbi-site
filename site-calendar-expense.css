@@ -197,6 +197,31 @@
 .calendar-amount-category[data-expense-category="OTHER"] dt { color: var(--calendar-expense-other); }
 .calendar-amount-category[data-expense-category="UNCLASSIFIED"] dt { color: var(--calendar-expense-unclassified); }
 
+/* CALENDAR-HOME-REDESIGN-01 — one compact five-category table in the selected
+   date rail. It uses the actual month summary and never adds the day total to
+   it, so a schedule amount is counted once. */
+.calendar-day-panel .calendar-amount-line {
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  margin: 0;
+  padding: 0 0 8px;
+}
+.calendar-day-panel .calendar-amount-line-label { color: var(--lotbi-text-primary, #303642); font-weight: 750; }
+.calendar-day-panel .calendar-amount-line-amount { font-size: 19px; font-weight: 850; }
+.calendar-day-panel .calendar-amount-line-loading,
+.calendar-day-panel .calendar-amount-line-error { display: block; min-height: 0; padding: 2px 0 8px; }
+.calendar-day-panel .calendar-amount-category-groups { padding: 0; }
+.calendar-day-panel .calendar-amount-categories { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.calendar-day-panel .calendar-amount-category { min-width: 0; flex-direction: column; align-items: center; gap: 3px; padding: 4px 1px; text-align: center; }
+.calendar-day-panel .calendar-amount-category dt { font-size: 10px; }
+.calendar-day-panel .calendar-amount-category dd { max-width: 100%; overflow: hidden; font-size: 10.5px; text-overflow: ellipsis; }
+@media (max-width: 520px) {
+  .calendar-day-panel .calendar-amount-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 10px; }
+  .calendar-day-panel .calendar-amount-category { align-items: flex-start; }
+  .calendar-day-panel .calendar-amount-category dd { overflow: visible; text-overflow: clip; }
+}
+
 .calendar-expense-item dd {
   margin: 0;
   color: var(--lotbi-text-secondary, #3d4653);

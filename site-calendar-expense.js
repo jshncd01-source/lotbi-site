@@ -331,7 +331,7 @@ function shownCurrencies(summary) {
 export function amountSummaryLinePresentation(summary, {month = null} = {}) {
   const currencies = shownCurrencies(summary);
   return Object.freeze({
-    label: Number.isInteger(month) ? `${month}월 입력 금액 합계` : '입력 금액 합계',
+    label: Number.isInteger(month) ? `${month}월 생활비 합계` : '생활비 합계',
     amounts: Object.freeze(currencies.map(line => formatExpenseAmount(line.totalAmountMinor, line.currency))),
   });
 }
@@ -372,12 +372,20 @@ export function amountDetailPresentation(summary, {local = false} = {}) {
  * @param {'loading'|'ready'|'error'} options.state
  */
 export function calendarAmountSummaryLine({state, summary = null, month = null, errorMessage = '', onOpen = null}) {
+  if (state === 'loading') {
+    const loading = document.createElement('p');
+    loading.className = 'calendar-amount-line calendar-amount-line-loading';
+    loading.dataset.calendarAmountSummary = 'loading';
+    loading.setAttribute('role', 'status');
+    loading.textContent = Number.isInteger(month) ? `${month}월 생활비 합계를 불러오는 중…` : '생활비 합계를 불러오는 중…';
+    return loading;
+  }
   if (state === 'error') {
     const failed = document.createElement('p');
     failed.className = 'calendar-amount-line calendar-amount-line-error';
     failed.dataset.calendarAmountSummary = 'error';
     failed.setAttribute('role', 'status');
-    failed.textContent = errorMessage || '입력 금액 합계를 불러오지 못했어요.';
+    failed.textContent = errorMessage || '생활비 합계를 불러오지 못했어요.';
     return failed;
   }
   if (state !== 'ready') return null;
@@ -445,7 +453,7 @@ export function calendarAmountSummaryBlock(options) {
   if (!categories) return line;
   const block = document.createElement('section');
   block.className = 'calendar-amount-overview';
-  block.setAttribute('aria-label', Number.isInteger(options.month) ? `${options.month}월 입력 금액` : '입력 금액');
+  block.setAttribute('aria-label', Number.isInteger(options.month) ? `${options.month}월 생활비 합계` : '생활비 합계');
   block.append(line, categories);
   return block;
 }

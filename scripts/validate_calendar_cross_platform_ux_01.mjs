@@ -6,8 +6,8 @@ const {calendarItemActionPolicy, monthGridKeyboardTargetDate, rovingTabTargetInd
 const manager = fs.readFileSync('site-calendar-manager.js', 'utf8');
 const css = fs.readFileSync('site-calendar.css', 'utf8');
 
-// 오늘 is a real day view. The remaining peer controls follow it in the
-// product order 주 · 월 · 목록; 년 still opens from the month title.
+// 오늘 returns the active calendar to today. The view controls follow the
+// approved product order 주 · 월 · 목록; 년 still opens from the month title.
 assert.ok(manager.includes("const MODES = Object.freeze([['week', '주'], ['month', '월'], ['agenda', '목록']]);"));
 assert.ok(manager.includes("const VIEW_KEYS = Object.freeze(['day', 'month', 'week', 'year', 'agenda']);"));
 assert.ok(manager.includes('function renderWeek(state, actions'));
@@ -23,19 +23,19 @@ assert.ok(manager.includes("'이번 주에는 기록이 없어요.'"));
 
 // Month is deliberately bounded regardless of how many events a day has, and
 // it exposes measured weather rather than inventing values for missing days.
-assert.ok(manager.includes('const VISIBLE_ROWS = 2;'));
+assert.ok(manager.includes('const VISIBLE_ROWS = 3;'));
 assert.ok(manager.includes('monthSpanSegments(cells, state.items)'));
-assert.ok(manager.includes("more.textContent = remaining ? `+${remaining}` : '';"));
+assert.ok(manager.includes("more.textContent = remaining ? `+${remaining}개 더` : '';"));
 assert.ok(manager.includes("temperature.className = 'calendar-weather-temperature'"));
 assert.ok(manager.includes('const weatherPresentation = calendarWeatherPresentation(weather)'));
 assert.ok(manager.includes('const temperatureLabel = weatherPresentation.monthLabel'));
 
-// Month owns no automatic detail. A chosen date uses a centered dialog on a
-// desk and a bottom sheet on touch widths, while Today owns the in-page panel.
-assert.ok(manager.includes("PAGE: 'PAGE', SHEET: 'SHEET', MODAL: 'MODAL'"));
-assert.ok(manager.includes('usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.SHEET : DAY_DETAIL_PRESENTATION.MODAL'));
-assert.ok(css.includes('.calendar-day-panel[data-presentation="MODAL"]'));
-assert.ok(css.includes('.calendar-day-panel[data-presentation="SHEET"]'));
+// Month always owns one selected-day detail: a rail on desktop and one
+// continuous flow below the grid at touch widths.
+assert.ok(manager.includes("FLOW: 'FLOW', SIDE: 'SIDE'"));
+assert.ok(manager.includes('usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.FLOW : DAY_DETAIL_PRESENTATION.SIDE'));
+assert.ok(css.includes('.calendar-day-panel[data-presentation="SIDE"]'));
+assert.ok(css.includes('.calendar-day-panel[data-presentation="FLOW"]'));
 assert.ok(!css.includes('[data-arrow]::before'));
 
 // 목록 is a list surface with explicit, independent filters -- four, each one

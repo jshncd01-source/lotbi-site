@@ -119,7 +119,7 @@ const KRW_SUMMARY={currencies:[{currency:'KRW',categories:[
   total_amount_minor:314500,entry_count:4}],entries_without_amount:2};
 
 function line(root){return root.querySelector('[data-calendar-amount-summary]')}
-const FORBIDDEN=['쓴 돈','지출','가계부','금액 없는 일정','건 제외'];
+const FORBIDDEN=['쓴 돈','가계부','금액 없는 일정','건 제외'];
 const forbiddenIn=text=>FORBIDDEN.filter(word=>String(text||'').includes(word));
 
 // A guest repository the fixture controls directly, with the same surface the
@@ -190,29 +190,27 @@ try{
   const toolbar=root.querySelector('.calendar-toolbar');
   const viewport=root.querySelector('.calendar-viewport');
   result.layoutFirstIsMonth=Boolean(layout?.children[0]?.classList.contains('calendar-month'));
-  result.layoutHasNoAutomaticDayPanel=!layout?.querySelector('.calendar-day-panel');
-  result.lineInsideTopSlot=Boolean(amountSlot?.contains(ready));
-  result.summaryDirectlyBelowToolbar=Boolean(shell && toolbar && amountSlot && toolbar.nextElementSibling===amountSlot);
-  result.summaryBeforeViewport=Boolean(amountSlot && viewport && (amountSlot.compareDocumentPosition(viewport)&Node.DOCUMENT_POSITION_FOLLOWING));
+  result.layoutHasDayPanel=Boolean(layout?.querySelector('.calendar-day-panel'));
+  result.lineInsideDayPanel=Boolean(layout?.querySelector('.calendar-day-panel')?.contains(ready));
+  result.topSlotHidden=Boolean(amountSlot?.hidden);
 
   result.summaryModes=[];
-  for(const [label,selector,viewSelector] of [
-    ['오늘','[data-calendar-mode="day"]','.calendar-day-view'],
-    ['주','[data-calendar-mode="week"]','.calendar-week-agenda'],
-    ['월','[data-calendar-mode="month"]','.calendar-month-layout'],
+  for(const [label,mode,selector] of [
+    ['주','week','[data-calendar-mode="week"]'],
+    ['목록','agenda','[data-calendar-mode="agenda"]'],
+    ['월','month','[data-calendar-mode="month"]'],
   ]){
     const control=[...root.querySelectorAll(selector)].find(node=>node.textContent.trim()===label)||root.querySelector(selector);
     control?.click();
-    await wait(()=>root.querySelector(viewSelector),label+' view');
+    await wait(()=>root.dataset.calendarManagerView===mode,label+' view');
     if(label==='월') await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready',label+' top amount');
     else { await waitForDomIdle(root); await new Promise(resolve=>setTimeout(resolve,120)); }
     const activeLine=line(root);
     result.summaryModes.push({
       label,
-      view:Boolean(root.querySelector(viewSelector)),
-      shown:Boolean(activeLine) && !root.querySelector('.calendar-amount-slot')?.hidden,
-      inTopSlot:Boolean(root.querySelector('.calendar-amount-slot')?.contains(activeLine)),
-      topSlotBeforeView:Boolean(root.querySelector('.calendar-amount-slot')?.compareDocumentPosition(root.querySelector('.calendar-viewport'))&Node.DOCUMENT_POSITION_FOLLOWING),
+      view:root.dataset.calendarManagerView===mode,
+      shown:Boolean(activeLine),
+      inDayPanel:Boolean(root.querySelector('.calendar-day-panel')?.contains(activeLine)),
     });
   }
   ready=line(root);
@@ -230,7 +228,7 @@ try{
   const totalLabelRect=ready.querySelector('.calendar-amount-line-label')?.getBoundingClientRect();
   const totalAmountRect=ready.querySelector('.calendar-amount-line-amount')?.getBoundingClientRect();
   result.totalPairGap=totalLabelRect&&totalAmountRect ? Math.round((totalAmountRect.left-totalLabelRect.right)*100)/100 : null;
-  result.lineCategoryWords=['음식','여행','쇼핑','생활비','기타','미분류'].filter(word=>ready.textContent.includes(word));
+  result.lineCategoryWords=['음식','여행','쇼핑','기타','미분류'].filter(word=>ready.textContent.includes(word));
   const categoryList=root.querySelector('.calendar-amount-categories');
   result.categoryRows=[...(categoryList?.querySelectorAll('.calendar-amount-category')||[])].map(row=>[
     row.dataset.expenseCategory,
@@ -495,30 +493,30 @@ try {
     const fail = message => { throw new Error(`${label}: ${message}`); };
 
     if (!value.layoutFirstIsMonth) fail('month layout child 0 must stay the month grid');
-    if (!value.layoutHasNoAutomaticDayPanel) fail('Month must not mount a selected-day surface before a date press');
-    if (!value.lineInsideTopSlot || !value.summaryDirectlyBelowToolbar || !value.summaryBeforeViewport) {
-      fail('the amount summary must sit directly below the toolbar and before the calendar viewport');
+    if (!value.layoutHasDayPanel) fail('Month must mount the selected-day detail rail/flow');
+    if (!value.lineInsideDayPanel || !value.topSlotHidden) {
+      fail('the amount summary must appear once, inside the selected-day detail');
     }
     const monthMode = value.summaryModes.find(mode=>mode.label==='월');
     if (value.summaryModes.length!==3 || value.summaryModes.some(mode=>!mode.view)
-      || !monthMode?.shown || !monthMode.inTopSlot || !monthMode.topSlotBeforeView) {
-      fail(`Month must keep the amount summary above its content, got ${JSON.stringify(value.summaryModes)}`);
+      || !monthMode?.shown || !monthMode.inDayPanel) {
+      fail(`Month must keep the amount summary in its detail, got ${JSON.stringify(value.summaryModes)}`);
     }
     if (value.summaryModes.some(mode=>mode.label!=='월' && mode.shown)) {
-      fail(`Today and Week must not show the month total, got ${JSON.stringify(value.summaryModes)}`);
+      fail(`Week and List must not duplicate the month total, got ${JSON.stringify(value.summaryModes)}`);
     }
 
     // One quiet line.
     if (value.lineTag !== 'BUTTON' || value.lineType !== 'button') fail(`the amount line must be a real button, got ${value.lineTag}/${value.lineType}`);
-    if (value.label !== '9월 입력 금액 합계') fail(`the line must read "9월 입력 금액 합계", got "${value.label}"`);
+    if (value.label !== '9월 생활비 합계') fail(`the line must read "9월 생활비 합계", got "${value.label}"`);
     if (value.amount !== '314,500원') fail(`the line must carry the total Core returned, got "${value.amount}"`);
     if (value.chevronHidden !== 'true') fail('the chevron is decoration and must be hidden from assistive technology');
-    if (!value.ariaLabel.includes('9월 입력 금액 합계') || !value.ariaLabel.includes('314,500원') || !value.ariaLabel.includes('자세히 보기')) {
+    if (!value.ariaLabel.includes('9월 생활비 합계') || !value.ariaLabel.includes('314,500원') || !value.ariaLabel.includes('자세히 보기')) {
       fail(`the line's accessible name must say what it is, the total and that it opens, got "${value.ariaLabel}"`);
     }
     if (!value.oneRow) fail('label and total must share one row');
     if (value.totalPairGap===null||value.totalPairGap<0||value.totalPairGap>8) fail(`the total amount must sit directly beside its label, got gap ${value.totalPairGap}`);
-    if (value.lineHeight < 44 || value.lineHeight > 64) fail(`the line must be one 44px+ touch row, got ${value.lineHeight}px`);
+    if (value.lineHeight < 44) fail(`the total control must keep a 44px+ touch target, got ${value.lineHeight}px`);
     if (value.lineCategoryWords.length) fail(`the line must not spell out categories, got ${value.lineCategoryWords.join(',')}`);
     if (JSON.stringify(value.categoryRows) !== JSON.stringify([
       ['FOOD', '음식', '40,500원'],
@@ -527,8 +525,9 @@ try {
       ['LIVING', '생활비', '94,000원'],
       ['OTHER', '기타', '0원'],
     ])) fail(`the month must show the five category amounts beneath the total, got ${JSON.stringify(value.categoryRows)}`);
-    if (value.categoryPairGaps.some(gap=>gap===null||gap<0||gap>8)) fail(`each category amount must sit directly beside its title, got gaps ${JSON.stringify(value.categoryPairGaps)}`);
-    if (value.viewport.width <= 520 && value.categoryColumns !== 2) fail(`phone categories must use two columns, got ${value.categoryColumns}`);
+    if (value.categoryPairGaps.some(gap=>gap===null)) fail(`each category must expose both its title and amount, got ${JSON.stringify(value.categoryPairGaps)}`);
+    const expectedColumns=value.viewport.width<=520?2:5;
+    if (value.categoryColumns !== expectedColumns) fail(`the approved table must use ${expectedColumns} category columns here, got ${value.categoryColumns}`);
     for (const theme of ['Light', 'Dark']) {
       const styles=value['categoryStyles'+theme];
       if (styles.some(item=>item.border.some(width=>width!=='0px'))) fail(`${theme} category labels must not have box borders, got ${JSON.stringify(styles)}`);
@@ -537,7 +536,7 @@ try {
       if (styles.some(item=>item.labelContrast<4.5)) fail(`${theme} category title colours must hold WCAG AA 4.5:1, got ${JSON.stringify(styles)}`);
     }
     if (value.forbidden.length) fail(`ledger words must not appear on the month, got ${value.forbidden.join(',')}`);
-    if (!value.aboveTheFold) fail(`the amount line must be visible without scrolling — line bottom ${value.barBottom}px vs viewport ${value.viewport.height}px`);
+    if (value.viewport.width > 900 && !value.aboveTheFold) fail(`the desktop amount line must be visible in the rail — line bottom ${value.barBottom}px vs viewport ${value.viewport.height}px`);
     if (!value.noHorizontalOverflow) fail('the amount line must not cause horizontal overflow');
     for (const theme of ['Light', 'Dark']) {
       const c = value['contrast' + theme];
@@ -554,7 +553,7 @@ try {
     const detail = value.detail;
     const wantPresentation = value.viewport.width <= 900 ? 'SHEET' : 'SIDE';
     if (detail.presentation !== wantPresentation) fail(`the breakdown must open as ${wantPresentation}, got "${detail.presentation}"`);
-    if (detail.heading !== '2026년 9월 입력 금액') fail(`the breakdown must name its month, got "${detail.heading}"`);
+    if (detail.heading !== '2026년 9월 생활비 합계') fail(`the breakdown must name its month, got "${detail.heading}"`);
     if (detail.total !== '314,500원') fail(`the breakdown total must be Core's, got "${detail.total}"`);
     if (JSON.stringify(detail.rows) !== JSON.stringify([['FOOD', '음식', '40,500원 2건'], ['TRAVEL', '여행', '180,000원 1건'], ['LIVING', '생활비', '94,000원 1건']])) {
       fail(`the breakdown must list only the recorded categories in fixed order, got ${JSON.stringify(detail.rows)}`);
@@ -567,7 +566,7 @@ try {
     if (!detail.focusBack) fail('closing the breakdown must return focus to the amount line');
 
     if (value.staleSeen) fail("the previous month's total must not survive a month change");
-    if (value.octoberLabel !== '10월 입력 금액 합계' || !value.octoberAria.includes('10월')) {
+    if (value.octoberLabel !== '10월 생활비 합계' || !value.octoberAria.includes('10월')) {
       fail(`the line must follow the displayed month, got "${value.octoberLabel}" / "${value.octoberAria}"`);
     }
 

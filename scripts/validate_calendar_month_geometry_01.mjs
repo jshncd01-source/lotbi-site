@@ -66,12 +66,12 @@ function makeModal(){
   return {backdrop,modal,root};
 }
 
-function addFive(repo,date){
-  for(let i=0;i<5;i+=1){
+function addSix(repo,date){
+  for(let i=0;i<6;i+=1){
     const hour=9+Math.floor(i/2);
     const minute=i%2===0?'00':'30';
     repo.create({
-      title:['치과','고객 미팅','미용실','저녁 약속','자동차 검사'][i],
+      title:['치과','고객 미팅','미용실','저녁 약속','자동차 검사','긴 제목도 옆 날짜를 침범하지 않는 마지막 일정'][i],
       local_date:date,
       local_datetime:date+'T'+String(hour).padStart(2,'0')+':'+minute+':00',
       all_day:false,
@@ -86,11 +86,11 @@ async function measure({nowIso,date,label,weeks}){
     getItem:key=>values.has(key)?values.get(key):null,
     setItem:(key,value)=>values.set(key,String(value)),
   };
-  // Five entries on one day is the point of the measurement, which is more than
+  // Six entries on one day is the approved overflow fixture, which is more than
   // a guest may create. The quota itself is asserted in
   // validate_guest_calendar_local_01.mjs, not here.
   const repo=createGuestCalendarRepository(storage,{createQuota:200});
-  addFive(repo,date);
+  addSix(repo,date);
   const {backdrop,modal,root}=makeModal();
   await mountLifeCalendarManager({
     root,
@@ -143,10 +143,10 @@ async function measure({nowIso,date,label,weeks}){
   if(getComputedStyle(modal).overflowY!=='hidden')throw new Error(label+' modal must not scroll');
   if(getComputedStyle(root).overflowY!=='hidden')throw new Error(label+' month content must not scroll');
   if(modal.scrollHeight>modal.clientHeight+1)throw new Error(label+' modal double scroll');
-  if(rows.length!==2)throw new Error(label+' Month must mount exactly two representative rows, got '+rows.length);
-  if(visible!==2)throw new Error(label+' both representative rows must be visible, got '+visible);
+  if(rows.length!==3)throw new Error(label+' Month must mount exactly three representative rows, got '+rows.length);
+  if(visible!==3)throw new Error(label+' all three representative rows must be visible, got '+visible);
   if(!overflowVisible)throw new Error(label+' +N overflow summary must be visible');
-  if(more.textContent!=='+3')throw new Error(label+' five-event overflow must read +3, got '+more.textContent);
+  if(more.textContent!=='+3개 더')throw new Error(label+' six-event overflow must read +3개 더, got '+more.textContent);
 
   const result={label,weeks,cellHeight,visible,overflow:more.textContent,unusedBottom,gridHeight:gridRect.height,modalHeight:modal.getBoundingClientRect().height};
   backdrop.remove();

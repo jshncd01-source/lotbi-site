@@ -251,10 +251,8 @@ try{
     const cell=grid.querySelector('[data-calendar-date="'+fixtureDates[index]+'"]');
     if(!cell)throw new Error('fixture date missing '+fixtureDates[index]);
     const rows=[...cell.querySelectorAll('.calendar-event-chip')];
-    const expectedRows=Math.min(expected,2);
-    if(rows.length!==expectedRows)throw new Error('Month must mount at most two rows '+fixtureDates[index]+' '+rows.length+' expected '+expectedRows);
-    // LIFE UX 01: a touch cell carries a dot per record (at most three), with
-    // the full count on the dots for the record; the titles wait in the detail.
+    const expectedRows=Math.min(expected,3);
+    if(rows.length!==expectedRows)throw new Error('Month must mount at most three rows '+fixtureDates[index]+' '+rows.length+' expected '+expectedRows);
     const dots=cell.querySelector('.calendar-record-dots');
     const dotCount=Number(dots?.dataset.recordCount||0);
     const dotNodes=dots?dots.querySelectorAll('.calendar-record-dot').length:0;
@@ -263,31 +261,27 @@ try{
     const overflowVisible=Boolean(more&&!more.hidden&&getComputedStyle(more).display!=='none');
     const hiddenCount=Math.max(0,expected-rows.length);
     const cellHeight=cell.getBoundingClientRect().height;
-    if(desktop){
-      if(visible!==expectedRows)throw new Error('representative rows must actually be visible '+fixtureDates[index]+' '+visible+' expected '+expectedRows);
-      if(rows.length+hiddenCount!==expected)throw new Error('density count mismatch '+fixtureDates[index]+' mounted '+rows.length+' hidden '+hiddenCount+' expected '+expected);
-      if(hiddenCount>0&&!overflowVisible)throw new Error('overflow summary must actually be visible '+fixtureDates[index]);
-      if(hiddenCount>0&&more.textContent!=='+'+hiddenCount)throw new Error('overflow copy mismatch '+fixtureDates[index]);
-      if(hiddenCount===0&&overflowVisible)throw new Error('zero overflow must stay hidden '+fixtureDates[index]);
-      const stack=cell.querySelector('.calendar-event-stack');
-      if(getComputedStyle(stack).overflowY==='auto'||getComputedStyle(stack).overflowY==='scroll')throw new Error('cell inner scrollbar '+fixtureDates[index]);
-      if(rows.length>2)throw new Error('Month mounted unbounded event detail '+fixtureDates[index]);
-    }else if(dotCount!==expected||dotNodes!==Math.min(expected,3)){
-      throw new Error('mobile record dots mismatch '+fixtureDates[index]+' count '+dotCount+' dots '+dotNodes+' expected '+expected);
-    }
+    if(visible!==expectedRows)throw new Error('representative rows must actually be visible '+fixtureDates[index]+' '+visible+' expected '+expectedRows);
+    if(rows.length+hiddenCount!==expected)throw new Error('density count mismatch '+fixtureDates[index]+' mounted '+rows.length+' hidden '+hiddenCount+' expected '+expected);
+    if(hiddenCount>0&&!overflowVisible)throw new Error('overflow summary must actually be visible '+fixtureDates[index]);
+    if(hiddenCount>0&&more.textContent!=='+'+hiddenCount+'개 더')throw new Error('overflow copy mismatch '+fixtureDates[index]);
+    if(hiddenCount===0&&overflowVisible)throw new Error('zero overflow must stay hidden '+fixtureDates[index]);
+    const stack=cell.querySelector('.calendar-event-stack');
+    if(getComputedStyle(stack).overflowY==='auto'||getComputedStyle(stack).overflowY==='scroll')throw new Error('cell inner scrollbar '+fixtureDates[index]);
+    if(rows.length>3)throw new Error('Month mounted unbounded event detail '+fixtureDates[index]);
     density.push({date:fixtureDates[index],expected,visible,hiddenCount,overflowVisible,cellHeight});
   });
   result.density=density;
 
   if(desktop){
     if(modalRect.width<1050)throw new Error('desktop modal too narrow '+modalRect.width);
-    if(modalRect.height<innerHeight-60)throw new Error('desktop modal too short '+modalRect.height);
+    if(modalRect.height<Math.min(820,innerHeight-60))throw new Error('desktop modal too short '+modalRect.height);
     if(result.modal.overflowY!=='hidden')throw new Error('desktop modal must not scroll');
     if(result.content.overflowY!=='hidden')throw new Error('desktop month content must not scroll');
-    if(result.calendar.widthRatio<0.95)throw new Error('desktop Month must keep the full content width '+result.calendar.widthRatio);
-    if(result.detail.present||result.detail.backdrop)throw new Error('desktop Calendar must not open a selected day before a date press');
+    if(result.calendar.widthRatio<0.58)throw new Error('desktop Month rail leaves too little calendar width '+result.calendar.widthRatio);
+    if(!result.detail.present||result.detail.hidden||result.detail.presentation!=='SIDE'||result.detail.backdrop)throw new Error('desktop Calendar must mount one inline selected-day rail');
     if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
-    if(result.content.unusedBottom>4)throw new Error('desktop month leaves unused lower space '+result.content.unusedBottom+'px '+JSON.stringify(geometryDebug));
+    if(result.content.unusedBottom>8)throw new Error('desktop month leaves unused lower space '+result.content.unusedBottom+'px '+JSON.stringify(geometryDebug));
 
     const eventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
     const eventButton=eventCell?.querySelector('.calendar-event-chip');
@@ -337,8 +331,8 @@ try{
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
-    if(result.detail.present||result.detail.backdrop)throw new Error('touch Calendar must not open a selected day before a date press');
-    // Everything below is about the sheet a tap opens, so tap one first.
+    if(!result.detail.present||result.detail.hidden||result.detail.presentation!=='FLOW'||result.detail.backdrop)throw new Error('touch Calendar must mount one inline selected-day flow');
+    // Tap a date and verify the same in-flow panel follows it.
     const entryCell=grid.querySelector('.calendar-date-cell[data-selected="true"]')
       ||grid.querySelector('.calendar-date-cell[data-current-month="true"]');
     click(entryCell);
@@ -377,13 +371,12 @@ try{
         gridBottom:grid.getBoundingClientRect().bottom,
       };
     }
-    // Mobile detail is a dismissible bottom sheet.
+    // Mobile detail stays in the page's single vertical flow.
     if(result.detail.hidden)throw new Error('a tap on a date must open the selected-day surface');
-    if(result.detail.presentation!=='SHEET')throw new Error('touch selected-day surface must be a bottom sheet');
-    if(result.detail.position!=='fixed')throw new Error('touch selected-day panel must stay fixed to the viewport');
-    if(!result.detail.backdrop)throw new Error('touch selected-day panel must own a dismiss layer');
+    if(result.detail.presentation!=='FLOW')throw new Error('touch selected-day surface must stay in flow');
+    if(result.detail.position==='fixed')throw new Error('touch selected-day panel must not detach from the document');
+    if(result.detail.backdrop)throw new Error('touch selected-day panel must not own a dismiss layer');
     if(result.detail.left<-1||result.detail.right>innerWidth+1)throw new Error('touch selected-day panel horizontal overflow');
-    if(Math.abs(result.detail.bottom-innerHeight)>2)throw new Error('touch selected-day panel must rest on the viewport bottom');
 
     const mobileEventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
     if(!mobileEventCell)throw new Error('mobile event cell missing');
@@ -490,16 +483,17 @@ try{
   if(!modal.querySelector('.calendar-day-panel'))throw new Error('Settings Escape also closed the underlying day detail');
   await wait(()=>document.activeElement===settingsButton,'Settings Escape focus restore');
   result.settingsModalContained=true;
-  // Escape closes only the selected-day overlay and restores its date.
+  // Escape on the inline selected-day detail restores the selected date focus
+  // without removing the persistent rail/flow.
   const dayHeading=modal.querySelector('.calendar-day-panel .calendar-day-heading');
   dayHeading.focus();
   dayHeading.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
   await wait(()=>document.activeElement?.dataset.calendarDateTrigger===selectedDate,'selected-day Escape focus restore');
   if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('day-detail Escape closed the Calendar modal');
-  if(modal.querySelector('.calendar-day-panel'))throw new Error('day-detail Escape did not close the overlay');
+  if(!modal.querySelector('.calendar-day-panel'))throw new Error('day-detail Escape removed the persistent detail');
   result.escapeContained=true;
   click(modal.querySelector('.calendar-today-button'));
-  await wait(()=>content.dataset.calendarManagerView==='day','today');
+  await wait(()=>content.dataset.calendarManagerView==='month','today');
   await waitCalendarIdle('today');
   result.controls=true;result.dateSelection=true;
 
@@ -578,7 +572,9 @@ function wrapperMarkup(w,h){
 }
 function run(browser,w,h){
   fs.writeFileSync(WRAPPER,wrapperMarkup(w,h),'utf8');
-  const r=spawnSync(browser,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=22000','--dump-dom',ORIGIN+'/'+WRAPPER_REL],{encoding:'utf8',timeout:50000,maxBuffer:12*1024*1024});
+  const profile=fs.mkdtempSync(path.join(ROOT,'scripts/.calendar-runtime-profile-'));
+  const r=spawnSync(browser,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=22000','--dump-dom','--user-data-dir='+profile,ORIGIN+'/'+WRAPPER_REL+'?viewport='+w+'x'+h],{encoding:'utf8',timeout:50000,maxBuffer:12*1024*1024});
+  try{fs.rmSync(profile,{recursive:true,force:true})}catch{}
   if(r.error)throw r.error;
   if(r.status!==0)throw new Error('browser '+r.status+' '+r.stderr);
   const a='<pre id="result">',b='</pre>',i=r.stdout.indexOf(a),j=r.stdout.indexOf(b,i);

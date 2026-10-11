@@ -4656,9 +4656,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     const {backdrop, panel, content} = modalShell(
       '캘린더',
-      sessionToken
-        ? '내 일정과 생활 기록을 관리합니다.'
-        : '로그인 없이 쓸 수 있어요. 기기 간 동기화는 로그인 후 가능합니다.',
+      '일정과 생활 기록을 한눈에 관리하세요.',
     );
     panel.classList.add('site-calendar-modal', 'site-calendar-chat-popup');
     installSurfaceBehavior(backdrop, panel, {

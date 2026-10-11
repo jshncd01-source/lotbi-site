@@ -397,7 +397,6 @@ export function lifeRowPresentation(item, {date = item?.local_date, today = ''} 
     spanText,
     place,
     merchant && merchant !== title && merchant !== place ? merchant : '',
-    categoryLabel,
     memoExcerpt(entry.memo),
     item?.provider_verified === true && item?.confirmation_level === 'PROVIDER_VERIFIED' ? '외부 확인됨' : '',
   ].filter(Boolean);
