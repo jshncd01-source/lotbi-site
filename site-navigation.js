@@ -278,12 +278,15 @@ export function placeCategoryLabel(category) {
   return last.split(',').map(part => part.trim()).filter(Boolean).join('·').slice(0, 40);
 }
 
-export function normalizePlaceResult(value, {capturedAt = Date.now()} = {}) {
+// A conversation card rail keeps at most five places; the 지역정보 병원·응급실·약국
+// screen (LIFE-MEDICAL-MERGE-01) lists more and passes its own limit.
+export function normalizePlaceResult(value, {capturedAt = Date.now(), limit = 5} = {}) {
   if (!value || typeof value !== 'object') return null;
   if (value.contract_id !== 'CORE-PLACE-RESULT-01' || value.schema_version !== 1) return null;
   const resultSetId = text(value.result_set_id);
   if (!/^plrs_[0-9a-f]{20}$/u.test(resultSetId) || !Array.isArray(value.results)) return null;
-  const results = value.results.slice(0, 5).map(normalizePlace).filter(Boolean);
+  const cap = Number.isInteger(limit) && limit >= 1 && limit <= 15 ? limit : 5;
+  const results = value.results.slice(0, cap).map(normalizePlace).filter(Boolean);
   if (!results.length) return null;
   return Object.freeze({
     contractId: value.contract_id,

@@ -765,6 +765,13 @@ body[data-site-theme="dark"] .sidebar-account-plan {
   white-space: nowrap;
 }
 
+/* SITE-CONNECTED-SERVICES-HIDE-01 — display:flex on these rows outranks the UA [hidden], so the
+   switch in site-conversation.js (CONNECTED_SERVICES_MENU_VISIBLE) would otherwise change nothing. */
+.nav-item[data-consumer-section="mall"][hidden],
+.profile-popover [role="menuitem"][hidden] {
+  display: none;
+}
+
 .nav-item-pending[hidden] {
   display: none;
 }

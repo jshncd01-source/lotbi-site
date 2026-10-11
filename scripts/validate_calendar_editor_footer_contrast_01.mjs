@@ -1,6 +1,6 @@
 // 기록 추가 하단 버튼 — 취소가 보이고, 저장은 제목을 쓴 뒤에만 눌린다.
 //
-// iPhone 카카오톡 인앱 브라우저(기기 설정 = 다크)에서 '기록 추가' 시트의 취소
+// iPhone 카카오톡 인앱 브라우저(기기 설정 = 다크)에서 '일정 추가' 시트의 취소
 // 버튼이 흰 배경(#fff)에 다크 테마 글자색(#f5f5f5)으로 그려져 대비 1.09:1,
 // 사실상 안 보였다. 하단 버튼에만 다크 규칙이 없었다. 저장 버튼은 다크에서
 // 면이 시트 배경과 1.06:1로 구분되지 않았고, 제목이 비어도 눌렸다.
@@ -260,7 +260,7 @@ try {
     const where = c.name;
     const dark = c.theme === 'dark' || (c.theme === 'system' && c.scheme === 'dark');
     assert.equal(s.empty.osDark, c.scheme === 'dark', `${where}: prefers-color-scheme emulation did not apply`);
-    assert.equal(s.empty.heading, '기록 추가', `${where}: expected the 기록 추가 editor`);
+    assert.equal(s.empty.heading, '일정 추가', `${where}: expected the 일정 추가 editor`);
     for (const [state, v] of [['empty', s.empty], ['typed', s.typed], ['blank', s.blank], ['typed again', s.typedAgain], ['ready', s.ready]]) {
       const label = `${where} (${state})`;
       assert.equal(v.cancel.disabled, false, `${label}: 취소 must always be enabled`);

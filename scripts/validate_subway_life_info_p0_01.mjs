@@ -40,7 +40,9 @@ const FIXTURE = JSON.parse(read('scripts/fixtures/subway_life_info_p0_01.json'))
 let passed = 0;
 const check = async (name, fn) => { await fn(); passed += 1; console.log(`ok - ${name}`); };
 
-const EXPECTED_CARDS = ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'local', 'my-child'];
+const {LIFE_LOCAL_CARD_ENABLED: LOCAL_ON} = await import('../site-feature-flags.js');
+// 지역생활정보 is hidden until its result shows inside the screen (QA_화면전수_01 H3).
+const EXPECTED_CARDS = ['medical', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', ...(LOCAL_ON ? ['local'] : []), 'my-child'];
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36';
 const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36';

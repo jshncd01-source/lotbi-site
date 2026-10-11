@@ -2,9 +2,12 @@
 // Everything answers 404 FAMILY_LOCATION_NOT_ENABLED until the owner turns Core's switch on;
 // the care tab is not even shown then. Coordinates are only ever read from Core's answer for a
 // person this account may see; nothing here keeps them (no storage, no URL query, no log).
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-dfcf8fc51f25';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-c23fb6163ff4';
 
-export const FAMILY_PRIVACY_NOTICE = 'LOTBI 직원이 가족 위치를 볼 수 있는 화면은 없어요. 위치는 암호화해 보관하고 광고·판매·AI 학습에 쓰지 않아요. 실종 신고를 하면 보호자가 적은 \'마지막으로 본 장소\'만 담당자가 확인해요.';
+// Owner decision 2026-10-11 (A안): short and true ("연결된 가족": a second guardian joins with the owner's approval).
+export const FAMILY_PRIVACY_NOTICE = '내 위치는 연결된 가족만 봐요. 광고·AI 학습에 쓰지 않아요.';
+// Shown under [실종 신고로 이어가기], where it applies.
+export const FAMILY_MISSING_REPORT_NOTICE = '실종 신고를 하면 보호자가 적은 \'마지막으로 본 장소\'만 담당자가 확인해요.';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';

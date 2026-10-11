@@ -1,7 +1,8 @@
 // EV-CHARGER-NEARBY-LIST-P0 — 지역정보 → 전기차 충전소 → 내 주변 충전소 목록.
 //
 // Contract checked here:
-// * 지역정보 shows '전기차 충전소' right after 약국; the existing cards and
+// * 지역정보 shows '전기차 충전소' right after 병원·응급실·약국 (one card since
+//   LIFE-MEDICAL-MERGE-01, 2026-10-11); the existing cards and
 //   their order stay; phones keep the approved two-column grid with no empty
 //   cell (an even count fills every row, an odd count spans the last card)
 // * the card opens its own screen (/#ev-chargers), never the conversation:
@@ -40,7 +41,9 @@ const FIXTURE = JSON.parse(read('scripts/fixtures/ev_charger_nearby_p0_01.json')
 let passed = 0;
 const check = async (name, fn) => { await fn(); passed += 1; console.log(`ok - ${name}`); };
 
-const EXPECTED_CARDS = ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'local', 'my-child'];
+const {LIFE_LOCAL_CARD_ENABLED: LOCAL_ON} = await import('../site-feature-flags.js');
+// 지역생활정보 is hidden until its result shows inside the screen (QA_화면전수_01 H3).
+const EXPECTED_CARDS = ['medical', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', ...(LOCAL_ON ? ['local'] : []), 'my-child'];
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36';
 const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36';
@@ -51,10 +54,10 @@ const ev = await import('../site-life-ev-chargers.js');
 const navigation = await import('../site-navigation.js');
 const {SITE_ROUTES} = await import('../site-route.js');
 
-await check('지역정보: 전기차 충전소 right after 약국, the other cards and their order kept', () => {
+await check('지역정보: 전기차 충전소 right after 병원·응급실·약국, the other cards and their order kept', () => {
   const ids = sections.LIFE_SHORTCUTS.map(item => item.id);
   assert.deepEqual(ids, EXPECTED_CARDS);
-  assert.equal(ids.indexOf('ev-chargers'), ids.indexOf('pharmacy') + 1);
+  assert.equal(ids.indexOf('ev-chargers'), ids.indexOf('medical') + 1);
   const card = sections.LIFE_SHORTCUTS.find(item => item.id === 'ev-chargers');
   assert.equal(card.label, '전기차 충전소');
   assert.equal(card.icon, 'ev');

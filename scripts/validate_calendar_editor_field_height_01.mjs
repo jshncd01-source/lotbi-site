@@ -125,7 +125,7 @@ try {
   // Open the editor the way a user does.
   root.querySelector('[data-calendar-date-trigger="2026-09-24"]')?.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
   await sleep(500);
-  root.querySelector('[data-calendar-add]')?.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+  root.querySelector('.calendar-day-panel [data-calendar-add]')?.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
   await wait(() => root.querySelector('.calendar-editor-date'), 'editor');
   await sleep(200);
 
@@ -156,9 +156,12 @@ try {
   result.dateValue = root.querySelector('.calendar-editor-date')?.value || '';
   result.timeValue = root.querySelector('.calendar-editor-time')?.value ?? '(missing)';
   result.collapsed = {dateField: root.querySelector('.calendar-editor-date-field').hidden,
-    sections: [...root.querySelectorAll('[data-editor-section]')].every(node => node.hidden)};
+    // CALENDAR-ADD-UX-01: time and amount open from the start, the rest stays behind chips.
+    sections: [...root.querySelectorAll('[data-editor-section]')].filter(node => !node.hidden).map(node => node.dataset.editorSection).join(',') === 'time,amount'};
   root.querySelector('.calendar-editor-date-chip').click();
-  for (const key of ['time', 'amount', 'place', 'end', 'more']) root.querySelector('[data-editor-chip="' + key + '"]').click();
+  for (const key of ['time', 'amount', 'place', 'end', 'more']) {
+    if (root.querySelector('[data-editor-section="' + key + '"]').hidden) root.querySelector('[data-editor-chip="' + key + '"]').click();
+  }
   result.light = read();
   result.timeType = root.querySelector('.calendar-editor-time').type;
   document.body.dataset.siteTheme = 'dark';
@@ -222,7 +225,7 @@ try {
     const where = `${v.viewport.width}x${v.viewport.height}`;
     if (!v.dateValue) throw new Error(`${where}: the date field should carry the selected day`);
     if (v.timeValue !== '') throw new Error(`${where}: the time field should be the empty one, got ${v.timeValue}`);
-    if (!v.collapsed.dateField || !v.collapsed.sections) throw new Error(`${where}: the date field and every optional control must start closed`);
+    if (!v.collapsed.dateField || !v.collapsed.sections) throw new Error(`${where}: the date field must start closed, with only time and amount open`);
     if (v.timeType !== 'text') throw new Error(`${where}: time must be keyboard-safe text, not the native picker`);
     for (const [theme, t] of [['light', v.light], ['dark', v.dark], ['system', v.system]]) {
       const named = Object.entries(t).filter(([, value]) => value);

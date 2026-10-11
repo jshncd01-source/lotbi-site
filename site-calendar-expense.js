@@ -360,8 +360,8 @@ export function amountDetailPresentation(summary, {local = false} = {}) {
           }))),
       });
     })),
-    scopeNote: '캘린더 기록에 입력한 금액을 더한 값이에요.',
-    storageNote: local && currencies.length ? '이 기기에 저장된 기록 기준이에요.' : '',
+    scopeNote: '캘린더 일정에 입력한 금액을 더한 값이에요.',
+    storageNote: local && currencies.length ? '이 기기에 저장된 일정 기준이에요.' : '',
   });
 }
 

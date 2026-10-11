@@ -1,54 +1,48 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-dfcf8fc51f25';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-dfcf8fc51f25';
-import {TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-dfcf8fc51f25';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-c23fb6163ff4';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-c23fb6163ff4';
+import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-c23fb6163ff4';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
 // onAsk(text) hands a finished question to the conversation, which sends it
 // right away: one tap asks LOTBI, with nothing to confirm or send again.
 //
-// LIFE-MEDICAL-AUTO-SEARCH-01 — 병원·약국·응급실 have no form. The tap sends a
-// fixed question the existing Core medical route (국립중앙의료원 data) reads as
-// "nearby"; the existing life-location contract (site-life-location.js) then
-// sends the current location (location use on and permitted), else the saved
-// region, else nothing so Core asks for a region. Conditions such as 지금 ·
-// 야간 · 휴일 · 24시간 are offered on the pharmacy results, not asked first.
-export const LIFE_MEDICAL_QUESTIONS = Object.freeze({
-  hospital: '근처 병원 찾아줘',
-  pharmacy: '근처 약국 찾아줘',
-  emergency: '근처 응급실 찾아줘',
-});
-// REGIONAL-INFO-APPROVED-UX-RESTORE-P0 — the approved 지역정보 menu: one
-// 병원·응급실 card opens a two-way choice (병원·의원 찾기 / 응급실 찾기, each the
-// existing medical question), 약국 stays its own card and asks at once, and the
-// separate 유치원·학교 card is gone (owner decision 2026-10-10): 내 아이 학교·유치원
-// is the one education card. REGIONAL-INFO-BACK-NAVIGATION-01 (owner decision
-// 2026-10-10, "학교·유치원 등록인데 메뉴를 왜 나눠?"): it opens the saved schools /
-// 유치원 screen at once (MY-CHILD-SCHOOL-01) — no 내 아이 정보 / 유치원·학교 찾기
-// choice; schools (NEIS) and 유치원 (유치원알리미) are found inside its
-// '학교·유치원 추가'. Owner decision 2026-10-10 ("1링크 다시 살리"): signed out,
-// that screen also links "로그인 없이 학교·유치원 찾기" — the public lookup
-// (site-life-education.js, KINDERGARTEN-OFFICIAL-INFO-01, route life-education).
+// LIFE-MEDICAL-MERGE-01 (owner decision 2026-10-11: "병원 응급실 약국도 같은 분류이니깐
+// 카테고리를 하나로", then "이걸 너 같으면 사용자가 쓰겠어?"): 병원·응급실·약국 is ONE
+// card, and it is a screen of its own — site-life-medical-list.js lists the nearest
+// 병원·의원 / 응급실 / 약국 right in the 지역정보 screen (Core GET
+// /v2/life/medical/nearby, the search the conversation runs for "근처 … 찾아줘").
+// Nothing is sent to the conversation: the earlier fixed questions (LIFE-MEDICAL-
+// AUTO-SEARCH-01) and the two-way choice (REGIONAL-INFO-APPROVED-UX-RESTORE-P0)
+// are gone. 응급실 stays in the card name so an emergency room is not hidden behind
+// a card that does not name it.
+// REGIONAL-INFO-APPROVED-UX-RESTORE-P0 — the separate 유치원·학교 card is gone (owner
+// decision 2026-10-10): 내 아이 학교·유치원 is the one education card.
+// REGIONAL-INFO-BACK-NAVIGATION-01 (owner decision 2026-10-10, "학교·유치원
+// 등록인데 메뉴를 왜 나눠?"): it opens the saved schools / 유치원 screen at once
+// (MY-CHILD-SCHOOL-01) — no 내 아이 정보 / 유치원·학교 찾기 choice; schools (NEIS) and
+// 유치원 (유치원알리미) are found inside its '학교·유치원 추가'. Owner decision
+// 2026-10-10 ("1링크 다시 살리"): signed out, that screen also links "로그인 없이
+// 학교·유치원 찾기" — the public lookup (site-life-education.js,
+// KINDERGARTEN-OFFICIAL-INFO-01, route life-education).
 // REGIONAL-CARDS-BUNDLE-01 (four feature screens, one card list):
-// * 전기차 충전소 right after 약국 (EV-CHARGER-NEARBY-LIST-P0, site-life-ev-chargers.js)
+// * 전기차 충전소 right after the 병원·응급실·약국 card (EV-CHARGER-NEARBY-LIST-P0, site-life-ev-chargers.js)
 // * 지하철 정보 right after 지역뉴스 (SUBWAY-LIFE-INFO-P0, site-life-subway.js)
 // * 부동산 실거래가 right after 온누리상품권·지역화폐 (REAL-ESTATE-REGION-FAVORITES-P0,
 //   site-life-real-estate.js)
 // * 도로 CCTV after it only while TRAFFIC_CCTV_UI_ENABLED (off: owner decision
 //   2026-10-10, TRAFFIC-CCTV P0, site-life-traffic-cctv.js)
-// Each is a screen of its own, never a question to the conversation. Ten
-// cards (CCTV off; no 전북 맛집·음식 — owner decision 2026-10-10): five full rows
-// of two. On a 360px phone 내 아이 학교·유치원 wraps at its word gap inside the
-// shared card height (site-consumer-layout.css: grid-auto-rows 1fr). Turning
-// CCTV on makes eleven: the odd last card then spans its row
+// Each is a screen of its own, never a question to the conversation. Eight
+// cards (CCTV off; no 전북 맛집·음식 — owner decision 2026-10-10, 약국 inside the
+// medical card — 2026-10-11, 지역생활정보 hidden — QA_화면전수_01 H3, 2026-10-11):
+// four full rows of two, so no cell is empty. On a 360px phone 병원·응급실·약국 and
+// 온누리상품권·지역화폐 wrap at a '·' inside the shared card height
+// (site-consumer-layout.css: grid-auto-rows 1fr). An odd count (CCTV on, or
+// 지역생활정보 shown again) makes the last card span its row
 // (site-consumer-design.css), so no cell is empty either way.
-export const LIFE_MEDICAL_CHOICES = Object.freeze([
-  Object.freeze({id: 'hospital', label: '병원·의원 찾기'}),
-  Object.freeze({id: 'emergency', label: '응급실 찾기'}),
-]);
 export const LIFE_SHORTCUTS = Object.freeze([
-  {id: 'medical', label: '병원·응급실', icon: 'hospital', choices: LIFE_MEDICAL_CHOICES},
-  {id: 'pharmacy', label: '약국', icon: 'pharmacy', ask: LIFE_MEDICAL_QUESTIONS.pharmacy},
+  // LIFE-MEDICAL-MERGE-01: 병원·응급실·약국 in one screen (site-life-medical-list.js), no chat.
+  {id: 'medical', label: '병원·응급실·약국', icon: 'hospital'},
   // EV-CHARGER-NEARBY-LIST-P0: nearest stations from 한국환경공단 data, no chat.
   {id: 'ev-chargers', label: '전기차 충전소', icon: 'ev'},
   {id: 'festivals', label: '축제·행사', icon: 'calendar'},
@@ -70,7 +64,8 @@ export const LIFE_SHORTCUTS = Object.freeze([
   // stays on one line in the approved two-column grid at 360 px. Hidden while
   // TRAFFIC_CCTV_UI_ENABLED is off.
   ...(TRAFFIC_CCTV_UI_ENABLED ? [{id: 'traffic-cctv', label: '도로 CCTV', icon: 'cctv'}] : []),
-  {id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'},
+  // Hidden until its result shows inside the screen (QA_화면전수_01 H3, LIFE_LOCAL_CARD_ENABLED).
+  ...(LIFE_LOCAL_CARD_ENABLED ? [{id: 'local', label: '지역생활정보', icon: 'pin', prompt: '우리 지역 생활정보를 알려 줘'}] : []),
   // REGIONAL-CARDS-BUNDLE-01: no 전북 맛집·음식 card or entry form (owner decision
   // 2026-10-10 — LOTBI serves the whole country, not 전북 only). The 전북 official
   // record cards shown in a conversation answer stay.
@@ -185,6 +180,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
   let releaseWallet;
   let releaseEducation;
   let releaseNews;
+  let releaseMedical;
   let releaseMyChild;
   let lifeApi = null;
 
@@ -206,6 +202,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     // Leaving a screen releases the module it mounted (뉴스, 유치원·학교, 내 아이 정보).
     const releaseDetail = () => {
       generation += 1;
+      releaseMedical?.(); releaseMedical = undefined;
       releaseNews?.(); releaseNews = undefined;
       releaseEducation?.(); releaseEducation = undefined;
       releaseMyChild?.(); releaseMyChild = undefined;
@@ -227,7 +224,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     }
     function showLifeView(name, {from = ''} = {}) {
       if (disposed) return;
-      if (name === 'life-medical' && items.medical) openMedicalChoice(items.medical);
+      if (name === 'life-medical' && items.medical) openMedical(items.medical);
       else if (name === 'life-news' && items.news) openNewsEntry(items.news);
       else if (name === 'life-local' && items.local) openLifeDetail(items.local);
       else if (name === 'life-my-child' && items['my-child']) openMyChild(items['my-child'], from);
@@ -273,26 +270,29 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       detail.append(title, ...(examples.childElementCount ? [examples] : []), queryForm, node('p', 'consumer-feature-note', note));
       root.replaceChildren(detail); setView(viewName); title.focus();
     }
-    // 병원·응급실: nothing is asked until the reader picks 병원·의원 or 응급실;
-    // the pick sends that existing medical question once.
-    function openMedicalChoice(item) {
+    // 병원·응급실·약국 (LIFE-MEDICAL-MERGE-01): its own module lists the nearest
+    // 병원·의원 / 응급실 / 약국 in this screen (current location, a remembered
+    // region, or a picked one). Nothing goes to the conversation. It never shows
+    // the browser's permission prompt on opening or on a reload — only the
+    // [위치 허용하고 찾기] tap does.
+    function openMedical(item) {
       releaseDetail();
+      const current = ++generation;
       const detail = node('section', 'consumer-life-detail');
       detail.dataset.lifeDetail = item.id;
-      const title = node('h3', '', item.label); title.tabIndex = -1;
-      const choices = node('div', 'consumer-life-choices');
-      let asked = false;
-      for (const choice of item.choices) {
-        const button = action(choice.label, () => {
-          if (disposed || asked) return;
-          asked = true;
-          onAsk(LIFE_MEDICAL_QUESTIONS[choice.id]);
+      const host = node('div', 'consumer-life-medical');
+      detail.append(host);
+      root.replaceChildren(detail); setView('life-medical');
+      import('./site-life-medical-list.js?v=aset-c23fb6163ff4').then(({mountMedicalList}) => {
+        if (disposed || current !== generation) return null;
+        return mountMedicalList({root: host}).then(mounted => {
+          if (disposed || current !== generation) { mounted.dispose(); return; }
+          releaseMedical = mounted.dispose;
+          mounted.focus();
         });
-        button.dataset.medicalChoice = choice.id;
-        choices.append(button);
-      }
-      detail.append(title, choices);
-      root.replaceChildren(detail); setView('life-medical'); title.focus();
+      }).catch(() => {
+        if (!disposed && current === generation) host.replaceChildren(node('p', 'consumer-error', '병원·응급실·약국을 열지 못했습니다. 잠시 후 다시 열어 주세요.'));
+      });
     }
     // 지역뉴스: its own module lists the 광역시·도 news titles in this screen
     // (current location, saved region or a picked 시·도; 오늘 / 1주일). Nothing
@@ -305,7 +305,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(host);
       root.replaceChildren(detail); setView('life-news');
-      import('./site-life-news.js?v=aset-dfcf8fc51f25').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-c23fb6163ff4').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -326,7 +326,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(title, host);
       root.replaceChildren(detail); setView('life-education'); title.focus();
-      import('./site-life-education.js?v=aset-dfcf8fc51f25').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-c23fb6163ff4').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -343,15 +343,19 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       detail.dataset.lifeDetail = item.id;
       const title = node('h3', '', item.label); title.tabIndex = -1;
       const host = node('div', 'consumer-life-my-child');
-      detail.append(title, host);
+      detail.append(title);
       // Signed out: the public lookup, without an account (owner decision
-      // 2026-10-10). Signed in, the saved screen is all there is.
+      // 2026-10-10). Signed in, the saved screen is all there is. The link sits
+      // right under the title, above the content the module mounts below it
+      // (owner approval 2026-10-11): it used to sit under that content, so it
+      // slid ~175px down the moment the module attached and a tap on it missed.
       const lookup = authenticated ? null : node('button', 'consumer-action consumer-action-secondary consumer-life-lookup', '로그인 없이 학교·유치원 찾기');
       if (lookup) {
         lookup.type = 'button'; lookup.dataset.lifeEducationEntry = '';
         lookup.addEventListener('click', () => { if (!disposed) showLifeView('life-education'); });
         detail.append(lookup);
       }
+      detail.append(host);
       root.replaceChildren(detail); setView('life-my-child');
       (from === 'life-education' && lookup ? lookup : title).focus();
       Promise.resolve(typeof mountMyChild === 'function' ? mountMyChild(host, {onAsk}) : null).then(mounted => {
@@ -367,7 +371,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       button.addEventListener('click', () => {
         if (disposed) return;
         if (item.ask) onAsk(item.ask);
-        else if (item.choices) openMedicalChoice(item);
+        else if (item.id === 'medical') openMedical(item);
         else if (item.id === 'traffic-cctv') onTrafficCctv?.();
         else if (item.id === 'festivals') onFestival();
         else if (item.id === 'ev-chargers') onEvChargers?.();
@@ -503,7 +507,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     root.append(state, groups, node('p', 'consumer-feature-note', '업체별 실제 연결 가능 여부와 권한은 연결 서비스에서 확인합니다. 소셜 로그인 계정과 제휴처 이용 권한은 다릅니다. 주문·배송 및 자동 주문은 연결만으로 활성화되지 않으며, 실제 결제는 진행하지 않습니다.'));
   }
   return {
-    dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseFamily?.(); releaseWallet?.dispose?.(); releaseEducation?.(); releaseNews?.(); releaseMyChild?.(); },
+    dispose() { disposed = true; generation += 1; releasePeople?.(); releasePets?.(); releaseFamily?.(); releaseWallet?.dispose?.(); releaseEducation?.(); releaseNews?.(); releaseMedical?.(); releaseMyChild?.(); },
     // REGIONAL-INFO-BACK-NAVIGATION-01 (지역정보 only): the screen on view, show
     // one by its route, and one step back (false on the 지역정보 list itself).
     get lifeView() { return lifeApi ? lifeApi.view() : ''; },

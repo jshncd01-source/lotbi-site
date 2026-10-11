@@ -7,10 +7,13 @@
 //    never over the center card), so turning is visible without the arrows;
 //  - a card without a photo has no photo box; the center card fits on the
 //    screen whole, with 이름·거리·주소·진료시간·전화·길찾기 inside it;
-//  - "1/3" under the card says where you are; three cards first, the rest of
-//    Core's list behind "다른 병원 보기"; the same institution listed twice is
-//    one card;
-//  - wider screens keep the turning layout, the arrows and the keys;
+//  - "1/4" under the card says where you are; every place Core sent turns in
+//    the rail (PLACE-CARD-RAIL-ALL-RESULTS-01: no "다른 병원 보기" — it only
+//    held back places already sent); the same institution listed twice is one
+//    card;
+//  - wider screens keep the arrows and the keys, show one card with the arrows
+//    right beside it, and nothing half shown behind it (the side cards there
+//    made several cards look merged into one);
 //  - the map button still follows the map app chosen in 설정
 //    (lotbi_default_map_provider_v1) and the card body still opens a NAVER
 //    search.
@@ -93,7 +96,7 @@ const naver = (index, name, address, extra = {}) => ({
 
 const SCENARIOS = {
   // Five rows from Core, one of them the second clinic again (spacing and a
-  // hyphen differ): four institutions, three shown first.
+  // hyphen differ): four institutions, all four in the rail.
   medical: {
     cookieProvider: 'KAKAO_NAVI',
     noun: '병원',
@@ -111,7 +114,7 @@ const SCENARIOS = {
       ],
     },
   },
-  // Two NAVER places, the first with a verified photo: "1/2", no 더 보기.
+  // Two NAVER places, the first with a verified photo: "1/2".
   photo: {
     cookieProvider: '',
     noun: '장소',
@@ -131,7 +134,7 @@ const SCENARIOS = {
       ],
     },
   },
-  // One pharmacy: no position, no 더 보기, nothing to turn.
+  // One pharmacy: no position, nothing to turn.
   single: {
     cookieProvider: 'TMAP',
     noun: '약국',
@@ -254,7 +257,6 @@ const PROBE = `(() => {
     return {display: getComputedStyle(node).display, box: box(node), disabled: node.disabled};
   };
   const position = rail.querySelector('.lotbi-place-orbit-position');
-  const more = rail.querySelector('.lotbi-place-orbit-more');
   const map = center.querySelector('[data-map-provider]');
   return {
     vw: document.documentElement.clientWidth, vh: innerHeight,
@@ -286,7 +288,7 @@ const PROBE = `(() => {
     next: control('.lotbi-place-orbit-control-next'),
     footer: box(rail.querySelector('.lotbi-place-orbit-footer')),
     position: {text: position.textContent, box: box(position)},
-    more: {text: more.textContent, aria: more.getAttribute('aria-label') || '', box: box(more)},
+    footerButtons: rail.querySelectorAll('.lotbi-place-orbit-more, .lotbi-place-orbit-footer button').length,
     status: rail.querySelector('.lotbi-place-orbit-status').textContent,
     focusedIsCenter: document.activeElement === center,
     mapProvider: map?.dataset.mapProvider || '', mapHref: map?.getAttribute('href') || '',
@@ -400,7 +402,8 @@ function checkLayout(where, p, testCase, scenarioKey, {announced = true} = {}) {
   assert.equal(p.mapProvider, p.expectedMapProvider, `${where}: map provider`);
   assert.equal(p.mapHref, p.expectedMapHref, `${where}: map href`);
   // Footer: under the card, never over it.
-  if (p.shown > 1 || p.more.box) {
+  assert.equal(p.footerButtons, 0, `${where}: no 다른 … 보기 under the card`);
+  if (p.shown > 1) {
     assert.ok(p.hasFooterClass && p.footer, `${where}: footer shown`);
     assert.ok(p.footer.y >= p.center.b - 0.5, `${where}: footer ${p.footer.y} overlaps the card bottom ${p.center.b}`);
     assert.ok(inside(p.footer, p.rail), `${where}: footer inside the rail`);
@@ -438,6 +441,17 @@ function checkLayout(where, p, testCase, scenarioKey, {announced = true} = {}) {
     assert.ok(inside(p.prev.box, p.rail) && inside(p.next.box, p.rail), `${where}: arrows inside the rail`);
     assert.equal(p.prev.disabled, p.shown < 2, `${where}: ‹ enabled with more than one card`);
     assert.ok(p.prev.box.b <= p.center.b && p.prev.box.y >= p.center.y, `${where}: arrows beside the card, not on the footer`);
+    // PLACE-CARD-RAIL-ALL-RESULTS-01: right beside it, on its left and right.
+    assert.ok(p.prev.box.r <= p.center.x + 0.5 && p.center.x - p.prev.box.r <= 16, `${where}: ‹ right beside the card ${JSON.stringify({arrow: p.prev.box, card: p.center})}`);
+    assert.ok(p.next.box.x >= p.center.r - 0.5 && p.next.box.x - p.center.r <= 16, `${where}: › right beside the card ${JSON.stringify({arrow: p.next.box, card: p.center})}`);
+    // Nothing half shown behind or beside it: a side card on a wide screen is
+    // neither seen nor pressed until it turns to the center.
+    if (!p.dragging) {
+      for (const side of p.sides) {
+        assert.equal(side.opacity, 0, `${where}: side card ${side.name} (${side.slot}) shown on a wide screen (${side.opacity})`);
+        assert.equal(side.pointer, 'none', `${where}: side card ${side.name} (${side.slot}) pressable on a wide screen`);
+      }
+    }
   }
   // A card without a photo has no photo box.
   if (p.centerMedia) assert.equal(p.centerMedia.state, 'loaded', `${where}: a photo box only for a loaded photo`);
@@ -508,21 +522,15 @@ async function runScenario(page, origin, innerRel, testCase, scenarioKey) {
   const unique = scenario.names.length;
   assert.equal(p.total, unique, `${where0}: one card per institution (${p.total})`);
   assert.equal(p.placeCount, unique, `${where0}: place count`);
-  assert.equal(p.shown, Math.min(unique, 3), `${where0}: three cards first`);
-  assert.equal(p.cardCount, p.shown, `${where0}: card count`);
+  assert.equal(p.shown, unique, `${where0}: every place Core sent is in the rail`);
+  assert.equal(p.cardCount, unique, `${where0}: card count`);
   assert.equal(p.centerName, scenario.names[0], `${where0}: Core's first place first`);
-  if (unique > 3) {
-    assert.equal(p.more.text, `다른 ${scenario.noun} 보기`, `${where0}: 더 보기 label`);
-    assert.equal(p.more.aria, `다른 ${scenario.noun} ${unique - 3}곳 더 보기`, `${where0}: 더 보기 aria`);
-    assert.ok(p.more.box && inside(p.more.box, p.rail) && p.more.box.h >= 32, `${where0}: 더 보기 shown`);
-  } else {
-    assert.equal(p.more.box, null, `${where0}: no 더 보기 when every card is shown`);
-  }
   assert.equal(p.mediaCount, scenarioKey === 'photo' ? 1 : 0, `${where0}: a photo box only for the card with a photo`);
   checkLayout(where0, p, testCase, scenarioKey, {announced: false});
   await shot('initial');
 
   let expected = 0;
+  const seen = new Set([0]);
   const step = async (name, action, delta) => {
     const before = await evaluate(PROBE);
     await action(before);
@@ -534,6 +542,7 @@ async function runScenario(page, origin, innerRel, testCase, scenarioKey) {
       expected = ((expected + delta) % p.shown + p.shown) % p.shown;
       assert.equal(p.activeIndex, expected, `${where}: center card`);
       assert.equal(p.centerName, scenario.names[expected], `${where}: center name`);
+      seen.add(p.activeIndex);
     }
     assert.deepEqual(p.anchors, [], `${where}: no link was opened`);
     checkLayout(where, p, testCase, scenarioKey, {announced: delta !== 0});
@@ -551,6 +560,8 @@ async function runScenario(page, origin, innerRel, testCase, scenarioKey) {
       await step('swipe-left', b => swipe(b.center.cx + 70, b.center.cx - 70, b.parts.title.box.cy), 1);
       if (p.shown === 2) assert.ok(p.sides[0].slot.startsWith('LEFT'), `${testCase.label}/${scenarioKey}: after a swipe left the other card waits on the left`);
     } else {
+      // Round every card with ›, past the last one back to the first.
+      for (let i = 1; i <= p.shown; i += 1) await step(`next#${i}`, b => tap(b.next.box.cx, b.next.box.cy), 1);
       await step('next', b => tap(b.next.box.cx, b.next.box.cy), 1);
       await step('prev', b => tap(b.prev.box.cx, b.prev.box.cy), -1);
       await step('prev(wrap)', b => tap(b.prev.box.cx, b.prev.box.cy), -1);
@@ -565,26 +576,8 @@ async function runScenario(page, origin, innerRel, testCase, scenarioKey) {
     await step('swipe-left(single)', b => swipe(b.center.cx + 70, b.center.cx - 70, b.parts.title.box.cy), 0);
   }
 
-  if (unique > 3) {
-    const beforeMore = await evaluate(PROBE);
-    await tap(beforeMore.more.box.cx, beforeMore.more.box.cy);
-    await sleep(450);
-    p = await evaluate(PROBE);
-    const where = `${testCase.label}/${scenarioKey} 더 보기`;
-    assert.equal(p.shown, unique, `${where}: every card shown`);
-    assert.equal(p.cardCount, unique, `${where}: card count`);
-    assert.equal(p.activeIndex, 3, `${where}: the first added card comes to the center`);
-    assert.equal(p.centerName, scenario.names[3], `${where}: center name`);
-    assert.equal(p.position.text, `4/${unique}`, `${where}: position`);
-    assert.equal(p.more.box, null, `${where}: 더 보기 gone`);
-    assert.equal(p.focusedIsCenter, true, `${where}: focus moves to the added card, not lost with the button`);
-    assert.deepEqual(p.anchors, [], `${where}: no link was opened`);
-    checkLayout(where, p, testCase, scenarioKey);
-    await shot('more');
-    expected = 3;
-    if (testCase.mobile) await step('swipe-left(after more, wrap)', b => swipe(b.center.cx + 70, b.center.cx - 70, b.parts.title.box.cy), 1);
-    else await step('next(after more, wrap)', b => tap(b.next.box.cx, b.next.box.cy), 1);
-  }
+  // Every place was reached by turning alone (4/4 included).
+  assert.equal(seen.size, unique, `${testCase.label}/${scenarioKey}: every card reached by turning (${[...seen].sort().join(',')})`);
 
   // A plain tap on the card body still opens the NAVER search for it.
   const beforeTap = await evaluate(PROBE);
@@ -654,4 +647,4 @@ try {
   }
 }
 
-console.log('PLACE-MEDICAL-CARD-UX-FINAL-01 OK — phones swipe without arrows and see one whole card; no photo, no photo box; 1/3 and 다른 병원 보기; one card per institution; desktop keeps arrows and keys; the 설정 map app and the NAVER search stay');
+console.log('PLACE-MEDICAL-CARD-UX-FINAL-01 OK — phones swipe without arrows and see one whole card; no photo, no photo box; 1/4 with every place Core sent (no 다른 병원 보기); one card per institution; desktop shows one card with its arrows beside it and keys; the 설정 map app and the NAVER search stay');

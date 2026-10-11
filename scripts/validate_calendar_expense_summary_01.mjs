@@ -559,7 +559,7 @@ try {
     if (JSON.stringify(detail.rows) !== JSON.stringify([['FOOD', '음식', '40,500원 2건'], ['TRAVEL', '여행', '180,000원 1건'], ['LIVING', '생활비', '94,000원 1건']])) {
       fail(`the breakdown must list only the recorded categories in fixed order, got ${JSON.stringify(detail.rows)}`);
     }
-    if (detail.scope !== '캘린더 기록에 입력한 금액을 더한 값이에요.') fail(`the breakdown must say what the number is, got "${detail.scope}"`);
+    if (detail.scope !== '캘린더 일정에 입력한 금액을 더한 값이에요.') fail(`the breakdown must say what the number is, got "${detail.scope}"`);
     if (detail.forbidden.length) fail(`ledger words must not appear in the breakdown, got ${detail.forbidden.join(',')}`);
     if (!detail.focusInside) fail('opening the breakdown must move focus into it');
     if (!detail.fits) fail('the breakdown must fit the screen width');
@@ -601,7 +601,7 @@ try {
       fail(`signed-out breakdown is wrong, got ${JSON.stringify(value.guestRows)}`);
     }
     if (value.guestTotal !== '301,820원') fail(`signed-out breakdown total must be 301,820원, got ${value.guestTotal}`);
-    if (value.guestStorage !== '이 기기에 저장된 기록 기준이에요.') fail(`the signed-out breakdown must say where the records live, got "${value.guestStorage}"`);
+    if (value.guestStorage !== '이 기기에 저장된 일정 기준이에요.') fail(`the signed-out breakdown must say where the records live, got "${value.guestStorage}"`);
     if (value.guestForbidden.length) fail(`ledger words must not appear in the signed-out breakdown, got ${value.guestForbidden.join(',')}`);
     if (!value.labelParity) fail('the breakdown and the editor must call every category the same thing');
 

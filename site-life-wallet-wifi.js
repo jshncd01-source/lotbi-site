@@ -16,8 +16,8 @@
 // * Using it: the password stays masked until 비밀번호 보기 (30 seconds), 비밀번호 복사 works only
 //   while the wallet is open, and 와이파이 QR shows the standard WIFI: code (drawn on this device
 //   by site-qr-encode.js) for a guest's phone camera. Changing or deleting asks for the PIN.
-import {encodeQr, qrSvgElement} from './site-qr-encode.js?v=aset-dfcf8fc51f25';
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-dfcf8fc51f25';
+import {encodeQr, qrSvgElement} from './site-qr-encode.js?v=aset-c23fb6163ff4';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-c23fb6163ff4';
 
 export const WIFI_REVEAL_MS = 30_000;
 export const WIFI_QR_SHOW_MS = 60_000;

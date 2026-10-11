@@ -1,6 +1,7 @@
-import {getLifeAgenda, getLifeAttention, getLifeToday, getLifeUpcoming, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=aset-dfcf8fc51f25';
-import {SiteCoreError} from './site-core.js?v=aset-dfcf8fc51f25';
-export {buildCalendarAriaLabel, countCalendarEventsByMonth, loadLifeCalendarManagerView, mountLifeCalendarManager} from './site-calendar-manager.js?v=aset-dfcf8fc51f25';
+import {getLifeAgenda, getLifeAttention, getLifeToday, getLifeUpcoming, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=aset-c23fb6163ff4';
+import {SiteCoreError} from './site-core.js?v=aset-c23fb6163ff4';
+import {datetimeClockLabel} from './site-calendar-product.js?v=aset-c23fb6163ff4';
+export {buildCalendarAriaLabel, countCalendarEventsByMonth, loadLifeCalendarManagerView, mountLifeCalendarManager} from './site-calendar-manager.js?v=aset-c23fb6163ff4';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
@@ -46,7 +47,8 @@ function addDaysDateString({year, month, day}, days) {
 function displayTime(item) {
   if (!item || typeof item !== 'object') return '';
   if (typeof item.local_datetime === 'string' && item.local_datetime.length >= 16) {
-    return item.local_datetime.slice(11, 16);
+    // "오후 3:00", the same clock as the Calendar's own lists (CALENDAR-ADD-UX-01).
+    return datetimeClockLabel(item.local_datetime) || item.local_datetime.slice(11, 16);
   }
   return '종일';
 }

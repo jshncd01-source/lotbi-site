@@ -17,8 +17,8 @@
 // The ten tiles below the panel are examples; this panel is the only way in.
 import {
   addPersonIdentityPhoto, personErrorMessage, personIdentityPhotoErrorMessage,
-} from './site-person.js?v=aset-dfcf8fc51f25';
-import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-dfcf8fc51f25';
+} from './site-person.js?v=aset-c23fb6163ff4';
+import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-c23fb6163ff4';
 
 export const PERSON_BULK_MAX_FILES = 10;
 export const PERSON_BULK_WARNING = '정확한 비교를 위해 동일한 사람의 사진만 등록해 주세요. 다른 사람이나 동물·사물 사진이 섞이면 등록이 제한될 수 있습니다.';
