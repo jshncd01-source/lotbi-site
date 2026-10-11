@@ -396,7 +396,12 @@ async function openDialog(event) {
   if (loginGate) loginGate.hidden = true;
   if (workspace) workspace.hidden = true;
   if (status) status.textContent = '로그인 상태를 확인하고 있어요.';
-  dialog.showModal();
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else {
+    dialog.setAttribute('open', '');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+  }
   document.body.classList.add('scam-page-open');
   document.querySelectorAll('[data-scam-open]').forEach(entry => entry.setAttribute('aria-current', 'page'));
   notifyScamShieldVisibility();
@@ -435,19 +440,25 @@ function closeDialog() {
   if (!dialog) return;
   openSequence += 1;
   stopVoiceRecognition();
-  if (dialog.open) dialog.close();
+  if (typeof dialog.close === 'function') {
+    if (dialog.open) dialog.close();
+    finishDialogClose();
+    return;
+  }
+  dialog.removeAttribute('open');
+  dialog.removeAttribute('aria-modal');
+  restoreDialogFocus();
   finishDialogClose();
 }
 
 // Native <dialog> can deliver its close event after the route owner has already
-// asked for a synchronous close. Keep cleanup idempotent so the URL, focus and
-// aria-current state each change exactly once without waiting for a frame.
+// asked for a synchronous close. Keep route cleanup idempotent without waiting
+// for a frame; the native close event owns focus restoration exactly once.
 function finishDialogClose() {
   const wasVisible = document.body.classList.contains('scam-page-open');
   document.body.classList.remove('scam-page-open');
   document.querySelectorAll('[data-scam-open]').forEach(entry => entry.removeAttribute('aria-current'));
   if (!wasVisible) return;
-  restoreDialogFocus();
   notifyScamShieldVisibility();
 }
 
@@ -720,6 +731,7 @@ function bindScamShield() {
       event.preventDefault();
       dismissDialog();
     });
+    dialog.addEventListener('close', restoreDialogFocus);
     dialog.addEventListener('close', finishDialogClose);
   }
 

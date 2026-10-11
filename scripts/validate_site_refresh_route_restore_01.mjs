@@ -653,6 +653,15 @@ async function runCase(browser, origin, workDir, testCase) {
     // 진위확인: ×, 취소 and Escape before the step lands → one step back home.
     await openFromMenu('scam');
     await settled('scam', 'L scam');
+    const scamFocusTarget = testCase.mobile
+      ? '[data-mobile-nav-open]'
+      : `.chat-sidebar-desktop ${NAV_SELECTOR.scam}`;
+    await evaluate(`(() => {
+      window.__scamFocusRestores = 0;
+      const target = document.querySelector(${JSON.stringify(scamFocusTarget)});
+      target?.addEventListener('focus', () => { window.__scamFocusRestores += 1; });
+      return Boolean(target);
+    })()`);
     indexBefore = await historyIndex();
     popsBefore = await popCount();
     await evaluate(`(() => {
@@ -668,7 +677,9 @@ async function runCase(browser, origin, workDir, testCase) {
     state = await settled('', 'L scam × × 취소 Escape, 1.8 s later');
     indexAfter = await historyIndex();
     pops = await popCount() - popsBefore;
+    const focusRestores = await evaluate('window.__scamFocusRestores');
     check('L 진위확인 ×, ×, 취소 and Escape before the step lands → one step back home', state.url === '/' && !state.scam && indexAfter === indexBefore - 1 && pops === 1 && state.docId === doc, {state, indexBefore, indexAfter, pops});
+    check('L 네이티브 close 이벤트가 보이는 진입점으로 초점을 한 번만 복원', focusRestores === 1, {focusRestores, scamFocusTarget});
 
     // Escape with the focus outside the screen (the document's own Escape).
     await openFromMenu('life');
