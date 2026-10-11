@@ -55,7 +55,9 @@ def main() -> int:
     required_exchange = (
         '<link rel="canonical" href="https://lotbiai.com/exchange" />',
         "서비스 장애·하자 처리",
-        "기존 심사자료와 외부 링크의 호환",
+        # COMMON-UI-POLISH-02 (QA 02 E3) — 이 자리에 "기존 심사자료와 외부 링크의 호환을 위해
+        # /exchange 주소는 유지하며"가 필수로 고정돼 있었는데, 고객에게 보이는 개발 메모였다.
+        # 주소 호환은 위 canonical 링크 검사가 그대로 지킨다. 환불·복구 계약 문구는 그대로다.
         "청약철회, 구독 해지, 서비스 복구, 이용기간 연장 또는 환불",
     )
     for text in required_exchange:

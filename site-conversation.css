@@ -20,7 +20,9 @@
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;
-  word-break: normal;
+  /* CONVERSATION-ANSWER-UX-01 (QA #11): a Korean word is not split mid-word;
+     overflow-wrap:anywhere still breaks a URL longer than the line. */
+  word-break: keep-all;
 }
 
 .chat-message-user {
@@ -3939,3 +3941,76 @@ body[data-site-theme="dark"] .lotbi-regional-action { border-color: rgba(198, 20
 
 /* 전북 맛집·음식 entry form: a short label above each chip row. */
 .consumer-life-chip-label { margin: 4px 0 -4px; color: var(--lotbi-text-secondary, #4d535d); font-size: 13px; font-weight: 600; }
+
+/* CONVERSATION-ANSWER-UX-01 (QA #7): [현재 위치 사용] [지역 선택] under an
+   "어느 지역에서 찾을까요?" answer, and the region picker it opens. */
+.lotbi-location-request-row .lotbi-place-filter-chip {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 13.5px;
+}
+.lotbi-region-picker {
+  display: grid;
+  gap: 12px;
+  padding: 4px 2px 8px;
+  color: var(--lotbi-text-primary, #212121);
+}
+.lotbi-region-picker-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+.lotbi-region-picker-note,
+.lotbi-region-picker-status {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--lotbi-text-secondary, #212121);
+}
+.lotbi-region-picker-status:empty { display: none; }
+.lotbi-region-picker-field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.lotbi-region-picker-field select {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--lotbi-border-default, #e5e5e5);
+  border-radius: 12px;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #212121);
+  font: inherit;
+  font-size: 15px;
+}
+.lotbi-region-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.lotbi-region-picker-submit,
+.lotbi-region-picker-secondary {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.lotbi-region-picker-submit {
+  border: 0;
+  background: var(--lotbi-text-primary, #212121);
+  color: var(--lotbi-surface-elevated, #fff);
+}
+.lotbi-region-picker-submit:disabled {
+  opacity: .45;
+  cursor: default;
+}
+.lotbi-region-picker-secondary {
+  border: 1px solid var(--lotbi-border-default, #e5e5e5);
+  background: transparent;
+  color: var(--lotbi-text-primary, #212121);
+}

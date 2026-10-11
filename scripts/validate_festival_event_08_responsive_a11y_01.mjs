@@ -11,10 +11,11 @@
 //
 // 1. The list card itself (the primary path): its image/name link out to the
 //    festival's official homepage in a new tab (no more internal detail
-//    navigation), and [프로그램]/[접수]/캘린더/네이버지도/카카오내비/TMAP are
-//    direct actions on the card. [프로그램]/[접수] lazy-fetch the festival's
-//    programs on click (browse items never carry programs) and open the same
-//    internal surfaces the old detail screen used.
+//    navigation), and [프로그램]/[접수]/[일정 등록]/the Settings 지도앱 link are
+//    direct actions on the card. [프로그램]/[접수] appear once the card's own
+//    detail read shows programs / a reservation link (browse items never
+//    carry programs; FESTIVAL-UX-POLISH-01) and open the same internal
+//    surfaces the old detail screen used.
 // 2. Calendar re-entry (FESTIVAL-EVENT-10, `initialFestivalId`): still lands
 //    on the detail screen's CTA row and auto-opens the program surface when
 //    there are programs — this preserves the original CTA-visibility-matrix
@@ -23,8 +24,8 @@
 //    click.
 //
 // Covers: the list card's homepage link and map/calendar/program/registration
-// actions (with window.open stubbed to capture map handoffs instead of really
-// navigating), CTA visibility across the three reachable real-data shapes on
+// actions (the map link read for the default 네이버지도 and for the 카카오내비 /
+// TMAP Settings choices on a desktop UA), CTA visibility across the three reachable real-data shapes on
 // Calendar re-entry, the internal [프로그램] date-tab navigation (no external
 // handoff), date-tab keyboard (ArrowRight) semantics, back navigation across
 // all three surfaces, external-link security attributes, and 320/390/412/
@@ -141,31 +142,52 @@ function cardFixtureHtml() {
 <script type="module">
 ${sharedFixtureScript('both')}
 
-// Map handoffs each call window.open(uri, '_blank', 'noopener,noreferrer')
-// synchronously — stub it to capture the call instead of really navigating.
-const opened = [];
-window.open = (uri, target, features) => { opened.push({uri, target, features}); return null; };
+// A fixture that throws reports why instead of leaving an empty result.
+const reportFailure = reason => { document.getElementById('render-result').textContent = JSON.stringify({error: String(reason?.stack || reason)}); };
+window.addEventListener('error', event => reportFailure(event.error || event.message));
+window.addEventListener('unhandledrejection', event => reportFailure(event.reason));
+
+// --dump-dom runs on virtual time with no rendered frames, so a real
+// IntersectionObserver never reports here. This one card is on screen, so say
+// so the way a browser would; the real observer (cards read only once they
+// come into view) is driven in validate_festival_ux_polish_01.mjs.
+window.IntersectionObserver = class {
+  constructor(callback) { this.callback = callback; }
+  observe(target) { setTimeout(() => this.callback([{target, isIntersecting: true}], this), 0); }
+  unobserve() {}
+  disconnect() {}
+};
 
 const {mountFestivalManager} = await import('/site-festival-ui.js');
 const host = document.getElementById('host');
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+const firstCard = async () => {
+  for (let i = 0; i < 80; i += 1) {
+    const node = host.querySelector('.festival-card');
+    if (node && node.querySelector('.festival-card-action-registration')) return node;
+    await wait(50);
+  }
+  throw new Error('festival card did not render its 프로그램/접수 actions');
+};
+// The map link follows the 지도앱 saved in Settings; a time chip re-renders the card.
+const mapFor = async provider => {
+  document.cookie = provider ? 'lotbi_default_map_provider_v1=' + provider + '; path=/' : 'lotbi_default_map_provider_v1=; path=/; max-age=0';
+  [...host.querySelectorAll('.festival-chip')].find(button => button.textContent === '이번 주말').click();
+  await wait(150);
+  const node = await firstCard();
+  const links = [...node.querySelectorAll('.festival-card-map')];
+  return {count: links.length, href: links[0]?.getAttribute('href') || null, target: links[0]?.getAttribute('target') || null,
+    rel: links[0]?.getAttribute('rel') || null, label: links[0]?.textContent || '', provider: links[0]?.dataset.mapProvider || ''};
+};
 await mountFestivalManager({root: host, now: new Date('2026-10-08T02:00:00Z'), fetchImpl: window.fetch});
-await new Promise(resolve => setTimeout(resolve, 60));
+await wait(60);
 
-const card = host.querySelector('.festival-card');
-if (!card) throw new Error('festival card did not render');
+const mapKakao = await mapFor('KAKAO_NAVI');
+const mapTmap = await mapFor('TMAP');
+const mapDefault = await mapFor('');
+const card = await firstCard();
 const media = card.querySelector('.festival-card-open');
-
-const naverBtn = card.querySelector('.festival-card-map-naver');
-naverBtn.click();
-const naverCall = opened.at(-1);
-opened.length = 0;
-
-const kakaoBtn = card.querySelector('.festival-card-map-kakao');
-kakaoBtn.click();
-const kakaoCall = opened.at(-1);
-opened.length = 0;
-
-const tmapBtnPresent = !!card.querySelector('.festival-card-map-tmap');
+const legacyMapButtons = card.querySelectorAll('.festival-card-map-naver, .festival-card-map-kakao, .festival-card-map-tmap').length;
 
 const calendarTriggerPresent = !!card.querySelector('.festival-calendar-add-trigger');
 
@@ -197,12 +219,13 @@ const programResult = {
   tabCount: tabs.length,
   tabDates: tabs.map(t => t.getAttribute('data-festival-program-date')),
 };
+programResult.backSubview = programSurface.querySelector('.festival-back-button').hasAttribute('data-subview-back');
 programSurface.querySelector('.festival-back-button').click();
 await new Promise(resolve => setTimeout(resolve, 60));
 programResult.listVisibleAfterBack = !host.querySelector('.festival-list-surface').hidden;
 programResult.backButtonLabel = programSurface.querySelector('.festival-back-button')?.textContent;
 
-// [📅 일정 등록] — month-grid schedule picker: real cells, clamped nav,
+// [일정 등록] — month-grid schedule picker: real cells, clamped nav,
 // disabled out-of-range dates, single-date confirm, dedupe on a second try.
 const calendarTrigger = card.querySelector('.festival-calendar-add-trigger');
 calendarTrigger.click();
@@ -255,12 +278,12 @@ document.getElementById('render-result').textContent = JSON.stringify({
   mediaRel: media.getAttribute('rel'),
   mediaAriaLabel: media.getAttribute('aria-label'),
   legacySectionPresent: /예약\\s*안내|주차|셔틀|공식\\s*출처|CHECK_REQUIRED|ADVANCE|ONSITE/.test(card.textContent),
-  naverUri: naverCall ? naverCall.uri : null,
-  naverTarget: naverCall ? naverCall.target : null,
-  naverFeatures: naverCall ? naverCall.features : null,
-  kakaoUri: kakaoCall ? kakaoCall.uri : null,
-  tmapBtnPresent,
+  mapDefault,
+  mapKakao,
+  mapTmap,
+  legacyMapButtons,
   calendarTriggerPresent,
+  calendarTriggerText: card.querySelector('.festival-calendar-add-trigger')?.textContent || '',
   registration: registrationResult,
   program: programResult,
   calendar: calendarResult,
@@ -412,22 +435,33 @@ assert.match(card.mediaAriaLabel || '', /공식 홈페이지/);
 assert.match(card.mediaAriaLabel || '', /새 창/);
 assert.equal(card.legacySectionPresent, false, '예약안내/주차·셔틀/공식출처/내부 enum이 카드에 노출되면 안 된다');
 
-assert.ok(card.naverUri, '네이버지도 버튼은 window.open을 호출해야 한다');
-assert.equal(card.naverTarget, '_blank');
-assert.equal(card.naverFeatures, 'noopener,noreferrer');
+// FESTIVAL-UX-POLISH-01: one map link, in the 지도앱 saved in Settings.
+assert.equal(card.legacyMapButtons, 0, '카드에 네이버지도/카카오내비/TMAP 버튼 3개를 따로 두지 않아야 한다');
+for (const map of [card.mapDefault, card.mapKakao, card.mapTmap]) {
+  assert.equal(map.count, 1, '지도 버튼은 설정한 지도앱 하나뿐이어야 한다');
+  assert.equal(map.target, '_blank');
+  assert.equal(map.rel, 'noopener noreferrer');
+}
+assert.equal(card.mapDefault.provider, 'NAVER_MAP', '설정이 없으면 네이버지도');
+assert.match(card.mapDefault.label, /네이버지도/u);
 // Desktop NAVER handoff must carry the festival's full address, not a
 // truncated "서울특별시 영등포구"-only fragment that can match the wrong place.
 assert.match(
-  decodeURIComponent(card.naverUri),
+  decodeURIComponent(card.mapDefault.href || ''),
   /여의동로 330/u,
   '네이버지도 목적지에 축제 주소 전체(도로명+번지)가 포함되어야 한다',
 );
-assert.match(card.kakaoUri || '', /^https:\/\/map\.kakao\.com\/link\/to\//u,
+assert.equal(card.mapKakao.provider, 'KAKAO_NAVI');
+assert.match(card.mapKakao.href || '', /^https:\/\/map\.kakao\.com\/link\/to\//u,
   '데스크톱 카카오는 카카오맵 웹 길찾기로 열려야 한다');
 // Confirm the festival's verified coordinate reaches the desktop web route.
-assert.match(decodeURIComponent(card.kakaoUri), /,37\.52,126\.93/u);
-assert.equal(card.tmapBtnPresent, false, 'TMAP은 모바일 전용이므로 데스크톱 UA에서는 렌더되지 않아야 한다');
+assert.match(decodeURIComponent(card.mapKakao.href), /,37\.52,126\.93/u);
+assert.equal(card.mapTmap.provider, 'TMAP');
+assert.doesNotMatch(card.mapTmap.href || '', /^(tmap|intent):/u, 'TMAP은 모바일 전용이므로 데스크톱 UA에서 앱 링크로 열면 안 된다');
+assert.match(card.mapTmap.label, /티맵 대신 네이버지도 웹/u, '데스크톱의 TMAP 설정은 네이버지도 웹으로 연다고 말해야 한다');
+assert.match(decodeURIComponent(card.mapTmap.href || ''), /여의동로 330/u);
 assert.equal(card.calendarTriggerPresent, true, '캘린더 추가 액션이 카드에 직접 있어야 한다');
+assert.equal(card.calendarTriggerText, '일정 등록');
 
 assert.ok(card.registration, '[접수] 클릭이 접수 가능한 프로그램 팝업을 열어야 한다');
 assert.equal(card.registration.sheetOpen, true);
@@ -445,8 +479,9 @@ assert.equal(card.program.tabCount, 3, `${D0}~${D2} 3일 범위의 실제 프로
 assert.deepEqual(card.program.tabDates, [D0, D1, D2]);
 assert.equal(card.program.listVisibleAfterBack, true, '카드에서 연 프로그램 화면의 뒤로가기는 상세화면이 아니라 목록으로 돌아가야 한다');
 assert.equal(card.program.backButtonLabel, '← 목록으로');
+assert.equal(card.program.backSubview, true, '프로그램 화면의 뒤로 버튼은 사이트 ←·뒤로가기가 누를 수 있게 data-subview-back을 가져야 한다');
 
-assert.ok(card.calendar, '[📅 일정 등록] 클릭이 월간 달력 팝업을 열어야 한다');
+assert.ok(card.calendar, '[일정 등록] 클릭이 월간 달력 팝업을 열어야 한다');
 assert.equal(card.calendar.sheetOpen, true);
 assert.match(card.calendar.nameShown || '', /가을 억새 축제/, '축제명이 팝업에 자동 입력되어야 한다');
 assert.ok(card.calendar.periodShown, '축제기간이 팝업에 자동 입력되어야 한다');
@@ -509,4 +544,4 @@ for (const width of [320, 412, 1280]) {
     `${width}px: horizontal overflow ${result.bodyScrollWidth}px > ${result.bodyClientWidth}px`);
 }
 
-console.log('FESTIVAL-EVENT-08 RESPONSIVE/A11Y RENDER VALIDATION PASS — list card homepage link + program/registration/calendar/map actions (with map handoffs captured via a stubbed window.open), the [📅 일정 등록] month-grid picker (real cells, clamped prev/next navigation, 28 disabled out-of-range days, single-date select+confirm, success copy, and same-date dedupe), Calendar-re-entry CTA visibility matrix (0/1/2), internal [프로그램] date-tab navigation with real tab/tablist/tabpanel roles, keyboard ArrowRight tab switch + focus, back navigation across all three surfaces (card path returns to the list, re-entry path returns to the detail then the list), external-link security attributes, legacy-section/homepage-button absence inside the detail screen, and 320/390/412/1280px layouts with no horizontal overflow — all verified against real headless-Chromium renders of the actual site-festival-ui.js/site-festival-client.js modules.');
+console.log('FESTIVAL-EVENT-08 RESPONSIVE/A11Y RENDER VALIDATION PASS — list card homepage link + program/registration/calendar actions and one Settings 지도앱 link (default 네이버지도 with the full address, 카카오내비 web route with the coordinate, desktop TMAP saying it opens 네이버지도 web), the [일정 등록] month-grid picker (real cells, clamped prev/next navigation, 28 disabled out-of-range days, single-date select+confirm, success copy, and same-date dedupe), Calendar-re-entry CTA visibility matrix (0/1/2), internal [프로그램] date-tab navigation with real tab/tablist/tabpanel roles, keyboard ArrowRight tab switch + focus, back navigation across all three surfaces (card path returns to the list, re-entry path returns to the detail then the list), external-link security attributes, legacy-section/homepage-button absence inside the detail screen, and 320/390/412/1280px layouts with no horizontal overflow — all verified against real headless-Chromium renders of the actual site-festival-ui.js/site-festival-client.js modules.');

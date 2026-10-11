@@ -73,6 +73,34 @@ export function foundPhotoProgress(count) {
 }
 
 // Registered-subject identity photos: exactly ten.
+// SAFECARE-PHOTO-EASY-UPLOAD-01: LOTBI is not a police report. Where someone
+// may be in danger, the call buttons come first (tel: links, no script).
+export const SAFECARE_EMERGENCY_CALLS = Object.freeze([
+  Object.freeze({number: '112', label: '112 경찰 신고'}),
+  Object.freeze({number: '182', label: '182 실종 신고'}),
+]);
+export function safecareEmergencyNotice(text) {
+  const box = document.createElement('div');
+  box.className = 'safecare-emergency';
+  box.dataset.safecareEmergency = '';
+  box.setAttribute('role', 'note');
+  const message = document.createElement('p');
+  message.className = 'safecare-emergency-text';
+  message.textContent = text;
+  const actions = document.createElement('div');
+  actions.className = 'safecare-emergency-actions';
+  for (const {number, label} of SAFECARE_EMERGENCY_CALLS) {
+    const link = document.createElement('a');
+    link.className = 'site-button safecare-emergency-call';
+    link.href = `tel:${number}`;
+    link.textContent = label;
+    link.dataset.safecareEmergencyCall = number;
+    actions.append(link);
+  }
+  box.append(message, actions);
+  return box;
+}
+
 export const IDENTITY_PHOTO_TOTAL = 10;
 
 export function identityPhotoProgress(count) {
@@ -142,4 +170,14 @@ export function birthYearOptions(now = new Date(), earliest = 1900) {
   const years = [];
   for (let year = now.getFullYear(); year >= earliest; year -= 1) years.push(year);
   return years;
+}
+
+// QA 02 D2: where the birth-year wheel starts before anything is chosen, by
+// relationship — a parent born in 1950 should not need seventy years of
+// scrolling from this year. Only the starting position; nothing is saved
+// until the guardian confirms.
+const BIRTH_YEAR_START_AGE = Object.freeze({CHILD: 8, PARENT: 65, SPOUSE: 40, FAMILY: 45, DEPENDENT: 70, OTHER: 45});
+export function birthYearStart(relationship, now = new Date()) {
+  const age = BIRTH_YEAR_START_AGE[relationship] ?? BIRTH_YEAR_START_AGE.OTHER;
+  return now.getFullYear() - age;
 }

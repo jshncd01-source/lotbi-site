@@ -9,10 +9,15 @@
 // [위치 허용] shows only while location use is on but not yet allowed. A title
 // opens the article itself; a failed read says so and offers 다시 시도 —
 // nothing old or made up is shown in its place.
-import {CORE_ORIGIN} from './site-core.js?v=aset-b85f61336bae';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-b85f61336bae';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-b85f61336bae';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-b85f61336bae';
+//
+// REGIONAL-NEWS-CATEGORIES-01: Core's view=feed adds 분야 tabs (a 분야 with no
+// story is hidden), 오늘 in pages of 20 with 더보기 (Core's order: under 전체
+// sports and photo items come last) and 1주일 as one heading per day with up
+// to ten representative stories.
+import {CORE_ORIGIN} from './site-core.js?v=aset-5f088337561e';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-5f088337561e';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-5f088337561e';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-5f088337561e';
 
 export const NEWS_PROVINCES = Object.freeze([
   '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시', '세종특별자치시',
@@ -22,7 +27,7 @@ export const NEWS_PERIODS = Object.freeze([
   Object.freeze({id: 'today', label: '오늘'}),
   Object.freeze({id: 'week', label: '1주일'}),
 ]);
-export const NEWS_LIST_LIMIT = 10;
+export const NEWS_LIST_LIMIT = 20;
 const TIMEOUT_MS = 12_000;
 const KST = 'Asia/Seoul';
 const SVG_NS = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/');
@@ -36,7 +41,7 @@ const inKorea = (latitude, longitude) => Number.isFinite(latitude) && Number.isF
   && latitude >= 31 && latitude <= 44.5 && longitude >= 122 && longitude <= 132.5;
 const text = value => String(value ?? '').replace(/\s+/gu, ' ').trim();
 
-export function newsListUrl({latitude, longitude, region = '', period = 'today', limit = NEWS_LIST_LIMIT} = {}, origin = CORE_ORIGIN) {
+export function newsListUrl({latitude, longitude, region = '', period = 'today', category = 'all', offset = 0, limit = NEWS_LIST_LIMIT} = {}, origin = CORE_ORIGIN) {
   const params = new URLSearchParams();
   if (inKorea(Number(latitude), Number(longitude))) {
     params.set('latitude', String(Math.round(Number(latitude) * 1000) / 1000));
@@ -46,6 +51,9 @@ export function newsListUrl({latitude, longitude, region = '', period = 'today',
   }
   params.set('period', NEWS_PERIODS.some(item => item.id === period) ? period : 'today');
   params.set('limit', String(limit));
+  params.set('view', 'feed');
+  if (category && category !== 'all') params.set('category', String(category).slice(0, 24));
+  if (Number(offset) > 0) params.set('offset', String(Math.floor(Number(offset))));
   return `${origin}/v2/life/news?${params}`;
 }
 
@@ -68,6 +76,21 @@ export function formatNewsTime(value, now = new Date()) {
   if (day.format(date) === day.format(now)) return time;
   const monthDay = new Intl.DateTimeFormat('ko-KR', {timeZone: KST, month: 'long', day: 'numeric'}).format(date);
   return `${monthDay} ${time}`;
+}
+
+// Core's feed order as it came (오늘 under 전체 puts sports / photo last; the
+// days are already newest first); never adds anything Core did not return.
+export function feedListItems(items) {
+  return (Array.isArray(items) ? items : [])
+    .map(item => ({title: text(item?.title), source: text(item?.source_label), href: safeArticleHref(item?.url), at: item?.published_at || ''}))
+    .filter(item => item.title && item.href);
+}
+
+// The 분야 tabs to show: 전체 always, a 분야 only when it has a story (or is
+// the one picked, so the reader is never stranded).
+export function visibleCategories(categories, picked = 'all') {
+  return (Array.isArray(categories) ? categories : [])
+    .filter(entry => entry && entry.id && (entry.id === 'all' || entry.id === picked || Number(entry.count) > 0));
 }
 
 // Newest first; the list never adds anything Core did not return.
@@ -122,7 +145,7 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
   let request = 0;
   let controller;
   const saved = savedLifeRegionLabel();
-  const state = {source: '', region: '', coords: null, period: 'today', label: ''};
+  const state = {source: '', region: '', coords: null, period: 'today', label: '', category: 'all', offset: 0, categories: []};
 
   const surface = el('section', 'lotbi-news');
   surface.dataset.newsState = 'LOADING';
@@ -171,22 +194,32 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
     periods.append(button);
     return button;
   });
+  const tabs = el('div', 'lotbi-news-categories');
+  tabs.setAttribute('role', 'group');
+  tabs.setAttribute('aria-label', '분야');
+  tabs.hidden = true;
   const list = el('ul', 'lotbi-news-list');
   list.setAttribute('aria-label', '지역뉴스 목록');
+  const days = el('div', 'lotbi-news-days');
+  const more = el('button', 'consumer-action consumer-action-secondary lotbi-news-more', '더보기');
+  more.type = 'button';
+  more.dataset.newsMore = 'true';
+  more.hidden = true;
+  more.addEventListener('click', () => { if (!disposed) void load({more: true}); });
   const status = el('p', 'lotbi-news-status');
   status.setAttribute('role', 'status');
   const retry = el('button', 'consumer-action consumer-action-secondary lotbi-news-retry', '다시 시도');
   retry.type = 'button';
   retry.hidden = true;
   retry.addEventListener('click', () => { if (!disposed) void load(); });
-  surface.append(head, basis, allow, picker, periods, list, status, retry);
+  surface.append(head, basis, allow, picker, periods, tabs, list, days, more, status, retry);
   root.replaceChildren(surface);
 
   const sourceText = () => (state.source === 'current' ? '현재 위치 기준' : state.source === 'saved' ? '저장 지역 기준' : '선택한 지역');
   const periodText = () => (NEWS_PERIODS.find(item => item.id === state.period) || NEWS_PERIODS[0]).label;
   const paint = () => {
     title.textContent = state.label ? `${state.label} 지역뉴스` : '지역뉴스';
-    basis.textContent = state.source ? `${sourceText()} · ${periodText()} · 최신순` : '';
+    basis.textContent = state.source ? `${sourceText()} · ${periodText()} · ${state.period === 'week' ? '날짜별 대표 기사' : '최신순'}` : '';
     for (const button of periodButtons) button.setAttribute('aria-pressed', String(button.dataset.newsPeriod === state.period));
     periods.hidden = !state.source;
   };
@@ -199,26 +232,56 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
     retry.hidden = !canRetry;
   };
 
-  const render = items => {
-    list.replaceChildren();
-    for (const item of items) {
-      const row = el('li', 'lotbi-news-row');
-      const link = el('a', 'lotbi-news-item');
-      link.href = item.href;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.dataset.newsArticle = 'true';
-      const copy = el('span', 'lotbi-news-item-copy');
-      copy.append(el('span', 'lotbi-news-item-title', item.title));
-      const meta = [item.source, formatNewsTime(item.at, now())].filter(Boolean).join(' · ');
-      if (meta) copy.append(el('span', 'lotbi-news-item-meta', meta));
-      link.append(copy, glyph('open'));
-      row.append(link);
-      list.append(row);
+  const paintTabs = () => {
+    const shown = visibleCategories(state.categories, state.category);
+    tabs.replaceChildren();
+    tabs.hidden = shown.length <= 1;
+    for (const entry of shown) {
+      const button = el('button', 'lotbi-news-category', text(entry.label));
+      button.type = 'button';
+      button.dataset.newsCategory = entry.id;
+      button.setAttribute('aria-pressed', String(entry.id === state.category));
+      button.addEventListener('click', () => {
+        if (disposed || state.category === entry.id) return;
+        state.category = entry.id;
+        void load();
+      });
+      tabs.append(button);
     }
   };
-
-  async function load() {
+  const row = item => {
+    const row = el('li', 'lotbi-news-row');
+    const link = el('a', 'lotbi-news-item');
+    link.href = item.href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.dataset.newsArticle = 'true';
+    const copy = el('span', 'lotbi-news-item-copy');
+    copy.append(el('span', 'lotbi-news-item-title', item.title));
+    const meta = [item.source, formatNewsTime(item.at, now())].filter(Boolean).join(' · ');
+    if (meta) copy.append(el('span', 'lotbi-news-item-meta', meta));
+    link.append(copy, glyph('open'));
+    row.append(link);
+    return row;
+  };
+  const renderDays = entries => {
+    days.replaceChildren();
+    let count = 0;
+    for (const day of Array.isArray(entries) ? entries : []) {
+      const items = feedListItems(day?.items);
+      if (!items.length) continue;
+      const section = el('section', 'lotbi-news-day');
+      section.dataset.newsDay = text(day.date);
+      const heading = el('h4', 'lotbi-news-day-title', text(day.label));
+      const dayList = el('ul', 'lotbi-news-list');
+      for (const item of items) dayList.append(row(item));
+      section.append(heading, dayList);
+      days.append(section);
+      count += items.length;
+    }
+    return count;
+  };
+  async function load({more: append = false} = {}) {
     const current = ++request;
     controller?.abort();
     controller = new AbortController();
@@ -226,14 +289,17 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
     surface.setAttribute('aria-busy', 'true');
     paint();
     setStatus('지역뉴스를 불러오고 있어요.');
-    const url = state.source === 'current' && state.coords
-      ? newsListUrl({...state.coords, period: state.period})
-      : newsListUrl({region: state.source === 'saved' ? saved : state.region, period: state.period});
+    if (!append) state.offset = 0;
+    const where = state.source === 'current' && state.coords
+      ? {...state.coords}
+      : {region: state.source === 'saved' ? saved : state.region};
+    const url = newsListUrl({...where, period: state.period, category: state.category, offset: append ? state.offset : 0});
     const response = await getJson(url, {fetchImpl, signal: controller.signal});
     if (disposed || current !== request) return;
     surface.removeAttribute('aria-busy');
     if (!response.ok || response.data?.status !== 'OK') {
-      list.replaceChildren();
+      if (!append) { list.replaceChildren(); days.replaceChildren(); }
+      more.hidden = true;
       surface.dataset.newsState = 'ERROR';
       if (response.status === 422) {
         openPicker(true);
@@ -245,16 +311,32 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
       }
       return;
     }
-    const newsResult = response.data.news_result;
-    state.label = text(newsResult?.region?.label) || state.label;
-    const items = newsListItems(newsResult);
-    render(items);
-    surface.dataset.newsState = items.length ? 'READY' : 'EMPTY';
+    const data = response.data;
+    state.label = text(data.region?.label) || state.label;
+    state.categories = Array.isArray(data.categories) ? data.categories : [];
+    paintTabs();
+    let shown;
+    if (state.period === 'week') {
+      list.replaceChildren();
+      more.hidden = true;
+      shown = renderDays(data.days);
+    } else {
+      days.replaceChildren();
+      const page = data.today || {};
+      const items = feedListItems(page.items);
+      if (!append) list.replaceChildren();
+      for (const item of items) list.append(row(item));
+      state.offset = Number(page.offset || 0) + (Array.isArray(page.items) ? page.items.length : 0);
+      more.hidden = !page.has_more;
+      shown = list.children.length;
+    }
+    surface.dataset.newsState = shown ? 'READY' : 'EMPTY';
     paint();
-    if (items.length) setStatus('');
+    const where2 = state.category === 'all' ? '' : ` ${(state.categories.find(entry => entry.id === state.category) || {}).label || ''} 분야`;
+    if (shown) setStatus('');
     else setStatus(state.period === 'today'
-      ? `오늘 ${state.label || '이 지역'} 관련 기사가 아직 없어요. 1주일을 눌러 보세요.`
-      : `최근 1주일 ${state.label || '이 지역'} 관련 기사를 찾지 못했어요.`);
+      ? `오늘 ${state.label || '이 지역'}${where2} 기사가 아직 없어요. 1주일을 눌러 보세요.`
+      : `최근 1주일 ${state.label || '이 지역'}${where2} 기사를 찾지 못했어요.`);
   }
 
   const useCurrent = coords => {

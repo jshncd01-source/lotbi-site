@@ -1351,6 +1351,32 @@ body.calendar-editor-open { overflow: hidden; }
 .calendar-settings-toggle-row strong { font-size: 14px; }
 .calendar-settings-toggle-row small { color: var(--lotbi-calendar-muted-ink); font-size: 11px; line-height: 1.45; }
 .calendar-settings-toggle-row input { width: 22px; height: 22px; accent-color: var(--brand-navy, #182a46); }
+/* COMMON-UI-POLISH-01 (QA #26) — one settings sheet showed black checkboxes next to the
+   '현재 위치 자동 사용' ON/OFF switch. The checkboxes keep their element and their change
+   handlers and now draw the same 64x44 track and knob as .calendar-location-switch below
+   (knob centre 15px off, 49px on). The ON/OFF word needs :has(); without it the switch
+   still shows its state by knob and colour, never a wrong word. */
+.calendar-settings-toggle-row { position: relative; }
+.calendar-settings-toggle-row input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  flex: 0 0 64px; width: 64px; height: 44px; margin: 0;
+  border: 0; border-radius: 24px; cursor: pointer;
+  background: radial-gradient(circle at 15px 50%, var(--lotbi-text-primary, #212121) 10px, transparent 10.5px), var(--lotbi-surface-hover, #eee);
+}
+.calendar-settings-toggle-row input[type="checkbox"]:checked {
+  background: radial-gradient(circle at 49px 50%, var(--lotbi-surface-primary, #fff) 10px, transparent 10.5px), var(--lotbi-text-primary, #212121);
+}
+.calendar-settings-toggle-row input[type="checkbox"]:focus-visible { outline: 2px solid var(--lotbi-focus-ring, #212121); outline-offset: 3px; }
+@supports selector(:has(*)) {
+  .calendar-settings-toggle-row:has(> input[type="checkbox"])::after {
+    content: 'OFF'; position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    box-sizing: border-box; width: 64px; padding: 0 8px 0 26px; text-align: center; pointer-events: none;
+    color: var(--lotbi-text-primary, #212121); font-size: 11px; font-weight: 600;
+  }
+  .calendar-settings-toggle-row:has(> input[type="checkbox"]:checked)::after {
+    content: 'ON'; padding: 0 26px 0 8px; color: var(--lotbi-surface-primary, #fff);
+  }
+}
 .calendar-settings-select-row {
   min-height: 48px;
   display: flex;

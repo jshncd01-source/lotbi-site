@@ -1,5 +1,5 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-b85f61336bae';
-import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-b85f61336bae';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-5f088337561e';
+import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-5f088337561e';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;
@@ -8,8 +8,43 @@ const OCCURRENCE_ID_PATTERN = /^occurrence_[0-9a-f]{32}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIMEZONE_PATTERN = /^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/;
 const EXPENSE_CATEGORIES = new Set(['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'OTHER', 'UNCLASSIFIED']);
-const EXPLICIT_LIFE_CALENDAR_MARKER_PATTERN = /(?:(?:\d{4})년\s*)?\d{1,2}월\s*\d{1,2}일\s*(?:(?:오전|오후)\s*)?\d{1,2}시/gu;
-const EXPLICIT_LIFE_CALENDAR_COMMAND_PATTERN = /^\s*(?:\d{4}년\s*)?\d{1,2}월\s*\d{1,2}일\s*(?:(?:오전|오후)\s*)?\d{1,2}시(?:\s*\d{1,2}분)?\s*(?:에)?\s*.+[.!?]?\s*$/u;
+// CALENDAR-COMMAND-RECOGNITION-P0-01: the same grammar as Core's
+// app/universal_life_calendar_nlu.py, so a sentence sent to /v2/life/commands
+// is one Core parses (both test scripts/fixtures/calendar_command_samples_p0_01
+// .json). After an optional leading tag ("[QA 점검]") or call word ("롯비야"),
+// a command starts with exactly one date -- M월 D일, 10/20, 2026-10-20, 오늘·
+// 내일·모레·글피, 이번 주·다음 주 X요일, X요일, 이번 달·다음 달 N일 -- or a
+// repeat (매일, 매주 X요일, 매달 N일, 매년 M월 D일), an optional time, and a
+// title. Only an M월 D일 / numeric date with a time may stand without a write
+// verb (추가·등록·저장·넣어·잡아...). Whether the date is real or already past
+// is Core's call; a sentence Core refuses goes on to the conversation.
+// No lookbehind: older Safari would refuse the whole module.
+const LIFE_CALENDAR_NOISE_PREFIX = /^\s*(?:\[[^[\]]{0,40}\]|【[^【】]{0,40}】|\([^()]{0,40}\)|(?:롯비|로티|LOTBI|lotbi)(?:야|아)?(?=[\s,!~.]|$)[,!~.]*)\s*/u;
+const LIFE_CALENDAR_WEEKDAY = '[월화수목금토일]요일';
+const LIFE_CALENDAR_ABSOLUTE_DATE = '(?:\\d{4}년\\s*)?\\d{1,2}월\\s*\\d{1,2}일';
+const LIFE_CALENDAR_ISO_DATE = '\\d{4}[-./]\\d{1,2}[-./]\\d{1,2}(?![\\d./-])';
+const LIFE_CALENDAR_SLASH_DATE = '\\d{1,2}\\/\\d{1,2}(?![\\d/])';
+const LIFE_CALENDAR_RELATIVE_DATES = [
+  '(?:내일\\s*모레|오늘|내일|모레|글피)',
+  `(?:이번\\s*주|금주|다음\\s*주|담주|차주|다다음\\s*주)\\s*${LIFE_CALENDAR_WEEKDAY}`,
+  '(?:이번\\s*달|이달|다음\\s*달|담달|다다음\\s*달)\\s*\\d{1,2}일',
+  LIFE_CALENDAR_WEEKDAY,
+];
+const LIFE_CALENDAR_ABSOLUTE_AT_START = new RegExp(`^(?:${LIFE_CALENDAR_ABSOLUTE_DATE}|${LIFE_CALENDAR_ISO_DATE}|${LIFE_CALENDAR_SLASH_DATE})`, 'u');
+const LIFE_CALENDAR_DATE_AT_START = new RegExp(`^(?:${LIFE_CALENDAR_ABSOLUTE_DATE}|${LIFE_CALENDAR_ISO_DATE}|${LIFE_CALENDAR_SLASH_DATE}|${LIFE_CALENDAR_RELATIVE_DATES.join('|')})`, 'u');
+// Counting every date in the sentence. The slash form takes the character in
+// front of it instead of a lookbehind ("2026/10/20" is one ISO date).
+const LIFE_CALENDAR_ANY_DATE = new RegExp(`${LIFE_CALENDAR_ABSOLUTE_DATE}|${LIFE_CALENDAR_ISO_DATE}|(?:^|[^\\d/])${LIFE_CALENDAR_SLASH_DATE}|${LIFE_CALENDAR_RELATIVE_DATES.join('|')}`, 'gu');
+const LIFE_CALENDAR_REPEAT_AT_START = /^(?:매일|매주\s*[월화수목금토일]요일|(?:매달|매월)\s*\d{1,2}일|매년\s*\d{1,2}월\s*\d{1,2}일)/u;
+const LIFE_CALENDAR_ANY_REPEAT = /매일|매주\s*[월화수목금토일]요일|(?:매달|매월)\s*\d{1,2}일|매년\s*\d{1,2}월\s*\d{1,2}일/gu;
+const LIFE_CALENDAR_TIME_AT_START = /^(?:(?:(오전|오후|아침|낮|점심|저녁|밤|새벽)\s*)?(?:(\d{1,2})\s*시(?!간)(?:\s*(\d{1,2})\s*분|\s*(반))?|(\d{1,2}):(\d{2}))|(정오))/u;
+const LIFE_CALENDAR_ANY_TIME = /\d{1,2}\s*시(?!간)|\d{1,2}:\d{2}|정오/gu;
+const LIFE_CALENDAR_WRITE_VERB = '(?:(?:추가|등록|저장|기록|입력)(?:\\s*(?:해|하))?(?:\\s*(?:줘요?|주세요|줄래요?|줄\\s*수\\s*있어요?|둬요?|놔요?|놓아\\s*줘|주라|라|기))?|(?:넣어|잡아|적어)(?:\\s*(?:줘요?|주세요|줄래요?|둬요?|놔요?|주라))?)';
+const LIFE_CALENDAR_TRAILING_WRITE = new RegExp(
+  '\\s*(?:(?:을|를)\\s*)?(?:(?:일정|스케줄)(?:을|를|으로|로)?\\s*)?(?:(?:내\\s*)?(?:캘린더|달력)(?:에다가?|에|으로|로)?\\s*)?'
+  + '(?:(?:일정|스케줄)(?:을|를|으로|로)?\\s*)?(?:좀\\s*)?' + LIFE_CALENDAR_WRITE_VERB + '\\s*[.!~]*\\s*$',
+  'u',
+);
 const NON_WRITE_LIFE_CALENDAR_PATTERNS = Object.freeze([
   /[?？]/u,
   /(?:^|\s)(?:안|못)\s+\S+/u,
@@ -435,10 +470,13 @@ function assertCommandPreviewResponse(payload) {
     || !payload.title.trim()
     || !payload.temporal
     || typeof payload.temporal !== 'object'
-    || payload.temporal.kind !== 'LOCAL_DATE_TIME'
-    || typeof payload.temporal.local_datetime !== 'string'
+    || !(
+      (payload.temporal.kind === 'LOCAL_DATE_TIME' && typeof payload.temporal.local_datetime === 'string')
+      || (payload.temporal.kind === 'DATE_ONLY' && typeof payload.temporal.local_date === 'string' && DATE_PATTERN.test(payload.temporal.local_date))
+    )
     || typeof payload.temporal.timezone_name !== 'string'
     || payload.temporal_semantics !== 'USER_PLANNED_TIME'
+    || (payload.recurrence != null && (typeof payload.recurrence !== 'object' || !['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'].includes(payload.recurrence.frequency)))
     || payload.parser_type !== 'DETERMINISTIC_KO_EXPLICIT_ACTIVITY_V1'
     || payload.ai_calls !== 0
     || payload.provider_api_calls !== 0
@@ -450,6 +488,7 @@ function assertCommandPreviewResponse(payload) {
     temporal: Object.freeze({...payload.temporal}),
     temporalSemantics: payload.temporal_semantics,
     parserType: payload.parser_type,
+    recurrence: payload.recurrence ? Object.freeze({...payload.recurrence}) : null,
     aiCalls: 0,
     providerApiCalls: 0,
   });
@@ -469,11 +508,71 @@ function assertCommandResponse(payload) {
   return Object.freeze({activity: assertMutationResponse(payload.activity), assistantText: payload.assistant_text, parserType: payload.parser_type, aiCalls: 0, providerApiCalls: 0});
 }
 
+// The 24-hour hour of a spoken "N시" (Core's _spoken_hour): 아침·새벽 morning,
+// 저녁·밤 evening, 낮·점심 midday, a bare 1-6 the afternoon. null = not a time.
+function spokenLifeCalendarHour(rawHour, period) {
+  const twelve = (hour, pm) => (hour < 1 || hour > 12 ? null : pm ? (hour === 12 ? 12 : hour + 12) : (hour === 12 ? 0 : hour));
+  if (period === '오전' || period === '아침' || period === '새벽') return twelve(rawHour, false);
+  if (period === '오후' || period === '저녁') return twelve(rawHour, true);
+  if (period === '밤') return rawHour === 12 ? null : twelve(rawHour, true);
+  if (period === '낮' || period === '점심') return rawHour >= 1 && rawHour <= 6 ? rawHour + 12 : (rawHour >= 10 && rawHour <= 12 ? rawHour : null);
+  if (rawHour >= 1 && rawHour <= 6) return rawHour + 12;
+  return rawHour >= 0 && rawHour <= 23 ? rawHour : null;
+}
+
 export function isExplicitLifeCalendarCommand(text) {
-  const source = String(text || '').trim();
-  const markers = source.match(EXPLICIT_LIFE_CALENDAR_MARKER_PATTERN) || [];
-  if (markers.length !== 1 || !EXPLICIT_LIFE_CALENDAR_COMMAND_PATTERN.test(source)) return false;
-  return !NON_WRITE_LIFE_CALENDAR_PATTERNS.some(pattern => pattern.test(source));
+  let body = String(text || '');
+  for (let previous = null; previous !== body;) {
+    previous = body;
+    body = body.replace(LIFE_CALENDAR_NOISE_PREFIX, '');
+  }
+  body = body.replace(/\s+/gu, ' ').trim();
+  if (!body || body.length > 1000) return false;
+
+  const repeat = body.match(LIFE_CALENDAR_REPEAT_AT_START);
+  const dates = [...body.matchAll(LIFE_CALENDAR_ANY_DATE)];
+  let rest;
+  let absolute = false;
+  if (repeat) {
+    // "매주 월요일" also reads as a bare weekday; it is one date.
+    if (dates.some(found => found.index >= repeat[0].length) || (body.match(LIFE_CALENDAR_ANY_REPEAT) || []).length !== 1) return false;
+    rest = body.slice(repeat[0].length);
+  } else {
+    if (dates.length !== 1) return false;
+    const start = body.match(LIFE_CALENDAR_DATE_AT_START);
+    if (!start) return false;
+    absolute = LIFE_CALENDAR_ABSOLUTE_AT_START.test(body);
+    rest = body.slice(start[0].length);
+  }
+  if ((body.match(LIFE_CALENDAR_ANY_TIME) || []).length > 1) return false;
+
+  rest = rest.replace(/^\s*(?:에|은|는|에는)(?=\s|$)/u, '').trim();
+  let hasTime = false;
+  const time = rest.match(LIFE_CALENDAR_TIME_AT_START);
+  if (time) {
+    let hour;
+    let minute;
+    if (time[7]) {
+      hour = 12; minute = 0;
+    } else if (time[5] !== undefined) {
+      const raw = Number(time[5]);
+      hour = time[1] ? spokenLifeCalendarHour(raw, time[1]) : (raw >= 0 && raw <= 23 ? raw : null);
+      minute = Number(time[6]);
+    } else {
+      hour = spokenLifeCalendarHour(Number(time[2]), time[1]);
+      minute = time[4] ? 30 : Number(time[3] || 0);
+    }
+    if (hour === null || minute > 59) return false;
+    hasTime = true;
+    rest = rest.slice(time[0].length).replace(/^\s*(?:에|부터)(?=\s|$)/u, '');
+  }
+  rest = rest.trim();
+  if (!rest || NON_WRITE_LIFE_CALENDAR_PATTERNS.some(pattern => pattern.test(rest))) return false;
+
+  const hasVerb = LIFE_CALENDAR_TRAILING_WRITE.test(rest);
+  if (!hasVerb && !(absolute && hasTime && !repeat)) return false;
+  const title = rest.replace(LIFE_CALENDAR_TRAILING_WRITE, '').trim().replace(/\s*(?:을|를)$/u, '').replace(/[.!?~]+$/u, '').trim();
+  return title.length > 0 && title.length <= 240;
 }
 
 export async function executeLifeCalendarCommand(sessionToken, {logicalRequestId: requestId, text, timezone, turnCreatedAt = ''}, fetchImpl = globalThis.fetch) {

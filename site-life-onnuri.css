@@ -290,6 +290,11 @@
   min-height: 44px;
 }
 
+/* QA-02 E1: .consumer-action sets display, so [hidden] needs its own rule. */
+.onnuri-more[hidden] {
+  display: none;
+}
+
 .onnuri-source {
   margin: 0;
 }
@@ -326,4 +331,50 @@ body.chat-home-page .consumer-workspace .consumer-shortcut .onnuri-logo-slot {
   width: 22px;
   height: 22px;
   border-radius: 6px;
+}
+
+/* ONNURI-REGION-FIRST-UX-01 (QA #16): named chip rows, folded notice. */
+.onnuri-chip-field {
+  display: grid;
+  gap: 6px;
+}
+
+.onnuri-chip-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lotbi-text-secondary);
+}
+
+.onnuri-disclaimer-box {
+  margin: 0;
+}
+
+.onnuri-disclaimer-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  word-break: keep-all;
+}
+
+.onnuri-disclaimer-summary::-webkit-details-marker {
+  display: none;
+}
+
+.onnuri-disclaimer-more {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.onnuri-disclaimer-box[open] .onnuri-disclaimer-more {
+  display: none;
+}
+
+.onnuri-disclaimer-box .onnuri-disclaimer {
+  margin: 0;
+  word-break: keep-all;
 }

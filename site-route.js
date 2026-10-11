@@ -14,7 +14,7 @@
 // This table is the only list of routes: the parser, the URL builder, the
 // login return allowlist (site-auth.js) and the conversation's openers
 // (site-conversation.js) all read it.
-import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-b85f61336bae';
+import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-5f088337561e';
 
 export const SITE_ROUTES = Object.freeze([
   'calendar',
@@ -23,10 +23,23 @@ export const SITE_ROUTES = Object.freeze([
   'care',
   'pets',
   'life',
+  // REGIONAL-INFO-BACK-NAVIGATION-01: the screens inside 지역정보 — 병원·응급실,
+  // 지역뉴스, 지역생활정보, 내 아이 학교·유치원 (back → life) and, signed out,
+  // its 학교·유치원 찾기 (back → life-my-child) — so back steps one screen at a
+  // time and a reload reopens the same one (LIFE_VIEW_PARENT,
+  // site-consumer-sections.js).
+  'life-medical',
+  'life-news',
+  'life-local',
+  'life-my-child',
+  'life-education',
   // TRAFFIC-CCTV P0: 지역정보 → 실시간 도로 CCTV (back → life); no route while
   // the switch is off, so #traffic-cctv is not a screen at all.
   ...(TRAFFIC_CCTV_UI_ENABLED ? ['traffic-cctv'] : []),
   'festival',
+  // 지역정보 → 온누리상품권·지역화폐 (back → life). It used to share 'life', so
+  // the system back from it left 지역정보 for the home.
+  'onnuri',
   // REAL-ESTATE-REGION-FAVORITES-P0: 지역정보 → 부동산 실거래가 (back → life) and
   // one apartment's contracts inside it (back → real-estate).
   'real-estate',
@@ -96,4 +109,34 @@ export function takeWalletShareIntent(storage = globalThis.sessionStorage) {
 
 export function hasWalletShareIntent(storage = globalThis.sessionStorage) {
   try { return Boolean(storage?.getItem(WALLET_SHARE_INTENT_KEY)); } catch { return false; }
+}
+
+// FAMILY-LOCATION-01: a 가족 위치 invitation (#family-invite=<token>) works the same way: kept for
+// this tab only (30 minutes), the address becomes #care, and the 가족 위치 tab — shown only when
+// Core's switch is on — picks it up after any login round trip (site-family-location-ui.js).
+const FAMILY_INVITE_INTENT_KEY = 'lotbi.family-invite-intent';
+const FAMILY_INVITE_INTENT_RE = /^#family-invite=([A-Za-z0-9_-]{24,64})$/u;
+const FAMILY_INVITE_INTENT_TTL_MS = 30 * 60_000;
+
+export function captureFamilyInviteIntent(locationRef = window.location, historyRef = window.history, storage = globalThis.sessionStorage) {
+  const match = FAMILY_INVITE_INTENT_RE.exec(locationRef.hash || '');
+  if (!match) return false;
+  try { storage?.setItem(FAMILY_INVITE_INTENT_KEY, JSON.stringify({token: match[1], at: Date.now()})); } catch {}
+  historyRef.replaceState(historyRef.state, '', `${locationRef.pathname}${locationRef.search}${siteRouteHash('care')}`);
+  return true;
+}
+
+export function takeFamilyInviteIntent(storage = globalThis.sessionStorage) {
+  let intent = null;
+  try {
+    intent = JSON.parse(storage?.getItem(FAMILY_INVITE_INTENT_KEY) || 'null');
+    storage?.removeItem(FAMILY_INVITE_INTENT_KEY);
+  } catch {}
+  if (!intent || typeof intent.token !== 'string' || !/^[A-Za-z0-9_-]{24,64}$/u.test(intent.token)
+    || Date.now() - Number(intent.at) > FAMILY_INVITE_INTENT_TTL_MS) return null;
+  return {token: intent.token};
+}
+
+export function hasFamilyInviteIntent(storage = globalThis.sessionStorage) {
+  try { return Boolean(storage?.getItem(FAMILY_INVITE_INTENT_KEY)); } catch { return false; }
 }

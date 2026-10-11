@@ -159,7 +159,9 @@ const KNOWN = new Map([
   ['index.html#scam-photo', PHOTO_PICKER],
   ['site-calendar-manager.js#calendarImagePicker', PHOTO_PICKER],
   ['site-conversation.js#profilePhotoInput', PHOTO_SOURCES],
-  ['site-person-ui.js#personSlotInput', PHOTO_PICKER],
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the per-tile person picker
+  // (site-person-ui.js#personSlotInput) is gone; identity photos go in through
+  // the batch input below.
   ['site-person-ui.js#personFoundInput', PHOTO_PICKER],
   ['site-person-bulk-photos.js#input@399', PHOTO_PICKER],
   ['site-pet-ui.js#petPhotoSourceInput=gallery', PHOTO_PICKER],
@@ -173,11 +175,9 @@ const KNOWN = new Map([
   ['index.html#scam-document', DOCUMENT],
   ['site-life-wallet.js#filesInput@691', DOCUMENT],
   ['site-life-wallet.js#fileInput@1647', OTHER],
-  // SITE-PET-PHOTO-SOURCE-01 by design: LOTBI's own sheet offers 카메라 / 갤러리 /
-  // 파일, and 파일 carries no accept so a current Chrome opens the Files app
-  // rather than the photo picker. On the deprecated chooser path a no-accept
-  // input still lists the camcorder; left to the pet owner's decision.
-  ['site-pet-ui.js#petPhotoSourceInput=file', OTHER],
+  // PET-FILE-INPUT-IMAGE-ONLY-01 — owner decision ("캠코더 없이 사진첩만"): the
+  // pet sheet's 파일 option follows the photo picker rule like 갤러리.
+  ['site-pet-ui.js#petPhotoSourceInput=file', PHOTO_PICKER],
 ]);
 
 const keyOf = input => {

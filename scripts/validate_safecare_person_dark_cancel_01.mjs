@@ -59,9 +59,22 @@ ${STYLESHEETS.map(href => `<link rel="stylesheet" href="/${href}" />`).join('\n'
   const theme = params.get('theme') || 'light';
   document.documentElement.dataset.siteThemeBootstrap = theme;
   const P = n => 'aaaaaaaa-0000-4000-8000-00000000000' + n;
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): three face photos and two body
+  // photos complete a registration (Core's identity_photo_complete). A full
+  // fixture row holds 8 faces + 2 bodies; a partial one holds faces only.
+  const FACE_ORDER = [1, 8, 2, 3, 9, 10, 4, 5, 7, 6];
+  const BODY_ORDER = [6, 7, 10, 9, 8, 5, 4, 3, 2, 1];
+  const setOf = slots => {
+    const body = slots.filter(item => item.cat === 'BODY').length;
+    const face = slots.length - body;
+    return {identity_photo_count: slots.length, identity_photo_face_count: face, identity_photo_body_count: body, identity_photo_face_minimum: 3, identity_photo_body_minimum: 2, identity_photo_minimum: 5, identity_photo_complete: face >= 3 && body >= 2};
+  };
+  const initialSlots = count => (count === 10
+    ? Array.from({length: 10}, (_, i) => ({slot: i + 1, cat: i === 5 || i === 6 ? 'BODY' : 'FACE'}))
+    : FACE_ORDER.slice(0, count).map(slot => ({slot, cat: 'FACE'})));
   const row = (n, name, relationship, year, month, count, state, extra = {}) => ({
     person_id: P(n), display_name: name, nickname: '', relationship, birth_year: year, birthday_month: month, revision: 1,
-    has_photo: count === 10, identity_photo_count: count, identity_photo_state: state,
+    has_photo: count === 10, ...setOf(initialSlots(count)), identity_photo_state: state,
     identity_photo_expires_at: extra.expires || null, identity_photo_days_remaining: extra.days ?? null,
     identity_photo_renewal_reminder_days: extra.reminder ?? null, identity_photo_validity_days: extra.validity ?? null,
   });
@@ -76,9 +89,15 @@ ${STYLESHEETS.map(href => `<link rel="stylesheet" href="/${href}" />`).join('\n'
     sos: [{sos_id: 'hsos_1', person_id: P(1), display_name: '김하늘', status: 'ACTIVE', last_seen_at: '2026-10-05T01:30:00Z', last_seen_summary: '망원한강공원 입구', description: '노란 우비', matching_scope: 'ACTIVE_SOS_ONLY', automatic_identity_decision: false}],
     sosHistory: new Set([P(1), P(5)]),  // 한지우: a closed case, photos later removed
     calls: [],
+    slots: new Map(),
+    plan: [],  // the categories Core gives the next uploads (default FACE)
   };
   const S = globalThis.__state;
   const personOf = id => S.people.find(item => item.person_id === id);
+  const slotsOf = id => {
+    if (!S.slots.has(id)) S.slots.set(id, initialSlots(personOf(id)?.identity_photo_count || 0));
+    return S.slots.get(id);
+  };
   const json = (body, status = 200) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
   const png = () => new Response(Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0)), {status: 200, headers: {'Content-Type': 'image/png'}});
   globalThis.fetch = async (url, init = {}) => {
@@ -92,11 +111,31 @@ ${STYLESHEETS.map(href => `<link rel="stylesheet" href="/${href}" />`).join('\n'
       const body = JSON.parse(init.body);
       const created = row(S.people.length + 6, body.display_name, body.relationship, body.birth_year, body.birthday_month, 0, 'INCOMPLETE');
       S.people.push(created);
+      S.slots.delete(created.person_id);  // an id can come back after a delete
       return json({person: created}, 201);
     }
+    // 2nd round: one slot-free POST per photo; Core picks the card.
+    if ((m = target.match(/^\/v2\/person-profiles\/([^/?]+)\/identity-photos$/)) && method === 'POST') {
+      const item = personOf(m[1]);
+      const slots = slotsOf(m[1]);
+      if (slots.length >= 10) return json({detail: {code: 'PERSON_IDENTITY_PHOTOS_FULL'}}, 409);
+      const cat = S.plan.shift() || 'FACE';
+      const slot = (cat === 'BODY' ? BODY_ORDER : FACE_ORDER).find(index => !slots.some(other => other.slot === index));
+      slots.push({slot, cat});
+      Object.assign(item, setOf(slots));
+      item.has_photo = item.identity_photo_complete;
+      if (item.identity_photo_complete) item.identity_photo_state = 'CURRENT';
+      return json({photo: {slot_index: slot, slot_code: 'S' + slot, category: cat, revision: 1, width: 640, height: 640}, category: cat, identity_check: 'SAME', idempotent_replay: false,
+        validity: {photo_count: item.identity_photo_count, face_count: item.identity_photo_face_count, body_count: item.identity_photo_body_count, complete: item.identity_photo_complete}}, 201);
+    }
     if ((m = target.match(/^\/v2\/person-profiles\/([^/?]+)\/identity-photos$/))) {
-      const count = personOf(m[1])?.identity_photo_count || 0;
-      return json({photos: Array.from({length: count}, (_, i) => ({slot_index: i + 1, slot_code: 'S' + (i + 1), revision: 1, width: 640, height: 640, updated_at: '2026-09-01T00:00:00Z'}))});
+      return json({photos: [...slotsOf(m[1])].sort((a, b) => a.slot - b.slot).map(item => ({slot_index: item.slot, slot_code: 'S' + item.slot, category: item.cat, revision: 1, width: 640, height: 640, updated_at: '2026-09-01T00:00:00Z'}))});
+    }
+    if ((m = target.match(/^\/v2\/person-profiles\/([^/?]+)\/identity-photos\/classify$/)) && method === 'POST') {
+      // SAFECARE-PHOTO-EASY-UPLOAD-01: photos go in through the batch; each photo fits the next empty slot.
+      const next = Math.min(10, (personOf(m[1])?.identity_photo_count || 0) + 1);
+      const codes = ['FACE_FRONT', 'FACE_LEFT_45', 'FACE_RIGHT_45', 'FACE_LEFT_PROFILE', 'FACE_RIGHT_PROFILE', 'UPPER_BODY_FRONT', 'FULL_BODY_FRONT', 'FACE_FRONT_ALT', 'FACE_LEFT_ALT', 'FACE_RIGHT_ALT'];
+      return json({classification: {status: 'CLEAR', detected_view: 'UNKNOWN', suggested_slot_indexes: [next], suggested_slot_codes: [codes[next - 1]], rejection_code: null, identity_checked: false, stored: false}});
     }
     if ((m = target.match(/^\/v2\/person-profiles\/([^/?]+)\/identity-photos\/(\d+)$/)) && method === 'PUT') {
       const item = personOf(m[1]);
@@ -109,10 +148,11 @@ ${STYLESHEETS.map(href => `<link rel="stylesheet" href="/${href}" />`).join('\n'
       const item = personOf(m[1]);
       const query = new URLSearchParams(m[2]);
       if (!item) return new Response(null, {status: 204});
-      if (query.get('registration_cancel') === '1' && (item.identity_photo_count >= 10 || S.sosHistory.has(item.person_id))) {
+      if (query.get('registration_cancel') === '1' && (item.identity_photo_complete || S.sosHistory.has(item.person_id))) {
         return json({detail: {code: 'PERSON_REGISTRATION_CANCEL_NOT_ALLOWED'}}, 409);
       }
       S.people = S.people.filter(other => other !== item);
+      S.slots.delete(item.person_id);
       return new Response(null, {status: 204});
     }
     if ((m = target.match(/^\/v2\/person-profiles\/([^/?]+)$/)) && method === 'PATCH') {
@@ -263,12 +303,15 @@ const CONTRAST_SCREENS = String.raw`
   await __until(() => document.querySelector('[data-person-slot-grid]'));
   out.step2 = __audit();
   const tiles = () => [...document.querySelectorAll('[data-person-slot]')];
+  __state.plan = ['FACE', 'FACE', 'FACE', 'BODY', 'BODY'];
   for (let index = 0; index < 10; index += 1) {
-    await __put(tiles()[index].querySelector('input[type=file]'), 'slot' + (index + 1) + '.png');
+    // SAFECARE-PHOTO-EASY-UPLOAD-01: the only way in is '사진 여러 장 선택'.
+    await __put(document.querySelector('[data-person-bulk-input]'), 'slot' + (index + 1) + '.png');
     await __until(() => document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoCount === String(index + 1));
   }
   document.querySelector('[data-person-photos-next]').click();
   await __until(() => document.querySelector('[data-person-finish]'));
+  out.reachedStep3 = Boolean(document.querySelector('[data-person-finish]'));
   out.step3 = __audit();
   document.querySelector('[data-person-registration-cancel]').click();
   await __until(() => document.querySelector('[data-person-cancel-sheet]'));
@@ -320,7 +363,7 @@ const FLOW = String.raw`
   const list = async () => { await __until(() => document.querySelector('[data-person-list]')); await __wait(50); };
   const count = () => document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoCount;
   const tiles = () => [...document.querySelectorAll('[data-person-slot]')];
-  const upload = async (from, to) => { for (let i = from; i < to; i += 1) { await __put(tiles()[i].querySelector('input[type=file]'), 's' + i + '.png'); await __until(() => count() === String(i + 1)); } };
+  const upload = async (from, to) => { for (let i = from; i < to; i += 1) { await __put(document.querySelector('[data-person-bulk-input]'), 's' + i + '.png'); await __until(() => count() === String(i + 1)); } };
   const openCancel = async () => { document.querySelector('[data-person-registration-cancel]').click(); await __until(() => document.querySelector('[data-person-cancel-sheet]')); await __wait(80); };
   const sheet = () => document.querySelector('[data-person-cancel-sheet]');
   const deletes = () => __state.calls.filter(call => call.startsWith('DELETE '));
@@ -394,6 +437,7 @@ const FLOW = String.raw`
 
   // Step 3 (all ten photos): kept and leaves, never deletes.
   await register('오세린');
+  __state.plan = ['FACE', 'FACE', 'FACE', 'BODY', 'BODY'];
   await upload(0, 10);
   document.querySelector('[data-person-photos-next]').click(); await __until(() => document.querySelector('[data-person-finish]'));
   await openCancel();
@@ -430,7 +474,7 @@ function assertFlow(where, r) {
   assert.deepEqual(r.groups, ['등록 중 2', '등록 완료 3'], where);
   for (const name of ['박영자', '한지우']) {
     assert.equal(r.cards[name].group, 'unfinished', `${where}: ${name}`);
-    assert.match(r.cards[name].badge, /^등록 중 · 사진 \d+\/10$/, `${where}: ${name}`);
+    assert.match(r.cards[name].badge, /^등록 중 · 사진 \d+장$/, `${where}: ${name}`);
     assert.equal(r.cards[name].resume, '이어서 등록하기', `${where}: ${name}`);
     assert.equal(r.cards[name].sos, false, `${where}: an unfinished registration offers resuming, not a blocked SOS`);
   }
@@ -441,23 +485,24 @@ function assertFlow(where, r) {
   assert.equal(r.step1Cancel, true, `${where}: step 1 shows 등록 취소`);
   assert.deepEqual(r.step1Closed, {list: true, sheet: false, writes: 0}, `${where}: nothing created → the screen just closes`);
   assert.ok(r.step2Sheet.text.includes('임시 저장하고 나가기') && r.step2Sheet.text.includes('등록 취소하고 삭제') && r.step2Sheet.text.includes('계속 등록하기'), where);
-  assert.ok(r.step2Sheet.text.includes('식별 사진 3/10장'), `${where}: the sheet says what is saved`);
+  assert.ok(r.step2Sheet.text.includes('식별 사진 3장'), `${where}: the sheet says what is saved`);
   assert.equal(r.step2Sheet.deleteEnabled, true, where);
   assert.deepEqual(r.continue, {sheet: false, grid: true, count: '3'}, `${where}: 계속 등록하기 keeps the step and photos`);
   assert.match(r.kept.status, /임시 저장했습니다/);
   assert.equal(r.kept.card.group, 'unfinished', where);
-  assert.equal(r.kept.card.badge, '등록 중 · 사진 3/10', where);
+  assert.equal(r.kept.card.badge, '등록 중 · 사진 3장', where);
   assert.equal(r.kept.deletes, 0, `${where}: keeping never deletes`);
-  assert.deepEqual(r.resume1, {count: '3', step: '식별 사진 10장'}, `${where}: resumes at the same step`);
-  assert.equal(r.at7.badge, '등록 중 · 사진 7/10', where);
-  assert.deepEqual(r.resume7, {count: '7', step: '식별 사진 10장'}, `${where}: 7/10 saved and resumed`);
+  assert.deepEqual(r.resume1, {count: '3', step: '식별 사진'}, `${where}: resumes at the same step`);
+  // Seven face photos and no body photo are still an unfinished set.
+  assert.equal(r.at7.badge, '등록 중 · 사진 7장', where);
+  assert.deepEqual(r.resume7, {count: '7', step: '식별 사진'}, `${where}: 7 saved and resumed`);
   assert.deepEqual(r.step1Existing, {sheet: true, note: true}, where);
   for (const part of ['정다은', '식별 사진 7장', '되돌릴 수 없습니다']) assert.ok(r.confirmText.includes(part), `${where}: confirmation shows ${part}`);
   assert.equal(r.deletesBeforeConfirm, 0, `${where}: nothing is deleted before the separate confirmation`);
   assert.match(r.deleted.call, /^DELETE \/v2\/person-profiles\/aaaaaaaa-[^?]+\?expected_revision=\d+&registration_cancel=1$/, where);
   assert.match(r.deleted.status, /등록을 취소하고 삭제했습니다/);
   assert.equal(r.deleted.stillListed, false, where);
-  assert.equal(r.step3.deleteEnabled, false, `${where}: a registration with all ten photos is not deleted from 등록 취소`);
+  assert.equal(r.step3.deleteEnabled, false, `${where}: a registration with a complete set is not deleted from 등록 취소`);
   assert.ok(r.step3.text.includes('여기서 삭제할 수 없습니다'), where);
   assert.equal(r.step3Kept.group, 'finished', where);
   assert.equal(r.step3Kept.badge, '등록 완료', where);
@@ -503,6 +548,7 @@ try {
       await open(theme, scheme);
       const screens = await cdp.evaluate(CONTRAST_SCREENS);
       assert.ok(screens.overflow <= 1, `${label}/${themeLabel}: horizontal overflow ${screens.overflow}px`);
+      assert.equal(screens.reachedStep3, true, `${label}/${themeLabel}: the walk reaches step 3 (the audits measured real screens)`);
       for (const [screen, failures] of Object.entries(screens)) {
         if (!Array.isArray(failures)) continue;
         for (const failure of failures) contrastFailures.push({where: `${label}/${themeLabel}/${screen}`, ...failure});
@@ -515,7 +561,7 @@ try {
     await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile});
     await open(theme, scheme);
     assertFlow(`${label}/${themeLabel}`, await cdp.evaluate(FLOW));
-    console.log(`  ${label}/${themeLabel}: cancel · keep · resume 7/10 · delete · protection flow PASS`);
+    console.log(`  ${label}/${themeLabel}: cancel · keep · resume 7 · delete · protection flow PASS`);
   }
 } finally {
   browser.kill();

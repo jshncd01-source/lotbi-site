@@ -1,5 +1,5 @@
-import {redeemSiteHandoff, SITE_CALLBACK_URI} from './site-core.js?v=aset-b85f61336bae';
-import {parseSiteRouteHash} from './site-route.js?v=aset-b85f61336bae';
+import {redeemSiteHandoff, SITE_CALLBACK_URI} from './site-core.js?v=aset-5f088337561e';
+import {parseSiteRouteHash} from './site-route.js?v=aset-5f088337561e';
 
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
 export const ACCOUNT_SITE_FALLBACK_URL = 'https://account.lotbiai.com/?site_fallback=1';
@@ -191,6 +191,42 @@ export async function recoverStaleSiteHandoff(error, {
 }
 
 export const recoverMissingSiteHandoffContext = recoverStaleSiteHandoff;
+
+// SITE-LOGIN-HANDOFF-REPEAT-01 — a callback that arrives stale or broken (a
+// restored tab, Back, a second hand-over, a code already used) on a device whose
+// Account is signed in. Home restores the Site session in place
+// (AUTH-SESSION-CONTINUITY-P0-02), so going there is all it takes: no second
+// Account round trip, no "LOTBI 연결 오류" page. A message typed before signing in
+// is not dropped — that case still takes recoverStaleSiteHandoff, whose fresh
+// handoff carries it. The recovery marker allows this once per window, so a Home
+// that cannot restore and falls back to the redirect handoff cannot bounce
+// between the two; a signed-out Account keeps the diagnostic error page.
+export async function returnHomeFromStaleSiteHandoff(error, {
+  storage = optionalSessionStorage(),
+  now = Date.now(),
+  readStatus = readAccountSessionStatus,
+  goHome = returnHash => window.location.replace(siteHandoffReturnPath(returnHash)),
+  pendingText = '',
+  returnHash = '',
+} = {}) {
+  if (typeof pendingText === 'string' && pendingText.trim()) return false;
+  if (!STALE_HANDOFF_RECOVERY_CODES.has(error?.code)) return false;
+  if (!storage || hasCurrentSiteHandoffRecovery(now, storage)) return false;
+  let signedIn = false;
+  try {
+    signedIn = await readStatus() === true;
+  } catch {
+    return false;
+  }
+  if (!signedIn) return false;
+  storage.setItem(HANDOFF_RECOVERY_KEY, JSON.stringify({
+    version: 1,
+    startedAt: now,
+    attemptCount: 1,
+  }));
+  goHome(returnHash);
+  return true;
+}
 
 export async function createSiteHandoffContext(pendingText = '', now = Date.now(), returnHash = '') {
   if (!globalThis.crypto?.getRandomValues || !globalThis.crypto?.subtle || typeof globalThis.btoa !== 'function') {

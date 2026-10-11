@@ -138,7 +138,8 @@ try {
       panel.querySelector('[data-life-shortcut="' + id + '"]').click();
       await sleep(150);
       result.details.push({id, text: panel.innerText});
-      [...panel.querySelectorAll('.consumer-action')].find(b => b.textContent === '지역정보로 돌아가기')?.click();
+      // QA 2026-10-10 #3: the header ← is the one back of a 지역정보 screen.
+      panel.querySelector('.site-modal-close')?.click();
       await wait(() => panel.querySelector('[data-life-shortcut]'), 'back to life');
     }
     document.querySelector('[data-site-surface-close], .site-modal-close, [aria-label="닫기"]')?.click();

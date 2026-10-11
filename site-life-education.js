@@ -18,8 +18,8 @@ import {
   safeKindergartenLink,
   searchKindergartens,
   telHref,
-} from './site-kindergarten-client.js?v=aset-b85f61336bae';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-b85f61336bae';
+} from './site-kindergarten-client.js?v=aset-5f088337561e';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-5f088337561e';
 
 const PREFERENCE_PREFIX = 'lotbi.site.ux.v1.life-kindergarten';
 const LAST_REGION_KEY = 'lotbi.site.ux.v1.life-kindergarten-region';
@@ -408,6 +408,7 @@ export function mountEducation({
       const keep = lastQuery();
       void renderKindergartenHome({keepQuery: keep && keep.region.sggCode ? keep : null});
     });
+    back.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
     const title = node('h4', 'lotbi-kinder-title', summary.name || '유치원'); title.tabIndex = -1;
     panel.setAttribute('aria-busy', 'true');
     panel.replaceChildren(back, title, node('p', 'consumer-feature-note', '공시를 불러오고 있어요.'));

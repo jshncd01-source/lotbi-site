@@ -5,7 +5,7 @@
 // writes the owner's own records. Pet photos are private bytes served from
 // an authenticated endpoint, so they are fetched as blobs and never turned
 // into a shareable URL.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-b85f61336bae';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-5f088337561e';
 
 const PET_SPECIES = Object.freeze(['DOG', 'CAT']);
 const PET_SEXES = Object.freeze(['MALE', 'FEMALE', 'UNKNOWN']);
@@ -181,7 +181,10 @@ const PET_ERROR_MESSAGES = Object.freeze({
   // a generic failure.
   PET_PHOTO_DUPLICATE: '같은 사진은 여러 각도에 사용할 수 없습니다. 다른 방향에서 찍은 사진을 선택해 주세요.',
   FOUND_PET_PHOTO_DUPLICATE: '같은 사진은 여러 장으로 사용할 수 없습니다. 다른 방향에서 찍은 사진을 선택해 주세요.',
-  PET_IDENTITY_PHOTOS_INCOMPLETE: '식별 사진 10장을 모두 등록해야 실종 상태로 전환할 수 있습니다.',
+  PET_IDENTITY_PHOTOS_INCOMPLETE: '얼굴 사진 3장과 몸 전체가 보이는 사진 2장을 등록해야 실종 상태로 전환할 수 있습니다.',
+  PET_PHOTO_MULTIPLE_ANIMALS: '여러 마리가 함께 나온 사진은 등록할 수 없어요. 한 마리만 나온 사진을 골라 주세요.',
+  PET_PHOTO_KIND_FULL: '이런 사진은 이미 충분해요. 몸 전체가 보이는 사진이나 다른 사진을 골라 주세요.',
+  PET_PHOTOS_FULL: '사진은 10장까지 등록할 수 있어요. 새 사진을 넣으려면 칸의 사진을 먼저 삭제해 주세요.',
   PET_IDENTITY_PHOTOS_EXPIRED: '식별 사진 유효기간이 지나 실종 상태로 전환할 수 없습니다. 사진을 먼저 갱신해 주세요.',
   FOUND_PET_PHOTOS_INCOMPLETE: '서로 다른 방향의 사진 5장 이상이 필요합니다.',
   FOUND_PET_PHOTO_ANGLES_INCOMPLETE: '서로 다른 방향의 사진 5장 이상이 필요합니다.',
@@ -200,7 +203,7 @@ const PET_ERROR_MESSAGES = Object.freeze({
   PET_DRAFT_PATTERN_INVALID: '무늬를 다시 선택해 주세요.',
   PET_DRAFT_PATTERN_OTHER_REQUIRED: '기타 무늬를 입력해 주세요.',
   PET_DRAFT_PATTERN_SPECIES_CONFLICT: '선택한 종과 무늬가 맞지 않습니다.',
-  PET_DRAFT_PHOTOS_INCOMPLETE: '사진 10장을 모두 올려 주세요.',
+  PET_DRAFT_PHOTOS_INCOMPLETE: '얼굴 사진 3장과 몸 전체가 보이는 사진 2장을 올려 주세요.',
   PET_DRAFT_PHOTO_REJECTED: '확인하지 못한 사진이 있습니다. 표시된 사진을 다시 올려 주세요.',
   PET_DRAFT_PHOTO_CHECK_PENDING: '사진 확인이 아직 끝나지 않았습니다. 잠시 후 다시 시도해 주세요.',
   PET_DRAFT_PHOTO_NOT_FOUND: '등록 초안의 사진을 찾지 못했습니다.',
@@ -428,6 +431,20 @@ function normalizePetRegistrationDraft(value) {
   });
 }
 
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round, owner decision 2026-10-10): three
+// face photos and two whole-body photos complete a pet's set (the person rule);
+// nose prints and a distinctive mark are recommended, never required.
+export const PET_PHOTO_FACE_SLOT_CODES = Object.freeze(['FACE_FRONT', 'FACE_LEFT', 'FACE_RIGHT']);
+export const PET_PHOTO_BODY_SLOT_CODES = Object.freeze(['BODY_LEFT', 'BODY_RIGHT', 'BACK_REAR']);
+export const PET_PHOTO_FACE_MINIMUM = 3;
+export const PET_PHOTO_BODY_MINIMUM = 2;
+export function petPhotoSetCounts(slotCodes) {
+  const codes = Array.from(slotCodes || []);
+  const faceCount = codes.filter(code => PET_PHOTO_FACE_SLOT_CODES.includes(code)).length;
+  const bodyCount = codes.filter(code => PET_PHOTO_BODY_SLOT_CODES.includes(code)).length;
+  return Object.freeze({faceCount, bodyCount, complete: faceCount >= PET_PHOTO_FACE_MINIMUM && bodyCount >= PET_PHOTO_BODY_MINIMUM});
+}
+
 export function petDraftPhotoProgression(draft) {
   const photos = Array.isArray(draft?.photos) ? draft.photos : [];
   const bySlot = new Map(
@@ -448,18 +465,22 @@ export function petDraftPhotoProgression(draft) {
     .filter(photo => PET_PHOTO_ANCHOR_SLOT_CODES.includes(photo.slotCode)
       && (!species || photo.detectedSpecies !== species))
     .map(photo => photo.slotCode);
-  const requiredCount = PET_PHOTO_SLOT_CODES.length;
+  const requiredCount = PET_PHOTO_FACE_MINIMUM + PET_PHOTO_BODY_MINIMUM;
   const presentCount = bySlot.size;
   const acceptedCount = accepted.length;
-  const ready = Boolean(species)
-    && presentCount === requiredCount
-    && acceptedCount === requiredCount
-    && rejectedSlots.length === 0
-    && pendingSlots.length === 0
-    && speciesMismatchSlots.length === 0;
+  const counted = petPhotoSetCounts(accepted
+    .filter(photo => !PET_PHOTO_ANCHOR_SLOT_CODES.includes(photo.slotCode) || (species && photo.detectedSpecies === species))
+    .map(photo => photo.slotCode));
+  // A refused or unchecked photo neither counts nor blocks (Core drops it at
+  // registration); only a photo of the other species does.
+  const ready = Boolean(species) && counted.complete && speciesMismatchSlots.length === 0;
 
   return Object.freeze({
     requiredCount,
+    faceAccepted: counted.faceCount,
+    bodyAccepted: counted.bodyCount,
+    faceMinimum: PET_PHOTO_FACE_MINIMUM,
+    bodyMinimum: PET_PHOTO_BODY_MINIMUM,
     presentCount,
     acceptedCount,
     rejectedSlots: Object.freeze(rejectedSlots),
@@ -544,6 +565,26 @@ export async function uploadPetRegistrationDraftPhoto(sessionToken, draftId, slo
   return photo;
 }
 
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): one everyday photo, no slot. Core
+// decides the card (face / whole body / close-up) and refuses only what is
+// wrong: not a dog or a cat, the other species, two animals, blur, an
+// eleventh photo. Returns the saved photo, its kind and the refreshed draft.
+export async function addPetRegistrationDraftPhoto(sessionToken, draftId, file, fetchImpl = globalThis.fetch) {
+  const rejection = petPhotoRejection(file);
+  if (rejection) throw new SiteCoreError(rejection, {code: 'PET_PHOTO_REJECTED_LOCALLY', status: 0});
+  const formData = new FormData();
+  formData.append('file', file, file.name || 'pet-photo');
+  const payload = await petRequest(
+    `/v2/pet-registration-drafts/${encodeURIComponent(draftId)}/photos`,
+    sessionToken,
+    {method: 'POST', formData},
+    fetchImpl,
+  );
+  const photo = normalizePetDraftPhoto(payload?.photo);
+  if (!photo) throw new SiteCoreError('등록 사진을 저장하지 못했습니다.', {code: 'PET_DRAFT_PHOTO_SAVE_FAILED'});
+  return Object.freeze({photo, category: ['FACE', 'BODY', 'CLOSEUP'].includes(payload?.category) ? payload.category : 'FACE', draft: normalizePetRegistrationDraft(payload?.draft)});
+}
+
 export async function deletePetRegistrationDraftPhoto(sessionToken, draftId, slotCode, fetchImpl = globalThis.fetch) {
   return petRequest(
     `/v2/pet-registration-drafts/${encodeURIComponent(draftId)}/photos/${encodeURIComponent(slotCode)}`,
@@ -620,6 +661,9 @@ function normalizePetProfile(value) {
     }) : null,
     photoCount: Number.isInteger(value.photo_count) ? value.photo_count : 0,
     photoTotal: Number.isInteger(value.photo_total) ? value.photo_total : PET_PHOTO_SLOT_CODES.length,
+    identityPhotoComplete: typeof value.identity_photo_complete === 'boolean'
+      ? value.identity_photo_complete
+      : (Number.isInteger(value.photo_count) && value.photo_count >= PET_PHOTO_SLOT_CODES.length),
     identityPhotoState: typeof value.identity_photo_state === 'string' ? value.identity_photo_state : 'INCOMPLETE',
     identityPhotoExpiresAt: typeof value.identity_photo_expires_at === 'string' ? value.identity_photo_expires_at : null,
     identityPhotoDaysRemaining: Number.isInteger(value.identity_photo_days_remaining) ? value.identity_photo_days_remaining : null,
@@ -823,6 +867,9 @@ export function petPhotoRejection(file) {
 export function petPhotoNextActionLabel(nextAction) {
   if (nextAction === 'UPLOAD_FACE_OR_BODY_FIRST') return '얼굴 사진부터 올리기';
   if (nextAction === 'RETRY_LATER') return '다시 시도하기';
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): Core's slot-free add says which kind it still needs.
+  if (nextAction === 'ADD_A_WHOLE_BODY_PHOTO') return '몸 전체 사진 고르기';
+  if (nextAction === 'ADD_A_CLOSE_UP_OR_REPLACE' || nextAction === 'CHOOSE_ANOTHER_PHOTO') return '다른 사진 고르기';
   return '다시 찍기';
 }
 
@@ -938,6 +985,25 @@ export async function uploadPetPhoto(sessionToken, petId, slotCode, file, fetchI
     fetchImpl,
   );
   return Object.freeze({manifest: normalizePhotoManifest(payload?.manifest)});
+}
+
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): one everyday photo for a registered pet, no slot.
+export async function addPetPhoto(sessionToken, petId, file, fetchImpl = globalThis.fetch) {
+  const rejection = petPhotoRejection(file);
+  if (rejection) throw new SiteCoreError(rejection, {code: 'PET_PHOTO_REJECTED_LOCALLY', status: 0});
+  const formData = new FormData();
+  formData.append('file', file, file.name || 'pet-photo');
+  const payload = await petRequest(
+    `/v2/pets/${encodeURIComponent(petId)}/photos`,
+    sessionToken,
+    {method: 'POST', formData},
+    fetchImpl,
+  );
+  return Object.freeze({
+    slotCode: PET_PHOTO_SLOT_CODES.includes(payload?.photo?.slot_code) ? payload.photo.slot_code : '',
+    category: ['FACE', 'BODY', 'CLOSEUP'].includes(payload?.category) ? payload.category : 'FACE',
+    manifest: normalizePhotoManifest(payload?.manifest),
+  });
 }
 
 export async function deletePetPhoto(sessionToken, petId, slotCode, fetchImpl = globalThis.fetch) {

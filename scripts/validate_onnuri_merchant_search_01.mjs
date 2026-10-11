@@ -36,7 +36,9 @@ const ID = n => String(n).padStart(40, 'a').slice(-40).replace(/[^0-9a-f]/gu, 'b
   assert.equal(onnuri.label, '온누리상품권·지역화폐');
   assert.equal(ONNURI_MENU_LABEL, '온누리상품권');
   assert.equal(ONNURI_CARD_LABEL, '온누리 가맹점');
-  assert.equal(onnuri.icon, undefined, 'no stand-in icon for the official logo');
+  // QA 2026-10-10 #12: LOTBI's own plain voucher icon until the official logo
+  // is approved (brandSlot keeps its place); never the official mark itself.
+  assert.equal(onnuri.icon, 'voucher', 'a plain LOTBI icon, not the official logo');
   assert.equal(onnuri.brandSlot, 'onnuri');
   assert.equal(ONNURI_LOGO_ASSET, '', 'official logo is not used before approval');
   assert.match(ONNURI_DISCLAIMER, /공식·제휴 서비스가 아니에요/u);
@@ -208,12 +210,21 @@ const PROBE = `(() => {
     shortcut: shortcut ? {label: shortcut.textContent, slot: shortcut.querySelector('[data-brand-logo-slot]')?.dataset.logoState || '', img: Boolean(shortcut.querySelector('img')), svg: Boolean(shortcut.querySelector('svg')), box: box(shortcut)} : null,
     surface: Boolean(surface),
     disclaimer: surface?.querySelector('.onnuri-disclaimer')?.textContent || '',
+    // ONNURI-REGION-FIRST-UX-01 (QA #16)
+    disclaimerSummary: surface?.querySelector('.onnuri-disclaimer-summary')?.textContent || '',
+    disclaimerOpen: Boolean(surface?.querySelector('.onnuri-disclaimer-box')?.open),
+    disclaimerVisible: (() => { const d = surface?.querySelector('.onnuri-disclaimer'); if (!d) return false; const r = d.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && (typeof d.checkVisibility !== 'function' || d.checkVisibility({contentVisibilityAuto: true, visibilityProperty: true})); })(),
+    chipNames: [...(surface?.querySelectorAll('[data-onnuri-chip-field]') || [])].map(f => [f.dataset.onnuriChipField, f.querySelector('.onnuri-chip-name')?.textContent || '',
+      f.querySelector('[role="group"]')?.getAttribute('aria-labelledby') === f.querySelector('.onnuri-chip-name')?.id]),
+    awaitingRegion: surface?.dataset.onnuriAwaitingRegion === 'true',
     brandImg: Boolean(surface?.querySelector('.onnuri-brand img')),
     status: surface?.querySelector('.onnuri-status')?.textContent || '',
     note: surface?.querySelector('.onnuri-location-note')?.textContent || '',
     settingsLink: surface?.querySelector('.onnuri-location-note a')?.getAttribute('href') || '',
     error: surface?.querySelector('.onnuri-error:not([hidden])')?.textContent || '',
-    more: (() => { const m = surface?.querySelector('.onnuri-more'); return m && !m.hidden ? box(m) : null; })(),
+    // QA-02 E1: rendered visibility, not only the hidden attribute.
+    more: (() => { const m = surface?.querySelector('.onnuri-more'); if (!m) return null; const r = m.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(m).display !== 'none' ? box(m) : null; })(),
     locate: box(surface?.querySelector('.onnuri-locate')),
     modeTab: box(surface?.querySelector('[data-onnuri-mode="location"]')),
     digitalNote: Boolean(surface?.querySelector('.onnuri-digital-note:not([hidden])')),
@@ -382,18 +393,40 @@ async function runCase(browser, origin, dir, testCase) {
       assert.equal(state.emoji, false, 'no ticket emoji anywhere');
     };
 
-    // 1. No permission: region list, first page (12; all 8 test shops), no distance; shortcut shows text only.
+    // 1. No permission: region first (QA #16), then 전북 → first page (12; all 8 test shops), no distance; shortcut shows text only.
     await load();
     let state = await probe();
     assert.equal(state.shortcut.label, '온누리상품권·지역화폐');
-    assert.equal(state.shortcut.slot, 'PENDING_APPROVAL');
-    assert.equal(state.shortcut.img, false);
-    assert.equal(state.shortcut.svg, false, 'no stand-in icon');
+    assert.equal(state.shortcut.slot, '', 'the plain icon shows; no logo slot drawn');
+    assert.equal(state.shortcut.img, false, 'no official logo image');
+    assert.equal(state.shortcut.svg, true, 'the plain voucher icon');
     assert.ok(state.shortcut.box.h >= 44);
     state = await openOnnuri();
     assert.equal(state.title, '온누리상품권·지역화폐', 'LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: one screen, 온누리상품권 tab first');
-    assert.match(state.disclaimer, /공식·제휴 서비스가 아니에요/u);
+    assert.match(state.disclaimer, /공식·제휴 서비스가 아니에요/u, 'the full notice is still there (folded)');
     assert.equal(state.brandImg, false);
+    // ONNURI-REGION-FIRST-UX-01 (QA #16): region first, named chip rows, folded notice.
+    assert.equal(state.awaitingRegion, true, `${testCase.label}: asks for a region first`);
+    assert.match(state.status, /시·도를 고르거나 \[내 주변\]으로 찾아 주세요/u);
+    assert.equal(state.cards.length, 0, 'no nationwide list before a region');
+    assert.equal(state.requests.filter(url => url.startsWith('/v2/life/onnuri/merchants')).length, 0, 'no merchant request before a region');
+    assert.deepEqual(state.chipNames, [['category', '업종', true], ['accept', '종류', true]], 'each chip row is named');
+    assert.equal(state.disclaimerSummary, '공공데이터 기준 안내예요. 방문 전 가맹점에 확인해 주세요.자세히');
+    assert.equal(state.disclaimerOpen, false, 'the long notice starts folded');
+    assert.equal(state.disclaimerVisible, false, 'folded notice takes no space');
+    // A chip before a region still does not list the whole country.
+    await tap(await reveal('[data-onnuri-filter="category"][data-value="CAFE"]'));
+    await sleep(300);
+    state = await probe();
+    assert.equal(state.cards.length, 0, 'chip alone does not search nationwide');
+    assert.equal(state.requests.filter(url => url.startsWith('/v2/life/onnuri/merchants')).length, 0);
+    await tap(await reveal('[data-onnuri-filter="category"][data-value=""]'));
+    await tap(await reveal('.onnuri-disclaimer-summary'));
+    state = await waitFor(async () => { const v = await probe(); return v.disclaimerOpen && v.disclaimerVisible ? v : null; }, `${testCase.label}: 자세히 opens`);
+    await tap(await reveal('.onnuri-disclaimer-summary'));
+    await select('sido', '전북특별자치도');
+    state = await waitFor(async () => { const v = await probe(); return v.cards.length && !v.status.includes('찾는 중') ? v : null; }, `${testCase.label}: 전북 list`);
+    assert.equal(state.awaitingRegion, false);
     assert.equal(state.cards.length, 8, `${testCase.label}: one page of up to 12 (ONNURI-MERCHANT-LOCATION-UX-P0)`);
     assert.equal(state.more, null, 'all 8 on the first page');
     assert.ok(state.cards.every(card => card.distance === ''), `no distance without location ${JSON.stringify({requests: state.requests, cards: state.cards.map(c => [c.name, c.distance]), note: state.note, status: state.status})}`);

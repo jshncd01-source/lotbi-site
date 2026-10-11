@@ -51,6 +51,12 @@
   gap: 5px;
 }
 
+/* COMMON-UI-POLISH-01 (QA #17) — display:flex above outranks the UA [hidden]
+   rule, so the empty '고정' heading stayed on screen with no pinned chat. */
+.nav-section[hidden] {
+  display: none;
+}
+
 .nav-section-title {
   margin: 0 10px 7px;
   color: var(--lotbi-text-primary, var(--text, #212121));
@@ -466,7 +472,8 @@
   }
 
   .account-action {
-    min-height: 36px;
+    /* COMMON-UI-POLISH-01 (QA #20) — 36px was below the 44px touch floor. */
+    min-height: 44px;
     padding: 7px 11px;
     font-size: 12px;
   }
@@ -543,3 +550,7 @@
     transition: none !important;
   }
 }
+
+/* CONVERSATION-ANSWER-UX-01 (QA #11): Korean words wrap whole ("내용은",
+   "찾아보세요."); a single word too long for its line still breaks. */
+body { word-break: keep-all; overflow-wrap: break-word; }

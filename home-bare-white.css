@@ -169,6 +169,13 @@ body.chat-home-page:not(.conversation-active) .chat-composer-stack {
   background: var(--home-skin-bg);
 }
 
+/* COMMON-UI-POLISH-01 (QA #19) — the topbar kept the conversation navy
+   (#151922) on the Dark home, a 64px band over the #212121 skin. It follows
+   the same skin as everything around it; conversation mode is untouched. */
+body.chat-home-page:not(.conversation-active) .chat-topbar {
+  background: var(--home-skin-bg);
+}
+
 body.chat-home-page:not(.conversation-active) .chat-safety-copy {
   color: var(--home-skin-muted);
   font-weight: 500;

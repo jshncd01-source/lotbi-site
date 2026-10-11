@@ -16,11 +16,11 @@
 // link (buildDefaultMapHref) and the approved icon image in
 // /assets/place-actions — the icon always shows the app that actually opens.
 // There is no phone button on a charger card.
-import {CORE_ORIGIN} from './site-core.js?v=aset-b85f61336bae';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-b85f61336bae';
-import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-b85f61336bae';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-b85f61336bae';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-b85f61336bae';
+import {CORE_ORIGIN} from './site-core.js?v=aset-5f088337561e';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-5f088337561e';
+import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-5f088337561e';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-5f088337561e';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-5f088337561e';
 
 export const EV_MENU_LABEL = '전기차 충전소';
 export const EV_SCREEN_TITLE = '내 주변 전기차 충전소';
@@ -239,8 +239,12 @@ export function evMapIcon(provider, {userAgent = globalThis.navigator?.userAgent
   });
 }
 
-export function evMapLink(station, provider, {documentRef = document, userAgent = globalThis.navigator?.userAgent || '', origin} = {}) {
-  const place = {
+// The place the shared map-link builder (buildDefaultMapHref, the one the 장소·
+// 의료·온누리 cards use) is given. The official WGS84 point drives every app;
+// NAVER's web search cannot find a charger by its name, so its search text is
+// the point itself and NAVER resolves it to the address under it (map + pin).
+export function evMapPlace(station) {
+  return {
     name: station.name,
     address: station.address,
     placeId: `ev:${station.id}`,
@@ -249,7 +253,12 @@ export function evMapLink(station, provider, {documentRef = document, userAgent 
     coordinateSystem: 'WGS84',
     coordinateAuthority: 'KECO_EV_CHARGER',
     navigationCapable: true,
+    searchText: `${station.latitude.toFixed(6)},${station.longitude.toFixed(6)}`,
   };
+}
+
+export function evMapLink(station, provider, {documentRef = document, userAgent = globalThis.navigator?.userAgent || '', origin} = {}) {
+  const place = evMapPlace(station);
   let href = '';
   try {
     href = buildDefaultMapHref(provider, place, {userAgent, ...(origin ? {origin} : {})});

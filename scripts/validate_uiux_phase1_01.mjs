@@ -12,8 +12,13 @@ const about = read('about.html');
 assert.doesNotMatch(index, /한국 생활을 묻고, 찾고, 기록하고, 실행하세요\./u);
 assert.match(index, /<h2>무엇을 도와드릴까요\?<\/h2>/u);
 assert.match(index, /<section class="home-value-proposition" aria-label="LOTBI 활용 안내">/u);
-assert.equal((index.match(/data-home-prompt=/gu) || []).length, 2, 'two short optional examples may prepare a draft, never auto-submit');
-assert.match(read('site-conversation.js'), /prompt\.value = String\(homePrompt\.dataset\.homePrompt \|\| ''\)\.slice\(0, 1000\)/);
+assert.equal((index.match(/data-home-prompt=/gu) || []).length, 2, 'two short optional examples');
+// CONVERSATION-ANSWER-UX-01 (QA #6): an example asks at once, like every other
+// one-tap chip - no draft left in the composer, no keyboard.
+const homePromptHandler = read('site-conversation.js').match(/const homePrompt = target\?\.closest\('\[data-home-prompt\]'\);[\s\S]*?\n {6}return;\n {4}\}/u)?.[0] || '';
+assert.ok(homePromptHandler, 'home example handler found');
+assert.match(homePromptHandler, /askWithoutKeyboard\(String\(homePrompt\.dataset\.homePrompt \|\| ''\)\);/u);
+assert.doesNotMatch(homePromptHandler, /prompt\.value =|prompt\.focus\(/u, 'an example is not drafted into the composer');
 assert.match(homeCss, /\.conversation-active \.home-value-proposition\s*\{\s*display:\s*none;/u, 'value proposition must leave once a conversation starts');
 
 const hiddenInputs = [...index.matchAll(/<input class="sr-only" type="file"[^>]*data-attachment-input="[^"]+"[^>]*>/gu)].map(match => match[0]);
