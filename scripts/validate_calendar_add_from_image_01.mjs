@@ -250,7 +250,7 @@ try{
   result.refusedAskedChat=refused.calls.some(c=>c.method==='POST'&&c.path.endsWith('/messages'));
   // A 403 is this route being refused, never evidence the session died: the
   // month must still be standing behind the message.
-  result.refusedCalendarStanding=Boolean(root.querySelector('.calendar-day-view'));
+  result.refusedCalendarStanding=Boolean(root.querySelector('.calendar-month-layout')&&root.querySelector('.calendar-day-panel'));
 
   // --- a signed-out owner ------------------------------------------------
   const guest=stubFetch();

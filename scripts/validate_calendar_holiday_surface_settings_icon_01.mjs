@@ -14,6 +14,7 @@
 // Everything here is measured in a real browser, in light and dark, at both
 // widths.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -150,7 +151,8 @@ try {
   };
 
   // The settings control is an icon, not a glyph.
-  const settings = root.querySelector('.calendar-settings-button');
+  const settings = root.closest('.site-calendar-modal')?.querySelector('.calendar-settings-button')
+    || root.querySelector('.calendar-settings-button');
   const icon = settings?.querySelector('svg.calendar-toolbar-icon');
   const iconBox = icon ? icon.getBoundingClientRect() : {width: 0, height: 0};
   result.settingsIcon = {
@@ -203,23 +205,29 @@ function wrapperMarkup(w, h) {
 
 function run(browser, w, h) {
   fs.writeFileSync(WRAPPER, wrapperMarkup(w, h), 'utf8');
-  const r = spawnSync(browser, [
-    '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-    '--window-size=1600,1000', '--force-device-scale-factor=1',
-    '--virtual-time-budget=58000', '--dump-dom', `${ORIGIN}/${WRAPPER_REL}`,
-  ], {encoding: 'utf8', timeout: 120000, maxBuffer: 12 * 1024 * 1024});
-  if (r.error) throw r.error;
-  if (r.status !== 0) throw new Error(`browser ${r.status} ${r.stderr}`);
-  const a = '<pre id="result">';
-  const b = '</pre>';
-  const i = r.stdout.indexOf(a);
-  const j = r.stdout.indexOf(b, i);
-  if (i < 0 || j < 0) throw new Error('result missing');
-  const raw = r.stdout.slice(i + a.length, j)
-    .replaceAll('&quot;', '"').replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>');
-  const v = JSON.parse(raw);
-  if (!v.ok) throw new Error(`${w}x${h}: ${v.error}`);
-  return v;
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'lotbi-calendar-holiday-'));
+  try {
+    const r = spawnSync(browser, [
+      '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
+      `--user-data-dir=${profile}`,
+      '--window-size=1600,1000', '--force-device-scale-factor=1',
+      '--virtual-time-budget=58000', '--dump-dom', `${ORIGIN}/${WRAPPER_REL}`,
+    ], {encoding: 'utf8', timeout: 120000, maxBuffer: 12 * 1024 * 1024});
+    if (r.error) throw r.error;
+    if (r.status !== 0) throw new Error(`browser ${r.status} ${r.stderr}`);
+    const a = '<pre id="result">';
+    const b = '</pre>';
+    const i = r.stdout.indexOf(a);
+    const j = r.stdout.indexOf(b, i);
+    if (i < 0 || j < 0) throw new Error('result missing');
+    const raw = r.stdout.slice(i + a.length, j)
+      .replaceAll('&quot;', '"').replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>');
+    const v = JSON.parse(raw);
+    if (!v.ok) throw new Error(`${w}x${h}: ${v.error}`);
+    return v;
+  } finally {
+    fs.rmSync(profile, {recursive: true, force: true});
+  }
 }
 
 // rgb(255, 255, 255) -> [255,255,255]

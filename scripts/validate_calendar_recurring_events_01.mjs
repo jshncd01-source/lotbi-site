@@ -192,11 +192,10 @@ try {
 
   // 5. A new record: custom weekdays + until + reminder.
   click(root.querySelector('[data-calendar-date-trigger="2026-10-12"]'));
-  await wait(() => root.querySelector('.calendar-day-panel [data-calendar-add]'), 'add button');
-  click(root.querySelector('.calendar-day-panel [data-calendar-add]'));
+  await wait(() => root.querySelector('.calendar-action-slot[data-calendar-action-bar="top"] [data-calendar-add]'), 'add button');
+  click(root.querySelector('.calendar-action-slot[data-calendar-action-bar="top"] [data-calendar-add]'));
   await wait(() => root.querySelector('.calendar-editor-dialog'), 'new editor');
   dialog = root.querySelector('.calendar-editor-dialog');
-  // CALENDAR-ADD-UX-01: time and amount open from the start, the rest stays behind chips.
   result.newSectionsOpen = [...dialog.querySelectorAll('[data-editor-section]')].filter(s => !s.hidden).map(s => s.dataset.editorSection);
   const newTitle = dialog.querySelector('.calendar-editor-title'); newTitle.value = '필라테스'; newTitle.dispatchEvent(new Event('input', {bubbles: true}));
   click(dialog.querySelector('[data-editor-chip="repeat"]'));
@@ -240,8 +239,8 @@ try {
     settingsStorage: {getItem: () => JSON.stringify({showKoreaHolidays: false}), setItem() {}}, locationProvider: null, locationPermissions: null, fetchImpl});
   await wait(() => guestRoot.querySelector('.calendar-month-grid'), 'guest grid');
   click(guestRoot.querySelector('[data-calendar-date-trigger="2026-10-12"]'));
-  await wait(() => guestRoot.querySelector('.calendar-day-panel [data-calendar-add]'), 'guest add');
-  click(guestRoot.querySelector('.calendar-day-panel [data-calendar-add]'));
+  await wait(() => guestRoot.querySelector('.calendar-action-slot[data-calendar-action-bar="top"] [data-calendar-add]'), 'guest add');
+  click(guestRoot.querySelector('.calendar-action-slot[data-calendar-action-bar="top"] [data-calendar-add]'));
   await wait(() => guestRoot.querySelector('.calendar-editor-dialog'), 'guest editor');
   result.guestChips = [...guestRoot.querySelectorAll('[data-editor-chip]')].map(c => c.dataset.editorChip);
   out.textContent = JSON.stringify(result);
