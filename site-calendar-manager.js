@@ -785,11 +785,68 @@ export function buildCalendarTemporal({localDate, time = '', endDate = '', endTi
   return Object.freeze({kind: 'LOCAL_DATE_TIME', local_datetime: `${date}T${clock}:00`, timezone_name: timezone});
 }
 
-export function normalizeCalendarClockInput(value) {
-  const raw = typeof value === 'string' ? value.trim() : '';
+// A typed clock -> "HH:mm" (24h), '' when empty, null when it is not a time.
+// CALENDAR-ADD-UX-01 (QA 02 A6): people write "3", "3:30", "330", "3시 반",
+// "오후 3:30" as well as "15:00"/"1500". `period` ('AM'|'PM') is the 오전/오후
+// button beside the box; it decides 1-12. With neither, a bare 1-6 is the
+// afternoon -- the same rule the chat command uses ("2시 회의" is 14:00).
+// 0 and 13-23 are already 24-hour and stay as written.
+export function normalizeCalendarClockInput(value, {period = ''} = {}) {
+  const raw = typeof value === 'string' ? value.trim().replace(/\s+/gu, ' ') : '';
   if (!raw) return '';
-  const clock = /^\d{4}$/.test(raw) ? `${raw.slice(0, 2)}:${raw.slice(2)}` : raw;
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(clock) ? clock : null;
+  let said = '';
+  let body = raw;
+  const prefix = /^(오전|오후)\s*/u.exec(body);
+  if (prefix) {
+    said = prefix[1] === '오전' ? 'AM' : 'PM';
+    body = body.slice(prefix[0].length);
+  }
+  let match;
+  let hour;
+  let minute;
+  // "09:00" or "0930" is written the 24-hour way on purpose: no 오전/오후
+  // button or afternoon guess changes it.
+  let written24 = false;
+  if ((match = /^(\d{1,2}):(\d{2})$/u.exec(body)) || (match = /^(\d{1,2})(\d{2})$/u.exec(body))) {
+    hour = Number(match[1]);
+    minute = Number(match[2]);
+    written24 = match[1].length === 2 && match[1].startsWith('0');
+  } else if ((match = /^(\d{1,2})\s*시(?:\s*(\d{1,2})\s*분|\s*(반))?$/u.exec(body))) {
+    hour = Number(match[1]);
+    minute = match[3] ? 30 : Number(match[2] || 0);
+  } else if ((match = /^(\d{1,2})$/u.exec(body))) {
+    hour = Number(match[1]);
+    minute = 0;
+  } else {
+    return null;
+  }
+  if (minute > 59) return null;
+  const chosen = said || (written24 ? '' : period);
+  if (hour >= 1 && hour <= 12 && chosen) hour = chosen === 'AM' ? hour % 12 : (hour % 12) + 12;
+  else if (said && (hour === 0 || hour > 12)) return null;
+  else if (!chosen && !written24 && hour >= 1 && hour <= 6) hour += 12;
+  if (hour > 23) return null;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+// "15:00" -> "오후 3:00"; "" for anything that is not an "HH:mm".
+export function koreanClockLabel(clock) {
+  const match = /^(\d{2}):(\d{2})$/u.exec(clock || '');
+  if (!match) return '';
+  const hour = Number(match[1]);
+  return `${hour < 12 ? '오전' : '오후'} ${hour % 12 === 0 ? 12 : hour % 12}:${match[2]}`;
+}
+
+// An end time is read as the first moment at or after the start: start 오후 3시
+// and end "5" is 17:00, start 9시 and end "11" is 11:00.
+export function normalizeCalendarEndClock(value, startClock) {
+  const plain = normalizeCalendarClockInput(value);
+  if (!plain || !startClock || /^\s*(오전|오후)/u.test(String(value))) return plain;
+  const morning = normalizeCalendarClockInput(value, {period: 'AM'});
+  const evening = normalizeCalendarClockInput(value, {period: 'PM'});
+  if (morning && morning >= startClock) return morning;
+  if (evening && evening >= startClock) return evening;
+  return plain;
 }
 
 function defaultRequestId(kind) {
@@ -978,7 +1035,7 @@ function withUnscheduledShape(item) {
 
 export function buildCalendarAriaLabel(cell, count, {today = false, selected = false, attention = false, weather = null, holiday = null} = {}) {
   const {year, month, day} = civilDateParts(cell.date);
-  const parts = [`${year}년 ${month}월 ${day}일 ${WEEKDAYS[cell.weekday]}, 기록 ${count}개`];
+  const parts = [`${year}년 ${month}월 ${day}일 ${WEEKDAYS[cell.weekday]}, 일정 ${count}개`];
   // Outside the month on screen the date recedes visually; a screen reader must
   // be told the same thing rather than left to infer it from the spoken month.
   if (cell.inCurrentMonth === false) parts.push('다른 달');
@@ -1367,7 +1424,7 @@ function lifeTimelineNodes(items, date, {today, onSelect, untimedLabel = true} =
     if (untimedLabel && framed.length) {
       const label = document.createElement('p');
       label.className = 'calendar-life-section-label';
-      label.textContent = '시간 없는 기록';
+      label.textContent = '시간 없는 일정';
       fragment.appendChild(label);
     }
     fragment.appendChild(lifeRowList(timeline.untimed, {date, today, onSelect}));
@@ -1482,9 +1539,11 @@ function dayWeatherNode(weather, {precipitation = true, condition = false} = {})
   return node;
 }
 
-// The two ways in, everywhere in the Calendar: 사진에서 기록 읽기 and + 기록.
-// Desktop keeps them at the foot of the day panel; a touch screen pins them to
-// the bottom of the Calendar so a thumb always reaches them.
+// The two ways in, in every view but 년: [+ 일정 추가] and 사진으로 추가, in one
+// place right under the toolbar (CALENDAR-ADD-UX-01, QA 02 A4: Month used to
+// hide them behind a date tap, at 45x30px in a corner). The editor they open
+// shows 시간 and 금액 from the start, so "오늘 점심 12,000원" is one tap plus
+// typing. The day a new entry lands on is the picked day, or today.
 function addActionsRow(state, actions, {placement}) {
   const row = document.createElement('div');
   row.className = 'calendar-add-actions';
@@ -1493,17 +1552,17 @@ function addActionsRow(state, actions, {placement}) {
   const {month, day} = civilDateParts(target);
   const isToday = target === state.todayDate;
 
-  const addImage = button('사진에서 기록 읽기', 'calendar-add-button calendar-add-image-button');
+  const addImage = button('사진으로 추가', 'calendar-add-button calendar-add-image-button');
   addImage.dataset.calendarAddImage = '';
-  addImage.setAttribute('aria-label', `사진에서 일정·거래 정보를 읽어 ${month}월 ${day}일 기록 초안 만들기`);
+  addImage.setAttribute('aria-label', `사진에서 일정·금액을 읽어 ${month}월 ${day}일 일정 초안 만들기`);
   addImage.addEventListener('click', () => actions.onAddFromImage?.(target));
 
-  // The panel already names its date; the pinned bar does not, so it says
-  // which day a new record will land on unless that day is today.
-  const label = placement === 'panel' || isToday ? '+ 기록' : `+ ${month}월 ${day}일에 기록`;
+  // Today needs no date, and neither does the open day's own panel (its
+  // heading names the day); the bar names any other picked day.
+  const label = placement === 'panel' || isToday ? '+ 일정 추가' : `+ ${month}월 ${day}일 일정 추가`;
   const add = button(label, 'calendar-add-button calendar-add-detail-button');
   add.dataset.calendarAdd = '';
-  add.setAttribute('aria-label', `${month}월 ${day}일에 기록 추가`);
+  add.setAttribute('aria-label', `${month}월 ${day}일에 일정 추가`);
   add.addEventListener('click', () => actions.onAdd?.(target));
 
   row.append(addImage, add);
@@ -1533,7 +1592,7 @@ function dayPanel(state, actions, {includeActions = false, presentation = DAY_DE
   panel.dataset.selectedDate = date;
   panel.dataset.presentation = presentation;
   panel.dataset.reducedMotion = String(prefersReducedMotion());
-  panel.setAttribute('aria-label', `${longKoreanDate(date)} 기록`);
+  panel.setAttribute('aria-label', `${longKoreanDate(date)} 일정`);
 
   const head = document.createElement('div');
   head.className = 'calendar-day-panel-head';
@@ -1564,7 +1623,7 @@ function dayPanel(state, actions, {includeActions = false, presentation = DAY_DE
   if (closable) {
     const close = button('닫기', 'calendar-day-close');
     close.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
-    close.setAttribute('aria-label', `${month}월 ${day}일 기록 닫기`);
+    close.setAttribute('aria-label', `${month}월 ${day}일 일정 닫기`);
     close.addEventListener('click', () => actions.closeDayDetail?.());
     head.appendChild(close);
   }
@@ -1596,8 +1655,8 @@ function dayPanel(state, actions, {includeActions = false, presentation = DAY_DE
   const timeline = lifeTimelineNodes(state.items, date, {today: state.todayDate, onSelect: actions.onEvent});
   if (timeline) body.appendChild(timeline);
   // While the read is in flight, nothing is claimed about the day yet.
-  else if (state.loading) body.appendChild(emptyMessage('기록을 불러오는 중…'));
-  else body.appendChild(emptyMessage(date === state.todayDate ? '오늘은 아직 기록이 없어요.' : '이 날은 기록이 없어요.'));
+  else if (state.loading) body.appendChild(emptyMessage('일정을 불러오는 중…'));
+  else body.appendChild(emptyMessage(date === state.todayDate ? '오늘은 아직 일정이 없어요.' : '이 날은 일정이 없어요.'));
   if (state.imageMessage && includeActions) body.appendChild(addMessageNode(state.imageMessage));
   if (includeActions) body.appendChild(addActionsRow(state, actions, {placement: 'panel'}));
   body.dataset.empty = String(!timeline && !selectedHoliday);
@@ -1814,7 +1873,7 @@ function renderWeekVertical(state, actions, {weatherByDate, holidayMap}) {
       koreanDate(day.date),
       isToday ? '오늘' : '',
       holiday ? holiday.name : '',
-      `기록 ${count}개`,
+      `일정 ${count}개`,
     ].filter(Boolean).join(', '));
     // "4 일" on one line, the record dots under it.
     const line = document.createElement('span');
@@ -1854,7 +1913,7 @@ function renderWeekDayDetail(state, actions, {weatherByDate, holidayMap}) {
   const detail = document.createElement('section');
   detail.className = 'calendar-week-day-detail';
   detail.dataset.selectedDate = date;
-  detail.setAttribute('aria-label', `${longKoreanDate(date)} 기록`);
+  detail.setAttribute('aria-label', `${longKoreanDate(date)} 일정`);
 
   const head = document.createElement('div');
   head.className = 'calendar-week-day-detail-head';
@@ -1909,12 +1968,12 @@ function renderWeekDayDetail(state, actions, {weatherByDate, holidayMap}) {
     const empty = document.createElement('div');
     empty.className = 'calendar-week-day-empty';
     if (state.loading) {
-      empty.appendChild(emptyMessage('기록을 불러오는 중…'));
+      empty.appendChild(emptyMessage('일정을 불러오는 중…'));
     } else {
-      empty.appendChild(emptyMessage(date === state.todayDate ? '오늘은 아직 기록이 없어요.' : '이 날은 기록이 없어요.'));
+      empty.appendChild(emptyMessage(date === state.todayDate ? '오늘은 아직 일정이 없어요.' : '이 날은 일정이 없어요.'));
       const hint = document.createElement('p');
       hint.className = 'calendar-week-day-empty-hint';
-      hint.textContent = '위의 + 기록이나 사진에서 기록 읽기로 남길 수 있어요.';
+      hint.textContent = '위의 + 일정 추가 버튼으로 바로 남길 수 있어요.';
       empty.appendChild(hint);
     }
     cards.appendChild(empty);
@@ -1930,7 +1989,7 @@ function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
   const wrapper = document.createElement('div');
   wrapper.className = 'calendar-week-timegrid';
   const hasAny = grid.some(day => day.timed.length > 0 || day.allDay.length > 0);
-  if (!hasAny) wrapper.appendChild(emptyMessage('이번 주에는 기록이 없어요.'));
+  if (!hasAny) wrapper.appendChild(emptyMessage('이번 주에는 일정이 없어요.'));
 
   const body = document.createElement('div');
   body.className = 'calendar-week-grid';
@@ -2282,7 +2341,7 @@ function renderMonth(state, actions, weatherCredit = null) {
     more.dataset.eventOverflow = '';
     more.hidden = remaining === 0;
     more.textContent = remaining ? `+${remaining}` : '';
-    more.setAttribute('aria-label', `${cell.month}월 ${cell.day}일 기록 ${remaining}개 더 보기`);
+    more.setAttribute('aria-label', `${cell.month}월 ${cell.day}일 일정 ${remaining}개 더 보기`);
     more.addEventListener('click', event => {
       event.stopPropagation();
       void actions.selectDate(cell.date, {openDetail: true});
@@ -2361,9 +2420,9 @@ function renderYear(state, actions) {
     // 년 is for finding a month, not a report: a month with nothing in it says
     // nothing, and one with records says how many.
     const count = document.createElement('span'); count.className = 'calendar-year-event-count';
-    count.textContent = counts[month.month - 1] ? `기록 ${counts[month.month - 1]}개` : '';
+    count.textContent = counts[month.month - 1] ? `일정 ${counts[month.month - 1]}개` : '';
     card.append(title, weekdays, dates, count);
-    card.setAttribute('aria-label', `${state.year}년 ${month.month}월, 기록 ${counts[month.month - 1]}개, 월간 보기`);
+    card.setAttribute('aria-label', `${state.year}년 ${month.month}월, 일정 ${counts[month.month - 1]}개, 월간 보기`);
     card.addEventListener('click', () => actions.selectMonth(month.month));
     grid.appendChild(card);
   }
@@ -2415,15 +2474,15 @@ function renderAgenda(state, actions) {
   let empty = '';
   if (scope === 'month') {
     items = inMonth;
-    empty = '이 달에는 기록이 없어요.';
+    empty = '이 달에는 일정이 없어요.';
   } else if (scope === 'upcoming') {
     // Ahead of today within what this screen has loaded (the visible month);
     // a stay that has started but not ended is still ahead.
     items = dated.filter(item => calendarItemEndDate(item) >= state.todayDate);
-    empty = '이 달에는 다가오는 기록이 없어요.';
+    empty = '이 달에는 다가오는 일정이 없어요.';
   } else if (scope === 'amount') {
     items = inMonth.filter(item => Number.isSafeInteger(item?.entry?.amount_minor));
-    empty = '이 달에는 금액을 입력한 기록이 없어요.';
+    empty = '이 달에는 금액을 입력한 일정이 없어요.';
   }
 
   // The one thing the old 확인 필요 tab did that nothing else does: a deadline
@@ -2454,7 +2513,7 @@ function renderAgenda(state, actions) {
 
   if (scope !== 'unscheduled') {
     if (!items.length && !overdue.length && !showUnscheduled) {
-      section.appendChild(emptyMessage(state.loading ? '기록을 불러오는 중…' : empty));
+      section.appendChild(emptyMessage(state.loading ? '일정을 불러오는 중…' : empty));
       return section;
     }
     const groups = groupCalendarEvents(items);
@@ -2478,11 +2537,11 @@ function renderAgenda(state, actions) {
     heading.textContent = '날짜 미정';
     const note = document.createElement('p');
     note.className = 'calendar-unscheduled-note';
-    note.textContent = '날짜를 정하지 않은 기록입니다. 열어서 날짜를 정하거나 그대로 둘 수 있어요.';
+    note.textContent = '날짜를 정하지 않은 일정입니다. 열어서 날짜를 정하거나 그대로 둘 수 있어요.';
     group.append(heading, note, lifeRowList(state.unscheduled, {today: state.todayDate, onSelect: actions.onEvent}));
     section.appendChild(group);
   } else if (scope === 'unscheduled') {
-    section.appendChild(emptyMessage('날짜를 정하지 않은 기록이 없어요.'));
+    section.appendChild(emptyMessage('날짜를 정하지 않은 일정이 없어요.'));
   }
   return section;
 }
@@ -3149,10 +3208,10 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
   const itemPolicy = calendarItemActionPolicy(item);
   const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading';
   heading.textContent = item
-    ? '기록 수정'
+    ? '일정 수정'
     : hasDraftContent
       ? (draftSource === 'image' ? '사진에서 읽은 내용 확인' : '일정 초안 확인')
-      : '기록 추가';
+      : '일정 추가';
   const editorHeader = document.createElement('div'); editorHeader.className = 'calendar-editor-header';
   const closeButton = button('×', 'calendar-editor-close'); closeButton.setAttribute('aria-label', '닫기');
   closeButton.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
@@ -3231,8 +3290,17 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
   titleLabel.append(titleText, titleInput);
 
   // ── 시간 ───────────────────────────────────────────────────────────
-  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'text'; timeInput.inputMode = 'numeric'; timeInput.maxLength = 5; timeInput.placeholder = 'HH:mm'; timeInput.setAttribute('aria-label', '시작 시간 네 자리 숫자 또는 HH:mm'); timeInput.value = item?.local_datetime?.slice(11, 16) || draft?.localTime || '';
-  const endTimeInput = document.createElement('input'); endTimeInput.className = 'calendar-editor-end-time'; endTimeInput.type = 'text'; endTimeInput.inputMode = 'numeric'; endTimeInput.maxLength = 5; endTimeInput.placeholder = 'HH:mm'; endTimeInput.setAttribute('aria-label', '종료 시간 네 자리 숫자 또는 HH:mm'); endTimeInput.value = item?.local_end_datetime?.slice(11, 16) || draft?.endLocalTime || '';
+  // CALENDAR-ADD-UX-01 (QA 02 A6): the box reads "3:00" beside [오전] [오후],
+  // the way people say a time; what is saved stays "15:00". Still a text box,
+  // not the native clock (keyboard-safe on every phone, an earlier decision).
+  const initialStartClock = normalizeCalendarClockInput(item?.local_datetime?.slice(11, 16) || draft?.localTime || '') || '';
+  let startPeriod = initialStartClock ? (initialStartClock < '12:00' ? 'AM' : 'PM') : '';
+  const twelveHourClock = clock => koreanClockLabel(clock).replace(/^(오전|오후) /u, '');
+  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'text'; timeInput.inputMode = 'numeric'; timeInput.maxLength = 8; timeInput.placeholder = '예: 3:00'; timeInput.setAttribute('aria-label', '시작 시간, 예: 3:00 또는 15:30'); timeInput.value = twelveHourClock(initialStartClock);
+  const initialEndClock = normalizeCalendarClockInput(item?.local_end_datetime?.slice(11, 16) || draft?.endLocalTime || '') || '';
+  const endTimeInput = document.createElement('input'); endTimeInput.className = 'calendar-editor-end-time'; endTimeInput.type = 'text'; endTimeInput.inputMode = 'numeric'; endTimeInput.maxLength = 8; endTimeInput.placeholder = '예: 5:00'; endTimeInput.setAttribute('aria-label', '종료 시간, 예: 5:00'); endTimeInput.value = koreanClockLabel(initialEndClock);
+  const readStartClock = () => normalizeCalendarClockInput(timeInput.value, {period: startPeriod});
+  const readEndClock = () => normalizeCalendarEndClock(endTimeInput.value, readStartClock() || '');
   const existingEndDate = item?.local_end_date || item?.local_end_datetime?.slice(0, 10) || draft?.endLocalDate || '';
   const endDateInput = document.createElement('input'); endDateInput.className = 'calendar-editor-end-date'; endDateInput.type = 'date';
   endDateInput.value = existingEndDate && existingEndDate !== initialDate ? existingEndDate : '';
@@ -3240,12 +3308,23 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
   const timeSection = document.createElement('div'); timeSection.className = 'calendar-editor-section calendar-editor-time-control';
   const timeSectionLabel = document.createElement('span'); timeSectionLabel.className = 'calendar-editor-section-label'; timeSectionLabel.textContent = '시작 시간';
   const quickTimes = document.createElement('div'); quickTimes.className = 'calendar-editor-time-quick';
-  for (const time of ['09:00', '12:00', '18:00']) {
-    const quick = button(time, 'calendar-editor-time-quick-choice'); quick.dataset.quickTime = time; quickTimes.appendChild(quick);
+  for (const [time, words] of [['09:00', '오전 9시'], ['12:00', '낮 12시'], ['18:00', '오후 6시']]) {
+    const quick = button(words, 'calendar-editor-time-quick-choice'); quick.dataset.quickTime = time; quickTimes.appendChild(quick);
   }
+  const periodChoices = document.createElement('div'); periodChoices.className = 'calendar-editor-time-period';
+  periodChoices.setAttribute('role', 'group'); periodChoices.setAttribute('aria-label', '오전 또는 오후');
+  const periodButtons = [['AM', '오전'], ['PM', '오후']].map(([value, words]) => {
+    const choice = button(words, 'calendar-editor-time-period-choice'); choice.dataset.timePeriod = value;
+    periodChoices.appendChild(choice);
+    return choice;
+  });
+  const syncPeriodButtons = () => {
+    for (const choice of periodButtons) choice.setAttribute('aria-pressed', String(choice.dataset.timePeriod === startPeriod));
+  };
+  syncPeriodButtons();
   const clearTime = button('시간 지우기', 'calendar-editor-time-clear');
   const timeRow = document.createElement('div'); timeRow.className = 'calendar-editor-time-row';
-  timeRow.append(timeInput, clearTime);
+  timeRow.append(periodChoices, timeInput, clearTime);
   timeSection.append(timeSectionLabel, quickTimes, timeRow);
 
   // ── 종료 ───────────────────────────────────────────────────────────
@@ -3390,7 +3469,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
   reminderLabel.append(reminderText, reminderSelect);
   const reminderStatus = document.createElement('p'); reminderStatus.className = 'calendar-editor-reminder-status'; reminderStatus.setAttribute('role', 'status');
   const reminderAllDay = document.createElement('small'); reminderAllDay.className = 'calendar-editor-hint calendar-editor-reminder-all-day';
-  reminderAllDay.textContent = '하루 종일 기록은 그날 오전 9시를 기준으로 알려 드려요.';
+  reminderAllDay.textContent = '하루 종일 일정은 그날 오전 9시를 기준으로 알려 드려요.';
   reminderSection.append(reminderLabel, reminderStatus, reminderAllDay);
   // 알림 권한 안내: 권한을 여기서 묻지 않는다(설정의 '알림 사용' 버튼만 묻는다).
   const reminderDeliveryNote = () => {
@@ -3421,7 +3500,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
   };
   const fields = [
     {key: 'time', label: '시간', section: timeSection, focus: () => timeInput,
-      summary: () => (timeInput.value.trim() ? `시간 ${timeInput.value.trim()}` : '')},
+      summary: () => koreanClockLabel(readStartClock() || '')},
     ...(repeatEditable ? [
       {key: 'repeat', label: '반복', section: repeatSection, focus: () => repeatSelect,
         summary: () => recurrenceSummary(repeatValue())},
@@ -3441,11 +3520,11 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
       summary: () => (placeInput.value.trim() ? `장소 ${shorten(placeInput.value.trim())}` : '')},
     {key: 'memo', label: '메모', section: memoSection, focus: () => memoInput,
       summary: () => (memoInput.value.trim() ? '메모 있음' : '')},
-    {key: 'end', label: '종료', section: endSection, focus: () => (timeInput.value.trim() ? endTimeInput : endDateInput),
+    {key: 'end', label: '종료', section: endSection, focus: () => (readStartClock() ? endTimeInput : endDateInput),
       summary: () => {
         const parts = [];
         if (validCivilDate(endDateInput.value) && endDateInput.value !== dateInput.value) parts.push(`${Number(endDateInput.value.slice(5, 7))}/${Number(endDateInput.value.slice(8, 10))}`);
-        if (endTimeInput.value.trim()) parts.push(endTimeInput.value.trim());
+        if (endTimeInput.value.trim()) parts.push(koreanClockLabel(readEndClock() || '') || endTimeInput.value.trim());
         return parts.length ? `종료 ${parts.join(' ')}` : '';
       }},
     {key: 'more', label: '더보기', section: moreSection, focus: () => merchantInput,
@@ -3482,7 +3561,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
       field.chip.setAttribute('aria-expanded', String(!field.section.hidden));
       field.chip.setAttribute('aria-label', summary ? `${field.label}: ${summary}` : `${field.label} 추가`);
     }
-    const hasStart = Boolean(timeInput.value.trim());
+    const hasStart = Boolean(readStartClock());
     endTimeInput.disabled = !hasStart;
     endTimeHint.hidden = hasStart;
     if (repeatEditable) {
@@ -3503,21 +3582,35 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
       reminderAllDay.hidden = !reminderSelect.value || hasStart;
     }
   }
-  // Whatever already has a value opens with it: an edit or a draft shows what
-  // it holds, a blank record shows nothing it was not asked for.
-  for (const field of fields) field.section.hidden = !field.summary();
+  // Whatever already has a value opens with it, and 시간 and 금액 are open from
+  // the start (CALENDAR-ADD-UX-01): "오늘 점심 12,000원" and "오후 3시 회의"
+  // need no chip first. The rest wait behind their chips.
+  for (const field of fields) field.section.hidden = !(field.summary() || field.key === 'time' || field.key === 'amount');
 
   quickTimes.addEventListener('click', event => {
     const quick = event.target.closest('[data-quick-time]');
     if (!quick) return;
-    timeInput.value = quick.dataset.quickTime;
+    startPeriod = quick.dataset.quickTime < '12:00' ? 'AM' : 'PM';
+    timeInput.value = twelveHourClock(quick.dataset.quickTime);
+    syncPeriodButtons();
     timeInput.setAttribute('aria-invalid', 'false');
     refreshChips();
     timeInput.focus();
   });
+  periodChoices.addEventListener('click', event => {
+    const choice = event.target.closest('[data-time-period]');
+    if (!choice) return;
+    startPeriod = choice.dataset.timePeriod;
+    const clock = readStartClock();
+    if (clock) timeInput.value = twelveHourClock(clock);
+    syncPeriodButtons();
+    refreshChips();
+  });
   clearTime.addEventListener('click', () => {
     timeInput.value = '';
     endTimeInput.value = '';
+    startPeriod = '';
+    syncPeriodButtons();
     timeInput.setAttribute('aria-invalid', 'false');
     endTimeInput.setAttribute('aria-invalid', 'false');
     refreshChips();
@@ -3526,14 +3619,22 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
   for (const input of [timeInput, endTimeInput, placeInput, memoInput, merchantInput]) input.addEventListener('input', refreshChips);
   for (const control of [repeatSelect, repeatEndSelect, untilInput, intervalInput, reminderSelect]) control.addEventListener('change', refreshChips);
   intervalInput.addEventListener('input', refreshChips);
-  for (const input of [timeInput, endTimeInput]) {
-    input.addEventListener('blur', () => {
-      const normalized = normalizeCalendarClockInput(input.value);
-      if (normalized) input.value = normalized;
-      input.setAttribute('aria-invalid', String(normalized === null));
-      refreshChips();
-    });
-  }
+  timeInput.addEventListener('blur', () => {
+    const clock = readStartClock();
+    if (clock) {
+      startPeriod = clock < '12:00' ? 'AM' : 'PM';
+      timeInput.value = twelveHourClock(clock);
+      syncPeriodButtons();
+    }
+    timeInput.setAttribute('aria-invalid', String(clock === null));
+    refreshChips();
+  });
+  endTimeInput.addEventListener('blur', () => {
+    const clock = readEndClock();
+    if (clock) endTimeInput.value = koreanClockLabel(clock);
+    endTimeInput.setAttribute('aria-invalid', String(clock === null));
+    refreshChips();
+  });
   dateInput.addEventListener('change', () => {
     refreshDateChip();
     endDateInput.min = dateInput.value || '';
@@ -3585,14 +3686,14 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
 
       const confirmationTitle = document.createElement('h4');
       confirmationTitle.id = 'calendar-delete-confirm-title';
-      confirmationTitle.textContent = '이 기록을 삭제하시겠습니까?';
+      confirmationTitle.textContent = '이 일정을 삭제하시겠습니까?';
       const confirmationDescription = document.createElement('p');
       confirmationDescription.id = 'calendar-delete-confirm-description';
-      confirmationDescription.textContent = '삭제한 기록은 복구할 수 없습니다.';
+      confirmationDescription.textContent = '삭제한 일정은 복구할 수 없습니다.';
       if (recurringItem) {
         // 반복 기록은 이 날짜만 지울지, 반복 전체를 지울지 고른다.
-        confirmationTitle.textContent = '반복 기록을 삭제하시겠습니까?';
-        confirmationDescription.textContent = `${longKoreanDate(item.local_date)} 한 번만 지우거나 반복 전체를 지울 수 있어요. 삭제한 기록은 복구할 수 없습니다.`;
+        confirmationTitle.textContent = '반복 일정을 삭제하시겠습니까?';
+        confirmationDescription.textContent = `${longKoreanDate(item.local_date)} 한 번만 지우거나 반복 전체를 지울 수 있어요. 삭제한 일정은 복구할 수 없습니다.`;
       }
       const confirmationError = document.createElement('p');
       confirmationError.className = 'calendar-delete-confirm-error';
@@ -3679,8 +3780,8 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
           confirmDelete.disabled = false;
           if (deleteOneDate) deleteOneDate.disabled = false;
           confirmationError.textContent = caught?.code === 'STALE_REVISION'
-            ? '기록이 바뀌었어요. 저장 상태를 확인한 뒤 다시 시도해 주세요.'
-            : '기록을 삭제하지 못했어요. 다시 시도해 주세요.';
+            ? '일정이 바뀌었어요. 저장 상태를 확인한 뒤 다시 시도해 주세요.'
+            : '일정을 삭제하지 못했어요. 다시 시도해 주세요.';
           confirmDelete.focus();
         }
       };
@@ -3756,7 +3857,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
     const scopeDialog = document.createElement('section'); scopeDialog.className = 'calendar-delete-confirm-dialog calendar-scope-confirm-dialog';
     scopeDialog.setAttribute('role', 'dialog'); scopeDialog.setAttribute('aria-modal', 'true');
     scopeDialog.setAttribute('aria-labelledby', 'calendar-scope-confirm-title');
-    const scopeTitle = document.createElement('h4'); scopeTitle.id = 'calendar-scope-confirm-title'; scopeTitle.textContent = '반복 기록을 어떻게 바꿀까요?';
+    const scopeTitle = document.createElement('h4'); scopeTitle.id = 'calendar-scope-confirm-title'; scopeTitle.textContent = '반복 일정을 어떻게 바꿀까요?';
     const scopeDescription = document.createElement('p'); scopeDescription.textContent = `${longKoreanDate(item.local_date)} 한 번만 바꾸거나, 반복 전체를 바꿀 수 있어요.`;
     const scopeActions = document.createElement('div'); scopeActions.className = 'calendar-delete-confirm-actions';
     const scopeCancel = button('취소', 'calendar-scope-confirm-cancel');
@@ -3790,7 +3891,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.textContent = '';
     if (item && !itemPolicy.canUpdate) {
-      error.textContent = '읽기 전용 기록은 수정할 수 없어요.';
+      error.textContent = '읽기 전용 일정은 수정할 수 없어요.';
       return;
     }
     if (!titleInput.value.trim()) {
@@ -3798,10 +3899,10 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
       titleInput.focus();
       return;
     }
-    const startClock = normalizeCalendarClockInput(timeInput.value);
-    const endClock = normalizeCalendarClockInput(endTimeInput.value);
+    const startClock = readStartClock();
+    const endClock = readEndClock();
     if (startClock === null || endClock === null) {
-      error.textContent = '시간을 HH:mm 형식으로 입력해 주세요.';
+      error.textContent = '시간을 3:30이나 15:30처럼 입력하거나 위의 시간 버튼을 눌러 주세요.';
       const target = startClock === null ? timeInput : endTimeInput;
       target.setAttribute('aria-invalid', 'true');
       revealField(fields.find(field => field.key === (startClock === null ? 'time' : 'end')));
@@ -3810,7 +3911,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
     }
     // An end time without a start time means nothing; it is dropped, not an error.
     const effectiveEndClock = startClock ? endClock : '';
-    timeInput.value = startClock; endTimeInput.value = effectiveEndClock; refreshChips();
+    timeInput.value = twelveHourClock(startClock); endTimeInput.value = koreanClockLabel(effectiveEndClock); refreshChips();
     const digits = amountDigits(amountInput.value);
     const endDate = validCivilDate(endDateInput.value) && endDateInput.value !== dateInput.value ? endDateInput.value : '';
     const repeat = repeatEditable ? repeatValue() : undefined;
@@ -3823,11 +3924,11 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
           : repeat.until && repeat.until < (recurringItem ? seriesStart : dateInput.value)
             ? '반복 종료일은 시작일 이후로 정해 주세요.'
             : digits
-              ? '반복 기록에는 금액을 함께 저장할 수 없어요. 금액을 지우거나 반복을 끄고 저장해 주세요.'
+              ? '반복 일정에는 금액을 함께 저장할 수 없어요. 금액을 지우거나 반복을 끄고 저장해 주세요.'
               : '';
       if (repeatError) {
         error.textContent = repeatError;
-        const amountProblem = repeatError.startsWith('반복 기록에는 금액');
+        const amountProblem = repeatError.startsWith('반복 일정에는 금액');
         revealField(fields.find(field => field.key === (amountProblem ? 'amount' : 'repeat')));
         return;
       }
@@ -3871,10 +3972,10 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
       releaseEditorEnvironment();
       backdrop.remove(); await onSaved(value.localDate);
     } catch (caught) {
-      if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 기록을 새로 불러왔어요.'; await onStale(); }
+      if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 일정을 새로 불러왔어요.'; await onStale(); }
       // The guest quota itself is unchanged; only its words follow the Calendar's.
-      else if (caught?.code === 'GUEST_CALENDAR_CREATE_QUOTA_REACHED') error.textContent = `로그인 없이 남길 수 있는 기록 ${GUEST_CREATE_QUOTA}개를 모두 썼어요. 로그인하면 계속 남길 수 있어요.`;
-      else error.textContent = caught instanceof Error ? caught.message : '기록을 저장하지 못했어요.';
+      else if (caught?.code === 'GUEST_CALENDAR_CREATE_QUOTA_REACHED') error.textContent = `로그인 없이 남길 수 있는 일정 ${GUEST_CREATE_QUOTA}개를 모두 썼어요. 로그인하면 계속 남길 수 있어요.`;
+      else error.textContent = caught instanceof Error ? caught.message : '일정을 저장하지 못했어요.';
       saveInFlight = false; refreshSave();
     }
   });
@@ -4826,7 +4927,7 @@ export async function mountLifeCalendarManager({
     amountSlot.hidden = !amountSummary;
     shell.dataset.amountVisible = String(Boolean(amountSummary));
     if (state.loading) {
-      const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '기록을 불러오는 중'; status.appendChild(loading);
+      const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '일정을 불러오는 중'; status.appendChild(loading);
     } else {
       // Weather location is an accessory of an accessory. Once the browser has
       // granted it, repeating that on every open is noise that sits above the
@@ -4859,25 +4960,17 @@ export async function mountLifeCalendarManager({
       syncMonthLayout(layout);
     }
 
-    // Week needs its actions before the tall time grid so they remain visible
-    // without scrolling. Other modes keep their existing position after the
-    // viewport; moving the shared slot back also makes mode changes stable.
-    if (state.mode === 'week') viewport.before(actionSlot);
-    else viewport.after(actionSlot);
-
-    // + 기록 / 사진에서 기록 읽기 outside the day panel: every view except 년
-    // (which is only for finding a month), while Day and Month carry the same
-    // actions inside their day panel.
-    const panelCarriesActions = state.mode === 'day' || state.mode === 'month';
-    if (state.mode === 'year' || panelCarriesActions) {
+    // [+ 일정 추가] / 사진으로 추가 sit in one place in every view but 년 (only
+    // for finding a month): right under the toolbar, before the view, so they
+    // are on screen without scrolling and without a date tap (QA 02 A4).
+    viewport.before(actionSlot);
+    if (state.mode === 'year') {
       actionSlot.hidden = true;
       actionSlot.replaceChildren();
       actionSlot.dataset.calendarActionBar = 'none';
     } else {
       actionSlot.hidden = false;
-      actionSlot.dataset.calendarActionBar = state.mode === 'week'
-        ? 'week-top'
-        : (usesFlowingDayDetail() ? 'pinned' : 'inline');
+      actionSlot.dataset.calendarActionBar = 'top';
       const nodes = [];
       if (state.imageMessage) nodes.push(addMessageNode(state.imageMessage));
       nodes.push(addActionsRow(state, actions, {placement: 'bar'}));
@@ -4901,7 +4994,7 @@ export async function mountLifeCalendarManager({
   async function addFromImage(date) {
     const say = text => { state.imageMessage = text; renderPreservingFocus(); };
     if (!authenticated) {
-      say('사진에서 기록을 읽으려면 LOTBI에 로그인해 주세요. + 기록은 로그인 없이도 쓸 수 있어요.');
+      say('사진으로 추가하려면 LOTBI에 로그인해 주세요. + 일정 추가는 로그인 없이도 쓸 수 있어요.');
       return;
     }
     say('');
@@ -4943,7 +5036,7 @@ export async function mountLifeCalendarManager({
         draft.title || draft.localDate || Number.isSafeInteger(draft.entry?.amountMinor) || draft.entry?.place || draft.entry?.merchant,
       );
       if (!legible) {
-        say('이 사진에서 일정·거래 정보를 찾지 못했어요. 사진 자체는 캘린더에 저장되지 않아요. + 기록으로 직접 남길 수 있어요.');
+        say('이 사진에서 일정·거래 정보를 찾지 못했어요. 사진 자체는 캘린더에 저장되지 않아요. + 일정 추가로 직접 남길 수 있어요.');
         return;
       }
       say('');
@@ -4969,8 +5062,8 @@ export async function mountLifeCalendarManager({
       // send them to a login screen, so it says what they can do instead.
       const refused = error instanceof SiteCoreError && error.status === 403;
       say(refused
-        ? '지금은 사진에서 기록을 읽을 수 없어요. + 기록으로 직접 남겨 주세요.'
-        : '사진을 읽지 못했어요. 다시 시도하거나 + 기록으로 직접 남겨 주세요.');
+        ? '지금은 사진으로 추가할 수 없어요. + 일정 추가로 직접 남겨 주세요.'
+        : '사진을 읽지 못했어요. 다시 시도하거나 + 일정 추가로 직접 남겨 주세요.');
     }
   }
 
@@ -5034,7 +5127,7 @@ export async function mountLifeCalendarManager({
         state.expense = {
           status: 'error',
           summary: null,
-          message: '이 브라우저의 기록을 읽지 못해 합계를 낼 수 없어요.',
+          message: '이 브라우저의 일정을 읽지 못해 합계를 낼 수 없어요.',
           monthKey,
           local: true,
         };

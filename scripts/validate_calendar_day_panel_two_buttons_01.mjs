@@ -3,7 +3,7 @@
 // 날짜 상세와 두 버튼을 봉인한다. (LIFE UX 01 갱신)
 //
 //  1. 날짜 상세에 "일정 제목" 입력칸과 [저장] 버튼이 없다. 커서도 들어가지 않는다.
-//  2. 버튼은 딱 둘이다 — [사진에서 기록 읽기] [+ 기록]. + 기록은 고른 날짜로
+//  2. 버튼은 딱 둘이다 — [사진으로 추가] [+ 일정 추가]. + 일정 추가은 고른 날짜로
 //     입력 폼을 바로 연다(종류 고르기 단계 없음). 오늘이 아닌 날을 고르면
 //     "+ 10월 7일에 기록"처럼 그 날짜를 말한다. 폰에서는 화면 아래에 붙어 있고,
 //     넓은 화면에서는 오른쪽 날짜 상세 안에 있다.
@@ -18,7 +18,7 @@
 // 선택은 오늘 하나뿐이고, 상세는 달력 아래(폰) 또는 옆(데스크톱)에 있으며
 // 달력을 가리지 않는다. 캐럿도 저절로 들어가지 않는다.
 //
-// 함께 지키는 것: 날짜 heading, "이 날은 기록이 없어요.", 일정 목록, 폰에서
+// 함께 지키는 것: 날짜 heading, "이 날은 일정이 없어요.", 일정 목록, 폰에서
 // 상세가 안쪽 스크롤을 갖지 않는 것(한 화면 한 스크롤), 버튼이 실제로 눌리는 것.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -53,9 +53,9 @@ if (calendarCss.includes('calendar-quick-add')) {
 if (/detailOpen:\s*usesFlowingDayDetail\(\)/.test(manager)) {
   throw new Error('the day detail must not be decided by the viewport at mount');
 }
-// No "what kind of record?" chooser between + 기록 and the editor.
+// No "what kind of record?" chooser between + 일정 추가 and the editor.
 for (const token of ['calendar-add-type', 'data-calendar-add-kind', '어떤 기록을']) {
-  if (manager.includes(token)) throw new Error(`+ 기록 must open the editor directly; found a type chooser token "${token}"`);
+  if (manager.includes(token)) throw new Error(`+ 일정 추가 must open the editor directly; found a type chooser token "${token}"`);
 }
 
 function browserPath() {
@@ -72,6 +72,8 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/home-chat.css">
 <link rel="stylesheet" href="/site-calendar.css?v=${V}">
+<link rel="stylesheet" href="/site-calendar-expense.css?v=${V}">
+<link rel="stylesheet" href="/site-calendar-weather.css?v=${V}">
 </head><body class="chat-home-page" data-site-auth-state="unauthenticated">
 <aside class="chat-sidebar chat-sidebar-desktop">
   <button type="button" data-calendar-view="all">캘린더</button>
@@ -210,7 +212,10 @@ try{
     const found=document.elementFromPoint(Math.round(r.left+r.width/2),Math.round(r.top+r.height/2));
     return Boolean(found&&(found===node||node.contains(found)));
   };
-  const addButtons=modal=>[...modal.querySelectorAll('.calendar-add-actions button')];
+  // CALENDAR-ADD-UX-01: the two actions also sit under the toolbar from the
+  // start; this file is about the ones the picked day's detail carries.
+  const addButtons=modal=>[...modal.querySelectorAll('.calendar-day-panel .calendar-add-actions button')];
+  const topBarButtons=modal=>[...modal.querySelectorAll('.calendar-action-slot[data-calendar-action-bar="top"] .calendar-add-actions button')];
 
   let {modal,content}=await openCalendar();
   const desktop=innerWidth>900;
@@ -226,7 +231,13 @@ try{
     modal.querySelector('[data-calendar-quick-add],[data-calendar-quick-add-title],[data-calendar-quick-add-save],.calendar-quick-add')
   );
   result.mountButtons=addButtons(modal).map(node=>node.textContent.trim());
-  result.mountEmptySentence=(modal.querySelector('.calendar-day-panel')?.textContent||'').includes('오늘은 아직 기록이 없어요.');
+  result.mountTopBar={
+    labels:topBarButtons(modal).map(node=>node.textContent.trim()),
+    hittable:topBarButtons(modal).length>0&&topBarButtons(modal).every(hit),
+    minHeight:Math.min(...topBarButtons(modal).map(node=>Math.round(node.getBoundingClientRect().height)),999),
+    at:topBarButtons(modal).map(node=>{const r=node.getBoundingClientRect();const f=document.elementFromPoint(Math.round(r.left+r.width/2),Math.round(r.top+r.height/2));return {top:Math.round(r.top),left:Math.round(r.left),w:Math.round(r.width),h:Math.round(r.height),hit:f?(f.tagName+'.'+String(f.className||'')).slice(0,80):'none'};}),
+  };
+  result.mountEmptySentence=(modal.querySelector('.calendar-day-panel')?.textContent||'').includes('오늘은 아직 일정이 없어요.');
 
   const cells=()=>[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')];
   const emptyCell=cells().find(node=>node.dataset.calendarDate!==busyDate&&node.dataset.today!=='true');
@@ -254,17 +265,17 @@ try{
     buttonsInPanel:panel.querySelectorAll('.calendar-add-actions button').length,
     buttonsInPinnedBar:modal.querySelectorAll('.calendar-action-slot[data-calendar-action-bar="pinned"] .calendar-add-actions button').length,
     buttonsHittable:addButtons(modal).every(hit),
-    addImageAria:modal.querySelector('[data-calendar-add-image]')?.getAttribute('aria-label')||'',
-    addDetailAria:modal.querySelector('[data-calendar-add]')?.getAttribute('aria-label')||'',
+    addImageAria:panel.querySelector('[data-calendar-add-image]')?.getAttribute('aria-label')||'',
+    addDetailAria:panel.querySelector('[data-calendar-add]')?.getAttribute('aria-label')||'',
     heading:panel.querySelector('.calendar-day-heading')?.textContent?.trim()||'',
-    emptySentence:panel.textContent.includes('이 날은 기록이 없어요.'),
+    emptySentence:panel.textContent.includes('이 날은 일정이 없어요.'),
     selectedDates:[...modal.querySelectorAll('.calendar-date-cell[data-selected="true"]')].map(n=>n.dataset.calendarDate),
     gridBottom:Math.round(modal.querySelector('.calendar-month-grid').getBoundingClientRect().bottom),
     gridRight:Math.round(modal.querySelector('.calendar-month-grid').getBoundingClientRect().right),
   };
 
-  // --- (4) + 기록 opens the form straight away on the tapped day ----------
-  click(modal.querySelector('[data-calendar-add]'));
+  // --- (4) + 일정 추가 opens the form straight away on the tapped day ----------
+  click(modal.querySelector('.calendar-day-panel [data-calendar-add]'));
   await wait(()=>modal.querySelector('.calendar-editor-dialog'),'form open');
   const editor=modal.querySelector('.calendar-editor-dialog');
   await new Promise(r=>setTimeout(r,80));
@@ -289,7 +300,7 @@ try{
     selectedDate:modal.querySelector('.calendar-day-panel')?.dataset.selectedDate||'',
   };
 
-  click(modal.querySelector('[data-calendar-add]'));
+  click(modal.querySelector('.calendar-day-panel [data-calendar-add]'));
   await wait(()=>modal.querySelector('.calendar-editor-dialog'),'form reopened for save');
   const saveEditor=modal.querySelector('.calendar-editor-dialog');
   const saveTitle=saveEditor.querySelector('.calendar-editor-title');
@@ -348,7 +359,7 @@ try{
     panelOverflow:getComputedStyle(busyPanel).overflowY,
     buttons:addButtons(modal).map(n=>n.textContent.trim()),
     buttonsHittable:addButtons(modal).every(hit),
-    emptySentence:/기록이 없어요/.test(busyPanel.textContent),
+    emptySentence:/일정이 없어요/.test(busyPanel.textContent),
     caret:caret(),
     inputsInPanel:busyPanel.querySelectorAll('input,textarea,select,[contenteditable="true"]').length,
   };
@@ -440,6 +451,10 @@ try {
       if (value.quickAddAnywhereOnMount || value.quickAddAnywhereOnReopen) fail('a quick-add form is still rendered somewhere in the Calendar');
       if (value.mountEmptySentence) fail('Month must not mount an automatic today detail');
       if (value.mountButtons.length) fail(`Month must not mount day actions before a date press, got [${value.mountButtons.join('|')}]`);
+      // CALENDAR-ADD-UX-01: one tap to the form — the two actions are under the toolbar from the start.
+      if (value.mountTopBar.labels.join('|') !== '사진으로 추가|+ 일정 추가') fail(`the toolbar must carry 사진으로 추가 then + 일정 추가 from the start, got [${value.mountTopBar.labels.join('|')}]`);
+      if (!value.mountTopBar.hittable) fail(`the toolbar actions must be hit-testable on mount ${JSON.stringify(value.mountTopBar)}`);
+      if (value.mountTopBar.minHeight < 48) fail(`the toolbar actions must be at least 48px tall, got ${value.mountTopBar.minHeight}px`);
 
       // ── 1. 제목 입력칸도, [저장] 도, 커서도 없다 ───────────────────────
       if (empty.quickAddForm) fail('the quick-add form is still in the day detail');
@@ -451,25 +466,24 @@ try {
       if (busy.caret.editable) fail(`a day with entries put the caret in ${busy.caret.tag}.${busy.caret.cls}`);
       if (empty.selectedDates.join(',') !== value.emptyDate) fail(`only the tapped date may be selected, got ${empty.selectedDates.join(', ')}`);
 
-      // ── 2. 버튼 둘, 그리고 [+ 기록] 이 여는 것 ─────────────────────────
-      // The pinned bar on a phone names the day a new record lands on; the
-      // desk's detail already names it in its heading, so it just says + 기록.
-      // Either way the accessible name carries the date (below).
+      // ── 2. 버튼 둘, 그리고 [+ 일정 추가] 가 여는 것 ─────────────────────
+      // The detail already names the day in its heading, so it just says
+      // + 일정 추가; the accessible name carries the date (below).
       const [, month, day] = value.emptyDate.split('-').map(Number);
-      const addLabel = () => '+ 기록';
-      const expected = ['사진에서 기록 읽기', addLabel(month, day)];
+      const addLabel = () => '+ 일정 추가';
+      const expected = ['사진으로 추가', addLabel(month, day)];
       if (empty.buttons.join('|') !== expected.join('|')) fail(`a picked day must offer exactly ${expected.join(' then ')}, got [${empty.buttons.join('|')}]`);
       const [, busyMonth, busyDayNumber] = value.busyDate.split('-').map(Number);
-      if (busy.buttons.join('|') !== ['사진에서 기록 읽기', addLabel(busyMonth, busyDayNumber)].join('|')) fail(`a day with entries must offer the same two buttons, got [${busy.buttons.join('|')}]`);
+      if (busy.buttons.join('|') !== ['사진으로 추가', addLabel(busyMonth, busyDayNumber)].join('|')) fail(`a day with entries must offer the same two buttons, got [${busy.buttons.join('|')}]`);
       if (empty.buttonsInPanel !== 2 || empty.buttonsInPinnedBar !== 0) fail(`the popup/sheet must own the two buttons, got pinned=${empty.buttonsInPinnedBar} panel=${empty.buttonsInPanel}`);
       if (!empty.buttonsHittable) fail('both buttons must be hit-testable on an empty day');
       if (!busy.buttonsHittable) fail('both buttons must stay reachable on a full day');
-      if (empty.addImageAria !== `사진에서 일정·거래 정보를 읽어 ${month}월 ${day}일 기록 초안 만들기`) fail(`사진에서 기록 읽기 must name the date for assistive tech (${empty.addImageAria})`);
-      if (empty.addDetailAria !== `${month}월 ${day}일에 기록 추가`) fail(`+ 기록 must name the date for assistive tech (${empty.addDetailAria})`);
-      if (editor.date !== value.emptyDate) fail(`+ 기록 must open the form on the tapped day ${value.emptyDate}, got ${editor.date || '(empty)'}`);
-      if (editor.heading !== '기록 추가') fail(`+ 기록 opened "${editor.heading}" instead of 기록 추가`);
+      if (empty.addImageAria !== `사진에서 일정·금액을 읽어 ${month}월 ${day}일 일정 초안 만들기`) fail(`사진으로 추가 must name the date for assistive tech (${empty.addImageAria})`);
+      if (empty.addDetailAria !== `${month}월 ${day}일에 일정 추가`) fail(`+ 일정 추가 must name the date for assistive tech (${empty.addDetailAria})`);
+      if (editor.date !== value.emptyDate) fail(`+ 일정 추가 must open the form on the tapped day ${value.emptyDate}, got ${editor.date || '(empty)'}`);
+      if (editor.heading !== '일정 추가') fail(`+ 일정 추가 opened "${editor.heading}" instead of 일정 추가`);
       if (!editor.question.includes('무엇을 남길까요?')) fail(`the form must ask one question first, got "${editor.question}"`);
-      if (!editor.hasTitle || !editor.hasTime || !editor.hasMemo || !editor.hasSave) fail(`+ 기록 must open the full form — 제목·시간·메모·저장 (${JSON.stringify(editor)})`);
+      if (!editor.hasTitle || !editor.hasTime || !editor.hasMemo || !editor.hasSave) fail(`+ 일정 추가 must open the full form — 제목·시간·메모·저장 (${JSON.stringify(editor)})`);
       if (!editor.focusOnTitle) fail('the form must open on its question');
       if (editor.dayDetailStillPresent) fail('the day detail must be replaced while the record editor is open');
       if (editor.modalDialogCount !== 1) fail(`the editor must be the only active modal dialog, got ${editor.modalDialogCount}`);
@@ -478,7 +492,7 @@ try {
 
       // ── day detail content ─────────────────────────────────────────────
       if (!/^\d+월 \d+일 [일월화수목금토]요일$/.test(empty.heading)) fail(`the detail heading must name the day, got (${empty.heading})`);
-      if (!empty.emptySentence) fail('an empty day must say 이 날은 기록이 없어요.');
+      if (!empty.emptySentence) fail('an empty day must say 이 날은 일정이 없어요.');
       if (busy.emptySentence) fail('a day with entries must not say it has none');
       if (busy.events !== 8) fail(`a day with entries must list them (got ${busy.events})`);
       if (busy.times.join(',') !== '01:00,02:00,03:00') fail(`a day's records run in time order, got ${busy.times.join(',')}`);

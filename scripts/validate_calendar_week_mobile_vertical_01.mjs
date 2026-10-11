@@ -391,13 +391,13 @@ function checkPhone(v) {
   if (v.initialDetail.date !== '2026-09-21' || !v.initialDetail.heading.includes('9월 21일 월요일') || !v.initialDetail.heading.includes('오늘')) fail('the right side must open on today');
   if (v.initialDetail.holiday !== '대체공휴일 · 공휴일') fail('the picked day must keep its public holiday');
   if (!v.initialDetail.weather.startsWith('날씨')) fail('the picked day must keep its weather');
-  if (!v.initialDetail.empty.includes('오늘은 아직 기록이 없어요.')) fail('an empty day must say so in plain words');
+  if (!v.initialDetail.empty.includes('오늘은 아직 일정이 없어요.')) fail('an empty day must say so in plain words');
   if (v.tap.sameTaskDate !== '2026-09-23' || v.tap.requestsDuringTap !== 0) fail('a tap must switch the day at once without a new read');
   if (v.tap.focused !== '2026-09-23') fail('focus must stay on the picked rail day');
   if (!same(v.cards.titles, ['정형외과 진료 예약 확인하고 약국에 들러 처방전 약 받아오기', '점심', '오후 회의', '장보기 목록'])) fail('cards must follow the day: by clock, then the untimed');
   if (!same(v.cards.times, ['09:00', '12:30', '15:00', ''])) fail('timed cards must show their clock');
   if (!same(v.cards.amount, ['12,000원'])) fail('an amount must stay on its card');
-  if (v.cards.untimedLabel !== '시간 없는 기록') fail('untimed records must be labelled');
+  if (v.cards.untimedLabel !== '시간 없는 일정') fail('untimed records must be labelled');
   const g = v.geometry;
   if (!g.railBesideDetail || !g.cardsInside || !g.cardsNoOverflow || !g.cardsNoOverlap || !g.titleBesideTime || !g.amountInsideCard) fail('cards must sit beside the rail without clipping or overlap');
   if (g.longTitleLines < 1 || g.longTitleLines > 3 || !g.longTitleWhole) fail(`a long title must wrap whole within three lines, got ${g.longTitleLines}`);
@@ -405,7 +405,7 @@ function checkPhone(v) {
   if (g.cardTextContrast < 4.5 || (g.cardMetaContrast !== null && g.cardMetaContrast < 4.5)) fail('card text must stay readable');
   if (g.pageOverflow > 0 || g.contentOverflow > 0 || !g.modalInsideViewport || !g.toolbarInside) fail('nothing may scroll the page sideways');
   if (v.keyboard !== '2026-09-24') fail('ArrowDown must pick the next day');
-  if (!same(v.actions.labels, ['사진에서 기록 읽기', '+ 9월 23일에 기록']) || !v.actions.aboveWeek) fail('the record actions must stay above the week, named for the picked day');
+  if (!same(v.actions.labels, ['사진으로 추가', '+ 9월 23일 일정 추가']) || !v.actions.aboveWeek) fail('the record actions must stay above the week, named for the picked day');
   if (v.addEditorDate !== '2026-09-23') fail('+ 기록 must open on the picked day');
   if (v.afterAdd.date !== '2026-09-23' || v.afterAdd.layout !== 'vertical' || v.afterAdd.count !== '5') fail('a saved record must appear on the picked day in the phone Week');
   if (v.editTitle !== '장보기 목록') fail('a card must open its record in the editor');

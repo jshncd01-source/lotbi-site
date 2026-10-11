@@ -12,8 +12,8 @@
 //   - a message with a real Core calendar_draft opens the editor pre-filled,
 //     heading "일정 초안 확인"
 //   - a plain answer with neither a place nor a calendar_draft still opens the
-//     editor, blank, heading "기록 추가" — never the bare calendar view
-//     (LIFE UX 01 renamed the blank editor from "일정 등록" to "기록 추가";
+//     editor, blank, heading "일정 추가" — never the bare calendar view
+//     (LIFE UX 01 renamed the blank editor from "일정 등록" to "일정 추가";
 //     the contract — it always opens, it never invents a title — is unchanged)
 import fs from 'node:fs';
 import path from 'node:path';
@@ -332,7 +332,7 @@ try {
     // The regression: no place, no calendar_draft — must still reach the
     // editor, never the bare calendar view.
     if (!v.plain_editorOpened) throw new Error(`${label}: a plain answer's footer button must still open the editor, not the bare calendar view (calendarManagerView="${v.plain_calendarManagerView}")`);
-    if (v.plain_heading !== '기록 추가') throw new Error(`${label}: a blank fallback must read "기록 추가", got "${v.plain_heading}"`);
+    if (v.plain_heading !== '일정 추가') throw new Error(`${label}: a blank fallback must read "일정 추가", got "${v.plain_heading}"`);
     if (v.plain_title !== '') throw new Error(`${label}: a plain answer must not invent a title, got "${v.plain_title}"`);
     assertList(v.messageActionLabels, ['복사하기', '공유하기', '캘린더에 추가', '답변 읽어주기'], `${label}: chat answer tools`);
     if (v.answerCopied.length !== 1 || !v.answerCopied[0].startsWith('오늘은 대체로 맑고')) throw new Error(`${label}: ordinary answer copy regressed, got ${JSON.stringify(v.answerCopied)}`);
@@ -368,7 +368,7 @@ try {
       kakao: v.kakaoFeedback,
     }));
   }
-  console.log('MESSAGE CALENDAR FOOTER EDITOR 01 PASS — a real draft opens the editor pre-filled ("일정 초안 확인"), and a plain answer with nothing to pre-fill still opens it blank ("기록 추가") instead of landing on the bare calendar view.');
+  console.log('MESSAGE CALENDAR FOOTER EDITOR 01 PASS — a real draft opens the editor pre-filled ("일정 초안 확인"), and a plain answer with nothing to pre-fill still opens it blank ("일정 추가") instead of landing on the bare calendar view.');
 } finally {
   server.kill();
   try { fs.unlinkSync(INNER); } catch {}

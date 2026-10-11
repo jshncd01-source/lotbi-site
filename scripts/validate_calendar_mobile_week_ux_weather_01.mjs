@@ -382,7 +382,7 @@ function checkPhone(v) {
   if (rows.amountColor !== rows.plainTextColor) fail('a large amount must not be coloured as a warning');
   if (!same(v.editor, {title: '점심', amount: '200,000', category: 'OTHER'}) && !(v.editor.title === '점심' && v.editor.amount.replace(/\D/g, '') === '200000' && v.editor.category === 'OTHER')) fail('a row must open its record unchanged');
   if (v.afterCancel !== '2026-10-06') fail('closing the editor keeps the picked day');
-  if (!same(v.actions, ['사진에서 기록 읽기', '+ 10월 10일에 기록'])) fail('사진에서 기록 읽기 and + 기록 stay, named for the picked day');
+  if (!same(v.actions, ['사진으로 추가', '+ 10월 10일 일정 추가'])) fail('사진으로 추가 and + 일정 추가 stay, named for the picked day');
 
   if (v.weatherMode === 'on') {
     if (!/맑음/.test(v.today.weather) || !/14° \/ 24°/.test(v.today.weather) || !v.today.weatherBesideHeading) fail('today shows its sky and range beside the heading');

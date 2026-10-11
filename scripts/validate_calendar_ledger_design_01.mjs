@@ -113,12 +113,12 @@ try {
   assert.equal(detail.recorded, true);
   assert.deepEqual(detail.lines[0].categories.map(row => [row.label, row.amount, row.count]), [['음식', '4,200원', 1], ['생활비', '80,000원', 1]],
     'only categories that were used, in the fixed order');
-  assert.equal(detail.storageNote, '이 기기에 저장된 기록 기준이에요.');
+  assert.equal(detail.storageNote, '이 기기에 저장된 일정 기준이에요.');
   const detailNode = calendarAmountDetailNode({summary, local: true});
   assert.equal(findAll(detailNode, 'calendar-amount-detail-currency').length, 2);
   assert.equal(findAll(detailNode, 'calendar-amount-detail-row').length, 3);
-  assert.equal(find(detailNode, 'calendar-amount-detail-scope').textContent, '캘린더 기록에 입력한 금액을 더한 값이에요.');
-  assert.equal(find(detailNode, 'calendar-amount-detail-storage').textContent, '이 기기에 저장된 기록 기준이에요.');
+  assert.equal(find(detailNode, 'calendar-amount-detail-scope').textContent, '캘린더 일정에 입력한 금액을 더한 값이에요.');
+  assert.equal(find(detailNode, 'calendar-amount-detail-storage').textContent, '이 기기에 저장된 일정 기준이에요.');
   const emptyDetail = calendarAmountDetailNode({summary: {currencies: [], entriesWithoutAmount: 0}});
   assert.equal(emptyDetail.dataset.amountRecorded, 'false');
   assert.equal(find(emptyDetail, 'calendar-amount-detail-empty').textContent, '이 달에 입력한 금액이 없어요.');
