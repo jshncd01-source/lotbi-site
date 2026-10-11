@@ -1,11 +1,14 @@
 import * as THREE from 'three';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js?v=aset-9fc1386c8a08';
-import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=aset-9fc1386c8a08';
-import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs?v=aset-9fc1386c8a08';
-import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=aset-9fc1386c8a08';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js?v=aset-f6e2cba23952';
+import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=aset-f6e2cba23952';
+import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs?v=aset-f6e2cba23952';
+import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=aset-f6e2cba23952';
 
-const MODEL_URL = '/assets/models/lotbi-faithful-v2-rigged.glb';
-const MODEL_SHA256 = 'fb2729f56f18844e85a821f1cc8f2f6a7c64c95fa858bfcda994632131a35c3d';
+// SITE-AVATAR-LOGO-ALIGN-01: the home character now matches the header logo
+// character (crest fin, ear, eye and badge colours). Built from the approved
+// V5 asset by tools/build_logo_aligned_avatar.py; rig and 13 animations unchanged.
+const MODEL_URL = '/assets/models/lotbi-logo-aligned-v3-rigged.glb';
+const MODEL_SHA256 = 'a45cc1865018697737e90aba108f821c33220bfa244a34fc73f7d79b25633058';
 const AVATAR_SOURCE_HEAD = 'b131f898246ce9852d23dd17009f5914b6ae252e';
 const CLIPS_URL = '/assets/animations/lotbi-clips.v1.json?v=20260924-running1';
 const CONTRACT_URL = '/avatar-runtime/contracts/avatar-rig-controls.v2.json';
@@ -59,7 +62,7 @@ function disposeScene(root) {
 function currentSnapshot() {
   const stage = document.querySelector('[data-lotbi-avatar-stage]');
   return Object.freeze({
-    version: 'site-avatar-v5-approved-integration-01',
+    version: 'site-avatar-logo-aligned-v3-01',
     sourceHead: AVATAR_SOURCE_HEAD,
     model: MODEL_URL,
     modelSha256: MODEL_SHA256,
