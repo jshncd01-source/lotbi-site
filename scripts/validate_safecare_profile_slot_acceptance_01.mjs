@@ -5,7 +5,12 @@
 // "얼굴을 충분히 확인하기 어렵습니다" sentence. Core now accepts realistic side
 // photos; the Site must (A) describe the slot as a strong side turn rather than
 // an exact 90 degrees, (B) answer every refusal with what to change, per slot,
-// and (C) show that sentence inside the tile at phone widths.
+// and (C) show the reason where the guardian reads it at phone widths.
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): photos go in only through '사진
+// 여러 장 선택' (one slot-free POST each; Core never refuses for the angle). A
+// refusal is shown in that photo's result row inside the batch panel; the
+// side tiles 4/5 are examples without a picker. (B) stays for the per-slot PUT,
+// which is kept for older callers.
 //
 //   CHROME_BIN="C:/Program Files/Google/Chrome/Application/chrome.exe" node scripts/validate_safecare_profile_slot_acceptance_01.mjs
 import assert from 'node:assert/strict';
@@ -98,15 +103,18 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
 <link rel="stylesheet" href="/site-theme-tokens.css" />
 <link rel="stylesheet" href="/site-conversation.css" />
 <link rel="stylesheet" href="/site-person.css" />
+<link rel="stylesheet" href="/site-person-bulk.css" />
 <link rel="stylesheet" href="/site-safecare.css" />
 <style>html,body{margin:0;background:var(--lotbi-bg-primary,#fff)}#host{box-sizing:border-box;max-width:960px;margin:0 auto;padding:16px}</style>
 <script>
   const PERSON = 'aaaaaaaa-0000-4000-8000-000000000002';
   globalThis.__photoCount = 3;
-  globalThis.__refuse = null;  // the Core reason code for the next slot 4/5 upload
+  globalThis.__refuse = null;  // the Core reason code for the next upload
   globalThis.__puts = [];
+  globalThis.__posts = 0;
   const person = () => ({person_id: PERSON, display_name: '박영자', nickname: '', relationship: 'CHILD', birth_year: 2018, birthday_month: 5, revision: 1,
-    has_photo: false, identity_photo_count: __photoCount, identity_photo_state: 'INCOMPLETE', identity_photo_expires_at: null,
+    has_photo: false, identity_photo_count: __photoCount, identity_photo_face_count: __photoCount, identity_photo_body_count: 0, identity_photo_complete: false,
+    identity_photo_state: 'INCOMPLETE', identity_photo_expires_at: null,
     identity_photo_days_remaining: null, identity_photo_renewal_reminder_days: null, identity_photo_validity_days: null});
   const json = (body, status = 200) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
   const png = () => new Response(Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0)), {status: 200, headers: {'Content-Type': 'image/png'}});
@@ -117,7 +125,12 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
     if (/\/content$/.test(target)) return png();
     if (target === '/v2/person-profiles' && method === 'GET') return json({people: [person()]});
     if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos$/))) {
-      return json({photos: Array.from({length: __photoCount}, (_, i) => ({slot_index: i + 1, slot_code: 'S' + (i + 1), revision: 1, width: 640, height: 640, updated_at: '2026-09-01T00:00:00Z'}))});
+      if (method === 'POST') {
+        __posts += 1;
+        if (__refuse) return json({detail: {code: __refuse}}, 422);
+        return json({detail: 'unexpected'}, 500);
+      }
+      return json({photos: Array.from({length: __photoCount}, (_, i) => ({slot_index: i + 1, slot_code: 'S' + (i + 1), category: 'FACE', revision: 1, width: 640, height: 640, updated_at: '2026-09-01T00:00:00Z'}))});
     }
     if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos\/(\d+)$/)) && method === 'PUT') {
       const index = Number(m[2]);
@@ -188,10 +201,11 @@ class Cdp {
 }
 
 const VIEWPORTS = [['mobile-360', 360, 780], ['mobile-375', 375, 812], ['mobile-390', 390, 844], ['mobile-412', 412, 915], ['desktop-1440', 1440, 900]];
+// What Core's slot-free POST can still refuse a real side photo for (never the angle).
 const CASES = [
-  ['FACE_LEFT_PROFILE', 'PERSON_IDENTITY_PHOTO_IDENTITY_UNCLEAR', /고개를 아주 조금만 덜 돌려/],
-  ['FACE_LEFT_PROFILE', 'PERSON_IDENTITY_PHOTO_WRONG_POSE', /고개를 조금 더 옆으로 돌려 주세요/],
-  ['FACE_RIGHT_PROFILE', 'PERSON_IDENTITY_PHOTO_OCCLUDED', /눈·코·입 옆선이 가리지 않게/],
+  ['PERSON_IDENTITY_PHOTO_OCCLUDED', /눈·코·입이 가리지 않게/],
+  ['PERSON_IDENTITY_PHOTO_TOO_BLURRY', /사진이 너무 흐립니다/],
+  ['PERSON_IDENTITY_PHOTO_SUBJECT_TOO_SMALL', /얼굴이 조금 더 크게 보이게/],
 ];
 
 const server = await serve();
@@ -209,7 +223,7 @@ try {
   await cdp.send('Runtime.enable');
   for (const [label, width, height] of VIEWPORTS) {
     await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 768});
-    for (const [code, reason, pattern] of CASES) {
+    for (const [reason, pattern] of CASES) {
       await cdp.send('Page.navigate', {url: `http://127.0.0.1:${server.address().port}/${FIXTURE}`});
       for (let t = 0; t < 100; t += 1) {
         if (await cdp.evaluate('return globalThis.__ready === true;').catch(() => false)) break;
@@ -222,41 +236,35 @@ try {
         await __until(() => document.querySelector('[data-person-slot-grid]'));
         const tiles = () => [...document.querySelectorAll('[data-person-slot]')];
         const labels = tiles().map(tile => tile.querySelector('.safecare-slot-label').textContent);
-        const tile = () => tiles().find(item => item.querySelector('[data-person-slot-input]').dataset.personSlotInput === ${JSON.stringify(code)});
+        const side = tiles().filter(item => ['FACE_LEFT_PROFILE', 'FACE_RIGHT_PROFILE'].includes(item.dataset.personSlot));
+        const sideControls = side.reduce((sum, item) => sum + item.querySelectorAll('button, input').length, 0);
         globalThis.__refuse = ${JSON.stringify(reason)};
-        await __put(tile().querySelector('input[type=file]'), 'side.png');
-        await __until(() => tile().querySelector('.safecare-slot-error') && !tile().querySelector('.safecare-slot-error').hidden);
-        const error = tile().querySelector('.safecare-slot-error');
-        const box = tile().getBoundingClientRect(), text = error.getBoundingClientRect();
-        const result = {
-          labels, text: error.textContent, hidden: error.hidden, overflow: __overflow(),
+        await __put(document.querySelector('[data-person-bulk-input]'), 'side.png');
+        await __until(() => document.querySelector('[data-person-bulk-item] [data-person-bulk-message]'));
+        const row = document.querySelector('[data-person-bulk-item]');
+        const message = row.querySelector('[data-person-bulk-message]');
+        const box = document.querySelector('[data-person-bulk]').getBoundingClientRect(), text = message.getBoundingClientRect();
+        return {
+          labels, sideControls, text: message.textContent, state: row.dataset.personBulkState, overflow: __overflow(),
           inside: text.left >= box.left - 1 && text.right <= box.right + 1 && text.width > 0 && text.height > 0,
-          errorWidth: Math.round(text.width), tileWidth: Math.round(box.width),
-          stillEmpty: tile().dataset.safecareSlotFilled, count: document.querySelector('[data-safecare-photo-count]').textContent,
+          errorWidth: Math.round(text.width), panelWidth: Math.round(box.width),
+          sideEmpty: side.map(item => item.dataset.safecareSlotFilled),
+          replace: Boolean(row.querySelector('[data-person-bulk-replace]')),
+          puts: [...__puts], posts: __posts,
         };
-        // A completed photo can still be replaced (slot 1 here) and keeps the set.
-        globalThis.__refuse = null;
-        const first = tiles()[0];
-        result.replaceButton = first.querySelector('.safecare-slot-choose').textContent;
-        await __put(first.querySelector('input[type=file]'), 'front-again.png');
-        await __until(() => __puts.includes(1));
-        await __wait(200);
-        result.afterReplace = document.querySelector('[data-safecare-photo-count]').textContent;
-        result.puts = [...__puts];
-        return result;
       `);
-      const where = `${label} ${code} ${reason}`;
+      const where = `${label} ${reason}`;
       assert.deepEqual(r.labels.slice(3, 5), ['왼쪽 옆면', '오른쪽 옆면'], `${where}: slot 4/5 order`);
-      assert.equal(r.hidden, false, `${where}: the reason is shown`);
+      assert.equal(r.sideControls, 0, `${where}: the side tiles are examples without a picker`);
+      assert.equal(r.state, 'REFUSED', where);
       assert.match(r.text, pattern, where);
-      assert.ok(r.inside, `${where}: the sentence stays inside its tile (${r.errorWidth}/${r.tileWidth}px)`);
+      assert.ok(r.inside, `${where}: the sentence stays inside the batch panel (${r.errorWidth}/${r.panelWidth}px)`);
       assert.ok(r.overflow <= 1, `${where}: horizontal overflow ${r.overflow}px`);
-      assert.equal(r.stillEmpty, 'false', `${where}: a refused photo leaves the slot empty`);
-      assert.equal(r.replaceButton, '다른 사진 선택', `${where}: a stored photo offers replacement`);
-      assert.ok(r.puts.includes(1), `${where}: the replacement reached Core`);
-      assert.equal(r.afterReplace, r.count, `${where}: replacing a stored photo keeps the count`);
+      assert.deepEqual(r.sideEmpty, ['false', 'false'], `${where}: a refused photo is not stored`);
+      assert.equal(r.replace, true, `${where}: only the refused photo can be replaced`);
+      assert.deepEqual([r.posts, r.puts], [1, []], `${where}: one slot-free POST, no per-slot PUT`);
     }
-    console.log(`  ${label}: slot 4/5 reasons readable in the tile, no overflow`);
+    console.log(`  ${label}: refusal reasons readable in the batch result, side tiles are examples, no overflow`);
   }
 } finally {
   browser.kill();

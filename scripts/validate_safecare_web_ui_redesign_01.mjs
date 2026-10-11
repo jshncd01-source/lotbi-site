@@ -35,6 +35,12 @@ for (let count = 0; count <= 10; count += 1) {
   assert.equal(progress.canAdd, count < 10, `found report with ${count} photos: adding must ${count < 10 ? 'stay open' : 'stop'}`);
 }
 assert.equal(common.foundPhotoProgress(1).message, '현재 1/5장 · 최종 제출하려면 사진 4장이 더 필요합니다.');
+// QA 02 D2: the birth-year wheel starts near a likely year for the relationship.
+{
+  const now = new Date(Date.UTC(2026, 9, 10));
+  assert.deepEqual(['CHILD', 'PARENT', 'SPOUSE', 'FAMILY', 'DEPENDENT', 'OTHER', 'UNKNOWN'].map(code => common.birthYearStart(code, now)), [2018, 1961, 1986, 1981, 1956, 1981, 1981]);
+  for (const code of ['CHILD', 'PARENT', 'SPOUSE', 'FAMILY', 'DEPENDENT', 'OTHER']) assert.ok(common.birthYearOptions(now).includes(common.birthYearStart(code, now)), `${code}: the start year is on the wheel`);
+}
 assert.equal(common.foundPhotoProgress(0).message, '발견한 대상의 사진 1장부터 작성을 시작할 수 있습니다.');
 assert.equal(common.NO_RELIABLE_MATCH_LABEL, '확인 가능한 일치 대상 없음');
 assert.equal(common.foundReviewStateCopy('NO_RELIABLE_MATCH').label, '확인 가능한 일치 대상 없음');
@@ -153,16 +159,27 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
 <link rel="stylesheet" href="/site-conversation.css" />
 <link rel="stylesheet" href="/site-pet.css" />
 <link rel="stylesheet" href="/site-person.css" />
+<link rel="stylesheet" href="/site-person-bulk.css" />
 <link rel="stylesheet" href="/site-safecare.css" />
 <link rel="stylesheet" href="/site-bottom-sheet.css" />
 <style>html,body{margin:0;background:var(--lotbi-bg-primary,#fff)}#host{box-sizing:border-box;max-width:960px;margin:0 auto;padding:16px}</style>
 <script>
   globalThis.__calls = [];
   const P = n => 'aaaaaaaa-0000-4000-8000-00000000000' + n;
-  const photosFor = (count) => Array.from({length: count}, (_, i) => ({slot_index: i + 1, slot_code: 'S' + (i + 1), revision: 1, width: 640, height: 640, updated_at: '2026-09-01T00:00:00Z'}));
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): slots 6 and 7 hold body photos;
+  // three faces and two bodies complete a set (Core's identity_photo_complete).
+  const BODY_SLOTS = [6, 7];
+  const categoryOf = slot => (BODY_SLOTS.includes(slot) ? 'BODY' : 'FACE');
+  const photosFor = (slots) => [...slots].sort((a, b) => a - b).map(slot => ({slot_index: slot, slot_code: 'S' + slot, category: categoryOf(slot), revision: 1, width: 640, height: 640, updated_at: '2026-09-01T00:00:00Z'}));
+  const range = count => Array.from({length: count}, (_, i) => i + 1);
+  const setFields = slots => {
+    const body = slots.filter(slot => BODY_SLOTS.includes(slot)).length;
+    const face = slots.length - body;
+    return {identity_photo_face_count: face, identity_photo_body_count: body, identity_photo_face_minimum: 3, identity_photo_body_minimum: 2, identity_photo_minimum: 5, identity_photo_complete: face >= 3 && body >= 2};
+  };
   const personRow = (n, name, relationship, year, month, count, state, extra = {}) => ({
     person_id: P(n), display_name: name, nickname: '', relationship, birth_year: year, birthday_month: month, revision: 1,
-    has_photo: count === 10, identity_photo_count: count, identity_photo_state: state,
+    has_photo: setFields(range(count)).identity_photo_complete, identity_photo_count: count, identity_photo_state: state, ...setFields(range(count)),
     identity_photo_expires_at: extra.expires || null, identity_photo_days_remaining: extra.days ?? null,
     identity_photo_renewal_reminder_days: extra.reminder ?? null, identity_photo_validity_days: extra.validity ?? null,
   });
@@ -173,7 +190,8 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
       personRow(3, '이도윤', 'CHILD', 2019, 11, 10, 'EXPIRED', {expires: '2026-09-30T00:00:00Z', days: 0, validity: 180}),
       personRow(4, '최민준', 'FAMILY', 1985, 1, 10, 'EXPIRING', {expires: '2026-10-12T00:00:00Z', days: 7, reminder: 7, validity: 365}),
     ],
-    photos: {1: 10, 2: 3, 3: 10, 4: 10},
+    photos: {1: range(10), 2: range(3), 3: range(10), 4: range(10)},
+    nextCategory: 'FACE',
     sos: [{sos_id: 'sos-1', person_id: P(1), display_name: '김하늘', status: 'ACTIVE', last_seen_at: '2026-10-05T01:30:00Z', last_seen_summary: '망원한강공원 입구', description: '노란 우비', matching_scope: 'ACTIVE_SOS_ONLY', automatic_identity_decision: false}],
     sightings: [
       {report_id: 'r-nrm', observed_at: '2026-10-01T03:00:00Z', location_summary: '정자역 2번 출구', description: '', review_state: 'NO_RELIABLE_MATCH', photo_count: 6},
@@ -184,6 +202,7 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
     found: [{found_case_id: 'pfound_nrm', species: 'CAT', found_location: {label: '정자동 느티마을'}, found_at: '2026-10-02T02:10:00Z', review_state: 'NO_RELIABLE_MATCH', status: 'ACTIVE'}],
     foundPhotos: {pfound_nrm: [1, 2, 3, 4, 5]},
   };
+  globalThis.__fixtureState = state;
   const sightingView = row => ({...row, minimum_photo_count: 5, maximum_photo_count: 10, can_submit: row.review_state === 'DRAFT' && row.photo_count >= 5, message: '', automatic_identity_decision: false, contact_details_exposed: false});
   const png = () => new Response(Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0)), {status: 200, headers: {'Content-Type': 'image/png'}});
   const json = (body, status = 200) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
@@ -198,16 +217,22 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
     if (target === '/v2/person-profiles' && method === 'POST') {
       const body = JSON.parse(init.body);
       const row = personRow(5, body.display_name, body.relationship, body.birth_year, body.birthday_month, 0, 'INCOMPLETE');
-      state.people.push(row); state.photos[5] = 0;
+      state.people.push(row); state.photos[5] = [];
       return json({person: row}, 201);
     }
-    if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos$/))) return json({photos: photosFor(state.photos[m[1].slice(-1)] || 0)});
-    if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos\/(\d+)$/)) && method === 'PUT') {
-      const key = m[1].slice(-1); state.photos[key] = Math.max(state.photos[key] || 0, Number(m[2]));
+    // 2nd round: one slot-free POST per photo; Core picks the card.
+    if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos$/)) && method === 'POST') {
+      const key = m[1].slice(-1);
+      const order = state.nextCategory === 'BODY' ? [6, 7, 10, 9, 8, 5, 4, 3, 2, 1] : [1, 8, 2, 3, 9, 10, 4, 5, 7, 6];
+      const slot = order.find(index => !(state.photos[key] || []).includes(index));
+      state.photos[key] = [...(state.photos[key] || []), slot];
       const row = state.people.find(item => item.person_id === m[1]);
-      row.identity_photo_count = state.photos[key]; row.has_photo = row.identity_photo_count === 10;
-      return json({photo: {slot_index: Number(m[2]), slot_code: 'S' + m[2], revision: 2, width: 640, height: 640}});
+      Object.assign(row, setFields(state.photos[key]), {identity_photo_count: state.photos[key].length});
+      row.has_photo = row.identity_photo_complete;
+      return json({photo: {slot_index: slot, slot_code: 'S' + slot, category: categoryOf(slot), revision: 2, width: 640, height: 640}, category: categoryOf(slot), identity_check: 'SAME', idempotent_replay: false,
+        validity: {photo_count: row.identity_photo_count, face_count: row.identity_photo_face_count, body_count: row.identity_photo_body_count, complete: row.identity_photo_complete}}, 201);
     }
+    if ((m = target.match(/^\/v2\/person-profiles\/([^/]+)\/identity-photos$/))) return json({photos: photosFor(state.photos[m[1].slice(-1)] || [])});
     if ((m = target.match(/^\/v2\/person-profiles\/([^/?]+)$/))) return json({person: state.people.find(item => item.person_id === m[1])});
     if (target.startsWith('/v2/person-sos?status=ACTIVE')) return json({items: state.sos.filter(item => item.status === 'ACTIVE')});
     if (target === '/v2/person-sos/notices/candidates') return json({notices: []});
@@ -411,30 +436,63 @@ async function run() {
           counter: document.querySelector('[data-safecare-photo-count]').textContent,
           guideBoxPresent: Boolean(document.querySelector('[data-safecare-guide="person"]')),
           emptyArtworkCount: tiles().filter(tile => tile.dataset.safecareSlotFilled === 'false' && tile.querySelector('.person-slot-guide-image')).length,
-          accept: [...new Set(tiles().map(tile => tile.querySelector('input[type=file]').accept))],
-          buttons: [...new Set(tiles().map(tile => tile.querySelector('.safecare-slot-choose').textContent))],
+          accept: [...new Set([...document.querySelectorAll('input[type=file]')].map(input => input.accept))],
+          tileInputs: tiles().filter(tile => tile.querySelector('input')).length,
+          buttons: tiles().map(tile => [tile.dataset.safecareSlotFilled, [...tile.querySelectorAll('button')].map(node => node.textContent).join('|')]),
           nextDisabled: document.querySelector('[data-person-photos-next]').disabled,
+          note: document.querySelector('[data-person-photo-set-note]')?.textContent || '',
         };
-        await __put(tiles()[3].querySelector('input[type=file]'), 'slot4.png');
+        __fixtureState.nextCategory = 'BODY';
+        await __put(document.querySelector('[data-person-bulk-input]'), 'upper-body.png');
         await __until(() => document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoCount === '4');
-        return {before, after: document.querySelector('[data-safecare-photo-count]').textContent};
+        return {before, after: document.querySelector('[data-safecare-photo-count]').textContent, posts: __calls.filter(call => call.startsWith('POST ') && call.endsWith('/identity-photos')).length, puts: __calls.filter(call => call.startsWith('PUT ') && call.includes('/identity-photos/')).length};
       `);
       await shoot('person-02-photos');
 
       // ------------------------------------------------ person: register
+      // QA 02 D3: the browser's own accessibility tree names the name input '이름'.
+      await cdp.evaluate(`
+        await __mountPerson(); await __until(() => document.querySelector('[data-person-list]'));
+        [...document.querySelectorAll('.person-section-heading button')].find(b => b.textContent === '사람 등록').click();
+        await __until(() => document.querySelector('[data-person-basic-form]'));
+        return true;
+      `);
+      await cdp.send('DOM.enable');
+      await cdp.send('Accessibility.enable');
+      const axRoot = await cdp.send('DOM.getDocument', {depth: 0});
+      const nameAx = await cdp.send('Accessibility.queryAXTree', {nodeId: axRoot.root.nodeId, accessibleName: '이름', role: 'textbox'});
       r.personRegister = await cdp.evaluate(`
         await __mountPerson(); await __until(() => document.querySelector('[data-person-list]'));
         [...document.querySelectorAll('.person-section-heading button')].find(b => b.textContent === '사람 등록').click();
         await __until(() => document.querySelector('[data-person-basic-form]'));
         const form = document.querySelector('[data-person-basic-form]');
         const trigger = form.querySelector('[data-person-birth-trigger]');
+        const nameInput = form.querySelector('input');
+        const nameLabel = {
+          id: nameInput.id, labels: nameInput.labels.length, forMatches: nameInput.labels[0]?.htmlFor === nameInput.id && Boolean(nameInput.id),
+          text: nameInput.labels[0]?.querySelector('.person-field-label')?.textContent || '',
+        };
+        const selectedYearNow = () => document.querySelector('[data-person-birth-picker] [data-person-birth-year-option][aria-selected="true"]')?.dataset.personBirthYearOption;
+        // QA 02 D2: a parent's wheel starts decades back, not at this year.
+        const relationshipSelect = form.querySelector('select');
+        relationshipSelect.value = 'PARENT';
         trigger.click();
         await __until(() => document.querySelector('[data-person-birth-picker]'));
         await __wait(260);
+        const parentStart = selectedYearNow();
+        const parentVisible = (() => { const wheel = document.querySelector('[data-person-birth-picker] [aria-label="연도 선택"]'); const option = wheel.querySelector('[aria-selected="true"]'); const a = wheel.getBoundingClientRect(), b = option.getBoundingClientRect(); return b.top >= a.top - 1 && b.bottom <= a.bottom + 1; })();
+        document.querySelector('[data-lotbi-sheet-dismiss]').click();
+        await __until(() => !document.querySelector('[data-person-birth-picker]'));
+        await __wait(260);
+        relationshipSelect.value = 'CHILD';
+        trigger.click();
+        await __until(() => document.querySelector('[data-person-birth-picker]'));
+        await __wait(260);
+        const childStart = selectedYearNow();
         const picker = document.querySelector('[data-person-birth-picker]');
         const yearWheel = picker.querySelector('[aria-label="연도 선택"]');
-        const year2018 = picker.querySelector('[data-person-birth-year-option="2018"]');
-        yearWheel.scrollTop = year2018.offsetTop - (yearWheel.clientHeight - year2018.offsetHeight) / 2;
+        const year2015 = picker.querySelector('[data-person-birth-year-option="2015"]');
+        yearWheel.scrollTop = year2015.offsetTop - (yearWheel.clientHeight - year2015.offsetHeight) / 2;
         yearWheel.dispatchEvent(new Event('scroll'));
         await __wait(140);
         return {
@@ -445,12 +503,14 @@ async function run() {
           wheelLabels: [...picker.querySelectorAll('.person-birth-wheel-label')].map(node => node.textContent),
           monthValues: [...picker.querySelectorAll('[data-person-birth-month-option]')].map(node => node.dataset.personBirthMonthOption),
           scrolledYear: picker.querySelector('[data-person-birth-year-option][aria-selected="true"]')?.dataset.personBirthYearOption,
+          parentStart, parentVisible, childStart, nameLabel, thisYear: new Date().getFullYear(),
           dayControls: picker.querySelectorAll('[data-person-birth-day], [aria-label*="일 선택"]').length,
           typedBirthControls: form.querySelectorAll('input[type=number], [data-person-birth-year][contenteditable], [data-person-birth-month][contenteditable]').length,
           numberInputs: form.querySelectorAll('input[type=number]').length,
           inlineRenewalNotices: [...form.querySelectorAll('.person-consent')].filter(node => node.textContent.includes('갱신 주기')).length,
         };
       `);
+      r.personRegister.nameAccessibleName = nameAx.nodes.length === 1;
       await shoot('person-03-register-step1');
       r.personRenewalNotice = await cdp.evaluate(`
         const form = document.querySelector('[data-person-basic-form]');
@@ -472,8 +532,34 @@ async function run() {
           activeBeforeConfirm: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent,
           sectionCount: renewalDialog.querySelectorAll('[data-safecare-notice-section]').length,
           guardianVisible: Boolean(renewalDialog.querySelector('[data-safecare-notice-section="guardian"]')),
-          confirmDisabledInitially: renewalDialog.querySelector('[data-safecare-renewal-confirm]')?.disabled,
+          // SAFECARE-CONSENT-VISIBLE-01: inactive until consent, but never a silently dead button.
+          confirmDisabledInitially: renewalDialog.querySelector('[data-safecare-renewal-confirm]')?.getAttribute('aria-disabled') === 'true',
+          confirmNativeDisabled: renewalDialog.querySelector('[data-safecare-renewal-confirm]')?.disabled,
+          // Every required checkbox is visible before any 상세보기 is opened.
+          visibleConsents: [...renewalDialog.querySelectorAll('[data-safecare-consent]')].filter(input => input.getClientRects().length > 0).map(input => input.dataset.safecareConsent),
+          openDetailsAtStart: [...renewalDialog.querySelectorAll('[data-safecare-notice-detail]')].filter(node => !node.hidden).length,
         };
+        // Pressing without consent says which ones are missing, moves to the first, creates nothing.
+        renewalDialog.querySelector('[data-safecare-renewal-confirm]').click();
+        await __wait(80);
+        const missingError = renewalDialog.querySelector('.safecare-renewal-error');
+        renewalNotice.missingPress = {
+          shown: !missingError.hidden, text: missingError.textContent, role: missingError.getAttribute('role'),
+          focused: document.activeElement?.dataset?.safecareConsent || '',
+          outlined: renewalDialog.querySelectorAll('.safecare-consent-row.is-missing').length,
+          created: __calls.includes('POST /v2/person-profiles'),
+        };
+        // 모두 동의 ticks every required box at once and can untick them again.
+        const allConsent = renewalDialog.querySelector('[data-safecare-consent-all]');
+        allConsent.click();
+        renewalNotice.afterAll = {
+          checked: [...renewalDialog.querySelectorAll('[data-safecare-consent]')].every(input => input.checked),
+          ready: renewalDialog.querySelector('[data-safecare-renewal-confirm]').getAttribute('aria-disabled') === 'false',
+          errorHidden: missingError.hidden,
+          outlined: renewalDialog.querySelectorAll('.safecare-consent-row.is-missing').length,
+        };
+        allConsent.click();
+        renewalNotice.afterAllAgain = [...renewalDialog.querySelectorAll('[data-safecare-consent]')].some(input => input.checked);
         renewalDialog.querySelector('[data-safecare-notice-toggle="renewal"]').click();
         renewalNotice.openAfterRenewal = [...renewalDialog.querySelectorAll('[data-safecare-notice-detail]')]
           .filter(node => !node.hidden).map(node => node.dataset.safecareNoticeDetail);
@@ -483,16 +569,22 @@ async function run() {
         const usageConsent = renewalDialog.querySelector('[data-safecare-consent="usage"]');
         renewalNotice.usageLabel = usageConsent.closest('label').textContent.trim();
         usageConsent.click();
-        renewalNotice.disabledAfterUsage = renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        renewalNotice.disabledAfterUsage = renewalDialog.querySelector('[data-safecare-renewal-confirm]').getAttribute('aria-disabled') === 'true';
         const privacyConsent = renewalDialog.querySelector('[data-safecare-consent="privacy"]');
         renewalNotice.privacyLabel = privacyConsent.closest('label').textContent.trim();
         privacyConsent.click();
-        renewalNotice.disabledAfterPrivacy = renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        renewalNotice.disabledAfterPrivacy = renewalDialog.querySelector('[data-safecare-renewal-confirm]').getAttribute('aria-disabled') === 'true';
+        // Only the guardian consent is left: the message names just that one.
+        renewalDialog.querySelector('[data-safecare-renewal-confirm]').click();
+        await __wait(80);
+        renewalNotice.guardianOnlyMissing = renewalDialog.querySelector('.safecare-renewal-error').textContent;
         renewalDialog.querySelector('[data-safecare-notice-toggle="guardian"]').click();
         const guardianConsent = renewalDialog.querySelector('[data-safecare-consent="guardian"]');
         renewalNotice.guardianLabel = guardianConsent.closest('label').textContent.trim();
         guardianConsent.click();
-        renewalNotice.confirmEnabledAfterRequiredConsents = !renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        renewalNotice.confirmEnabledAfterRequiredConsents = renewalDialog.querySelector('[data-safecare-renewal-confirm]').getAttribute('aria-disabled') === 'false'
+          && !renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        renewalNotice.errorClearedAfterConsent = renewalDialog.querySelector('.safecare-renewal-error').hidden;
         renewalNotice.confirmText = renewalDialog.querySelector('[data-safecare-renewal-confirm]').textContent;
         await __wait(260);
         return {selectedBirth, renewalNotice};
@@ -502,8 +594,10 @@ async function run() {
         document.querySelector('[data-safecare-renewal-confirm]').click();
         await __until(() => document.querySelector('[data-person-slot-grid]'));
         const create = __calls.find(call => call === 'POST /v2/person-profiles');
-        const locked = [...document.querySelectorAll('[data-person-slot]')].map(tile => tile.dataset.safecareSlotLocked);
-        return {create: Boolean(create), active: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent, locked};
+        const retry = [...document.querySelectorAll('[data-person-slot]')].map(tile => tile.querySelectorAll('button').length);
+        const pickers = document.querySelectorAll('[data-person-slot] input, [data-person-slot-input]').length;
+        const bulkPick = document.querySelector('[data-person-bulk-pick]')?.textContent || '';
+        return {create: Boolean(create), active: document.querySelector('.safecare-step[aria-current=step] .safecare-step-name')?.textContent, retry, pickers, bulkPick};
       `);
       await shoot('person-05-register-step2');
 
@@ -639,12 +733,18 @@ async function run() {
           text: renewalDialog.textContent,
           photosVisibleBeforeConfirm: Boolean(document.querySelector('[data-pet-draft-slot]')),
           guardianVisible: Boolean(renewalDialog.querySelector('[data-safecare-consent="guardian"]')),
-          confirmDisabledInitially: renewalDialog.querySelector('[data-safecare-renewal-confirm]')?.disabled,
+          confirmDisabledInitially: renewalDialog.querySelector('[data-safecare-renewal-confirm]')?.getAttribute('aria-disabled') === 'true',
+        };
+        renewalDialog.querySelector('[data-safecare-renewal-confirm]').click();
+        await __wait(80);
+        renewalNotice.missingPress = {
+          text: renewalDialog.querySelector('.safecare-renewal-error').textContent,
+          photos: Boolean(document.querySelector('[data-pet-draft-slot]')),
         };
         const privacyConsent = renewalDialog.querySelector('[data-safecare-consent="privacy"]');
         renewalNotice.privacyLabel = privacyConsent.closest('label').textContent.trim();
         privacyConsent.click();
-        renewalNotice.confirmEnabledAfterPrivacy = !renewalDialog.querySelector('[data-safecare-renewal-confirm]').disabled;
+        renewalNotice.confirmEnabledAfterPrivacy = renewalDialog.querySelector('[data-safecare-renewal-confirm]').getAttribute('aria-disabled') === 'false';
         await __wait(260);
         return {renewalNotice};
       `);
@@ -661,6 +761,8 @@ async function run() {
           firstTileArt: document.querySelector('[data-pet-draft-slot="FACE_FRONT"] .pet-slot-guide-image')?.getAttribute('src') || '',
           counter: document.querySelector('[data-safecare-photo-count]')?.textContent || '',
           firstOpen: document.querySelector('[data-pet-draft-slot="FACE_FRONT"]')?.dataset.petDraftSlotLocked,
+          tileInputs: document.querySelectorAll('[data-pet-draft-slot] input').length,
+          bulkPick: document.querySelector('[data-pet-bulk-pick]')?.textContent || '',
           nextDisabled: document.querySelector('[data-pet-draft-next="REVIEW"]')?.disabled,
         };
       `);
@@ -720,41 +822,64 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(cards['최민준'].badge, '갱신 예정 · 7일 남음');
   assert.ok(cards['최민준'].text.includes('2026.10.12'), `${label}: Core's next renewal date must show`);
   assert.equal(cards['박영자'].photoAction, '이어서 등록하기');
-  assert.equal(cards['박영자'].badge, '등록 중 · 사진 3/10');
+  assert.equal(cards['박영자'].badge, '등록 중 · 사진 3장');
   assert.equal(cards['김하늘'].photoAction, '사진 갱신·관리');
 
   // person photos: exactly ten labelled slots, progress, card-local artwork, web wording
   assert.equal(r.personPhotos.before.count, 10, `${label}: exactly ten identity slots`);
   assert.deepEqual(r.personPhotos.before.labels, ['정면 얼굴', '왼쪽 45도', '오른쪽 45도', '왼쪽 옆면', '오른쪽 옆면', '정면 상반신', '정면 전신', '추가 정면', '추가 왼쪽', '추가 오른쪽']);
-  assert.equal(r.personPhotos.before.counter, '등록 완료 3 / 10남은 사진 7장');
+  assert.equal(r.personPhotos.before.counter, '얼굴 3/3 · 몸 0/2지금 3장 · 10장까지 올릴 수 있어요');
+  assert.equal(r.personPhotos.before.note, '상반신·전신 사진 2장이 더 있으면 등록을 마칠 수 있어요.');
   assert.equal(r.personPhotos.before.guideBoxPresent, false, `${label}: the duplicated explanation box must not sit above the photo cards`);
   assert.equal(r.personPhotos.before.emptyArtworkCount, 7, `${label}: every empty photo card must show its own large shooting example`);
   assert.deepEqual(r.personPhotos.before.accept, ['image/*']);
-  assert.ok(r.personPhotos.before.buttons.every(text => ['사진 선택', '다른 사진 선택'].includes(text)), `${label}: web wording must be 사진 선택`);
-  assert.equal(r.personPhotos.before.nextDisabled, true, `${label}: 3/10 must not move on`);
-  assert.equal(r.personPhotos.after, '등록 완료 4 / 10남은 사진 6장');
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): photos go in through '사진 여러 장 선택'
+  // only (one slot-free POST each); the tiles have no picker or button while registering.
+  assert.equal(r.personPhotos.before.tileInputs, 0, `${label}: no per-tile picker`);
+  assert.deepEqual(r.personPhotos.before.buttons, [...Array(3).fill(['true', '']), ...Array(7).fill(['false', ''])], `${label}: no tile button while registering`);
+  assert.equal(r.personPhotos.before.nextDisabled, true, `${label}: three faces without body photos must not move on`);
+  assert.equal(r.personPhotos.after, '얼굴 3/3 · 몸 1/2지금 4장 · 10장까지 올릴 수 있어요');
+  assert.deepEqual([r.personPhotos.posts, r.personPhotos.puts], [1, 0], `${label}: one POST, no per-slot PUT`);
 
   // person registration: four steps, one year/month wheel and no day field
-  assert.deepEqual(r.personRegister.steps, ['기본정보', '식별 사진 10장', '최종 확인', '등록 완료']);
+  assert.deepEqual(r.personRegister.steps, ['기본정보', '식별 사진', '최종 확인', '등록 완료']);
   assert.equal(r.personRegister.active, '기본정보');
   assert.equal(r.personRegister.triggerTag, 'BUTTON');
   assert.equal(r.personRegister.triggerText, '출생 연월 선택');
   assert.deepEqual(r.personRegister.wheelLabels, ['연도', '월']);
   assert.deepEqual(r.personRegister.monthValues, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
-  assert.equal(r.personRegister.scrolledYear, '2018', `${label}: scrolling the wheel must change its selected year`);
+  assert.equal(r.personRegister.scrolledYear, '2015', `${label}: scrolling the wheel must change its selected year`);
+  // QA 02 D2 / D3
+  assert.equal(r.personRegister.parentStart, String(r.personRegister.thisYear - 65), `${label}: a parent's wheel starts near a likely birth year`);
+  assert.equal(r.personRegister.parentVisible, true, `${label}: the start year is scrolled into view`);
+  assert.equal(r.personRegister.childStart, String(r.personRegister.thisYear - 8), `${label}: a child's wheel starts near a likely birth year`);
+  assert.deepEqual(r.personRegister.nameLabel, {id: r.personRegister.nameLabel.id, labels: 1, forMatches: true, text: '이름'}, `${label}: the name input is tied to its label`);
+  assert.equal(r.personRegister.nameAccessibleName, true, `${label}: the name input's accessible name is 이름`);
   assert.equal(r.personRegister.dayControls, 0, `${label}: birth day must not be collected`);
   assert.equal(r.personRegister.typedBirthControls, 0, `${label}: birth year/month must not be typed`);
   assert.equal(r.personRegister.numberInputs, 0);
   assert.equal(r.personRegister.inlineRenewalNotices, 0, `${label}: renewal policy belongs in the confirmation dialog, not weak inline helper copy`);
   assert.equal(r.personRenewalNotice.selectedBirth, '2018년 8월');
   assert.equal(r.personRegisterFlow.create, true);
-  assert.equal(r.personRegisterFlow.active, '식별 사진 10장');
+  assert.equal(r.personRegisterFlow.active, '식별 사진');
   assert.equal(r.personRenewalNotice.renewalNotice?.title, '식별 사진 등록 안내', `${label}: person registration notice must open before photos`);
   assert.equal(r.personRenewalNotice.renewalNotice.createdBeforeConfirm, false, `${label}: person profile must not be created before renewal notice confirmation`);
   assert.equal(r.personRenewalNotice.renewalNotice.activeBeforeConfirm, '기본정보');
   assert.equal(r.personRenewalNotice.renewalNotice.sectionCount, 3, `${label}: under-14 child must see renewal, usage, and guardian sections`);
   assert.equal(r.personRenewalNotice.renewalNotice.guardianVisible, true, `${label}: under-14 child must require guardian confirmation`);
   assert.equal(r.personRenewalNotice.renewalNotice.confirmDisabledInitially, true, `${label}: registration must wait for required consent`);
+  // SAFECARE-CONSENT-VISIBLE-01 (QA 02 D1)
+  assert.equal(r.personRenewalNotice.renewalNotice.confirmNativeDisabled, false, `${label}: the button answers a press instead of being silently dead`);
+  assert.deepEqual(r.personRenewalNotice.renewalNotice.visibleConsents, ['usage', 'privacy', 'guardian'], `${label}: every required checkbox is visible without opening 상세보기`);
+  assert.equal(r.personRenewalNotice.renewalNotice.openDetailsAtStart, 0, `${label}: only the explanations are folded`);
+  assert.deepEqual(r.personRenewalNotice.renewalNotice.missingPress, {
+    shown: true, role: 'alert', focused: 'usage', outlined: 3, created: false,
+    text: '필수 동의가 빠졌어요: 식별 사진 등록 및 이용 동의, 법정대리인 확인. 체크한 뒤 다시 눌러 주세요.',
+  }, `${label}: a press without consent names what is missing and creates nothing`);
+  assert.deepEqual(r.personRenewalNotice.renewalNotice.afterAll, {checked: true, ready: true, errorHidden: true, outlined: 0}, `${label}: 모두 동의 ticks every required box`);
+  assert.equal(r.personRenewalNotice.renewalNotice.afterAllAgain, false, `${label}: 모두 동의 unticks them again`);
+  assert.equal(r.personRenewalNotice.renewalNotice.guardianOnlyMissing, '필수 동의가 빠졌어요: 법정대리인 확인. 체크한 뒤 다시 눌러 주세요.', `${label}: the message names only what is still missing`);
+  assert.equal(r.personRenewalNotice.renewalNotice.errorClearedAfterConsent, true, `${label}: the message goes away once everything is ticked`);
   assert.deepEqual(r.personRenewalNotice.renewalNotice.openAfterRenewal, ['renewal'], `${label}: renewal details must open alone`);
   assert.deepEqual(r.personRenewalNotice.renewalNotice.openAfterUsage, ['usage'], `${label}: opening usage details must close renewal details`);
   assert.equal(r.personRenewalNotice.renewalNotice.usageLabel, '위 내용에 동의합니다 (필수)');
@@ -769,8 +894,11 @@ for (const [label, r] of Object.entries(results)) {
   assert.ok(r.personRenewalNotice.renewalNotice.text.includes('만료 30일·7일·1일 전'));
   assert.ok(r.personRenewalNotice.renewalNotice.text.includes('안심케어 등록 및 실종 시 후보 검색'));
   assert.ok(r.personRenewalNotice.renewalNotice.text.includes('등록을 삭제하면 관련 식별 사진과 생성된 식별정보도 삭제'));
-  assert.deepEqual(r.personRegisterFlow.locked, ['false', 'true', 'true', 'true', 'true', 'true', 'true', 'true', 'true', 'true'],
-    `${label}: registration starts from the front face`);
+  // SAFECARE-PHOTO-EASY-UPLOAD-01: a new registration has one way in, '사진 여러 장 선택';
+  // the ten tiles are examples without their own picker.
+  assert.deepEqual(r.personRegisterFlow.retry, Array(10).fill(0), `${label}: no tile offers a button on a new registration`);
+  assert.equal(r.personRegisterFlow.pickers, 0, `${label}: no per-tile picker on a new registration`);
+  assert.equal(r.personRegisterFlow.bulkPick, '사진 여러 장 선택', label);
 
   // person SOS: expired photos blocked, only Core's fields
   assert.ok(r.personSos.blocked.includes('유효기간'), `${label}: expired photos must block a new SOS with a reason`);
@@ -831,11 +959,12 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.petResume.listHidden, true);
   assert.deepEqual(r.petRegister.ageModes, ['BIRTH_DATE', 'ESTIMATED', 'UNKNOWN']);
   assert.equal(r.petRegister.family, true, `${label}: 가족이 된 날 is stored by Core's draft and must be offered`);
-  assert.equal(r.petRegisterPhotos.label, '반려동물 등록 2단계 / 4단계 · 사진 10장');
+  assert.equal(r.petRegisterPhotos.label, '반려동물 등록 2단계 / 4단계 · 사진');
   assert.equal(r.petRenewalNotice.renewalNotice?.title, '식별 사진 갱신 안내', `${label}: pet renewal notice must open before photos`);
   assert.equal(r.petRenewalNotice.renewalNotice.photosVisibleBeforeConfirm, false, `${label}: pet photos must wait for renewal notice confirmation`);
   assert.equal(r.petRenewalNotice.renewalNotice.guardianVisible, false, `${label}: pet registration must not ask for legal guardian confirmation`);
   assert.equal(r.petRenewalNotice.renewalNotice.confirmDisabledInitially, true, `${label}: pet registration must wait for privacy consent`);
+  assert.deepEqual(r.petRenewalNotice.renewalNotice.missingPress, {text: '필수 동의가 빠졌어요: 사진 보관·이용 동의. 체크한 뒤 다시 눌러 주세요.', photos: false}, `${label}: a pet press without consent names it and opens nothing`);
   assert.equal(r.petRenewalNotice.renewalNotice.privacyLabel, '🔒 사진은 비공개로 안전하게 보관되며, 분실·발견 시 후보 비교를 위해 사용됩니다. (필수)');
   assert.equal(r.petRenewalNotice.renewalNotice.confirmEnabledAfterPrivacy, true, `${label}: pet privacy consent enables photo registration`);
   assert.ok(r.petRenewalNotice.renewalNotice.text.includes('나이와 관계없이 · 6개월(180일)마다'));
@@ -847,8 +976,11 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.petRegisterPhotos.artwork, '', `${label}: duplicate guide illustration must be gone`);
   assert.equal(r.petRegisterPhotos.guideMap, 0, `${label}: duplicate guide title/map must be gone`);
   assert.equal(r.petRegisterPhotos.firstTileArt, 'assets/pet/dog-face-front-v2.webp');
-  assert.ok(r.petRegisterPhotos.counter.startsWith('등록 완료 0 / 10 · 남은 사진 10장'));
-  assert.equal(r.petRegisterPhotos.firstOpen, 'false');
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the pet rule is the person rule.
+  assert.equal(r.petRegisterPhotos.counter, '얼굴 0/3 · 몸 0/2 · 지금 0장 (10장까지)');
+  assert.equal(r.petRegisterPhotos.firstOpen, undefined, `${label}: no tile is locked any more`);
+  assert.equal(r.petRegisterPhotos.tileInputs, 0, `${label}: no per-tile picker`);
+  assert.equal(r.petRegisterPhotos.bulkPick, '사진 여러 장 선택', label);
   assert.equal(r.petRegisterPhotos.nextDisabled, true);
   console.log(`SAFECARE-WEB-UI-REDESIGN-01 ${label} PASS`);
 }

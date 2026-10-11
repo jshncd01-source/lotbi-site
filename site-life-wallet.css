@@ -1,5 +1,7 @@
 .wallet-gate { min-height: 440px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .wallet-lock-mark { width: 52px; height: 52px; display: grid; place-items: center; margin-bottom: 18px; border: 1px solid var(--lotbi-border-default); border-radius: 50%; color: var(--consumer-muted); font-size: 12px; }
+/* COMMON-UI-POLISH-01 (QA #21) — padlock drawn in the ring's ink, both themes. */
+.wallet-lock-mark svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .wallet-gate h3, .wallet-editor h3, .wallet-detail h3 { margin: 0; font-size: 22px; letter-spacing: -.035em; }
 .wallet-gate > p { max-width: 540px; margin: 12px 0 22px; color: var(--consumer-muted); font-size: 14px; line-height: 1.7; }
 .wallet-gate > p.wallet-setup-why { margin-top: -12px; font-size: 13px; line-height: 1.65; }

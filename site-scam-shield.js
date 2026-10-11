@@ -113,6 +113,26 @@ function list(title, values) {
   return section;
 }
 
+// COMMON-UI-POLISH-02 (QA 02 D4) — 확인된 내용 is where Core lists its technical checks
+// (resolver, DNS, IP registration). They stay, one tap away, under the plain-language result.
+function collapsedList(title, values) {
+  const section = list(title, values);
+  if (!section) return null;
+  const details = document.createElement('details');
+  details.className = 'scam-technical-facts';
+  const summary = document.createElement('summary');
+  summary.textContent = `${title} 자세히 보기`;
+  details.append(summary, section.querySelector('ul'));
+  return details;
+}
+
+// The result is drawn under the input; on a phone it landed off screen with nothing to say so.
+function revealResult() {
+  if (!result || result.hidden) return;
+  const reduce = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  result.scrollIntoView?.({block: 'start', behavior: reduce ? 'auto' : 'smooth'});
+}
+
 function resultHeadline(payload) {
   if (payload.riskLevel === 'UNVERIFIED') return '지금 정보만으로는 진짜라고 확인할 수 없어요.';
   if (payload.riskLevel === 'HIGH_RISK' || payload.riskLevel === 'CONFIRMED_MALICIOUS') return '이건 열지 마세요.';
@@ -239,7 +259,7 @@ function render(payload) {
     list('지금 하실 일', payload.doNow),
     list('하지 마세요', payload.doNot),
     list('왜 그렇게 판단했나요?', payload.reasons),
-    list('확인된 내용', payload.confirmedFacts),
+    collapsedList('확인된 내용', payload.confirmedFacts),
     list('아직 확인되지 않은 내용', payload.unverifiedItems),
     payload.incidentTriage ? list('이미 눌렀다면 해야 할 일', payload.incidentTriage.actions) : null,
     sourceList('피해가 생겼다면', check?.reportPaths, 'scam-official-sources scam-report-paths'),
@@ -322,6 +342,11 @@ async function openDialog(event) {
   if (!dialog) return;
   const sequence = ++openSequence;
   dialogTrigger = event?.currentTarget instanceof HTMLElement ? event.currentTarget : document.activeElement;
+  // COMMON-UI-POLISH-01 (QA #4) — every other drawer item closes the mobile menu
+  // before its surface opens; 진위확인 left it open under the login prompt, and
+  // still open after 취소. restoreDialogFocus already falls back to the ☰ button.
+  const drawerClose = document.querySelector('[data-mobile-nav-close]');
+  if (document.body.classList.contains('nav-drawer-open') && drawerClose instanceof HTMLButtonElement) drawerClose.click();
   resetScamFlow();
   if (result) result.hidden = true;
   if (loginGate) loginGate.hidden = true;
@@ -450,12 +475,14 @@ async function submitAnalysis(event) {
   try {
     const payload = await requestAnalysis(data);
     render(payload);
+    revealResult();
     status.textContent = payload.riskLevel === 'UNVERIFIED'
       ? '진짜라고 확인되지 않았어요. 아래 내용을 꼭 확인해 주세요.'
       : '분석 결과가 나왔습니다.';
   } catch (error) {
     if (error?.code === 'PLAN_USAGE_LIMIT_REACHED' && error?.basicProtection?.available === true) {
       renderUsageLimit(error);
+      revealResult();
       status.textContent = '기본 안전수칙은 계속 볼 수 있어요.';
     } else if (error?.code === 'SCAM_SHIELD_SESSION_REQUIRED' || error?.status === 401 || error?.status === 403) {
       showLoginGate();

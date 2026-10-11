@@ -8,6 +8,10 @@ body.consumer-document { background: var(--panel); color: var(--text); }
 .consumer-document :is(.section, .about-hero) > h1 { margin: 0 0 24px; font-size: clamp(28px, 4vw, 42px); font-weight: 600; line-height: 1.3; letter-spacing: -.045em; word-break: keep-all; }
 .consumer-document .kicker { margin: 0 0 12px; color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: .04em; }
 .consumer-document .kicker::before { content: none; }
+/* COMMON-UI-POLISH-02 (QA 02 E2) — every page carried an English eyebrow (TERMS, PRIVACY,
+   LOTBI PHILOSOPHY…) above its Korean h1. Hidden here rather than deleted page by page:
+   privacy.html and terms.html bytes are consent evidence and must not move. */
+.consumer-document .kicker { display: none; }
 .consumer-document .lead-small { max-width: 720px; font-size: 16px; line-height: 1.8; }
 .consumer-document :is(.section h2, .about-section h2) { margin-top: 40px; margin-bottom: 12px; font-size: 21px; font-weight: 600; line-height: 1.5; letter-spacing: -.03em; scroll-margin-top: 24px; }
 .consumer-document :is(.section h3, .about-principle h3) { font-size: 16px; font-weight: 600; line-height: 1.5; }

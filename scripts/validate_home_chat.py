@@ -197,9 +197,24 @@ def main() -> int:
         # SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the drawer had already delegated
         # these four to the account menu; the desktop sidebar now does the
         # same, so neither surface may list them beside it.
+        # CONNECTED-SERVICES-NAME-01 — 대표 결정(2026-10-10 "연결서비스로 통합"): the
+        # primary item that was labelled 제휴몰 already opened Account's 연결 서비스
+        # page, so one destination had two names. It now uses the page's name.
+        # Exactly that one primary button may carry it; any other 연결 서비스 text,
+        # a plain link to the route, or the old name still fails.
+        connected_items = re.findall(r'<button[^>]*data-consumer-section="mall"[^>]*>[\s\S]*?</button>', block)
+        if (
+            len(connected_items) != 1
+            or 'aria-label="연결 서비스"' not in connected_items[0]
+            or '<span class="nav-item-label">연결 서비스</span>' not in connected_items[0]
+        ):
+            errors.append(f"index.html: {label} must carry exactly one 연결 서비스 primary item")
+        outside_primary = block.replace(connected_items[0], "", 1) if len(connected_items) == 1 else block
         for moved in ("연결 서비스", "프로필", "설정", "도움말"):
-            if moved in block:
+            if moved in outside_primary:
                 errors.append(f"index.html: {label} must move account navigation into the account menu: {moved}")
+        if "제휴몰" in block:
+            errors.append(f"index.html: {label} still uses the retired 제휴몰 name")
         if CONNECTED_SERVICES_URL in block:
             errors.append(f"index.html: {label} must not duplicate the connected-services route beside the account menu")
         for removed in ("오늘", "확인 필요", "내 작업", "라이브러리"):
@@ -228,19 +243,21 @@ def main() -> int:
             errors.append(f"index.html: {label} connected services must be secondary, not primary")
         if primary_match:
             primary = primary_match.group(0)
-            # Approved seven-menu IA replaces separate primary/calendar groups.
+            # Approved menu IA replaces separate primary/calendar groups.
             # Check real destinations and order, not only presentation classes.
+            # TROUBLE-HELPER-01: 분쟁·사고 도우미 right after 진위확인 (eight).
             destinations = (
                 'data-new-conversation', 'data-calendar-view="all"',
                 'data-consumer-section="wallet"', 'data-scam-open',
+                'data-trouble-open',
                 'data-consumer-section="care"', 'data-consumer-section="life"',
                 'data-consumer-section="mall"',
             )
             offsets = [primary.find(destination) for destination in destinations]
             if any(offset < 0 for offset in offsets) or offsets != sorted(offsets):
-                errors.append(f"index.html: {label} must preserve all seven ordered menu destinations")
-            if primary.count('<button ') != 7:
-                errors.append(f"index.html: {label} must expose exactly seven primary menu buttons")
+                errors.append(f"index.html: {label} must preserve all eight ordered menu destinations")
+            if primary.count('<button ') != 8:
+                errors.append(f"index.html: {label} must expose exactly eight primary menu buttons")
 
         if "sidebar-secondary-nav" in block:
             errors.append(f"index.html: {label} must not reintroduce the secondary navigation region")

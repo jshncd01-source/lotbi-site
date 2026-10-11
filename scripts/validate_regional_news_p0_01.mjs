@@ -17,7 +17,7 @@ import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {LIFE_SHORTCUTS} from '../site-consumer-sections.js';
-import {NEWS_LIST_LIMIT, NEWS_PERIODS, NEWS_PROVINCES, formatNewsTime, newsListItems, newsListUrl, safeArticleHref} from '../site-life-news.js';
+import {NEWS_LIST_LIMIT, NEWS_PERIODS, NEWS_PROVINCES, feedListItems, formatNewsTime, newsListItems, newsListUrl, safeArticleHref, visibleCategories} from '../site-life-news.js';
 import {lifeLocationIntent, newsLocationIntent} from '../site-life-location.js';
 import {compactNewsResultMeta, normalizeNewsResult, relativeNewsTime} from '../site-regional-news.js';
 
@@ -49,13 +49,28 @@ assert.doesNotMatch(sections, /buildRegionalNewsPrompt|뉴스 알려 줘/u, 'the
 const newsScreen = read('site-life-news.js');
 assert.doesNotMatch(newsScreen, /onAsk|onDraft|innerHTML|localStorage|sessionStorage|type = 'text'|createElement\('input'\)|el\('input'/u, 'no typing, no conversation, no storage, no HTML injection');
 assert.match(newsScreen, /credentials: 'omit'/u);
+// The screen's styles never reach the conversation news cards, which share
+// .lotbi-news-title / .lotbi-news-list (site-regional-news.css): every rule in
+// site-life-news.css starts at the screen root.
+for (const selector of read('site-life-news.css').replace(/\/\*[\s\S]*?\*\//gu, '').split('}').map(block => block.split('{')[0]).flatMap(head => head.split(',')).map(part => part.trim()).filter(Boolean)) {
+  assert.ok(selector === '.lotbi-news' || selector.startsWith('.lotbi-news '), `site-life-news.css rule outside the screen root: ${selector}`);
+}
 assert.match(newsScreen, /link\.rel = 'noopener noreferrer'/u);
 assert.match(newsScreen, /link\.target = '_blank'/u);
 assert.equal(NEWS_PROVINCES.length, 17);
 assert.deepEqual(NEWS_PERIODS.map(item => [item.id, item.label]), [['today', '오늘'], ['week', '1주일']]);
-assert.equal(NEWS_LIST_LIMIT, 10);
-assert.equal(newsListUrl({region: '전북특별자치도', period: 'today'}, 'https://api.example'), 'https://api.example/v2/life/news?region=%EC%A0%84%EB%B6%81%ED%8A%B9%EB%B3%84%EC%9E%90%EC%B9%98%EB%8F%84&period=today&limit=10');
-assert.equal(newsListUrl({latitude: 35.81254, longitude: 127.11756, period: 'week'}, 'https://api.example'), 'https://api.example/v2/life/news?latitude=35.813&longitude=127.118&period=week&limit=10', 'coarse coordinates only');
+// REGIONAL-NEWS-CATEGORIES-01: the screen reads Core's view=feed (분야, 오늘 pages
+// of 20 with 더보기, 1주일 by day).
+assert.equal(NEWS_LIST_LIMIT, 20);
+assert.equal(newsListUrl({region: '전북특별자치도', period: 'today'}, 'https://api.example'), 'https://api.example/v2/life/news?region=%EC%A0%84%EB%B6%81%ED%8A%B9%EB%B3%84%EC%9E%90%EC%B9%98%EB%8F%84&period=today&limit=20&view=feed');
+assert.equal(newsListUrl({latitude: 35.81254, longitude: 127.11756, period: 'week'}, 'https://api.example'), 'https://api.example/v2/life/news?latitude=35.813&longitude=127.118&period=week&limit=20&view=feed', 'coarse coordinates only');
+assert.equal(newsListUrl({region: '전북', category: 'sports', offset: 20}, 'https://api.example'), 'https://api.example/v2/life/news?region=%EC%A0%84%EB%B6%81&period=today&limit=20&view=feed&category=sports&offset=20');
+assert.deepEqual(feedListItems([{title: '나중', source_label: 'a', url: 'https://a.kr/1', published_at: '2026-10-10T01:00:00+09:00'},
+  {title: '링크 없음', url: 'javascript:alert(1)'}, {title: '먼저', source_label: 'b', url: 'https://b.kr/2', published_at: '2026-10-10T05:00:00+09:00'}]).map(item => item.title),
+  ['나중', '먼저'], "the feed keeps Core's order (sports / photo last under 전체) and drops unlinkable items");
+assert.deepEqual(visibleCategories([{id: 'all', label: '전체', count: 3}, {id: 'politics', label: '행정·정치', count: 2}, {id: 'culture', label: '문화·축제·관광', count: 0}]).map(entry => entry.id),
+  ['all', 'politics'], 'a 분야 with no story is hidden');
+assert.deepEqual(visibleCategories([{id: 'all', count: 0}, {id: 'culture', count: 0}], 'culture').map(entry => entry.id), ['all', 'culture'], 'the picked 분야 stays');
 assert.equal(newsListUrl({region: '전주시', period: 'month'}, 'https://api.example').includes('period=today'), true, 'an unknown period falls back to 오늘');
 assert.equal(safeArticleHref('javascript:alert(1)'), '');
 assert.equal(safeArticleHref('data:text/html,x'), '');
@@ -138,22 +153,51 @@ assert.match(newsJs, /link\.rel = 'noopener noreferrer'/u);
 assert.match(read('site-core.js'), /newsResult: payload\.news_result && typeof payload\.news_result === 'object' && payload\.news_result\.contract_id === 'CORE-REGIONAL-NEWS-01'/u);
 assert.equal((read('site-core.js').match(/newsResult: payload\.news_result/gu) || []).length, 2, 'guest and signed-in responses both carry news_result');
 
-// The screen list Core returns for one 광역시·도: newest is not first on
-// purpose (the Site orders newest first) and one item has no web link (dropped).
-function screenNews(now, label, source) {
+// Core's view=feed for one 광역시·도 (REGIONAL-NEWS-CATEGORIES-01): 오늘 has 26
+// stories (two pages of 20; sports last under 전체; one unlinkable item that the
+// Site drops), 문화·축제·관광 has none (its tab is hidden), 1주일 has seven days of
+// at most ten stories.
+function screenFeed(now, label, source, params) {
   const at = minutes => new Date(now - minutes * 60000).toISOString();
-  return {
-    contract_id: 'CORE-REGIONAL-NEWS-01', schema_version: 1, result_set_id: 'nrs_screen01',
-    provider_code: 'NAVER', source: 'NAVER_API_HUB_NEWS_SEARCH', attribution: '검색: NAVER · 기사: 각 언론사',
-    region: {level: 'PROVINCE', label, short_label: label.slice(0, 2), source}, time_range: 'TODAY', topic: null,
-    items: [
-      {title: `${label.slice(0, 2)} 도의회, 내년 예산안 심사 착수…복지·교통 예산 증액 놓고 상임위별 논의 이어가`, source_label: 'jjan.kr', url: 'https://www.jjan.kr/article/30001', published_at: at(90), related_count: 0, related: []},
-      {title: `${label.slice(0, 2)} 첫 수소버스 노선 운행 시작`, source_label: 'jbnews.com', url: 'https://www.jbnews.com/news/articleView.html?idxno=30002', published_at: at(15), related_count: 1, related: []},
-      {title: '링크가 없는 기사', source_label: 'bad', url: 'javascript:alert(1)', published_at: at(5), related_count: 0, related: []},
-      {title: `${label.slice(0, 2)} 농촌 일손돕기 현장 찾은 지사`, source_label: '네이버 뉴스', url: 'https://n.news.naver.com/mnews/article/087/0000300003', published_at: at(240), related_count: 0, related: []},
-    ],
-    counts: {raw: 30, in_period: 12, region_kept: 6, clusters: 4, shown: 4}, partial: false, external_side_effect: false,
-  };
+  const short = label.slice(0, 2);
+  const plan = ['politics', 'economy', 'society', 'education', 'welfare', 'traffic_realestate', 'weather_safety'];
+  const labels = {politics: '행정·정치', economy: '경제·일자리', society: '사회·사건사고', education: '교육', welfare: '복지·생활',
+    traffic_realestate: '교통·부동산', culture: '문화·축제·관광', weather_safety: '날씨·재난·안전', sports: '스포츠'};
+  const outlets = ['jjan.kr', 'jbnews.com', 'jeonmin.co.kr', 'newsis.com'];
+  const story = (n, category, minutes) => ({cluster_id: `nwc_${n}`, title: `${short} ${labels[category]} 소식 ${n}번째 기사`,
+    source_label: outlets[n % outlets.length], url: `https://www.${outlets[n % outlets.length]}/news/${n}`, published_at: at(minutes),
+    related_count: 0, category, category_label: labels[category], photo: false});
+  const today = [];
+  for (let n = 0; n < 21; n += 1) today.push(story(n, plan[n % plan.length], 10 + n * 5));
+  for (let n = 21; n < 25; n += 1) today.push(story(n, 'sports', 5 + n));
+  today.push({...story(25, 'sports', 30), title: '링크가 없는 기사', url: 'javascript:alert(1)'});
+  const category = params.category || 'all';
+  const counts = Object.fromEntries(Object.keys(labels).map(id => [id, today.filter(item => item.category === id).length]));
+  const categories = [{id: 'all', label: '전체', count: today.length}, ...Object.keys(labels).map(id => ({id, label: labels[id], count: counts[id]}))];
+  const body = {status: 'OK', contract_id: 'CORE-REGIONAL-NEWS-FEED-01', region: {level: 'PROVINCE', label, source},
+    period: params.period || 'today', category, categories, attribution: '검색: NAVER · 기사: 각 언론사'};
+  if ((params.period || 'today') === 'week') {
+    body.days = [];
+    for (let day = 0; day < 7; day += 1) {
+      const date = new Date(now - day * 86400000);
+      const iso = date.toISOString().slice(0, 10);
+      const name = day === 0 ? '오늘' : day === 1 ? '어제' : `${day}일 전`;
+      const size = Math.max(3, 10 - day);
+      const items = [];
+      for (let k = 0; k < size; k += 1) {
+        const pick = category === 'all' ? plan[(day + k) % plan.length] : category;
+        items.push({...story(100 + day * 20 + k, pick, day * 1440 + 30 + k * 30), date: iso});
+      }
+      body.days.push({date: iso, label: `${name} · ${date.getMonth() + 1}월 ${date.getDate()}일`, items});
+    }
+  } else {
+    const chosen = category === 'all' ? today : today.filter(item => item.category === category);
+    const offset = Number(params.offset || 0);
+    const limit = Number(params.limit || 20);
+    const page = chosen.slice(offset, offset + limit);
+    body.today = {items: page, total: chosen.length, offset, limit, has_more: offset + page.length < chosen.length};
+  }
+  return body;
 }
 
 // ── Browser ─────────────────────────────────────────────────────────────
@@ -222,7 +266,7 @@ try {
     }
   } catch {}
   const NEWS = ${newsResult.toString()};
-  const SCREEN_NEWS = ${screenNews.toString()};
+  const SCREEN_FEED = ${screenFeed.toString()};
   const MINUTE = 60000;
   globalThis.fetch = (url, init) => {
     let parsed;
@@ -259,7 +303,7 @@ try {
       const asked = params.get('region') || '';
       const label = current || /전주|전북/u.test(asked) ? '전북특별자치도' : asked;
       const source = current ? 'CURRENT_LOCATION' : 'TEXT';
-      return json({status:'OK', message:label + ' 뉴스', news_result: SCREEN_NEWS(Date.now(), label, source)});
+      return json(SCREEN_FEED(Date.now(), label, source, Object.fromEntries(params)));
     }
     if (parsed.origin !== location.origin) return json({items:[]});
     return nativeFetch(url, init);
@@ -315,6 +359,10 @@ const PROBE = `(() => {
       title: a.querySelector('.lotbi-news-item-title')?.textContent || '', meta: a.querySelector('.lotbi-news-item-meta')?.textContent || '',
       titleLines: (() => { const t = a.querySelector('.lotbi-news-item-title'); return t ? Math.round(t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight)) : 0; })(),
       titleColor: color(a.querySelector('.lotbi-news-item-title'))})),
+    tabs: [...newsRoot.querySelectorAll('[data-news-category]')].map(b => ({id: b.dataset.newsCategory, label: b.textContent, pressed: b.getAttribute('aria-pressed'), h: b.getBoundingClientRect().height})),
+    tabsHidden: Boolean(newsRoot.querySelector('.lotbi-news-categories')?.hidden),
+    more: (() => { const m = newsRoot.querySelector('[data-news-more]'); return m && !m.hidden ? {box: box(m), text: m.textContent} : null; })(),
+    days: [...newsRoot.querySelectorAll('.lotbi-news-day')].map(d => ({date: d.dataset.newsDay, title: d.querySelector('.lotbi-news-day-title')?.textContent || '', count: d.querySelectorAll('.lotbi-news-item').length})),
     status: newsRoot.querySelector('.lotbi-news-status')?.textContent || '',
     retry: Boolean(newsRoot.querySelector('.lotbi-news-retry') && !newsRoot.querySelector('.lotbi-news-retry').hidden),
     textInputs: (newsRoot.closest('.consumer-life-detail') || newsRoot).querySelectorAll('input:not([type=hidden]), textarea').length,
@@ -532,10 +580,11 @@ async function runCase(browser, origin, dir, testCase) {
     const pick = async value => {
       await evaluate(`(() => { const s = document.querySelector('[data-news-region]'); s.value = ${JSON.stringify(value)}; s.dispatchEvent(new Event('change', {bubbles: true})); return true; })()`);
     };
-    const checkList = (value, step) => {
+    const checkList = (value, step, count = 20) => {
       const list = value.news;
-      assert.equal(list.items.length, 3, `${testCase.label}: ${step}: only Core's linkable articles, never padded (${list.items.length})`);
-      assert.deepEqual(list.items.map(item => ['수소버스', '예산안', '일손돕기'].find(word => item.title.includes(word))), ['수소버스', '예산안', '일손돕기'], `${testCase.label}: ${step}: newest first`);
+      assert.equal(list.items.length, count, `${testCase.label}: ${step}: Core's linkable stories only, never padded (${list.items.length})`);
+      const sports = list.items.map(item => item.title.includes('스포츠'));
+      assert.deepEqual(sports, [...sports].sort(), `${testCase.label}: ${step}: Core's order kept — sports after the rest under 전체`);
       for (const item of list.items) {
         assert.match(item.href, /^https:\/\//u, `${testCase.label}: ${step}: a title opens the article`);
         assert.equal(item.target, '_blank');
@@ -567,8 +616,10 @@ async function runCase(browser, origin, dir, testCase) {
     assert.ok(!['INPUT', 'TEXTAREA'].includes(state.active?.tag), `${testCase.label}: no keyboard`);
     assert.ok(state.pageOverflowX <= 0 && state.panelOverflowX <= 0, `${testCase.label}: pick screen fits`);
     await shot('02-news-pick');
-    // ← returns to 지역정보 with focus on the card it came from.
-    await tap(await reveal('.consumer-life-detail > .consumer-action'));
+    // ← (the header's, the one back of the screen — QA 2026-10-10 #3) returns
+    // to 지역정보 with focus on the card it came from.
+    assert.equal(await evaluate("document.querySelectorAll('.consumer-life-detail > .consumer-action-secondary').length"), 0, `${testCase.label}: no second text back`);
+    await tap(await reveal('.consumer-workspace .site-modal-close'));
     state = await waitFor(async () => { const value = await probe(); return !value.detail && value.shortcuts.length === LIFE_SHORTCUTS.length ? value : null; }, `${testCase.label}: back to 지역정보`);
     assert.equal(state.active?.shortcut, 'news', `${testCase.label}: focus returns to 지역뉴스`);
 
@@ -581,16 +632,41 @@ async function runCase(browser, origin, dir, testCase) {
     state = await newsState(news => news.state === 'READY', 'province list');
     assert.equal(state.news.title, '전북특별자치도 지역뉴스');
     assert.equal(state.news.basis, '선택한 지역 · 오늘 · 최신순');
-    assert.deepEqual(await evaluate('globalThis.__newsRequests.at(-1)'), {region: '전북특별자치도', period: 'today', limit: '10'});
+    assert.deepEqual(await evaluate('globalThis.__newsRequests.at(-1)'), {region: '전북특별자치도', period: 'today', limit: '20', view: 'feed'});
     checkList(state, 'today');
+    // 분야 tabs: 전체 + every 분야 with a story (문화·축제·관광 has none → hidden).
+    assert.equal(state.news.tabsHidden, false);
+    assert.deepEqual(state.news.tabs.map(tab => tab.id), ['all', 'politics', 'economy', 'society', 'education', 'welfare', 'traffic_realestate', 'weather_safety', 'sports']);
+    assert.equal(state.news.tabs[0].pressed, 'true');
+    for (const tab of state.news.tabs) assert.ok(tab.h >= 44, `${testCase.label}: ${tab.id} tab touch target`);
+    // 더보기 reads the next 20 (here the last five linkable ones: 25 in all).
+    assert.ok(state.news.more && state.news.more.box.h >= 44, `${testCase.label}: 더보기 shown while more stories wait`);
+    await tap(await reveal('[data-news-more]'));
+    state = await newsState(news => news.items.length === 25 && !news.more, '더보기');
+    assert.equal((await evaluate('globalThis.__newsRequests.at(-1)')).offset, '20');
+    checkList(state, 'today + 더보기', 25);
+    // 스포츠 tab → only 스포츠 stories; 전체 again → back to the first page.
+    await tap(await reveal('[data-news-category="sports"]'));
+    state = await newsState(news => news.state === 'READY' && news.tabs.find(tab => tab.id === 'sports')?.pressed === 'true', '스포츠 tab');
+    assert.equal((await evaluate('globalThis.__newsRequests.at(-1)')).category, 'sports');
+    assert.ok(state.news.items.length === 4 && state.news.items.every(item => item.title.includes('스포츠')), `${testCase.label}: 스포츠 only`);
+    await tap(await reveal('[data-news-category="all"]'));
+    state = await newsState(news => news.state === 'READY' && news.tabs[0]?.pressed === 'true' && news.items.length === 20, '전체 again');
     assert.deepEqual(state.news.periods.map(item => [item.id, item.pressed]), [['today', 'true'], ['week', 'false']]);
     for (const period of state.news.periods) assert.ok(period.h >= 44, `${testCase.label}: ${period.id} touch target`);
     await shot('03-news-list');
     await tap(await reveal('[data-news-period="week"]'));
-    state = await newsState(news => news.state === 'READY' && news.basis.includes('1주일'), '1주일 list');
-    assert.equal(state.news.basis, '선택한 지역 · 1주일 · 최신순');
+    state = await newsState(news => news.state === 'READY' && news.basis.includes('1주일'), '1주일 by day');
+    assert.equal(state.news.basis, '선택한 지역 · 1주일 · 날짜별 대표 기사');
     assert.equal((await evaluate('globalThis.__newsRequests.at(-1)')).period, 'week');
-    checkList(state, 'week');
+    // One heading per day (오늘, 어제 … 6일 전), at most ten stories each, no date twice.
+    assert.equal(state.news.days.length, 7);
+    assert.equal(new Set(state.news.days.map(day => day.date)).size, 7, `${testCase.label}: no date twice`);
+    assert.ok(state.news.days[0].title.startsWith('오늘') && state.news.days[1].title.startsWith('어제'), JSON.stringify(state.news.days.map(day => day.title)));
+    assert.ok(state.news.days.every(day => day.count >= 1 && day.count <= 10), `${testCase.label}: 1~10 stories per day`);
+    assert.equal(state.news.more, null, `${testCase.label}: no 더보기 on 1주일`);
+    checkList(state, 'week', state.news.days.reduce((sum, day) => sum + day.count, 0));
+    await shot('03c-news-week');
     assert.equal(await evaluate('globalThis.__sent.length'), sentBefore, `${testCase.label}: the 지역뉴스 screen sends nothing to the conversation`);
     if (testCase.theme === 'dark') {
       assert.ok(luminance(state.pageBackground) < 0.2, `${testCase.label}: the list sits on the dark page (${state.pageBackground})`);
@@ -624,7 +700,7 @@ async function runCase(browser, origin, dir, testCase) {
     state = await newsState(news => news.state === 'READY' && news.basis.startsWith('저장 지역'), 'saved region list');
     assert.equal(state.news.title, '전북특별자치도 지역뉴스');
     assert.equal(state.news.basis, '저장 지역 기준 · 오늘 · 최신순');
-    assert.deepEqual(await evaluate('globalThis.__newsRequests.at(-1)'), {region: '전주시', period: 'today', limit: '10'});
+    assert.deepEqual(await evaluate('globalThis.__newsRequests.at(-1)'), {region: '전주시', period: 'today', limit: '20', view: 'feed'});
     assert.ok(state.news.allow, `${testCase.label}: [위치 허용] still offered`);
     assert.equal(await evaluate('globalThis.__geolocationCalls'), geoBeforeSaved, `${testCase.label}: saved-region news never asks for the position`);
     checkList(state, 'saved');
@@ -640,7 +716,7 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(state.news.allow, null, `${testCase.label}: no [위치 허용] once allowed`);
     assert.equal(state.news.selected, 'current');
     const currentRequest = await evaluate('globalThis.__newsRequests.at(-1)');
-    assert.deepEqual(currentRequest, {latitude: '35.813', longitude: '127.118', period: 'today', limit: '10'}, `${testCase.label}: coarse coordinates only`);
+    assert.deepEqual(currentRequest, {latitude: '35.813', longitude: '127.118', period: 'today', limit: '20', view: 'feed'}, `${testCase.label}: coarse coordinates only`);
     checkList(state, 'current');
     await shot('04-news-current');
     await evaluate(`document.cookie = 'lotbi_location_usage_v1=off; path=/', true`);
@@ -655,7 +731,12 @@ async function runCase(browser, origin, dir, testCase) {
 
     // 6. A news question typed in the conversation still gets the compact
     //    news cards (CORE-REGIONAL-NEWS-01).
+    //    REGIONAL-INFO-BACK-NAVIGATION-01: ← steps one screen at a time —
+    //    지역뉴스 → the 지역정보 list → the conversation.
     await evaluate("document.querySelector('.consumer-workspace .site-modal-close, .consumer-workspace [data-close], .site-modal-close')?.click(), true");
+    await waitFor(() => evaluate("document.querySelector('.consumer-workspace')?.dataset.siteRoute === 'life' && location.hash === '#life' && Boolean(document.querySelector('.consumer-workspace .consumer-shortcuts'))"), `${testCase.label}: ← from 지역뉴스 → 지역정보`);
+    await evaluate("document.querySelector('.consumer-workspace .site-modal-close')?.click(), true");
+    await waitFor(() => evaluate("!document.querySelector('.consumer-workspace') && location.hash === ''"), `${testCase.label}: ← from 지역정보 → the conversation`);
     await evaluate(`(() => { const p = document.getElementById('lotbi-prompt'); p.value = '군산 뉴스 알려 줘'; p.dispatchEvent(new Event('input', {bubbles: true})); document.querySelector('.send-button').click(); return true; })()`);
     const typedSent = await waitFor(async () => { const sent = await evaluate('globalThis.__sent.slice()'); return sent.length > sentBefore ? sent.at(-1) : null; }, `${testCase.label}: typed news question sent`);
     assert.equal(typedSent.text, '군산 뉴스 알려 줘');

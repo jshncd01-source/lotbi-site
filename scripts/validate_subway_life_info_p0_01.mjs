@@ -568,7 +568,13 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.equal(s.averageRows[0].direction, 'OUTER');
     });
     await tapSelector('[data-site-route="subway-station"] [data-subway-day="saturday"]');
-    s = await settled(st => st.log.subway.some(call => call.name === 'congestion-average' && call.params.day === 'saturday') && st.dayChips.find(c => c.day === 'saturday')?.pressed === 'true', '토요일');
+    // The screen keeps the previous day's bars and shows "평균 혼잡도를 불러오는 중…"
+    // until Core answers, so "the request went out and the chip is pressed" is not
+    // yet 토요일's data. On a Saturday the screen starts on 토요일 and nothing is
+    // requested, which is why this passed when it was written; on any other day
+    // the 08:00 below was read off the day before's bars (the default day is the
+    // clock's: 일요일 or 평일). Wait for the answer; the assertions are unchanged.
+    s = await settled(st => st.log.subway.some(call => call.name === 'congestion-average' && call.params.day === 'saturday') && st.dayChips.find(c => c.day === 'saturday')?.pressed === 'true' && !st.status.some(text => /평균 혼잡도를 불러오는 중/u.test(text)), '토요일');
     await evaluate(`(() => { const select = document.querySelector('[data-site-route="subway-station"] [data-subway-slot]'); select.value = '08:00'; select.dispatchEvent(new Event('change')); return true; })()`);
     s = await settled(st => st.slot === '08:00', '08:00');
     const saturday = FIXTURE.congestion_gangnam_2_saturday.series.find(item => item.direction_code === 'OUTER').values[5];
@@ -638,7 +644,10 @@ async function runCase(browser, origin, workDir, testCase) {
       for (const [scenario, pattern] of Object.entries(expectations)) {
         await setScenario(scenario);
         await tapSelector('[data-site-route="subway"] .subway-group-button[data-subway-station="1002000222"]');
-        s = await settled(st => st.which === 'station' && st.status.some(text => pattern.test(text)), `scenario ${scenario}`);
+        // The real-time line and the past average are two requests; read the average
+        // once it is no longer loading (waiting for its bars would make the
+        // "still shows" assertion below true by construction).
+        s = await settled(st => st.which === 'station' && st.status.some(text => pattern.test(text)) && !st.status.some(text => /평균 혼잡도를 불러오는 중/u.test(text)), `scenario ${scenario}`);
         await check(`${label}: ${scenario} → says so, shows no train, keeps the average`, () => {
           assert.equal(s.arrivals.length, 0);
           assert.equal(s.averageRows.length, 2, 'the past average still shows');

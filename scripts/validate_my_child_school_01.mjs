@@ -2,8 +2,11 @@
 //
 // Contract checked here:
 // * 생활정보 shows a ninth (last) card "내 아이 학교·유치원" (the eight existing
-//   cards and their order stay); it opens a screen with "지역정보로 돌아가기"
-//   (the label every life screen uses); its "대화로 더 물어보기" asks through
+//   cards and their order stay); the card opens this screen at once — no
+//   내 아이 정보 / 유치원·학교 찾기 choice (REGIONAL-INFO-BACK-NAVIGATION-01, owner
+//   decision 2026-10-10) — its header ← ("지역정보로 돌아가기", the one back
+//   of the screen — QA 2026-10-10 #3) steps one screen back to the 지역정보
+//   list; its "대화로 더 물어보기" asks through
 //   the same onAsk as every life card (one tap, no keyboard)
 // * signed out: a login notice (/auth/start/), no Core call
 // * signed in: NEIS school search → pick → nickname (default "첫째") +
@@ -14,6 +17,14 @@
 //   "○○ 포함", "급식표 알레르기 표기 기준", 학교 홈페이지 link, 방학·재량휴업일·개학,
 //   "출처: NEIS · <time> 갱신"; nothing medical
 // * a school NEIS left empty offers "정보 보완 요청" per item → "요청함"
+// * MY-CHILD-MEAL-LINK-PDF-01: where NEIS has no meal this week (and for a
+//   유치원) the "학교/유치원 공개 급식표" card lists what staff registered —
+//   a link opens in a new tab, a PDF opens through the Bearer content route
+//   in a tab opened inside the tap; source, registered day and "알레르기
+//   번호를 읽지 않아 자동 강조·알림은 되지 않으니" are on the card
+// * "no meal" is told apart: a day / week without a meal ("오늘은 급식이 없는
+//   날이에요"), a school NEIS carries no meal for lately (guidance, with the
+//   lookback days), a 유치원 ("공공 데이터로 급식표가 제공되지 않아요")
 // * every Core call: Bearer, credentials omit; bodies carry only the
 //   institution code, nickname, allergen numbers (and the consent version)
 // * 320/360/412 mobile and 1280 desktop, light and dark: no horizontal
@@ -40,16 +51,20 @@ const sections = await import('../site-consumer-sections.js');
 const screen = await import('../site-life-my-child.js');
 const client = await import('../site-my-child-client.js');
 
-await check('지역정보: 내 아이 학교·유치원 is the last card and opens 내 아이 정보 / 유치원·학교 찾기', () => {
+await check('지역정보: 내 아이 학교·유치원 is the last card and opens the saved schools / 유치원 screen at once', () => {
   assert.deepEqual(sections.LIFE_SHORTCUTS.map(item => item.id), ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'local', 'my-child']);
   const item = sections.LIFE_SHORTCUTS.at(-1);
   assert.equal(item.label, '내 아이 학교·유치원');
   assert.ok(!item.prompt && !item.medical);
   const source = read('site-consumer-sections.js');
-  // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: one education card, two features.
-  assert.deepEqual(item.children.map(choice => choice.id), ['my-child', 'education']);
-  assert.match(source, /else if \(item\.children\) openChildChoice\(item\);/u);
-  assert.match(source, /else openMyChild\(item\);/u);
+  // REGIONAL-INFO-BACK-NAVIGATION-01 (owner decision 2026-10-10): one card, one
+  // screen — no 내 아이 정보 / 유치원·학교 찾기 choice in between.
+  assert.equal(item.children, undefined);
+  assert.match(source, /else if \(item\.id === 'my-child'\) openMyChild\(item\);/u);
+  assert.doesNotMatch(source, /openChildChoice|data-child-choice|childChoice/u);
+  // Owner decision 2026-10-10: signed out only, the saved screen links the public lookup.
+  assert.match(source, /const lookup = authenticated \? null : node\('button', [^)]*'로그인 없이 학교·유치원 찾기'\);/u);
+  assert.equal(sections.LIFE_VIEW_PARENT['life-my-child'], 'life');
   assert.doesNotMatch(source, /\bfetch\(|localStorage|innerHTML/u);
   const conversation = read('site-conversation.js');
   assert.match(conversation, /mountMyChild: async \(root, \{onAsk: askFromMyChild\} = \{\}\) => \{\r?\n\s+const \{mountMyChild\} = await import\('\.\/site-life-my-child\.js\?v=aset-[0-9a-f]{12}'\);/u);
@@ -111,6 +126,52 @@ await check('client: save bodies hold only code, nickname, allergen numbers; res
   assert.equal(overview.links.homepage, 'http://www.sewon.es.kr/');
   assert.equal(client.safeLink('javascript:alert(1)'), '');
   assert.equal(client.normalizeEntry({id: 'mci_x', kind: 'SCHOOL'}), null);
+});
+
+await check('client: 공개 급식표 — only links and PDF / JPG / PNG files, content path built from ids, never allergen-checked', async () => {
+  const shown = client.normalizeOverview(FIXTURE.overview_school_empty).mealPlans;
+  assert.equal(shown.visible, true);
+  assert.equal(shown.title, '학교 공개 급식표');
+  assert.match(shown.notice, /알레르기 번호를 읽지 않아 자동 강조·알림은 되지 않으니/u);
+  assert.deepEqual(shown.items.map(item => item.kind), ['DOCUMENT', 'LINK']);
+  const entryId = FIXTURE.overview_school_empty.entry.id;
+  assert.equal(shown.items[0].contentPath, `/v2/life/my-children/${entryId}/meal-plans/${shown.items[0].id}/content`);
+  assert.equal(shown.items[1].url, 'https://school.example.kr/meal/2026-09');
+  assert.equal(client.normalizeOverview(FIXTURE.overview_school).mealPlans.visible, false, 'NEIS meals this week: no card');
+  assert.equal(client.normalizeOverview(FIXTURE.overview_kindergarten).mealPlans.title, '유치원 공개 급식표');
+  const hostile = client.normalizeOverview({...FIXTURE.overview_school_empty, meal_plans: {visible: true, items: [
+    {id: 'mps_0123456789abcdef0123', kind: 'LINK', url: 'javascript:alert(1)'},
+    {id: 'mps_0123456789abcdef0124', kind: 'DOCUMENT', file: {name: 'x.html', mime_type: 'text/html', size_bytes: 1}},
+    {id: '../../admin', kind: 'DOCUMENT', file: {name: 'x.pdf', mime_type: 'application/pdf', size_bytes: 1}},
+    {id: 'mps_0123456789abcdef0125', kind: 'DOCUMENT', file: {name: 'x.pdf', mime_type: 'application/pdf', size_bytes: 1},
+      content_path: 'https://evil.example/x'},
+  ]}}).mealPlans;
+  assert.deepEqual(hostile.items.map(item => item.id), ['mps_0123456789abcdef0125']);
+  assert.match(hostile.items[0].contentPath, /^\/v2\/life\/my-children\/mci_[0-9a-f]{20}\/meal-plans\/mps_0123456789abcdef0125\/content$/u);
+  const seen = [];
+  const pdf = Buffer.from(FIXTURE.meal_plan_pdf_base64, 'base64');
+  const fake = async (url, init) => { seen.push([url, init]); return new Response(pdf, {status: 200, headers: {'Content-Type': 'application/pdf'}}); };
+  const blob = await client.fetchMealPlanFile('site-token', entryId, shown.items[0].id, fake);
+  assert.equal(blob.type, 'application/pdf');
+  assert.equal(seen[0][1].headers.Authorization, 'Bearer site-token');
+  assert.equal(seen[0][1].credentials, 'omit');
+  assert.ok(seen[0][0].endsWith(`/v2/life/my-children/${entryId}/meal-plans/${shown.items[0].id}/content`), seen[0][0]);
+  await assert.rejects(client.fetchMealPlanFile('site-token', entryId, 'mps_bad', fake), {code: 'MY_CHILD_MEAL_PLAN_NOT_FOUND'});
+  const html = async () => new Response('<html></html>', {status: 200, headers: {'Content-Type': 'text/html'}});
+  await assert.rejects(client.fetchMealPlanFile('site-token', entryId, shown.items[0].id, html), {code: 'CONTRACT_INVALID'});
+  assert.equal(screen.formatRegisteredDay('2026-10-05T15:30:00+00:00'), '10.6(화)');
+});
+
+await check('client: NEIS coverage — PROVIDED / NOT_PROVIDED / UNKNOWN with the lookback days; anything else is UNKNOWN', () => {
+  assert.equal(client.normalizeOverview(FIXTURE.overview_school).meals.coverage, 'PROVIDED');
+  const empty = client.normalizeOverview(FIXTURE.overview_school_empty).meals;
+  assert.equal(empty.coverage, 'NOT_PROVIDED');
+  assert.equal(empty.coverageDays, 120);
+  const odd = client.normalizeOverview({...FIXTURE.overview_school_empty, meals: {...FIXTURE.overview_school_empty.meals, coverage: 'NONE'}}).meals;
+  assert.equal(odd.coverage, 'UNKNOWN');
+  assert.equal(screen.NO_MEAL_TODAY, '오늘은 급식이 없는 날이에요.');
+  assert.match(screen.SCHOOL_NOT_PROVIDED, /NEIS로 급식표를 제공하지 않는 것 같아요\. 학교 홈페이지나 가정통신문에서 확인해 주세요\./u);
+  assert.equal(screen.KINDERGARTEN_NO_MEAL, '유치원은 공공 데이터로 급식표가 제공되지 않아요.');
 });
 
 // ── Browser ─────────────────────────────────────────────────────────────
@@ -204,7 +265,7 @@ try {
       state.entries.push(entry); state.accepted = true;
       return json({entry: view(entry), consent: listing().consent}, 201);
     }
-    const match = /^\\/(mci_[0-9a-f]{20})(\\/overview|\\/info-requests)?$/u.exec(rest);
+    const match = /^\\/(mci_[0-9a-f]{20})(\\/overview|\\/info-requests|\\/meal-plans\\/mps_[0-9a-f]{20}\\/content)?$/u.exec(rest);
     const entry = match && state.entries.find(item => item.id === match[1]);
     if (!entry) return detail(404, 'MY_CHILD_ENTRY_NOT_FOUND', '저장한 항목을 찾지 못했어요.');
     const base = () => entry.kind === 'KINDERGARTEN' ? F.overview_kindergarten
@@ -216,6 +277,13 @@ try {
     }
     if (!match[2] && method === 'DELETE') { state.entries = state.entries.filter(item => item !== entry); return json({deleted: true, id: entry.id}); }
     if (match[2] === '/overview') return json(remark({...base(), entry: view(entry), info_requests: state.pending[entry.id] || {}}, entry));
+    if (match[2] && match[2].startsWith('/meal-plans/')) {
+      const sourceId = match[2].split('/')[2];
+      const item = (base().meal_plans?.items || []).find(plan => plan.id === sourceId && plan.kind === 'DOCUMENT');
+      if (!item) return detail(404, 'MY_CHILD_MEAL_PLAN_NOT_FOUND', '급식표 파일을 찾지 못했어요.');
+      const bytes = Uint8Array.from(atob(F.meal_plan_pdf_base64), c => c.charCodeAt(0));
+      return Promise.resolve(new Response(bytes, {status: 200, headers: {'Content-Type': item.file.mime_type}}));
+    }
     if (match[2] === '/info-requests') {
       const results = {};
       state.pending[entry.id] = state.pending[entry.id] || {};
@@ -288,17 +356,17 @@ const SCENARIO = `(async () => {
   result.cards = [...panel.querySelectorAll('[data-life-shortcut]')].map(n => n.dataset.lifeShortcut);
   result.card = {label: shortcut.textContent.trim(), box: box(shortcut)};
   shortcut.click();
-  const pickChild = await wait(() => panel.querySelector('[data-child-choice="my-child"]'), 'child choice');
-  result.choices = [...panel.querySelectorAll('[data-child-choice]')].map(n => n.dataset.childChoice + ':' + n.textContent.trim());
-  pickChild.click();
   const host = await wait(() => panel.querySelector('.lotbi-mychild'), 'my-child screen');
-  result.back = panel.querySelector('.consumer-life-detail > .consumer-action')?.textContent.trim();
+  result.choices = [...panel.querySelectorAll('[data-child-choice]')].map(n => n.dataset.childChoice + ':' + n.textContent.trim());
+  result.back = panel.querySelector('.site-modal-close')?.getAttribute('aria-label') || '';
+  result.textBack = Boolean(panel.querySelector('.consumer-life-detail > .consumer-action-secondary:not([data-life-education-entry])'));
+  result.lookup = panel.querySelector('[data-life-education-entry]')?.textContent || '';
   if (!${'${SIGNED_IN}'}) {
     const notice = await wait(() => host.querySelector('[data-my-child-state="LOGIN_REQUIRED"]'), 'login notice');
     result.login = {text: notice.textContent, href: notice.querySelector('a')?.getAttribute('href'), measure: measure(host)};
     result.calls = globalThis.__mcsCalls.length;
-    panel.querySelector('.consumer-life-detail > .consumer-action').click();
-    await wait(() => panel.querySelector('[data-life-shortcut="my-child"]'), 'back to life');
+    panel.querySelector('.site-modal-close').click();
+    await wait(() => panel.querySelector('[data-life-shortcut="my-child"]') && !panel.querySelector('.lotbi-mychild'), 'back to life');
     result.backHome = document.activeElement?.dataset?.lifeShortcut || '';
     return result;
   }
@@ -325,6 +393,14 @@ const SCENARIO = `(async () => {
   result.withoutConsent = {status: save.querySelector('.lotbi-mychild-status').textContent, posts: globalThis.__mcsCalls.filter(c => c.method === 'POST').length};
   save.querySelector('[data-my-child-consent-check]').checked = true;
   save.requestSubmit();
+  // SUBVIEW-BACK-NAVIGATION-01: the phone's back on the overview shows the
+  // saved list — one step, 지역정보 stays — and the entry opens again.
+  await wait(() => host.querySelector('[data-my-child-section="meals"]'), 'school overview (first)');
+  await wait(() => history.state && history.state.lotbiSubview, 'the overview layer entry');
+  history.back();
+  await wait(() => host.querySelector('[data-my-child-entry]') && !host.querySelector('[data-my-child-section="meals"]'), 'phone back → the saved list');
+  result.overviewBack = {list: true, route: document.querySelector('[data-site-route]')?.dataset.siteRoute || '', hash: location.hash};
+  host.querySelector('[data-my-child-entry]').click();
   const meals = await wait(() => host.querySelector('[data-my-child-section="meals"]'), 'school overview');
   const overview = () => ({
     title: host.querySelector('.lotbi-mychild-title')?.textContent,
@@ -384,7 +460,25 @@ const SCENARIO = `(async () => {
   save2.requestSubmit();
   const gap = await wait(() => host.querySelector('[data-my-child-section="info-request"]'), 'gap section');
   result.gap = {items: [...gap.querySelectorAll('[data-my-child-gap]')].map(li => li.dataset.myChildGap), text: gap.textContent,
-    emptyLines: [...host.querySelectorAll('.lotbi-mychild-empty-line')].map(n => n.textContent), measure: measure(host)};
+    emptyLines: [...host.querySelectorAll('.lotbi-mychild-empty-line')].map(n => n.textContent), measure: measure(host),
+    coverage: [...host.querySelectorAll('[data-my-child-meal-coverage="NOT_PROVIDED"] p')].map(n => n.textContent)};
+  const plansCard = host.querySelector('[data-my-child-section="meal-plans"]');
+  const order = [...host.querySelectorAll('[data-my-child-section]')].map(n => n.dataset.myChildSection);
+  result.plans = plansCard ? {order, title: plansCard.querySelector('h5')?.textContent, notice: plansCard.querySelector('.lotbi-mychild-hint')?.textContent,
+    rows: [...plansCard.querySelectorAll('[data-my-child-meal-plan]')].map(li => [li.dataset.myChildMealPlan, li.querySelector('.lotbi-mychild-mealplan-name')?.textContent,
+      li.querySelector('.lotbi-mychild-mealplan-meta')?.textContent]),
+    link: [...plansCard.querySelectorAll('a')].map(a => [a.textContent, a.getAttribute('href'), a.target, a.rel]),
+    allergenMarks: plansCard.querySelectorAll('.is-allergen, .lotbi-mychild-contains').length} : null;
+  if (plansCard) {
+    const opened = [];
+    const realOpen = window.open;
+    window.open = (url, target) => { const tab = {opener: window, url, target, closed: false, location: {href: ''}, close() { this.closed = true; }}; opened.push(tab); return tab; };
+    plansCard.querySelector('[data-my-child-meal-plan-open]').click();
+    await wait(() => opened[0]?.location.href, 'pdf tab pointed at the file');
+    window.open = realOpen;
+    result.plans.opened = opened.map(tab => ({url: tab.url, target: tab.target, opener: tab.opener === null, href: tab.location.href.slice(0, 5), closed: tab.closed}));
+    result.plans.contentCalls = globalThis.__mcsCalls.filter(call => call.path.includes('/meal-plans/')).map(call => ({path: call.path, auth: call.auth}));
+  }
   gap.querySelector('[data-my-child-request="MEAL"]').click();
   await wait(() => host.querySelector('[data-my-child-gap="MEAL"] .lotbi-mychild-badge')?.textContent === '요청함', 'requested badge');
   result.gap.after = [...host.querySelectorAll('[data-my-child-gap]')].map(li => [li.dataset.myChildGap, li.textContent]);
@@ -408,6 +502,13 @@ const SCENARIO = `(async () => {
   result.third = {nickname: save3.querySelector('[data-my-child-nickname]').value};
   save3.requestSubmit();
   const kinder = await wait(() => host.querySelector('[data-my-child-section="kindergarten"] .lotbi-mychild-facts'), 'kindergarten overview');
+  const kinderPlans = host.querySelector('[data-my-child-section="meal-plans"]');
+  result.kinderMeal = {line: host.querySelector('[data-my-child-meal-coverage="KINDERGARTEN"]')?.textContent || '',
+    order: [...host.querySelectorAll('[data-my-child-section]')].map(n => n.dataset.myChildSection),
+    hint: host.querySelector('[data-my-child-section="kinder-meal"] .lotbi-mychild-hint')?.textContent || ''};
+  result.kinderPlans = kinderPlans ? {title: kinderPlans.querySelector('h5')?.textContent,
+    rows: [...kinderPlans.querySelectorAll('[data-my-child-meal-plan]')].map(li => li.querySelector('.lotbi-mychild-mealplan-meta')?.textContent),
+    button: kinderPlans.querySelector('[data-my-child-meal-plan-open]')?.textContent} : null;
   result.kinder = {facts: [...kinder.querySelectorAll('.lotbi-mychild-fact')].map(r => [r.querySelector('dt').textContent, r.querySelector('dd').textContent]),
     tel: kinder.querySelector('a[href^="tel:"]')?.getAttribute('href') || '', source: host.querySelector('.lotbi-mychild-source').textContent,
     gap: Boolean(host.querySelector('[data-my-child-section="info-request"]')), measure: measure(host)};
@@ -435,9 +536,12 @@ const SCENARIO = `(async () => {
   const save4 = await wait(() => host.querySelector('[data-my-child-save="SCHOOL"]'), 'save form 4');
   result.consentAgain = Boolean(save4.querySelector('[data-my-child-consent-check]'));
 
-  // 6. 지역정보로 돌아가기.
-  panel.querySelector('.consumer-life-detail > .consumer-action').click();
-  await wait(() => panel.querySelector('[data-life-shortcut="my-child"]') && !panel.querySelector('.lotbi-mychild'), 'back to life');
+  // 6. The header ← steps one layer at a time (SUBVIEW-BACK-NAVIGATION-01): the
+  //    open 추가 form → the saved list → the 지역정보 list.
+  panel.querySelector('.site-modal-close').click();
+  await wait(() => host.querySelector('[data-my-child-add]') && !host.querySelector('[data-my-child-save]'), '← → the saved list');
+  panel.querySelector('.site-modal-close').click();
+  await wait(() => panel.querySelector('[data-life-shortcut="my-child"]') && !panel.querySelector('.consumer-life-detail'), 'back to life');
   result.backHome = document.activeElement?.dataset?.lifeShortcut || '';
   result.calls = globalThis.__mcsCalls;
   return result;
@@ -564,15 +668,20 @@ try {
   for (const testCase of CASES) {
     const r = await runCase(browser, origin, dir, testCase, 'inner.html', true);
     const label = testCase.label;
-    await check(`${label}: the last card opens 내 아이 정보 with 지역정보로 돌아가기; empty list explains storage`, () => {
-      assert.deepEqual(r.choices, ['my-child:내 아이 정보', 'education:유치원·학교 찾기']);
+    await check(`${label}: the last card opens the saved screen at once with 지역정보로 돌아가기; empty list explains storage`, () => {
+      assert.deepEqual(r.choices, [], 'no 내 아이 정보 / 유치원·학교 찾기 choice');
       assert.deepEqual(r.cards, ['medical', 'pharmacy', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'local', 'my-child']);
       assert.equal(r.card.label, '내 아이 학교·유치원');
       assert.ok(r.card.box.h >= 44, JSON.stringify(r.card.box));
       assert.equal(r.back, '지역정보로 돌아가기');
+      assert.equal(r.textBack, false, 'one back: the header ←, no second text link (QA #3)');
+      assert.equal(r.lookup, '', 'signed in: no 로그인 없이 학교·유치원 찾기 link');
       assert.match(r.empty.text, /아직 저장한 학교·유치원이 없어요/u);
       assert.match(r.empty.footer, /아이 이름·생년월일·사진·학년·반은 받지 않아요/u);
       assert.equal(r.backHome, 'my-child', 'focus returns to the card');
+    });
+    await check(`${label}: the phone's back on a saved school's overview → the saved list (SUBVIEW-BACK-NAVIGATION-01)`, () => {
+      assert.deepEqual(r.overviewBack, {list: true, route: 'life-my-child', hash: '#life-my-child'});
     });
     await check(`${label}: NEIS search → pick → 첫째 + 19 allergen boxes + first-save consent`, () => {
       assert.deepEqual(r.tabs, [['SCHOOL', 'true'], ['KINDERGARTEN', 'false']]);
@@ -626,11 +735,34 @@ try {
       assert.equal(r.second.consent, false, 'consent is asked once');
       assert.deepEqual(r.gap.items, ['MEAL', 'SCHEDULE']);
       assert.match(r.gap.text, /요청한 사람은 직원에게 보이지 않아요/u);
-      assert.ok(r.gap.emptyLines.some(line => line === '오늘은 급식 정보가 없어요.'), JSON.stringify(r.gap.emptyLines));
+      // MY-CHILD-MEAL-LINK-PDF-01: a school NEIS carries no meal for lately is told so (guidance, not a verdict).
+      assert.deepEqual(r.gap.coverage, ['이 학교는 NEIS로 급식표를 제공하지 않는 것 같아요. 학교 홈페이지나 가정통신문에서 확인해 주세요.',
+        '최근 120일 동안 NEIS 급식 기록이 없어요.']);
+      assert.ok(!r.gap.emptyLines.includes('오늘은 급식 정보가 없어요.'), JSON.stringify(r.gap.emptyLines));
       assert.deepEqual(r.gap.after.map(item => item[0]), ['MEAL', 'SCHEDULE']);
       assert.match(r.gap.after[0][1], /급식요청함/u);
       assert.match(r.gap.after[1][1], /학사일정정보 보완 요청/u);
       assert.match(r.gap.status, /급식 보완을 요청했어요/u);
+    });
+    await check(`${label}: 학교 공개 급식표 card where NEIS has no meal; a PDF opens in a tab opened inside the tap`, () => {
+      assert.ok(r.plans, 'meal-plans card on the empty school');
+      assert.equal(r.school.text.includes('학교 공개 급식표'), false, 'no card while NEIS has meals');
+      assert.deepEqual(r.plans.order.slice(0, 2), ['meals', 'meal-plans']);
+      assert.equal(r.plans.title, '학교 공개 급식표');
+      assert.match(r.plans.notice, /알레르기 번호를 읽지 않아 자동 강조·알림은 되지 않으니 직접 확인해 주세요/u);
+      assert.deepEqual(r.plans.rows.map(row => row.slice(0, 2)), [['DOCUMENT', '10월 급식표'], ['LINK', '9월 급식표']]);
+      assert.equal(r.plans.rows[0][2], '학교 공개 자료, LOTBI 직원 등록 · 10.6(화) 등록');
+      assert.equal(r.plans.rows[1][2], '학교 공개 자료, LOTBI 직원 등록 · 10.2(금) 등록');
+      assert.deepEqual(r.plans.link, [['급식표 열기', 'https://school.example.kr/meal/2026-09', '_blank', 'noopener noreferrer']]);
+      assert.equal(r.plans.allergenMarks, 0, 'a published meal plan is never allergen-marked');
+      assert.deepEqual(r.plans.opened, [{url: '', target: '_blank', opener: true, href: 'blob:', closed: false}]);
+      assert.equal(r.plans.contentCalls.length, 1);
+      assert.match(r.plans.contentCalls[0].path, /^\/v2\/life\/my-children\/mci_[0-9a-f]{20}\/meal-plans\/mps_[0-9a-f]{20}\/content$/u);
+      assert.equal(r.plans.contentCalls[0].auth, 'Bearer site-token');
+      assert.deepEqual(r.kinderPlans, {title: '유치원 공개 급식표', rows: ['유치원 공개 자료, LOTBI 직원 등록 · 10.5(월) 등록'], button: 'PDF 보기'});
+      assert.equal(r.kinderMeal.line, '유치원은 공공 데이터로 급식표가 제공되지 않아요.');
+      assert.deepEqual(r.kinderMeal.order, ['kindergarten', 'kinder-meal', 'meal-plans']);
+      assert.equal(r.kinderMeal.hint, '', 'the card is there, so no "check the 가정통신문" hint');
     });
     await check(`${label}: 유치원 via the 유치원알리미 picker; 기본정보 with source; no gap request`, () => {
       assert.deepEqual(r.kinderSearch.names, ['예일유치원']);
@@ -674,6 +806,9 @@ try {
     assert.match(out.login.text, /로그인하고 아이 학교·유치원을 저장하세요/u);
     assert.equal(out.login.href, '/auth/start/');
     assert.equal(out.back, '지역정보로 돌아가기');
+    assert.equal(out.textBack, false);
+    assert.equal(out.lookup, '로그인 없이 학교·유치원 찾기', 'signed out: the public lookup link (owner decision 2026-10-10)');
+    assert.deepEqual(out.choices, []);
     assert.equal(out.calls, 0);
     assert.deepEqual(out.login.measure.small, []);
     assert.deepEqual(out.login.measure.overflow, []);

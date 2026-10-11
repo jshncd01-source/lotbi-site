@@ -3,7 +3,9 @@
 
   const drawer = document.getElementById('mobile-nav-drawer');
   const backdrop = document.querySelector('[data-mobile-nav-backdrop]');
-  const openButtons = Array.from(document.querySelectorAll('[data-mobile-nav-open]'));
+  // The menu button is the page's one [data-mobile-nav-open] control; the phone
+  // Header's account button (SITE-HEADER-AUTH-QA-23-24-01) opens the same drawer.
+  const openButtons = Array.from(document.querySelectorAll('[data-mobile-nav-open], [data-mobile-account-open]'));
   const closeButton = document.querySelector('[data-mobile-nav-close]');
   const appShell = document.querySelector('.chat-app-shell');
   const prompt = document.getElementById('lotbi-prompt');

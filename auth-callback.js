@@ -6,13 +6,14 @@ import {
   parseSiteHandoffCallback,
   readAndClearSiteHandoffContext,
   recoverStaleSiteHandoff,
+  returnHomeFromStaleSiteHandoff,
   siteHandoffReturnPath,
   SiteHandoffClientError,
-} from './site-auth.js?v=aset-673ab6bc5458';
-import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-673ab6bc5458';
-import {parseSiteRouteHash} from './site-route.js?v=aset-673ab6bc5458';
-import {mountConversation} from './site-conversation.js?v=aset-673ab6bc5458';
-import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-673ab6bc5458';
+} from './site-auth.js?v=aset-3851b4abe188';
+import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-3851b4abe188';
+import {parseSiteRouteHash} from './site-route.js?v=aset-3851b4abe188';
+import {mountConversation} from './site-conversation.js?v=aset-3851b4abe188';
+import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-3851b4abe188';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
@@ -141,8 +142,8 @@ async function hydrateHomeShell() {
   document.body.replaceWith(nextBody);
   window.dispatchEvent(new CustomEvent('lotbi:home-shell-hydrated'));
   document.title = parsed.title || 'LOTBI | 무엇을 도와드릴까요?';
-  await loadClassicScript('/home-shell.js?v=aset-673ab6bc5458');
-  await loadClassicScript('/mobile-entry.js?v=aset-673ab6bc5458');
+  await loadClassicScript('/home-shell.js?v=aset-3851b4abe188');
+  await loadClassicScript('/mobile-entry.js?v=aset-3851b4abe188');
 }
 
 async function completeSiteHandoff() {
@@ -236,6 +237,11 @@ void completeSiteHandoff().catch(async error => {
     durationMs: Math.round(Math.max(0, performanceNow() - callbackBootStartedAt)),
   });
   try {
+    // SITE-LOGIN-HANDOFF-REPEAT-01 — signed in: back Home, restored in place.
+    if (await returnHomeFromStaleSiteHandoff(error, {
+      pendingText: callbackRecoveryContext?.pendingText ?? '',
+      returnHash: callbackRecoveryContext?.returnHash ?? '',
+    })) return;
     if (await recoverStaleSiteHandoff(error, {
       pendingText: callbackRecoveryContext?.pendingText ?? '',
       returnHash: callbackRecoveryContext?.returnHash ?? '',

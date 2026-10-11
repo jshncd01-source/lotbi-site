@@ -9,26 +9,26 @@
 // state). LOTBI never asserts a match: no "찾았습니다", no "100% 일치", and a
 // found report's reporter is never told the comparison result.
 import {
-  closePersonSos, createHumanSighting, createPerson, createPersonSos, deleteHumanSightingPhoto, deletePerson,
+  closePersonSos, createHumanSighting, createPerson, createPersonSos, deleteHumanSightingPhoto, deletePerson, deletePersonIdentityPhoto,
   fetchHumanSightingPhotoObjectUrl, fetchPersonIdentityPhotoObjectUrl, getPerson, listGuardianNotices,
   listHumanSightingPhotos, listHumanSightings, listPeople, listPersonIdentityPhotos, listPersonSos,
-  personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, personSosReceivedMessage, putHumanSightingPhoto, putPersonIdentityPhoto,
-  respondGuardianNotice,
+  personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, personSosReceivedMessage, putHumanSightingPhoto,
+  respondGuardianNotice, PERSON_FOUND_EMERGENCY_TEXT, PERSON_FOUND_FORM_NOTE, PERSON_SOS_ACTIVE_NOTE, PERSON_SOS_EMERGENCY_TEXT, PERSON_SOS_FORM_NOTE,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-673ab6bc5458';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-673ab6bc5458';
+} from './site-person.js?v=aset-3851b4abe188';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-3851b4abe188';
 import {
-  FOUND_REPORT_MAX_PHOTOS, birthYearOptions, formatDate, formatMoment, foundPhotoProgress, personFoundReviewStateCopy,
-  identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge,
-} from './site-safecare-common.js?v=aset-673ab6bc5458';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-673ab6bc5458';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-673ab6bc5458';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-673ab6bc5458';
-import {createPersonBulkPhotos} from './site-person-bulk-photos.js?v=aset-673ab6bc5458';
+  FOUND_REPORT_MAX_PHOTOS, birthYearOptions, birthYearStart, formatDate, formatMoment, foundPhotoProgress, personFoundReviewStateCopy,
+  identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge, safecareEmergencyNotice,
+} from './site-safecare-common.js?v=aset-3851b4abe188';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-3851b4abe188';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-3851b4abe188';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-3851b4abe188';
+import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-3851b4abe188';
 
 const RELATIONSHIPS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'], ['FAMILY', '가족'], ['DEPENDENT', '돌봄 대상'], ['OTHER', '기타']]);
 const SIGHTING_SLOT_LABELS = Object.freeze(['얼굴 정면', '얼굴 왼쪽', '얼굴 오른쪽', '상반신', '전신', '추가 사진 1', '추가 사진 2', '추가 사진 3', '추가 사진 4', '추가 사진 5']);
-const STEPS = Object.freeze(['기본정보', '식별 사진 10장', '최종 확인', '등록 완료']);
+const STEPS = Object.freeze(['기본정보', '식별 사진', '최종 확인', '등록 완료']);
 
 const el = (tag, className = '', text = '') => { const node = document.createElement(tag); if (className) node.className = className; if (text) node.textContent = text; return node; };
 const relationshipLabel = value => RELATIONSHIPS.find(([code]) => code === value)?.[1] || '기타';
@@ -117,12 +117,15 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
   };
   const clearSheet = () => { activeSheet?.destroy(); activeSheet = null; };
   const go = next => { clearSheet(); view = next; render(); surface.scrollIntoView?.({block: 'start', behavior: 'smooth'}); };
-  const backBar = (label = '목록으로') => { const bar = el('div', 'safecare-back'); bar.append(button(`← ${label}`, () => go({name: 'list'}))); return bar; };
+  // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
+  const backBar = (label = '목록으로') => { const bar = el('div', 'safecare-back'); const back = button(`← ${label}`, () => go({name: 'list'})); back.dataset.subviewBack = ''; bar.append(back); return bar; };
   const activeCaseFor = personId => cases.find(record => record.personId === personId && record.status === 'ACTIVE');
-  const isUnfinished = item => Number(item?.identityPhotoCount || 0) < 10;
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): finished = the minimum set (Core says so).
+  const isUnfinished = item => !item?.identityPhotoComplete;
+  const photoCountLabel = item => `${Number(item?.identityPhotoCount || 0)}장`;
   // 등록 완료 / 등록 중 / 사진 갱신 필요 on the person card (pets keep renewalBadge).
   const personStatusBadge = item => {
-    if (isUnfinished(item)) return {label: `등록 중 · 사진 ${identityPhotoProgress(item.identityPhotoCount).count}/10`, tone: 'progress'};
+    if (isUnfinished(item)) return {label: `등록 중 · 사진 ${photoCountLabel(item)}`, tone: 'progress'};
     if (item.identityPhotoState === 'CURRENT') return {label: '등록 완료', tone: 'ok'};
     return renewalBadge({state: item.identityPhotoState, daysRemaining: item.identityPhotoDaysRemaining});
   };
@@ -137,6 +140,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const bar = el('div', 'safecare-back person-registration-bar');
     const cancel = button('등록 취소', () => openRegistrationCancel(person));
     cancel.dataset.personRegistrationCancel = '';
+    cancel.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js). It asks first.
     bar.append(cancel);
     return bar;
   };
@@ -153,7 +157,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     panel.dataset.personCancelSheet = latest.personId;
     panel.append(
       el('h3', 'person-cancel-title', '등록을 취소할까요?'),
-      el('p', 'person-cancel-lead', `${latest.displayName} 등록이 아직 끝나지 않았습니다. 지금까지 저장된 내용: 기본정보 · 식별 사진 ${photos}/10장`),
+      el('p', 'person-cancel-lead', `${latest.displayName} 등록이 아직 끝나지 않았습니다. 지금까지 저장된 내용: 기본정보 · 식별 사진 ${photos}장`),
     );
     if (view.step === 1) panel.append(el('p', 'person-field-hint', '이 화면에서 아직 저장하지 않은 수정 내용은 반영되지 않습니다.'));
     const choices = el('div', 'person-cancel-choices');
@@ -170,7 +174,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     remove.disabled = !canDelete;
     const removeNote = el('p', 'person-field-hint', canDelete
       ? '기본정보와 저장된 사진을 모두 삭제합니다. 삭제 전에 한 번 더 확인합니다.'
-      : '사진 10장이 모두 등록되었거나 실종 상태인 사람은 여기서 삭제할 수 없습니다. 필요하면 목록의 정보 수정에서 삭제해 주세요.');
+      : '등록을 마쳤거나 실종 상태인 사람은 여기서 삭제할 수 없습니다. 필요하면 목록의 정보 수정에서 삭제해 주세요.');
     const resume = button('계속 등록하기', () => activeSheet?.close());
     resume.dataset.personCancelContinue = '';
     choices.append(keep, keepNote, remove, removeNote, resume);
@@ -198,6 +202,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       busy = true; confirm.disabled = true; error.hidden = true;
       try {
         await deletePerson(sessionToken, person, undefined, {registrationCancel: true});
+        if (bulkPhotos?.personId === person.personId) bulkPhotos = null;  // its batch belonged to the deleted registration
         activeSheet?.close();
         await refresh();
         showStatus(`${person.displayName} 등록을 취소하고 삭제했습니다.`);
@@ -215,6 +220,39 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     panel.append(el('h3', 'person-cancel-title', '등록을 삭제할까요?'), facts, error, actions);
     activeSheet = createBottomSheet({
       label: '등록 삭제 확인', content: panel, presentation: SHEET_PRESENTATION.SHEET, dismissLabel: '돌아가기',
+      onClose: () => { activeSheet = null; },
+    });
+    activeSheet.open();
+  };
+
+  // SAFECARE-PHOTO-EASY-UPLOAD-01: a missing-person case ends only after a
+  // second tap — Core withdraws the matching consent when it closes, and a
+  // new case has to be entered from the start.
+  const openSosClose = activeCase => {
+    clearSheet();
+    const panel = el('section', 'person-cancel-sheet');
+    panel.dataset.personSosCloseConfirm = activeCase.sosId;
+    const error = errorNode();
+    const confirm = button('실종 종료하기', async () => {
+      if (busy) return;
+      busy = true; confirm.disabled = true; error.hidden = true;
+      try { await closePersonSos(sessionToken, activeCase.sosId); activeSheet?.close(); await refresh(); showStatus('실종 상태를 종료했습니다.'); render(); }
+      catch (value) { fail(error, value, '실종 상태를 종료하지 못했습니다.'); confirm.disabled = false; }
+      finally { busy = false; }
+    });
+    confirm.classList.add('person-danger');
+    confirm.dataset.personSosCloseConfirmButton = '';
+    const keep = button('계속 유지', () => activeSheet?.close(), true);
+    keep.dataset.personSosCloseKeep = '';
+    const actions = el('div', 'person-form-actions');
+    actions.append(keep, confirm);
+    panel.append(
+      el('h3', 'person-cancel-title', '실종 상태를 종료할까요?'),
+      el('p', 'person-cancel-lead', '돌아왔거나 찾았다면 종료해 주세요. 종료하면 실종 기간 동안 동의한 사진 사용이 끝나고 되돌릴 수 없습니다. 다시 실종 상태로 전환하려면 처음부터 입력해야 합니다.'),
+      error, actions,
+    );
+    activeSheet = createBottomSheet({
+      label: '실종 종료 확인', content: panel, presentation: SHEET_PRESENTATION.SHEET, dismissLabel: '계속 유지',
       onClose: () => { activeSheet = null; },
     });
     activeSheet.open();
@@ -254,7 +292,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     if (unfinished.length) {
       const group = el('section', 'person-group');
       group.dataset.personGroup = 'unfinished';
-      group.append(el('h4', 'person-group-title', `등록 중 ${unfinished.length}`), el('p', 'person-empty', '사진 10장을 모두 등록하면 등록이 완료되고 실종 상태로 전환할 수 있습니다.'));
+      group.append(el('h4', 'person-group-title', `등록 중 ${unfinished.length}`), el('p', 'person-empty', '얼굴 사진 3장과 상반신·전신 사진 2장을 등록하면 등록이 완료되고 실종 상태로 전환할 수 있습니다.'));
       for (const item of unfinished) group.append(personCard(item));
       list.append(group);
     }
@@ -269,7 +307,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     }
     if (!people.length) {
       const empty = el('div', 'person-empty person-empty-panel');
-      empty.append(el('p', '', '아직 등록된 사람이 없습니다.'), el('p', '', '기본정보와 서로 다른 방향의 사진 10장을 등록하면 실종 시 바로 실종 상태로 전환할 수 있습니다.'));
+      empty.append(el('p', '', '아직 등록된 사람이 없습니다.'), el('p', '', '기본정보와 사진 5장(얼굴 3장·상반신·전신 2장)을 등록하면 실종 시 바로 실종 상태로 전환할 수 있습니다. 10장까지 올리면 찾을 확률을 높일 수 있어요.'));
       list.append(empty);
     }
     // The found report sits above the list so someone who has just found a
@@ -294,7 +332,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
 
     const facts = el('dl', 'person-card-facts');
     const fact = (term, value) => { if (!value) return; facts.append(el('dt', '', term), el('dd', '', value)); };
-    fact('식별 사진', identityPhotoProgress(item.identityPhotoCount).label);
+    fact('식별 사진', photoCountLabel(item));
     if (item.identityPhotoExpiresAt) {
       const days = Number.isInteger(item.identityPhotoDaysRemaining) ? ` · ${Math.max(0, item.identityPhotoDaysRemaining)}일 남음` : '';
       fact('다음 갱신일', `${formatDate(item.identityPhotoExpiresAt)}${item.identityPhotoState === 'EXPIRED' ? ' · 기한 지남' : days}`);
@@ -315,17 +353,10 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       missing.append(el('strong', '', '실종 상태 진행 중'));
       if (activeCase.lastSeenAt) missing.append(el('span', '', `마지막 목격 ${formatMoment(activeCase.lastSeenAt)}`));
       if (activeCase.lastSeenSummary) missing.append(el('span', '', activeCase.lastSeenSummary));
-      missing.append(el('span', 'safecare-sos-active-note', '실종 기간 동안만 동의한 사진으로 후보를 찾고, 관리자가 검토한 뒤 보호자에게 확인을 요청합니다.'));
-      const closeError = errorNode();
-      const close = button('실종 종료', async () => {
-        if (busy) return;
-        busy = true; close.disabled = true;
-        try { await closePersonSos(sessionToken, activeCase.sosId); await refresh(); showStatus('실종 상태를 종료했습니다.'); render(); }
-        catch (error) { fail(closeError, error, '실종 상태를 종료하지 못했습니다.'); close.disabled = false; }
-        finally { busy = false; }
-      });
+      missing.append(el('span', 'safecare-sos-active-note', PERSON_SOS_ACTIVE_NOTE));
+      const close = button('실종 종료', () => openSosClose(activeCase));
       close.dataset.personSosClose = activeCase.sosId;
-      missing.append(close, closeError);
+      missing.append(close);
       card.append(missing);
     }
 
@@ -367,10 +398,19 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     return wrap;
   };
 
+  // QA 02 D3: the label is tied to its control explicitly (for/id) as well as by nesting.
+  let fieldSerial = 0;
   const labeled = (text, control, hint = '') => {
     const field = el('label', 'site-field person-field');
+    if (!control.id) { fieldSerial += 1; control.id = `person-field-${fieldSerial}`; }
+    field.htmlFor = control.id;
     field.append(el('span', 'person-field-label', text), control);
-    if (hint) field.append(el('span', 'person-field-hint', hint));
+    if (hint) {
+      const note = el('span', 'person-field-hint', hint);
+      note.id = `${control.id}-hint`;
+      control.setAttribute('aria-describedby', note.id);
+      field.append(note);
+    }
     return field;
   };
 
@@ -401,7 +441,8 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
 
     const openBirthPicker = () => {
       clearSheet();
-      let pendingYear = selectedYear || new Date().getFullYear();
+      // QA 02 D2: before a year is chosen the wheel starts near a likely year for the relationship.
+      let pendingYear = selectedYear || birthYearStart(relationship.value);
       let pendingMonth = selectedMonth || new Date().getMonth() + 1;
       const picker = el('section', 'person-birth-picker');
       picker.dataset.personBirthPicker = '';
@@ -536,13 +577,14 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     queueMicrotask(() => { if (!person) name.focus(); });
   };
 
-  const photoTile = (person, slot, index, filledSlots, locked, onChange) => {
+  // SAFECARE-PHOTO-EASY-UPLOAD-01: the ten cards are examples to look at; a
+  // stored photo shows in the card Core placed it in.
+  const photoTile = (person, slot, index, filledSlots, removable, onChange) => {
     const slotIndex = index + 1;
     const filled = filledSlots.has(slotIndex);
     const tile = el('figure', 'safecare-slot');
     tile.dataset.personSlot = slot.code;
     tile.dataset.safecareSlotFilled = filled ? 'true' : 'false';
-    tile.dataset.safecareSlotLocked = locked ? 'true' : 'false';
     const media = el('div', 'safecare-slot-media');
     const key = `${person.personId}:${slotIndex}:${filledSlots.get(slotIndex)?.revision || 0}`;
     if (filled && previews.has(key)) {
@@ -560,40 +602,45 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     }
     const caption = el('figcaption', 'safecare-slot-caption');
     caption.append(el('span', 'safecare-slot-index', filled ? '✓' : String(slotIndex)), el('span', 'safecare-slot-label', slot.label));
-    const hint = el('p', 'safecare-slot-hint', locked ? '정면 얼굴을 먼저 등록하면 선택할 수 있습니다.' : slot.hint);
+    const hint = el('p', 'safecare-slot-hint', slot.hint);
     const visible = el('p', 'safecare-slot-visible');
     visible.append(el('strong', '', '보여야 하는 부분'), document.createTextNode(` ${slot.visible}`));
-    const input = el('input'); input.type = 'file'; input.accept = PERSON_PHOTO_ACCEPT; input.hidden = true; input.dataset.personSlotInput = slot.code;
-    const choose = el('button', 'site-button site-button-secondary safecare-slot-choose', filled ? '다른 사진 선택' : '사진 선택');
-    choose.type = 'button'; choose.disabled = locked;
+    tile.append(media, caption, hint, visible);
+    // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): photos go in through the batch
+    // only (Core places them). In 사진 갱신·관리 a stored photo can be taken out
+    // to make room for a newer one; it takes a second tap.
+    if (!removable || !filled) return tile;
+    const remove = el('button', 'site-button site-button-secondary safecare-slot-remove', '사진 빼기');
+    remove.type = 'button';
+    remove.dataset.personSlotRemove = String(slotIndex);
+    remove.setAttribute('aria-label', `${slot.label}: 사진 빼기`);
     const slotError = errorNode(); slotError.classList.add('safecare-slot-error');
-    // A tap that cannot pick a photo right now says why instead of doing nothing.
-    const notNow = () => { slotError.textContent = locked ? '정면 얼굴 사진을 먼저 등록해 주세요.' : '다른 사진을 확인하는 중입니다. 끝난 뒤 다시 선택해 주세요.'; slotError.hidden = false; };
-    choose.addEventListener('click', () => { if (locked || busy) notNow(); else input.click(); });
-    input.addEventListener('change', async () => {
-      const file = input.files?.[0]; input.value = '';
-      if (!file) return;  // the picker was closed without a photo
-      if (busy || locked) { notNow(); return; }
-      // SAFECARE-PHOTO-UPLOAD-FIX-03: the file is recognised by its bytes and
-      // brought to JPEG/PNG within Core's limits here (HEIC, WebP, an empty
-      // MIME type, a very large photo); one that cannot be opened says why.
-      // Core then checks the photo (person, face, direction, framing,
-      // sharpness) before storing it. "저장했습니다" appears only after Core
-      // accepted it; a refused photo leaves this slot exactly as it was.
-      busy = true; tile.dataset.safecareSlotWorking = 'true'; slotError.hidden = true; showStatus(`${slot.label} 사진을 확인하고 있습니다…`);
+    let armed = false;
+    remove.addEventListener('click', async () => {
+      if (busy) { slotError.textContent = '다른 사진을 확인하는 중입니다. 끝난 뒤 다시 선택해 주세요.'; slotError.hidden = false; return; }
+      if (!armed) { armed = true; remove.textContent = '한 번 더 누르면 사진을 빼요'; remove.dataset.personSlotRemoveArmed = ''; return; }
+      busy = true; remove.disabled = true; slotError.hidden = true;
       try {
-        const photo = await preparePersonPhoto(file);
-        await putPersonIdentityPhoto(sessionToken, person.personId, slotIndex, photo.dataUri);
-        await reloadPerson(person.personId); showStatus(`${slot.label} 사진을 저장했습니다.`); onChange();
-      } catch (value) {
-        showStatus(''); tile.dataset.safecareSlotWorking = 'false';
-        const fallback = '사진을 저장하지 못했습니다. 안내 그림과 같은 방향에서 찍은 선명한 사진을 선택해 주세요.';
-        fail(slotError, value, fallback, value instanceof PersonPhotoPrepareError ? personPhotoPrepareMessage(value) : personIdentityPhotoErrorMessage(value, slot, fallback));
-      }
+        await deletePersonIdentityPhoto(sessionToken, person.personId, slotIndex);
+        await reloadPerson(person.personId); showStatus(`${slot.label} 칸의 사진을 뺐습니다.`); onChange();
+      } catch (value) { fail(slotError, value, '사진을 빼지 못했습니다. 잠시 후 다시 시도해 주세요.'); remove.disabled = false; }
       finally { busy = false; }
     });
-    tile.append(media, caption, hint, visible, choose, slotError, input);
+    tile.append(remove, slotError);
     return tile;
+  };
+
+  // Face/body counts for the photo step: Core's counts, or (older Core) the stored photos' categories.
+  const personPhotoSet = (person, photos) => {
+    const faceCount = Number.isInteger(person.identityPhotoFaceCount) ? person.identityPhotoFaceCount : photos.filter(photo => photo.category !== 'BODY').length;
+    const bodyCount = Number.isInteger(person.identityPhotoBodyCount) ? person.identityPhotoBodyCount : photos.filter(photo => photo.category === 'BODY').length;
+    const faceMinimum = person.identityPhotoFaceMinimum || 3;
+    const bodyMinimum = person.identityPhotoBodyMinimum || 2;
+    return {
+      faceCount, bodyCount, faceMinimum, bodyMinimum,
+      complete: Boolean(person.identityPhotoComplete),
+      requiredDone: Math.min(faceCount, faceMinimum) + Math.min(bodyCount, bodyMinimum),
+    };
   };
 
   const renderPhotoStep = () => {
@@ -603,42 +650,49 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     if (!view.manage) content.append(stepper(2));
     const photos = identityPhotos.get(person.personId) || [];
     const filledSlots = new Map(photos.map(photo => [photo.slotIndex, photo]));
-    const progress = identityPhotoProgress(filledSlots.size);
+    // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): three face photos and two body
+    // photos complete the set; up to ten are recommended, never required.
+    const set = personPhotoSet(person, photos);
     const header = el('div', 'safecare-photo-header');
-    header.append(el('h4', 'person-form-title', view.manage ? `${person.displayName} 사진 갱신·관리` : `${person.displayName} 식별 사진 10장`));
+    header.append(el('h4', 'person-form-title', view.manage ? `${person.displayName} 사진 갱신·관리` : `${person.displayName} 식별 사진`));
     const counter = el('div', 'safecare-photo-counter');
-    counter.dataset.safecarePhotoCount = String(progress.count);
-    counter.append(el('strong', '', progress.label), el('span', '', progress.remainingLabel));
+    counter.dataset.safecarePhotoCount = String(photos.length);
+    counter.dataset.safecarePhotoComplete = set.complete ? 'true' : 'false';
+    counter.append(el('strong', '', `얼굴 ${Math.min(set.faceCount, set.faceMinimum)}/${set.faceMinimum} · 몸 ${Math.min(set.bodyCount, set.bodyMinimum)}/${set.bodyMinimum}`), el('span', '', `지금 ${photos.length}장 · 10장까지 올릴 수 있어요`));
     header.append(counter);
-    const bar = el('div', 'safecare-progress'); bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', '10'); bar.setAttribute('aria-valuenow', String(progress.count));
-    const fill = el('span', 'safecare-progress-fill'); fill.style.width = `${progress.count * 10}%`; bar.append(fill);
-    content.append(header, bar);
+    const bar = el('div', 'safecare-progress'); bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-label', '등록에 필요한 사진'); bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', '5'); bar.setAttribute('aria-valuenow', String(set.requiredDone));
+    const fill = el('span', 'safecare-progress-fill'); fill.style.width = `${set.requiredDone * 20}%`; bar.append(fill);
+    const setNote = el('p', 'person-field-hint safecare-photo-set-note', personPhotoSetMessage({...set, photoCount: photos.length}));
+    setNote.dataset.personPhotoSetNote = '';
+    content.append(header, bar, setNote);
     if (view.manage) {
       const renewal = renewalBadge({state: person.identityPhotoState, daysRemaining: person.identityPhotoDaysRemaining});
       const note = el('p', `person-card-note safecare-badge-${renewal.tone}-text`);
       note.textContent = person.identityPhotoExpiresAt
-        ? `사진 상태: ${renewal.label} · 다음 갱신일 ${formatDate(person.identityPhotoExpiresAt)}. 사진을 다시 선택하면 해당 방향의 사진이 최신 사진으로 바뀝니다.`
-        : `사진 상태: ${renewal.label}. 사진을 다시 선택하면 해당 방향의 사진이 최신 사진으로 바뀝니다.`;
+        ? `사진 상태: ${renewal.label} · 다음 갱신일 ${formatDate(person.identityPhotoExpiresAt)}. 새 사진은 '사진 여러 장 선택'으로 올리고, 오래된 사진은 칸의 '사진 빼기'로 뺄 수 있어요.`
+        : `사진 상태: ${renewal.label}. 새 사진은 '사진 여러 장 선택'으로 올리고, 오래된 사진은 칸의 '사진 빼기'로 뺄 수 있어요.`;
       content.append(note);
       if (activeCaseFor(person.personId)) content.append(el('p', 'person-card-note', '진행 중인 실종 상태는 전환 당시 사진으로 계속 비교합니다. 지금 바꾼 사진은 진행 중인 실종 비교에 반영되지 않습니다.'));
     }
-    // SAFECARE-PHOTO-BULK-UPLOAD-01: up to ten photos at once (site-person-bulk-photos.js); the tiles below stay as they are.
+    // SAFECARE-PHOTO-BULK-UPLOAD-01: up to ten photos at once (site-person-bulk-photos.js).
+    // SAFECARE-PHOTO-EASY-UPLOAD-01: that is the only way in; the tiles below are examples.
     if (bulkPhotos?.personId !== person.personId) bulkPhotos = createPersonBulkPhotos({sessionToken, personId: person.personId, isBusy: () => busy, setBusy: value => { busy = value; }, reload: () => reloadPerson(person.personId), rerender: () => render(), isDisposed: () => disposed});
-    content.append(bulkPhotos.render({filledSlots}));
+    content.append(bulkPhotos.render({storedCount: photos.length}));
     const grid = el('div', 'safecare-slot-grid');
     grid.dataset.personSlotGrid = '';
-    const frontFilled = filledSlots.has(1);
-    PERSON_IDENTITY_SLOTS.forEach((slot, index) => grid.append(photoTile(person, slot, index, filledSlots, index > 0 && !frontFilled, () => render())));
-    content.append(grid, el('p', 'person-consent', '같은 사진은 여러 방향에 사용할 수 없습니다. 사진은 계정에 비공개로 암호화 저장되고, 평소에는 검색에 사용되지 않습니다.'));
+    PERSON_IDENTITY_SLOTS.forEach((slot, index) => grid.append(photoTile(person, slot, index, filledSlots, Boolean(view.manage), () => render())));
+    const examples = el('p', 'person-field-hint safecare-slot-examples', '아래 10칸은 어떤 사진이 있으면 좋은지 보여 주는 예시예요. 사진은 위의 ‘사진 여러 장 선택’으로 한 번에 올려 주세요. 칸을 다 채우지 않아도 돼요.');
+    examples.dataset.personSlotExamples = '';
+    content.append(examples, grid, el('p', 'person-consent', '같은 사진은 여러 방향에 사용할 수 없습니다. 사진은 계정에 비공개로 암호화 저장되고, 평소에는 검색에 사용되지 않습니다.'));
     const actions = el('div', 'person-form-actions safecare-wizard-actions');
     if (view.manage) actions.append(button('완료', () => go({name: 'list'}), true));
     else {
       actions.append(button('이전', () => go({name: 'register', step: 1, personId: person.personId})));
       const next = button('다음: 최종 확인', () => go({name: 'register', step: 3, personId: person.personId}), true);
-      next.disabled = !progress.complete;
+      next.disabled = !set.complete;
       next.dataset.personPhotosNext = '';
       actions.append(next);
-      if (!progress.complete) actions.append(el('span', 'person-field-hint', `사진 ${progress.remaining}장을 더 등록하면 다음 단계로 이동할 수 있습니다.`));
+      if (!set.complete) actions.append(el('span', 'person-field-hint', personPhotoSetMessage({...set, photoCount: photos.length})));
     }
     content.append(actions);
   };
@@ -655,7 +709,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     fact('이름', person.displayName);
     fact('관계', relationshipLabel(person.relationship));
     fact('출생', person.birthYear ? `${person.birthYear}년 ${person.birthMonth}월` : '출생정보 없음');
-    fact('식별 사진', identityPhotoProgress(person.identityPhotoCount).label);
+    fact('식별 사진', photoCountLabel(person));
     if (person.identityPhotoValidityDays) fact('갱신 주기', validityLabel(person.identityPhotoValidityDays));
     box.append(facts, el('p', 'person-consent', '등록 사진은 평소 검색에 사용되지 않습니다. 실종 상태로 전환하며 동의한 기간에만 후보 검색과 관리자 검토에 사용합니다.'));
     const error = errorNode();
@@ -665,7 +719,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       busy = true; finish.disabled = true;
       try {
         const latest = await reloadPerson(person.personId);
-        if (latest.identityPhotoCount < 10) { error.textContent = '식별 사진 10장이 모두 저장되지 않았습니다. 사진 단계에서 확인해 주세요.'; error.hidden = false; return; }
+        if (!latest.identityPhotoComplete) { error.textContent = '얼굴 사진 3장과 상반신·전신 사진 2장이 아직 저장되지 않았습니다. 사진 단계에서 확인해 주세요.'; error.hidden = false; return; }
         go({name: 'register', step: 4, personId: person.personId});
       } catch (value) { fail(error, value, '등록 상태를 확인하지 못했습니다.'); }
       finally { busy = false; finish.disabled = false; }
@@ -701,7 +755,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const box = el('form', 'person-form');
     box.dataset.personSosForm = person.personId;
     box.noValidate = true;
-    box.append(el('h4', 'person-form-title', `${person.displayName} 실종 상태로 전환`));
+    box.append(el('h4', 'person-form-title', `${person.displayName} 실종 상태로 전환`), safecareEmergencyNotice(PERSON_SOS_EMERGENCY_TEXT));
     if (!availability.sos) {
       box.append(el('p', 'person-empty person-empty-panel', '사람 등록과 사진 관리는 지금 사용할 수 있습니다. 실종 관리 연결은 준비 중입니다.'));
       content.append(box);
@@ -714,10 +768,10 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
         ? '식별 사진 유효기간이 지나 실종 상태로 전환할 수 없습니다. 최신 사진으로 먼저 갱신해 주세요.'
         : person.identityPhotoState === 'BIRTH_INFO_REQUIRED'
           ? '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산해야 실종 상태로 전환할 수 있습니다.'
-          : '실종 상태로 전환하려면 최신 식별 사진 10장을 먼저 등록해 주세요.';
+          : '실종 상태로 전환하려면 얼굴 사진 3장과 상반신·전신 사진 2장을 먼저 등록해 주세요.';
       const blocked = el('div', 'person-empty person-empty-panel');
       blocked.dataset.personSosBlocked = person.identityPhotoState || 'UNKNOWN';
-      blocked.append(el('p', '', reason), button(person.identityPhotoState === 'BIRTH_INFO_REQUIRED' ? '정보 수정' : '사진 갱신·관리', () => go(person.identityPhotoState === 'BIRTH_INFO_REQUIRED' ? {name: 'register', step: 1, personId: person.personId, edit: true} : {name: 'register', step: 2, personId: person.personId, manage: person.identityPhotoCount >= 10}), true));
+      blocked.append(el('p', '', reason), button(person.identityPhotoState === 'BIRTH_INFO_REQUIRED' ? '정보 수정' : '사진 갱신·관리', () => go(person.identityPhotoState === 'BIRTH_INFO_REQUIRED' ? {name: 'register', step: 1, personId: person.personId, edit: true} : {name: 'register', step: 2, personId: person.personId, manage: Boolean(person.identityPhotoComplete)}), true));
       box.append(blocked);
       content.append(box);
       return;
@@ -733,7 +787,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const submit = el('button', 'site-button person-primary', '동의하고 실종 상태로 전환'); submit.type = 'submit';
     box.append(
       labeled('실종 날짜·시간', lastSeenAt), labeled('마지막으로 본 장소', location), labeled('당시 특징·기타 (선택)', description),
-      el('p', 'person-consent', '실종 상태로 전환하면 동의한 사진으로 발견 제보와 비교합니다. AI가 같은 사람이라고 확정하지 않으며, 후보는 관리자 검토 후 보호자에게 확인을 요청합니다.'),
+      el('p', 'person-consent', PERSON_SOS_FORM_NOTE),
       consent, error, submit,
     );
     box.addEventListener('submit', async event => {
@@ -746,7 +800,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       busy = true; submit.disabled = true; error.hidden = true;
       // SAFECARE-SOS-ADMIN-INTAKE: admin inbox / notification lines only when Core reports them; the 112 line always.
       try { const created = await createPersonSos(sessionToken, {personId: person.personId, lastSeenAt: when, lastSeenSummary: location.value.trim(), description: description.value.trim(), matchingConsentConfirmed: true}); await refresh(); showStatus(personSosReceivedMessage(person.displayName, created)); go({name: 'list'}); }
-      catch (value) { fail(error, value, '실종 상태로 전환하지 못했습니다. 사진 10장과 갱신 상태, 동의를 확인해 주세요.'); }
+      catch (value) { fail(error, value, '실종 상태로 전환하지 못했습니다. 사진(얼굴 3장·몸 2장)과 갱신 상태, 동의를 확인해 주세요.'); }
       finally { busy = false; submit.disabled = false; }
     });
     content.append(box);
@@ -798,7 +852,8 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     box.dataset.personFoundComposer = composer.reportId || 'new';
     box.append(
       el('h4', 'person-form-title', '사람 발견 제보'),
-      el('p', 'person-consent', '즉시 일치 여부를 알려드리지 않습니다. 사진 5장 이상을 받은 뒤 실종 상태로 등록되고 동의된 대상과만 비교하고, 비교 후보는 관리자가 검토합니다.'),
+      safecareEmergencyNotice(PERSON_FOUND_EMERGENCY_TEXT),
+      el('p', 'person-consent', PERSON_FOUND_FORM_NOTE),
     );
 
     const count = composerCount();

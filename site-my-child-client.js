@@ -9,12 +9,15 @@
 //   DELETE /v2/life/my-children/{id}
 //   GET    /v2/life/my-children/{id}/overview           meals · links · schedule, or 유치원 기본정보
 //   POST   /v2/life/my-children/{id}/info-requests      ask staff to fill an empty item
+//   GET    /v2/life/my-children/{id}/meal-plans/{source}/content   a published meal-plan PDF / image
 // Stored per entry: the institution code, the reader's name for it, NEIS
 // allergen numbers. Nothing else about a child is ever sent.
-import {CORE_ORIGIN} from './site-core.js?v=aset-673ab6bc5458';
+import {CORE_ORIGIN} from './site-core.js?v=aset-3851b4abe188';
 
 const BASE_PATH = '/v2/life/my-children';
 const ENTRY_RE = /^mci_[0-9a-f]{20}$/u;
+const MEAL_PLAN_RE = /^mps_[0-9a-f]{20}$/u;
+const MEAL_PLAN_TYPES = Object.freeze(['application/pdf', 'image/jpeg', 'image/png']);
 export const NICKNAME_MAX = 20;
 export const INFO_ITEM_LABELS = Object.freeze({MEAL: '급식', HOMEPAGE: '학교 홈페이지', SCHEDULE: '학사일정'});
 
@@ -149,6 +152,43 @@ function schedule(raw) {
   });
 }
 
+// MY-CHILD-MEAL-LINK-PDF-01: the meal plan a school / 유치원 itself published,
+// registered by staff. Shown as it is: never allergen-checked.
+function mealPlans(raw, entryId) {
+  if (!raw || typeof raw !== 'object') return null;
+  const items = (Array.isArray(raw.items) ? raw.items : []).map(item => {
+    const id = text(item?.id, 40);
+    if (!MEAL_PLAN_RE.test(id)) return null;
+    const base = {
+      id,
+      label: text(item.label, 80),
+      registeredAt: text(item.registered_at, 40),
+      sourceLabel: text(item.source_label, 40) || '학교 공개 자료, LOTBI 직원 등록',
+    };
+    if (item.kind === 'LINK') {
+      const url = safeLink(item.url);
+      return url ? Object.freeze({...base, kind: 'LINK', url}) : null;
+    }
+    if (item.kind !== 'DOCUMENT') return null;
+    const mimeType = text(item.file?.mime_type, 40);
+    if (!MEAL_PLAN_TYPES.includes(mimeType)) return null;
+    return Object.freeze({
+      ...base,
+      kind: 'DOCUMENT',
+      file: Object.freeze({name: text(item.file?.name, 120) || '급식표', mimeType,
+        sizeBytes: Number.isInteger(item.file?.size_bytes) && item.file.size_bytes >= 0 ? item.file.size_bytes : null}),
+      // Built from validated ids, never taken from the response.
+      contentPath: `${BASE_PATH}/${entryId}/meal-plans/${id}/content`,
+    });
+  }).filter(Boolean);
+  return Object.freeze({
+    visible: raw.visible === true && items.length > 0,
+    title: text(raw.title, 40) || '학교 공개 급식표',
+    items: Object.freeze(items),
+    notice: text(raw.notice, 200) || '학교·유치원이 공개한 급식표를 그대로 보여 줘요. 알레르기 번호를 읽지 않아 자동 강조·알림은 되지 않으니 직접 확인해 주세요.',
+  });
+}
+
 export function normalizeOverview(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const entry = normalizeEntry(raw.entry);
@@ -167,6 +207,7 @@ export function normalizeOverview(raw) {
       .filter(([item, status]) => item in INFO_ITEM_LABELS && (status === 'PENDING' || status === 'RESOLVED')))),
     requestable: Object.freeze((Array.isArray(raw.requestable) ? raw.requestable : []).filter(item => item in INFO_ITEM_LABELS)),
     allergyBasis: text(raw.allergy_basis, 40) || '급식표 알레르기 표기 기준',
+    mealPlans: mealPlans(raw.meal_plans, entry.id),
   };
   if (entry.kind === 'KINDERGARTEN') {
     const k = raw.kindergarten && typeof raw.kindergarten === 'object' ? raw.kindergarten : null;
@@ -202,6 +243,9 @@ export function normalizeOverview(raw) {
         meals: (Array.isArray(day?.meals) ? day.meals : []).map(meal).filter(Boolean),
       })).filter(day => /^\d{4}-\d{2}-\d{2}$/u.test(day.date)),
       truncated: meals.truncated === true,
+      // MY-CHILD-MEAL-LINK-PDF-01: does NEIS carry meals for this school at all?
+      coverage: ['PROVIDED', 'NOT_PROVIDED', 'UNKNOWN'].includes(meals.coverage) ? meals.coverage : 'UNKNOWN',
+      coverageDays: Number.isInteger(meals.coverage_basis?.lookback_days) ? meals.coverage_basis.lookback_days : 0,
     }) : null,
     links: Object.freeze({
       homepage: safeLink(raw.links?.homepage_url),
@@ -324,4 +368,33 @@ export async function requestInfo(sessionToken, entryId, items, fetchImpl) {
   const wanted = [...new Set(items)].filter(item => item in INFO_ITEM_LABELS);
   const data = await myChildRequest(`${BASE_PATH}/${entryId}/info-requests`, sessionToken, {method: 'POST', body: {items: wanted}}, fetchImpl);
   return Object.freeze({results: Object.freeze({...(data?.results || {})}), infoRequests: Object.freeze({...(data?.info_requests || {})})});
+}
+
+/** The stored meal-plan PDF / image as a Blob (Bearer, credentials omit). */
+export async function fetchMealPlanFile(sessionToken, entryId, sourceId, fetchImpl = globalThis.fetch) {
+  if (!ENTRY_RE.test(entryId) || !MEAL_PLAN_RE.test(sourceId)) {
+    throw new MyChildError('급식표 파일을 찾지 못했어요.', {code: 'MY_CHILD_MEAL_PLAN_NOT_FOUND', status: 404});
+  }
+  const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
+  if (!token) throw new MyChildError('로그인이 필요해요.', {code: 'SESSION_REQUIRED', status: 401});
+  if (typeof fetchImpl !== 'function') throw new MyChildError('브라우저 네트워크 기능을 사용할 수 없어요.', {code: 'FETCH_UNAVAILABLE'});
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}${BASE_PATH}/${entryId}/meal-plans/${sourceId}/content`, {
+      method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+      headers: {Accept: MEAL_PLAN_TYPES.join(', '), Authorization: `Bearer ${token}`},
+    });
+  } catch {
+    throw new MyChildError('LOTBI 서버에 접속하지 못했어요. 잠시 후 다시 해 주세요.', {code: 'NETWORK_ERROR'});
+  }
+  if (!response.ok) {
+    const status = Number(response.status) || 0;
+    if (status === 401) announceSessionEnd(status);
+    throw new MyChildError(status === 404 ? '급식표 파일을 찾지 못했어요. 화면을 새로 불러와 주세요.' : '급식표 파일을 열지 못했어요.',
+      {code: `HTTP_${status}`, status});
+  }
+  const type = String(response.headers?.get?.('content-type') || '').split(';')[0].trim().toLowerCase();
+  if (!MEAL_PLAN_TYPES.includes(type)) throw new MyChildError('급식표 파일 형식이 올바르지 않아요.', {code: 'CONTRACT_INVALID'});
+  const blob = await response.blob();
+  return blob.type === type ? blob : new Blob([blob], {type});
 }
