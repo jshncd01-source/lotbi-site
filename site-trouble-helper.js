@@ -39,8 +39,8 @@ import {
   visibleQuestions,
   visibleSteps,
   cleanAnswers,
-} from './site-trouble-helper-model.js?v=aset-a04b9414285b';
-import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-a04b9414285b';
+} from './site-trouble-helper-model.js?v=aset-45193f97c27b';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-45193f97c27b';
 
 const OPEN_FLAG_KEY = 'lotbi.trouble-helper.open.v1';
 const ROUTE_HASH_RE = /^#[a-z][a-z-]{1,30}$/u;
@@ -614,7 +614,7 @@ function printSummary(situation, record) {
 }
 
 async function loadKakaoShare() {
-  try { return await import('./site-kakao-share.js?v=aset-a04b9414285b'); } catch { return null; }
+  try { return await import('./site-kakao-share.js?v=aset-45193f97c27b'); } catch { return null; }
 }
 
 // Opening the 정리표 readies the KakaoTalk SDK, so the tap on 카카오로 보내기
