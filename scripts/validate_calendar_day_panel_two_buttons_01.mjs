@@ -495,7 +495,7 @@ try {
       if (!empty.emptySentence) fail('an empty day must say 이 날은 일정이 없어요.');
       if (busy.emptySentence) fail('a day with entries must not say it has none');
       if (busy.events !== 8) fail(`a day with entries must list them (got ${busy.events})`);
-      if (busy.times.join(',') !== '01:00,02:00,03:00') fail(`a day's records run in time order, got ${busy.times.join(',')}`);
+      if (busy.times.join(',') !== '오전 1:00,오전 2:00,오전 3:00') fail(`a day's records run in time order, got ${busy.times.join(',')}`);
 
       // ── geometry ───────────────────────────────────────────────────────
       const expectedPresentation = value.desktop ? 'MODAL' : 'SHEET';

@@ -395,7 +395,7 @@ function checkPhone(v) {
   if (v.tap.sameTaskDate !== '2026-09-23' || v.tap.requestsDuringTap !== 0) fail('a tap must switch the day at once without a new read');
   if (v.tap.focused !== '2026-09-23') fail('focus must stay on the picked rail day');
   if (!same(v.cards.titles, ['정형외과 진료 예약 확인하고 약국에 들러 처방전 약 받아오기', '점심', '오후 회의', '장보기 목록'])) fail('cards must follow the day: by clock, then the untimed');
-  if (!same(v.cards.times, ['09:00', '12:30', '15:00', ''])) fail('timed cards must show their clock');
+  if (!same(v.cards.times, ['오전 9:00', '오후 12:30', '오후 3:00', ''])) fail('timed cards must show their clock');
   if (!same(v.cards.amount, ['12,000원'])) fail('an amount must stay on its card');
   if (v.cards.untimedLabel !== '시간 없는 일정') fail('untimed records must be labelled');
   const g = v.geometry;

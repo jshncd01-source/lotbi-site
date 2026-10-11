@@ -84,7 +84,7 @@ assert.equal(calendarEventPresentation(event('overdue', day, {calendar_attention
 assert.equal(calendarEventPresentation(event('window', day, {
   local_datetime: '2026-09-01T15:00:00', all_day: false,
   local_end_date: '2026-09-02', local_end_datetime: '2026-09-02T11:00:00',
-})).spanLabel, '09/01 15:00 → 09/02 11:00');
+})).spanLabel, '09/01 오후 3:00 → 09/02 오전 11:00');
 
 const schedule = [event('previous', '2026-08-30'), paid, event('next', '2026-09-05'),
   event('oct', '2026-10-01'), event('undated', null),

@@ -371,7 +371,7 @@ function checkPhone(v) {
   if (v.pickPast.sameTask !== true || v.pickPast.reads !== 0 || v.pickFuture.sameTask !== true || v.pickFuture.reads !== 0) fail('a tap must switch the day at once without a new read');
   const rows = v.rows;
   if (!same(rows.titles, ['월세', '점심', '정형외과 진료 예약 확인하고 약국에 들러 처방전 약 받아오기', '아파트 관리비와 가스요금 자동이체 확인하고 영수증 정리하기', '장보기 목록'])) fail('rows must follow the day');
-  if (!same(rows.first, {time: '09:00', title: '점심', meta: '기타', amount: '200,000원'})) fail('the 09:00 점심 row keeps its time, category and amount');
+  if (!same(rows.first, {time: '오전 9:00', title: '점심', meta: '기타', amount: '200,000원'})) fail('the 09:00 점심 row keeps its time, category and amount');
   if (!rows.firstLine) fail(`time, title and amount must share the first line (${rows.firstLineFailures.join(', ')})`);
   if (Math.max(...rows.clockColumns) - Math.min(...rows.clockColumns) > 0.5) fail('every row keeps the same clock column');
   if (rows.longAmountTitleLines < 1 || rows.longAmountTitleLines > 4) fail(`a long title beside a large amount stays within four lines, got ${rows.longAmountTitleLines}`);
