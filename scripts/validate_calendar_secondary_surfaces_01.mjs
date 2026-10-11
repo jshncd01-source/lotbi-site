@@ -223,12 +223,18 @@ const rootEscapeSource = manager.slice(rootEscapeStart, rootEscapeEnd);
 assert.match(rootEscapeSource, /calendar-settings-(?:dialog|backdrop)[\s\S]*return/,
   'root capture must defer Escape to the open Settings top layer before day-detail handling');
 
-// Break caught: focused browser fixtures still asserted the retired overlay
-// variants or rendered every Month event, so CI would reject the final IA.
-assert.doesNotMatch(touchRuntime, /setDayDetailPresentation\(|presentation\s*!==\s*'POPOVER'|presentation\s*!==\s*'FLOW'/,
-  'touch runtime must test the authoritative SHEET/MODAL detail only');
-assert.match(touchRuntime, /presentation\s*!==\s*'SHEET'[\s\S]*position\s*!==\s*'fixed'/,
-  'touch runtime must assert a fixed, dismissible mobile sheet');
+// Break caught: focused browser fixtures still asserted retired overlay
+// variants, so CI rejected the approved persistent selected-day IA. Lock both
+// authoritative placements instead: desktop SIDE and touch FLOW, neither with
+// a dismiss backdrop.
+assert.doesNotMatch(touchRuntime, /setDayDetailPresentation\(|presentation\s*!==\s*'POPOVER'|presentation\s*!==\s*'SHEET'|presentation\s*!==\s*'MODAL'/,
+  'touch runtime must not restore a retired selected-day overlay contract');
+assert.match(touchRuntime, /children\.length===2[\s\S]*calendar-day-panel/,
+  'Month runtime must require one persistent selected-day panel after the calendar');
+assert.match(touchRuntime, /desktopPresentation\s*!==\s*'SIDE'[\s\S]*desktopBackdrop/,
+  'desktop runtime must assert an inline SIDE detail without a dismiss layer');
+assert.match(touchRuntime, /presentation\s*!==\s*'FLOW'[\s\S]*position\s*===\s*'fixed'[\s\S]*sheet\.backdrop/,
+  'touch runtime must assert an in-flow detail without a dismiss layer');
 assert.doesNotMatch(dayPanelRuntime, /toggleLabel|\[접기\]|presentation\s*!==\s*'POPOVER'/,
   'day-panel runtime must not require the retired collapse/overlay UI');
 // LIFE UX 01: the day detail names its day in full ("10월 5일 월요일"), the
