@@ -148,7 +148,7 @@ try{
   const monthSection=root.querySelector('.calendar-month');
   result.creditInsideMonth=monthSection.contains(line);
   result.layoutFirstIsMonth=layout.children[0]?.classList.contains('calendar-month');
-  result.layoutHasNoAutomaticDayPanel=!layout.querySelector('.calendar-day-panel');
+  result.layoutHasSelectedDayPanel=Boolean(layout.querySelector('.calendar-day-panel'));
   const grid=root.querySelector('.calendar-month-grid');
   // 데스크톱에서 그리드는 제 행 높이를 1px 테두리만큼 넘긴다. 그래서 "그리드
   // 아래"의 기준은 픽셀 동일이 아니라 '텍스트가 그리드 끝 뒤에서 시작하고
@@ -310,7 +310,7 @@ try {
     // Placement.
     if (!value.creditInsideMonth) throw new Error(`${label}: the credit must sit inside .calendar-month, with the grid it credits`);
     if (!value.layoutFirstIsMonth) throw new Error(`${label}: month layout child 0 must stay the month grid`);
-    if (!value.layoutHasNoAutomaticDayPanel) throw new Error(`${label}: month must not mount day detail before a date is pressed`);
+    if (!value.layoutHasSelectedDayPanel) throw new Error(`${label}: approved Month must mount the selected-day detail with today selected`);
     if (!value.creditFollowsMonth) throw new Error(`${label}: the credit must render below the month grid`);
     if (value.coveredBySheet) throw new Error(`${label}: the credit must not sit under the day sheet a phone opens by default — it would be an obligation that is not on screen`);
     if (!value.creditOnScreen) throw new Error(`${label}: the credit must be on screen without scrolling`);

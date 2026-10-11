@@ -45,7 +45,9 @@ const wait = async (fn, label) => { for (let i = 0; i < 200; i += 1) { if (fn())
 const click = node => node.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
 try {
   localStorage.clear();
-  localStorage.setItem('lotbi.calendar.settings.v1', JSON.stringify({showKoreaHolidays: false}));
+  // The approved calendar defaults lunar dates on. Start this toggle-specific
+  // scenario from an explicit saved opt-out so it still proves off -> on -> off.
+  localStorage.setItem('lotbi.calendar.settings.v1', JSON.stringify({showKoreaHolidays: false, showLunarDates: false}));
   Object.defineProperty(navigator, 'geolocation', {configurable: true, value: {
     getCurrentPosition: (_ok, err) => { if (typeof err === 'function') err({code: 1, message: 'denied'}); },
     watchPosition: () => 0, clearWatch: () => {},
@@ -77,7 +79,7 @@ try {
   //    grid node identity would otherwise be replaced and this would need to
   //    re-wait for it -- checking the toggle lands synchronously is the
   //    proof it did not go through a network round trip).
-  click(root.querySelector('.calendar-settings-button'));
+  click(document.querySelector('.calendar-settings-button'));
   await wait(() => root.querySelector('.calendar-settings-dialog'), 'settings dialog');
   const lunarToggle = root.querySelector('input[aria-label="음력 표시"]');
   result.toggleFoundInSettings = Boolean(lunarToggle);
@@ -121,7 +123,7 @@ try {
   result.weekGridLunarLabel = root.querySelector('.calendar-week-day[data-calendar-week-date="2025-10-06"] .calendar-week-day-lunar')?.textContent || '';
 
   // 4. Turn it back off; the text must actually leave the DOM, not just hide.
-  click(root.querySelector('.calendar-settings-button'));
+  click(document.querySelector('.calendar-settings-button'));
   await wait(() => root.querySelector('.calendar-settings-dialog'), 'settings dialog reopen');
   click(root.querySelector('input[aria-label="음력 표시"]'));
   await wait(() => !root.querySelector('.calendar-week-day-lunar'), 'week lunar text removed');

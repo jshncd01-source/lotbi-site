@@ -31,7 +31,10 @@ const SYSTEM = [
 // remain. Nested at-rules are not used in this file; assert that stays true.
 export function topLevelSource(css) {
   const start = css.indexOf(BEGIN);
-  const body = start === -1 ? css : css.slice(0, start);
+  const end = start === -1 ? -1 : css.indexOf(END, start);
+  const body = start === -1
+    ? css
+    : `${css.slice(0, start)}${end === -1 ? '' : css.slice(end + END.length)}`;
   let out = '';
   let i = 0;
   while (i < body.length) {
@@ -95,7 +98,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const css = raw.replace(/\r\n/g, '\n');
   const block = generate(css);
   const start = css.indexOf(BEGIN);
-  const base = start === -1 ? css.trimEnd() + '\n' : css.slice(0, start).trimEnd() + '\n';
+  const end = start === -1 ? -1 : css.indexOf(END, start);
+  const withoutGenerated = start === -1
+    ? css
+    : `${css.slice(0, start)}${end === -1 ? '' : css.slice(end + END.length)}`;
+  const base = withoutGenerated.trimEnd() + '\n';
   fs.writeFileSync(path, `${base}\n${block}`.replace(/\n/g, eol), 'utf8');
   console.log(`system-dark mirror written: ${block.split('\n').length} lines`);
 }
