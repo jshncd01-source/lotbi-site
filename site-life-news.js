@@ -17,10 +17,10 @@
 // story is hidden), 오늘 in pages of 20 with 더보기 (Core's order: under 전체
 // sports and photo items come last) and 1주일 as one heading per day with up
 // to ten representative stories.
-import {CORE_ORIGIN} from './site-core.js?v=aset-651275a72736';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-651275a72736';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-651275a72736';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-651275a72736';
+import {CORE_ORIGIN} from './site-core.js?v=aset-868e88390b8e';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-868e88390b8e';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-868e88390b8e';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-868e88390b8e';
 
 export const NEWS_PROVINCES = Object.freeze([
   '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시', '세종특별자치시',
@@ -235,6 +235,8 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
     paintRegion();
   };
   const paintRegion = () => {
+    // One choice is no choice: without [현재 위치] the lone [시·도 선택] is not shown.
+    modes.hidden = modeCurrent.hidden;
     modeCurrent.setAttribute('aria-pressed', String(state.mode === 'current'));
     modePick.setAttribute('aria-pressed', String(state.mode === 'pick'));
     provinceField.hidden = state.mode !== 'pick';

@@ -738,6 +738,7 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(await evaluate('globalThis.__geolocationCalls') - geoBeforeAsk, 1, `${testCase.label}: one position request, made by [현재 위치]`);
     assert.equal(mode(state.news, 'pick').pressed, 'true');
     assert.equal(state.news.title, '전북특별자치도 지역뉴스', `${testCase.label}: the saved list stays after a denied request`);
+    await shot('04a-news-location-denied');
     await evaluate(`globalThis.__permission = 'granted', true`);
     await tap(await reveal('[data-news-mode="current"]'));
     state = await newsState(news => news.state === 'READY' && news.basis.startsWith('현재 위치'), '현재 위치 after allow');
@@ -768,6 +769,8 @@ async function runCase(browser, origin, dir, testCase) {
     await openNews();
     state = await newsState(news => news.state === 'READY' && news.basis.startsWith('저장 지역'), 'location use off');
     assert.equal(mode(state.news, 'current').shown, false, `${testCase.label}: location use off → no [현재 위치]`);
+    assert.equal(state.news.modes.every(item => !item.shown), true, `${testCase.label}: a lone [시·도 선택] is not shown`);
+    await shot('04b-news-location-off');
     assert.equal(state.news.allowWords, false);
     assert.equal(await evaluate('globalThis.__geolocationCalls'), geoBeforeOff, `${testCase.label}: location use off → no position asked`);
     await evaluate(`document.cookie = 'lotbi_location_usage_v1=; path=/; max-age=0', true`);
