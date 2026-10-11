@@ -4,15 +4,17 @@ const read = file => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'ut
 const html = read('index.html');
 const js = read('site-conversation.js');
 const subscribe = read('subscribe.html');
-// CONNECTED-SERVICES-NAME-01 — 대표 결정(2026-10-10 "연결서비스로 통합"): the seventh item
+// CONNECTED-SERVICES-NAME-01 — 대표 결정(2026-10-10 "연결서비스로 통합"): the last item
 // always opened Account's 연결 서비스 page; it now carries that page's name.
-const expected = ['새 대화', '캘린더', 'Life Wallet', '진위확인', '안심케어', '지역정보', '연결 서비스'];
+// TROUBLE-HELPER-01: 분쟁·사고 도우미 joins right after 진위확인 (eight menus).
+const expected = ['새 대화', '캘린더', 'Life Wallet', '진위확인', '분쟁·사고 도우미', '안심케어', '지역정보', '연결 서비스'];
 const navs = [...html.matchAll(/<div class="consumer-primary-nav"[^>]*>([\s\S]*?)<\/div>/g)];
 assert.equal(navs.length, 2, 'desktop and mobile use the same navigation');
 for (const [,nav] of navs) {
   assert.deepEqual([...nav.matchAll(/<button\b[^>]*aria-label="([^"]+)"/g)].map(match => match[1]), expected);
   assert.match(nav, /data-calendar-view="all"/);
   assert.match(nav, /data-scam-open/);
+  assert.match(nav, /data-trouble-open/);
 }
 assert.match(html, /data-lotbi-avatar-stage/);
 assert.match(html, /data-lotbi-avatar-fallback/);

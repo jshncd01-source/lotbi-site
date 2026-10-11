@@ -1,4 +1,4 @@
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-9fc1386c8a08';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-577fd151dea9';
 
 const el = (tag, className = '', text = '') => {
   const node = document.createElement(tag);
@@ -39,6 +39,7 @@ export function openSafeCareRenewalNotice({kind, relationship, birthYear, birthM
     const privacyCheckbox = el('input');
     privacyCheckbox.type = 'checkbox';
     privacyCheckbox.dataset.safecareConsent = 'privacy';
+    privacyCheckbox.dataset.safecareConsentTitle = '사진 보관·이용 동의';
     privacy.append(privacyCheckbox, el('span', '', '🔒 사진은 비공개로 안전하게 보관되며, 분실·발견 시 후보 비교를 위해 사용됩니다. (필수)'));
     content.append(rules, el('p', 'safecare-renewal-reminder', '만료 30일·7일·1일 전에 알려드립니다.'), privacy);
   } else {
@@ -58,13 +59,17 @@ export function openSafeCareRenewalNotice({kind, relationship, birthYear, birthM
       detail.dataset.safecareNoticeDetail = key;
       detail.hidden = true;
       body(detail);
+      // SAFECARE-CONSENT-VISIBLE-01 (QA 02 D1): the required checkboxes stay
+      // visible under their section; only the explanation folds.
+      const consentRows = el('div', 'safecare-notice-consents');
       consents.forEach(({key: consentKey, label}) => {
         const consent = el('label', 'safecare-consent-row');
         const checkbox = el('input');
         checkbox.type = 'checkbox';
         checkbox.dataset.safecareConsent = consentKey;
+        checkbox.dataset.safecareConsentTitle = title;
         consent.append(checkbox, el('span', '', label));
-        detail.append(consent);
+        consentRows.append(consent);
       });
       toggle.addEventListener('click', () => {
         const opening = detail.hidden;
@@ -82,6 +87,7 @@ export function openSafeCareRenewalNotice({kind, relationship, birthYear, birthM
       details.push({detail, toggle});
       header.append(heading, toggle);
       section.append(header, detail);
+      if (consents.length) section.append(consentRows);
       sections.append(section);
     };
 
@@ -122,7 +128,13 @@ export function openSafeCareRenewalNotice({kind, relationship, birthYear, birthM
         consents: [{key: 'guardian', label: '법정대리인임을 확인하고 동의합니다 (필수)'}],
       });
     }
-    content.append(sections);
+    // One tap for every required consent (each one stays visible and can still be unticked).
+    const all = el('label', 'safecare-consent-row safecare-consent-all');
+    const allCheckbox = el('input');
+    allCheckbox.type = 'checkbox';
+    allCheckbox.dataset.safecareConsentAll = '';
+    all.append(allCheckbox, el('span', '', '필수 항목에 모두 동의합니다'));
+    content.append(sections, all);
   }
 
   const error = el('p', 'safecare-renewal-error');
@@ -132,9 +144,30 @@ export function openSafeCareRenewalNotice({kind, relationship, birthYear, birthM
   const confirm = el('button', 'site-button site-button-primary safecare-renewal-confirm', confirmText);
   confirm.type = 'button';
   confirm.dataset.safecareRenewalConfirm = '';
+  // SAFECARE-CONSENT-VISIBLE-01: the button is never silently dead. Until every
+  // required box is ticked it looks inactive (aria-disabled) and, when pressed,
+  // says which consent is missing and moves to it.
   const required = [...content.querySelectorAll('[data-safecare-consent]')];
-  const syncConsent = () => { confirm.disabled = required.some(input => !input.checked); };
+  const allCheckbox = content.querySelector('[data-safecare-consent-all]');
+  const missing = () => required.filter(input => !input.checked);
+  const syncConsent = () => {
+    const waiting = missing().length > 0;
+    confirm.setAttribute('aria-disabled', waiting ? 'true' : 'false');
+    if (allCheckbox) allCheckbox.checked = !waiting;
+    required.forEach(input => {
+      if (input.checked) input.closest('.safecare-consent-row')?.classList.remove('is-missing');
+    });
+    if (!waiting && error.dataset.safecareConsentMissing !== undefined) {
+      error.hidden = true;
+      error.textContent = '';
+      delete error.dataset.safecareConsentMissing;
+    }
+  };
   required.forEach(input => input.addEventListener('change', syncConsent));
+  allCheckbox?.addEventListener('change', () => {
+    required.forEach(input => { input.checked = allCheckbox.checked; });
+    syncConsent();
+  });
   syncConsent();
   content.append(error, confirm);
 
@@ -149,6 +182,17 @@ export function openSafeCareRenewalNotice({kind, relationship, birthYear, birthM
   sheet.element.classList.add('safecare-renewal-sheet');
   confirm.addEventListener('click', async () => {
     if (confirm.disabled) return;
+    const unticked = missing();
+    if (unticked.length) {
+      const titles = [...new Set(unticked.map(input => input.dataset.safecareConsentTitle).filter(Boolean))];
+      error.textContent = `필수 동의가 빠졌어요: ${titles.join(', ')}. 체크한 뒤 다시 눌러 주세요.`;
+      error.dataset.safecareConsentMissing = '';
+      error.hidden = false;
+      unticked.forEach(input => input.closest('.safecare-consent-row')?.classList.add('is-missing'));
+      unticked[0].focus();
+      unticked[0].closest('.safecare-consent-row')?.scrollIntoView?.({block: 'center', behavior: 'smooth'});
+      return;
+    }
     confirm.disabled = true;
     confirm.textContent = '저장 중…';
     error.hidden = true;

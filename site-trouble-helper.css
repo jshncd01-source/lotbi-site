@@ -1,0 +1,366 @@
+/* TROUBLE-HELPER-01 — 분쟁·사고 도우미, “막막할 때 롯비”.
+   Written for older readers: body text 20px, headings 26–28px, main buttons
+   56px and every touch target 48px or more, no sideways scrolling at 320px.
+   Colors come only from the theme tokens (site-theme-tokens.css), so light,
+   dark and 기기모드 read the same way. A phone gets the whole screen. */
+.trouble-dialog {
+  box-sizing: border-box;
+  width: min(760px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  /* clip, not just hidden: a focus move or scrollIntoView must never scroll
+     the dialog box itself (its header would slide off the top). */
+  overflow: hidden;
+  overflow: clip;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 20px;
+  color: var(--lotbi-text-primary);
+  background: var(--lotbi-surface-primary);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 18%);
+  font-size: 20px;
+  line-height: 1.6;
+}
+.trouble-dialog[open] { display: flex; flex-direction: column; }
+.trouble-dialog::backdrop { background: rgb(16 24 40 / 60%); }
+.trouble-dialog *, .trouble-dialog *::before, .trouble-dialog *::after { box-sizing: border-box; }
+.trouble-dialog [hidden] { display: none !important; }
+.trouble-dialog :is(p, li, dt, dd, label, legend, summary, span, strong) { font-size: inherit; }
+
+.trouble-dialog-header {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--lotbi-border-default);
+}
+.trouble-dialog-header > div { min-width: 0; }
+.trouble-dialog .trouble-dialog-eyebrow { margin: 0 0 2px; font-size: 20px; font-weight: 700; line-height: 1.4; }
+.trouble-dialog .trouble-dialog-header h2 { margin: 0; font-size: 28px; font-weight: 800; line-height: 1.3; letter-spacing: -.02em; word-break: keep-all; }
+.trouble-dialog .trouble-dialog-close {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  min-height: 56px;
+  padding: 0;
+  border: 2px solid var(--lotbi-border-strong);
+  border-radius: 14px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+}
+/* position: relative keeps the screen-reader-only text (.trouble-sr) inside
+   this scroller instead of overflowing the dialog. */
+.trouble-dialog-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 20px 28px;
+}
+.trouble-dialog .trouble-dialog-status {
+  flex: none;
+  margin: 0;
+  padding: 12px 20px;
+  border-top: 1px solid var(--lotbi-border-default);
+  background: var(--lotbi-surface-subtle);
+  font-weight: 700;
+  word-break: keep-all;
+}
+.trouble-dialog .trouble-dialog-status:empty { display: none; }
+.trouble-dialog .trouble-progress { margin: 0 0 8px; font-weight: 800; }
+
+.trouble-dialog .trouble-notice {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--lotbi-border-strong);
+  border-radius: 12px;
+  background: var(--lotbi-surface-subtle);
+  font-weight: 600;
+  word-break: keep-all;
+}
+.trouble-dialog .trouble-kicker { margin: 0 0 8px; font-weight: 700; word-break: keep-all; }
+.trouble-dialog .trouble-heading { margin: 4px 0 16px; font-size: 26px; font-weight: 800; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
+.trouble-dialog :is(h4, h5) { margin: 0 0 10px; font-size: 22px; font-weight: 800; line-height: 1.4; word-break: keep-all; }
+.trouble-dialog p { overflow-wrap: anywhere; }
+
+/* Buttons and button-like links. The phone is never smaller than the online one. */
+.trouble-dialog .trouble-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 56px;
+  margin: 0;
+  padding: 10px 18px;
+  border: 2px solid var(--lotbi-text-primary);
+  border-radius: 14px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  text-decoration: none;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.trouble-dialog :is(.trouble-button-primary, .trouble-call) {
+  border-color: var(--lotbi-brand-solid-bg);
+  background: var(--lotbi-brand-solid-bg);
+  color: var(--lotbi-brand-solid-text);
+}
+.trouble-dialog .trouble-call { min-height: 64px; font-size: 22px; font-weight: 800; }
+.trouble-dialog .trouble-button-quiet { border-color: var(--lotbi-border-strong); }
+@media (hover: hover) {
+  .trouble-dialog :is(.trouble-button, .trouble-option, .trouble-situation, .trouble-tab, .trouble-dialog-close):hover { background: var(--lotbi-surface-hover); }
+  .trouble-dialog :is(.trouble-button-primary, .trouble-call):hover,
+  .trouble-dialog .trouble-tab[aria-current="step"]:hover { border-color: var(--lotbi-brand-solid-bg-hover); background: var(--lotbi-brand-solid-bg-hover); }
+  .trouble-dialog .trouble-option[aria-pressed="true"]:hover { background: var(--lotbi-selected-bg); }
+}
+.trouble-dialog :is(button, a, input, textarea, summary, [tabindex]):focus-visible { outline: 3px solid var(--lotbi-focus-ring); outline-offset: 3px; }
+
+/* ① 상황 고르기 */
+.trouble-dialog .trouble-situations { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.trouble-dialog .trouble-situation {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-height: 88px;
+  padding: 14px 18px;
+  border: 2px solid var(--lotbi-border-strong);
+  border-radius: 16px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  text-align: left;
+  word-break: keep-all;
+  cursor: pointer;
+}
+.trouble-dialog .trouble-situation strong { font-size: 24px; line-height: 1.35; }
+.trouble-dialog .trouble-situation span { font-size: 20px; line-height: 1.5; }
+.trouble-dialog .trouble-situation .trouble-resume { font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+@media (min-width: 720px) { .trouble-dialog .trouble-situations { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ② 질문 */
+.trouble-dialog .trouble-options { display: grid; gap: 12px; margin: 0 0 8px; }
+.trouble-dialog .trouble-option {
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 18px;
+  border: 2px solid var(--lotbi-border-strong);
+  border-radius: 14px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: left;
+  word-break: keep-all;
+  cursor: pointer;
+}
+.trouble-dialog .trouble-option[aria-pressed="true"] { border-color: var(--lotbi-text-primary); background: var(--lotbi-selected-bg); color: var(--lotbi-selected-text); }
+
+.trouble-dialog .trouble-nav { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 0; }
+.trouble-dialog .trouble-nav > * { flex: 1 1 220px; }
+.trouble-dialog .trouble-footer { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 0; padding-top: 16px; border-top: 1px solid var(--lotbi-border-default); }
+.trouble-dialog .trouble-footer > * { flex: 1 1 200px; }
+
+/* ③ ④ ⑤ 단계 표시 */
+.trouble-dialog .trouble-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0 0 16px; }
+.trouble-dialog .trouble-tab {
+  min-width: 0;
+  min-height: 56px;
+  padding: 6px 4px;
+  border: 2px solid var(--lotbi-border-strong);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.trouble-dialog .trouble-tab[aria-current="step"] { border-color: var(--lotbi-brand-solid-bg); background: var(--lotbi-brand-solid-bg); color: var(--lotbi-brand-solid-text); }
+
+/* ③ 할 일 */
+.trouble-dialog .trouble-situation-notice {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-left: 6px solid var(--lotbi-text-primary);
+  border-radius: 6px;
+  background: var(--lotbi-surface-subtle);
+  font-weight: 700;
+  word-break: keep-all;
+}
+.trouble-dialog .trouble-steps { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.trouble-dialog .trouble-step { padding: 16px; border: 1px solid var(--lotbi-border-strong); border-radius: 16px; background: var(--lotbi-surface-primary); }
+.trouble-dialog .trouble-step[data-urgent="true"] { border: 2px solid var(--lotbi-error-text); border-left-width: 10px; }
+.trouble-dialog .trouble-step[data-done="true"] { background: var(--lotbi-surface-subtle); }
+.trouble-dialog .trouble-step-urgent {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 2px 12px;
+  border: 2px solid var(--lotbi-error-text);
+  border-radius: 999px;
+  color: var(--lotbi-error-text);
+  font-weight: 800;
+}
+.trouble-dialog .trouble-step h4 { margin: 0 0 8px; }
+.trouble-dialog .trouble-step-body { margin: 0 0 10px; word-break: keep-all; }
+.trouble-dialog .trouble-step-duration { margin: 0 0 12px; padding: 10px 12px; border: 2px dashed var(--lotbi-border-strong); border-radius: 12px; font-weight: 700; word-break: keep-all; }
+.trouble-dialog .trouble-step-actions { display: grid; gap: 10px; margin: 12px 0; }
+.trouble-dialog .trouble-step-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.trouble-dialog .trouble-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 6px 16px 6px 12px;
+  border: 2px solid var(--lotbi-border-strong);
+  border-radius: 12px;
+  font-weight: 700;
+  word-break: keep-all;
+  cursor: pointer;
+}
+.trouble-dialog .trouble-check-wide { display: flex; width: 100%; }
+.trouble-dialog :is(.trouble-check, .trouble-status-option) input { flex: none; width: 28px; height: 28px; margin: 0; accent-color: var(--lotbi-brand-solid-bg); }
+.trouble-dialog .trouble-check:has(input:checked) { border-color: var(--lotbi-text-primary); }
+.trouble-dialog .chat-message-action.trouble-speak {
+  min-width: 56px;
+  min-height: 56px;
+  gap: 8px;
+  padding: 0 16px 0 12px;
+  border: 2px solid var(--lotbi-border-strong);
+  border-radius: 12px;
+  color: var(--lotbi-text-primary);
+  font-size: 20px;
+  font-weight: 700;
+}
+.trouble-dialog .chat-message-action.trouble-speak svg { width: 24px; height: 24px; }
+.trouble-dialog .trouble-visit, .trouble-dialog .trouble-channel-role { margin: 0; word-break: keep-all; }
+
+/* 자동차 사고 → 과실비율정보포털: the way in, never a ratio. */
+.trouble-dialog .trouble-portal { display: grid; gap: 12px; margin: 20px 0 0; padding: 16px; border: 2px solid var(--lotbi-border-strong); border-radius: 16px; }
+.trouble-dialog .trouble-portal h4 { margin: 0; }
+.trouble-dialog .trouble-portal-order { margin: 0; font-size: 22px; font-weight: 800; word-break: keep-all; }
+.trouble-dialog .trouble-portal-sentence { margin: 0; padding: 12px 14px; border: 1px solid var(--lotbi-border-default); border-radius: 12px; background: var(--lotbi-surface-subtle); word-break: keep-all; }
+.trouble-dialog .trouble-note { margin: 8px 0 0; word-break: keep-all; }
+
+/* ④ 모을 증거 · 참고 기준 · 공식 창구 */
+.trouble-dialog .trouble-section { margin: 0 0 24px; }
+.trouble-dialog :is(.trouble-checklist, .trouble-links, .trouble-channels) { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.trouble-dialog .trouble-link {
+  display: inline-flex;
+  align-items: center;
+  /* 48×48 whatever the font: a short link such as '근거 2' was 45px wide
+     with the narrower Linux gate font (SITE-T55). */
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 4px 0;
+  color: var(--lotbi-link-primary);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  overflow-wrap: anywhere;
+}
+.trouble-dialog .trouble-script { margin: 0 0 14px; padding: 0 14px; border: 2px solid var(--lotbi-border-strong); border-radius: 14px; }
+.trouble-dialog .trouble-script summary { display: flex; align-items: center; min-height: 56px; font-weight: 800; cursor: pointer; }
+.trouble-dialog .trouble-script ol { margin: 0 0 14px; padding-left: 28px; }
+.trouble-dialog .trouble-channel { display: grid; gap: 8px; padding: 16px; border: 1px solid var(--lotbi-border-strong); border-radius: 16px; }
+.trouble-dialog .trouble-channel h5 { margin: 0; }
+.trouble-dialog .trouble-channel p { margin: 0; word-break: keep-all; }
+.trouble-dialog .trouble-channel-agency { font-weight: 700; }
+.trouble-dialog .trouble-channel-routes { display: grid; gap: 10px; margin: 4px 0; }
+.trouble-dialog .trouble-fees { font-weight: 700; }
+.trouble-dialog .trouble-verified { display: flex; flex-wrap: wrap; align-items: center; column-gap: 4px; }
+
+/* ⑤ 상황 정리표 */
+.trouble-dialog .trouble-sheet { display: grid; gap: 6px; }
+.trouble-dialog .trouble-sheet h4 { margin: 14px 0 4px; }
+/* styles.css gives every dl/dt a fixed ink and a 160px grid; the 정리표 takes
+   its own, from the theme tokens. */
+.trouble-dialog .trouble-sheet-facts { display: grid; gap: 4px; max-width: none; margin: 0; }
+.trouble-dialog .trouble-sheet-facts div { display: flex; flex-wrap: wrap; column-gap: 12px; padding: 0; border: 0; }
+.trouble-dialog .trouble-sheet-facts :is(dt, dd) { color: var(--lotbi-text-primary); }
+.trouble-dialog .trouble-sheet-facts dt { min-width: 4.5em; font-weight: 800; }
+.trouble-dialog .trouble-sheet-facts dd { margin: 0; font-weight: 700; }
+.trouble-dialog :is(.trouble-sheet-list, .trouble-safety ul) { margin: 0; padding-left: 26px; }
+.trouble-dialog .trouble-sheet-list li { word-break: keep-all; overflow-wrap: anywhere; }
+.trouble-dialog .trouble-sheet-empty { margin: 0; }
+.trouble-dialog .trouble-field { display: grid; gap: 6px; margin: 0 0 12px; }
+.trouble-dialog .trouble-field label { font-weight: 700; word-break: keep-all; }
+.trouble-dialog .trouble-field textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 12px 14px;
+  border: 2px solid var(--lotbi-border-strong);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  font-size: 20px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.trouble-dialog .trouble-status-group { display: grid; gap: 8px; min-width: 0; margin: 16px 0 0; padding: 12px 14px 14px; border: 2px solid var(--lotbi-border-strong); border-radius: 14px; }
+.trouble-dialog .trouble-status-group legend { padding: 0 6px; font-size: 22px; font-weight: 800; }
+.trouble-dialog .trouble-status-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 6px 12px;
+  border: 2px solid var(--lotbi-border-default);
+  border-radius: 12px;
+  font-weight: 700;
+  word-break: keep-all;
+  cursor: pointer;
+}
+.trouble-dialog .trouble-status-option:has(input:checked) { border-color: var(--lotbi-text-primary); background: var(--lotbi-surface-subtle); }
+.trouble-dialog .trouble-status-option[data-locked] { border-style: dashed; cursor: not-allowed; }
+.trouble-dialog .trouble-share-actions { display: grid; gap: 10px; margin: 20px 0 8px; }
+@media (min-width: 640px) { .trouble-dialog .trouble-share-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* 불러오지 못했을 때 */
+.trouble-dialog .trouble-failure { margin: 0 0 16px; font-size: 22px; font-weight: 800; word-break: keep-all; }
+.trouble-dialog .trouble-failure-calls { display: grid; gap: 10px; margin: 0 0 16px; }
+.trouble-dialog .trouble-loading { margin: 0; }
+
+.trouble-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+@media (max-width: 560px) {
+  .trouble-dialog { width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; }
+  .trouble-dialog-header { padding: 12px 16px 10px; }
+  .trouble-dialog-body { padding: 14px 16px 28px; }
+  .trouble-dialog .trouble-dialog-status { padding: 10px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .trouble-dialog-body { scroll-behavior: auto; } }
+
+/* 인쇄: only the 상황 정리표, large print, black on white. */
+.trouble-print-sheet { display: none; }
+@media print {
+  html:has(body.trouble-printing), body.trouble-printing { height: auto !important; overflow: visible !important; background: white !important; }
+  body.trouble-printing > :not(.trouble-print-sheet) { display: none !important; }
+  body.trouble-printing .trouble-dialog { display: none !important; }
+  body.trouble-printing .trouble-print-sheet { display: block !important; color: black; background: white; font-size: 16pt; line-height: 1.6; }
+  body.trouble-printing .trouble-print-sheet h1 { margin: 0 0 8pt; font-size: 24pt; }
+  body.trouble-printing .trouble-print-sheet h2 { margin: 14pt 0 4pt; font-size: 18pt; }
+  body.trouble-printing .trouble-print-sheet h3 { margin: 8pt 0 2pt; font-size: 16pt; }
+  body.trouble-printing .trouble-print-sheet :is(p, li) { margin: 0 0 4pt; font-size: 16pt; white-space: pre-wrap; }
+}
