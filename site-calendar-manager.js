@@ -26,7 +26,9 @@ import {
   calendarWeatherPresentation,
   calendarWeekDays,
   calendarWeekTimeGrid,
+  datetimeClockLabel,
   dayAmountTotals,
+  koreanClockLabel,
   lifeRowPresentation,
   lifeTimelineForDate,
   monthSpanSegments,
@@ -599,7 +601,7 @@ function shiftCivilMonth(value, delta) {
 
 function eventTime(item) {
   if (!validCivilDate(item?.local_date)) return '미정';
-  return typeof item?.local_datetime === 'string' ? item.local_datetime.slice(11, 16) : '종일';
+  return typeof item?.local_datetime === 'string' ? (datetimeClockLabel(item.local_datetime) || item.local_datetime.slice(11, 16)) : '종일';
 }
 
 function isAllDay(item) {
@@ -829,13 +831,8 @@ export function normalizeCalendarClockInput(value, {period = ''} = {}) {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
-// "15:00" -> "오후 3:00"; "" for anything that is not an "HH:mm".
-export function koreanClockLabel(clock) {
-  const match = /^(\d{2}):(\d{2})$/u.exec(clock || '');
-  if (!match) return '';
-  const hour = Number(match[1]);
-  return `${hour < 12 ? '오전' : '오후'} ${hour % 12 === 0 ? 12 : hour % 12}:${match[2]}`;
-}
+// "15:00" -> "오후 3:00" lives with the other labels in site-calendar-product.js.
+export {koreanClockLabel};
 
 // An end time is read as the first moment at or after the start: start 오후 3시
 // and end "5" is 17:00, start 9시 and end "11" is 11:00.
@@ -1308,7 +1305,7 @@ function emptyMessage(text) {
   return value;
 }
 
-// 09/12 15:00 → 09/13 11:00. A stay, a flight and a rental are one entry with
+// 09/12 오후 3:00 → 09/13 오전 11:00. A stay, a flight and a rental are one entry with
 // two ends, and showing only the check-in reads as if the owner never leaves.
 // Core sends an ending only when the booking stated one, so an ordinary
 // appointment is untouched and keeps showing its single time in the left column.
@@ -1319,7 +1316,7 @@ export function eventSpanText(item) {
   if (!validCivilDate(item?.local_date) || !validCivilDate(resolvedEnd)) return '';
   const stamp = (date, datetime) => {
     const day = `${date.slice(5, 7)}/${date.slice(8, 10)}`;
-    const clock = typeof datetime === 'string' && datetime.length >= 16 ? datetime.slice(11, 16) : '';
+    const clock = datetimeClockLabel(datetime);
     return clock ? `${day} ${clock}` : day;
   };
   const start = stamp(item.local_date, item.local_datetime);

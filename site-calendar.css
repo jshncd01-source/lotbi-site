@@ -2176,7 +2176,8 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
 .calendar-day-event.calendar-life-row {
   min-height: 48px;
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
+  /* "오후 12:30" on one line (CALENDAR-ADD-UX-01: 12-hour like the editor). */
+  grid-template-columns: 66px minmax(0, 1fr) auto;
   align-items: start;
   gap: 10px;
   padding: 10px 4px;
@@ -2196,10 +2197,11 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
   font-size: 14px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .calendar-life-row[data-life-group="SPAN"] time,
 .calendar-life-row[data-life-group="DEADLINE"] time { font-size: 12px; font-weight: 650; color: var(--lotbi-calendar-muted-ink); }
-.calendar-life-time small { color: var(--lotbi-calendar-muted-ink); font-size: 11px; font-variant-numeric: tabular-nums; }
+.calendar-life-time small { color: var(--lotbi-calendar-muted-ink); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .calendar-life-copy { min-width: 0; display: grid; gap: 2px; }
 .calendar-day-event.calendar-life-row .calendar-life-title {
   display: -webkit-box;

@@ -1,5 +1,6 @@
 import {getLifeAgenda, getLifeAttention, getLifeToday, getLifeUpcoming, removeLifeActivity, rescheduleLifeActivity} from './site-calendar.js?v=aset-9fc1386c8a08';
 import {SiteCoreError} from './site-core.js?v=aset-9fc1386c8a08';
+import {datetimeClockLabel} from './site-calendar-product.js?v=aset-9fc1386c8a08';
 export {buildCalendarAriaLabel, countCalendarEventsByMonth, loadLifeCalendarManagerView, mountLifeCalendarManager} from './site-calendar-manager.js?v=aset-9fc1386c8a08';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
@@ -46,7 +47,8 @@ function addDaysDateString({year, month, day}, days) {
 function displayTime(item) {
   if (!item || typeof item !== 'object') return '';
   if (typeof item.local_datetime === 'string' && item.local_datetime.length >= 16) {
-    return item.local_datetime.slice(11, 16);
+    // "오후 3:00", the same clock as the Calendar's own lists (CALENDAR-ADD-UX-01).
+    return datetimeClockLabel(item.local_datetime) || item.local_datetime.slice(11, 16);
   }
   return '종일';
 }
