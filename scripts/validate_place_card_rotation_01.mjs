@@ -107,8 +107,47 @@ try {
       const select=async index=>evaluate(`document.querySelector('[data-orbit-dot="${index}"]').click()`);
       if (count>1) {
         await select(1);
-        await sleep(80);
-        const midway=await evaluate(probe);
+        // Driver time is not CSS animation time: under load the 80ms driver
+        // sleep can end before the first rendered frame (or after completion).
+        // Require two real transform transitions to advance naturally, then
+        // inspect both at precisely 80ms on their actual browser timelines.
+        const motion=await evaluate(`(async () => {
+          const cards = [0, 1].map(index => document.querySelector(
+            '.lotbi-place-orbit-card[data-orbit-index="' + index + '"]'
+          ));
+          const turns = cards.map(card => card.getAnimations().find(
+            animation => animation.transitionProperty === 'transform'
+          ));
+          if (turns.some(turn => !turn)) throw new Error('missing card transform transition');
+          let timeout;
+          try {
+            await Promise.race([
+              (async () => {
+                await Promise.all(turns.map(turn => turn.ready));
+                while (!turns.every(turn => turn.currentTime > 0 &&
+                  turn.currentTime < turn.effect.getTiming().duration)) {
+                  if (turns.some(turn => turn.playState === 'finished')) {
+                    throw new Error('card transition finished before motion observation');
+                  }
+                  await new Promise(resolve => requestAnimationFrame(resolve));
+                }
+              })(),
+              new Promise((_, reject) => {
+                timeout = setTimeout(() => reject(new Error('card transition did not start')), 2000);
+              }),
+            ]);
+            const naturalTimes = turns.map(turn => turn.currentTime);
+            const durations = turns.map(turn => turn.effect.getTiming().duration);
+            turns.forEach(turn => { turn.pause(); turn.currentTime = 80; });
+            return {naturalTimes, durations, snapshot: ${probe}};
+          } finally {
+            clearTimeout(timeout);
+            turns.forEach(turn => turn.play());
+          }
+        })()`);
+        assert.ok(motion.naturalTimes.every((time,index)=>time>0 && time<motion.durations[index]),`${label}: both real transitions advanced naturally`);
+        assert.ok(motion.durations.every(duration=>duration>=350 && duration<=450),`${label}: both real transitions last 350–450ms`);
+        const midway=motion.snapshot;
         const outgoing=midway.cards.find(c=>c.index===0),incoming=midway.cards.find(c=>c.index===1);
         assert.ok(Math.abs(outgoing.rotation)>.005 && Math.abs(incoming.rotation)>.005,`${label}: both cards rotate during transition`);
         assert.ok(incoming.duration.split(',').some(d=>Number.parseFloat(d)>=.35 && Number.parseFloat(d)<=.45),`${label}: 350–450ms transition`);
