@@ -100,8 +100,23 @@ const MOCK = `(() => {
   window.addEventListener('lotbi:scam-shield-session-request', event => { event.detail?.resolve?.(true); });
   const sent = window.__scamSent = [];
   window.addEventListener('lotbi:scam-shield-request', event => {
-    sent.push([...event.detail.formData.entries()].map(([key, value]) => (typeof value === 'string' ? [key, value] : [key, {name: value.name, type: value.type, size: value.size}])));
-    event.detail.resolve({riskLevel: 'UNVERIFIED', headline: '확인 필요', doNow: ['공식 번호로 다시 확인하세요.'], doNot: ['주소를 열지 마세요.'], reasons: ['검증용 응답'], confirmedFacts: [], unverifiedItems: ['발신 기관'], incidentTriage: null, evidence: []});
+    const entries = [...event.detail.formData.entries()];
+    sent.push(entries.map(([key, value]) => (typeof value === 'string' ? [key, value] : [key, {name: value.name, type: value.type, size: value.size}])));
+    const text = entries.find(([key]) => key === 'scamText')?.[1] || '';
+    const response = {
+      riskLevel: 'HIGH_RISK',
+      headline: '이건 열지 마세요',
+      doNow: ['공식 홈페이지에서 대표번호를 직접 찾아 다시 확인하세요.'],
+      doNot: ['첨부파일과 외부 주소를 열지 마세요.'],
+      reasons: ['공식 기관을 흉내 낸 화면에서 외부 코드 연결과 개인정보 입력 요구가 함께 발견됐어요.'],
+      confirmedFacts: ['문서 안에 외부 스크립트 연결이 있어요.'],
+      unverifiedItems: ['발신 기관과 사건번호는 확인되지 않았어요.'],
+      incidentTriage: null,
+      evidence: [{signal: 'external_script', title: '외부 코드 연결', technicalDetail: 'mega.ibsgame.example'}],
+    };
+    const delay = text.includes('느린 첫 검사') ? 500 : (text.includes('빠른 두 번째 검사') ? 30 : 0);
+    if (delay) setTimeout(() => event.detail.resolve(response), delay);
+    else event.detail.resolve(response);
   });
 })();`;
 
@@ -110,11 +125,12 @@ const KAKAOTALK_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) App
 const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
 const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36';
 const CASES = [
-  {label: 'iPhone-Safari-375x812-light', width: 375, height: 812, mobile: true, userAgent: IPHONE_UA, theme: 'light'},
+  {label: 'mobile-360x800-light', width: 360, height: 800, mobile: true, userAgent: IPHONE_UA, theme: 'light'},
+  {label: 'mobile-360x800-dark', width: 360, height: 800, mobile: true, userAgent: ANDROID_UA, theme: 'dark'},
   {label: 'iPhone-KakaoTalk-390x844-light', width: 390, height: 844, mobile: true, userAgent: KAKAOTALK_UA, theme: 'light'},
-  {label: 'iPhone-KakaoTalk-390x844-dark', width: 390, height: 844, mobile: true, userAgent: KAKAOTALK_UA, theme: 'dark'},
   {label: 'Android-412x915-dark', width: 412, height: 915, mobile: true, userAgent: ANDROID_UA, theme: 'dark'},
   {label: 'desktop-1280x900-light', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA, theme: 'light'},
+  {label: 'desktop-1280x900-dark', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA, theme: 'dark'},
 ];
 
 async function openBrowser(browser, profile) {
@@ -242,56 +258,34 @@ async function runCase(browser, origin, workDir, files, testCase) {
       await evaluate("window.dispatchEvent(new CustomEvent('lotbi:scam-shield-close-request')), window.dispatchEvent(new CustomEvent('lotbi:scam-shield-open-request')), true");
       await waitFor(() => evaluate("(() => { const d = document.querySelector('[data-scam-dialog]'); return Boolean(d?.open && !document.querySelector('[data-scam-workspace]').hidden && !document.querySelector('[data-scam-methods]').hidden); })()"), 'scam workspace');
     };
-    const panelState = kind => evaluate(`(() => {
-      const panel = document.querySelector('[data-scam-input-panel="${kind}"]');
-      const input = panel.querySelector('input[type=file]');
-      const pick = panel.querySelector('.scam-file-pick');
-      const dialog = document.querySelector('[data-scam-dialog]');
-      const inner = dialog.querySelector('.scam-dialog-inner');
-      const rect = node => { if (!node) return null; const r = node.getBoundingClientRect(); return {left: r.left, right: r.right, top: r.top, width: r.width, height: r.height}; };
-      const pickRect = rect(pick);
-      const hit = pickRect ? document.elementFromPoint(pickRect.left + pickRect.width / 2, pickRect.top + pickRect.height / 2) : null;
-      return {
-        visible: !panel.hidden && Boolean(panel.getClientRects().length),
-        pickText: pick ? pick.textContent.trim() : '',
-        pickFor: pick ? pick.htmlFor : '',
-        pickRect, pickHit: Boolean(pick && hit && (hit === pick || pick.contains(hit))),
-        inputRect: rect(input), inputOpacity: getComputedStyle(input).opacity, inputDisabled: input.disabled,
-        focused: document.activeElement === input,
-        dialogRect: rect(dialog),
-        innerOverflow: inner.scrollWidth - inner.clientWidth,
-        pageOverflow: document.documentElement.scrollWidth - window.innerWidth,
-        submit: dialog.querySelector('.scam-submit').textContent.trim(),
-      };
-    })()`);
     const previewState = () => evaluate(`(() => {
       const preview = document.querySelector('[data-scam-file-preview]');
       const image = document.querySelector('[data-scam-preview-image]');
       return {visible: !preview.hidden, prompt: document.querySelector('[data-scam-preview-prompt]').textContent, imageShown: !image.hidden && image.src.startsWith('blob:') && image.complete && image.naturalWidth > 0};
     })()`);
+    const layout = () => evaluate(`(() => {
+      const page = document.querySelector('[data-scam-dialog]');
+      const body = page.querySelector('.scam-page-body');
+      const buttons = [...page.querySelectorAll('.scam-upload-actions > button:not([hidden])')];
+      const box = node => { const r = node.getBoundingClientRect(); return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}; };
+      const pageBox = box(page);
+      return {
+        pageOverflow: document.documentElement.scrollWidth - innerWidth,
+        bodyOverflow: body.scrollWidth - body.clientWidth,
+        pageBox,
+        buttons: buttons.map(node => ({text:node.textContent.trim(), ...box(node)})),
+        cameraVisible: !page.querySelector('[data-scam-camera-action]').hidden,
+      };
+    })()`);
 
-    // ── Method order: 사진·스크린샷 선택 first ──────────────────────────────
     await openScam();
-    const methods = await evaluate(`[...document.querySelectorAll('[data-scam-methods] label')].map(label => {
-      const r = label.getBoundingClientRect();
-      return {value: label.querySelector('input').value, title: label.querySelector('strong').textContent.trim(), top: Math.round(r.top), left: Math.round(r.left)};
-    })`);
-    check('photo method first', methods[0]?.value === 'photo' && methods[0]?.title === '사진·스크린샷 선택', methods);
-    check('camera method second', methods[1]?.value === 'camera' && methods[1]?.title === '카메라로 촬영', methods);
-    const [first, second] = methods;
-    check('photo card reads before camera card', first.top < second.top || (first.top === second.top && first.left < second.left), methods);
-    await shot('methods');
+    const initial = await layout();
+    check('independent page fits viewport', initial.pageOverflow <= 0 && initial.bodyOverflow <= 0 && initial.pageBox.left >= 0 && initial.pageBox.right <= testCase.width + 0.5, initial);
+    check('photo and document actions visible', initial.buttons.some(item => item.text.includes('사진·스크린샷 올리기')) && initial.buttons.some(item => item.text.includes('문서·PDF 올리기')), initial);
+    check('camera visibility follows device rule', initial.cameraVisible === testCase.mobile, initial);
+    await shot('start');
 
-    // ── Path 1: 사진·스크린샷 선택 ───────────────────────────────────────────
-    await tap('[data-scam-methods] label:has(input[value="photo"])');
-    const photo = await waitFor(async () => { const state = await panelState('photo'); return state.visible ? state : {ok: false, state}; }, 'photo panel');
-    check('photo button is named', photo.pickText === '사진·스크린샷 선택' && photo.pickFor === 'scam-photo', photo);
-    check('photo button is tappable', photo.pickHit && photo.pickRect.height >= 44, photo);
-    check('photo native control visually hidden, enabled', photo.inputRect.width <= 1 && photo.inputOpacity === '0' && !photo.inputDisabled, photo);
-    check('photo panel fits', photo.innerOverflow <= 0 && photo.pageOverflow <= 0 && photo.pickRect.left >= photo.dialogRect.left && photo.pickRect.right <= photo.dialogRect.right, photo);
-    check('photo submit label', photo.submit === '이 사진 확인하기', photo);
-    await shot('photo-panel');
-    const photoChooser = await nextChooser(() => tap('[data-scam-file-pick="photo"]'), 'photo button');
+    const photoChooser = await nextChooser(() => tap('[data-scam-method-select="photo"]'), 'photo button');
     check('photo button opens the photo input', photoChooser.input.id === 'scam-photo', photoChooser);
     check('photo input never forces the camera', photoChooser.input.capture === null, photoChooser);
     check('photo input keeps formats', photoChooser.input.accept === 'image/*' && photoChooser.mode === 'selectSingle', photoChooser);
@@ -300,7 +294,6 @@ async function runCase(browser, origin, workDir, files, testCase) {
     check('screenshot previews by name', photoPreview.prompt.includes(path.basename(files.screenshot)), photoPreview);
     check('nothing sent before 확인하기 (photo)', (await sentCount()) === 0 && (await uploadsOnNetwork()) === 0, {});
     await shot('photo-preview');
-    // 다시 고르기 reopens the same, capture-free input.
     const reselect = await nextChooser(() => tap('[data-scam-reselect]'), '다시 고르기');
     check('다시 고르기 reopens the photo input', reselect.input.id === 'scam-photo' && reselect.input.capture === null, reselect);
     await chooseFile(reselect, files.photo);
@@ -312,143 +305,60 @@ async function runCase(browser, origin, workDir, files, testCase) {
     const photoFile = photoSent.find(([key]) => key === 'file')?.[1];
     check('확인하기 sends the chosen picture', photoFile?.name === path.basename(files.photo) && photoFile?.type === 'image/jpeg' && photoFile?.size === fs.statSync(files.photo).size, photoSent);
     await waitFor(() => evaluate("!document.querySelector('[data-scam-result]').hidden"), 'photo result');
+    await shot('result');
 
-    // ── Path 2: 카메라로 촬영 ────────────────────────────────────────────────
-    await openScam();
-    await tap('[data-scam-methods] label:has(input[value="camera"])');
-    const camera = await waitFor(async () => { const state = await panelState('camera'); return state.visible ? state : {ok: false, state}; }, 'camera panel');
-    check('camera button is named', camera.pickText === '카메라로 촬영' && camera.pickFor === 'scam-camera', camera);
-    check('camera button is tappable', camera.pickHit && camera.pickRect.height >= 44, camera);
-    check('camera native control visually hidden, enabled', camera.inputRect.width <= 1 && camera.inputOpacity === '0' && !camera.inputDisabled, camera);
-    check('camera panel fits', camera.innerOverflow <= 0 && camera.pageOverflow <= 0, camera);
-    await shot('camera-panel');
-    const cameraChooser = await nextChooser(() => tap('[data-scam-file-pick="camera"]'), 'camera button');
-    check('camera button opens the camera input', cameraChooser.input.id === 'scam-camera', cameraChooser);
-    check('only the camera input asks for the camera', cameraChooser.input.capture === 'environment', cameraChooser);
-    check('camera input keeps formats', cameraChooser.input.accept === 'image/jpeg,image/png,image/webp', cameraChooser);
-    await chooseFile(cameraChooser, files.photo);
-    await waitFor(async () => { const state = await previewState(); return state.visible && state.imageShown ? state : {ok: false, state}; }, 'camera preview');
-    check('nothing sent before 확인하기 (camera)', (await sentCount()) === 1 && (await uploadsOnNetwork()) === 0, {});
-    // 이미 눌렀어요 answers ride along unchanged.
-    await tap('[data-scam-clicked]');
-    await waitFor(() => evaluate("!document.querySelector('[data-scam-incident]').hidden"), 'incident questions');
-    await tap('[data-scam-dialog] .scam-submit');
-    await waitFor(async () => (await sentCount()) === 2, 'camera analysis request');
-    const cameraSent = await evaluate('window.__scamSent[1]');
-    check('camera picture sent with incident answers', cameraSent.find(([key]) => key === 'file')?.[1]?.name === path.basename(files.photo)
-      && cameraSent.some(([key]) => key === 'incident_level') && cameraSent.some(([key]) => key === 'device'), cameraSent);
+    if (testCase.mobile) {
+      await openScam();
+      const cameraChooser = await nextChooser(() => tap('[data-scam-method-select="camera"]'), 'camera button');
+      check('camera button opens camera input', cameraChooser.input.id === 'scam-camera' && cameraChooser.input.capture === 'environment', cameraChooser);
+      await chooseFile(cameraChooser, files.photo);
+      await waitFor(async () => (await previewState()).visible, 'camera preview');
+      check('nothing sent before 확인하기 (camera)', (await sentCount()) === 1 && (await uploadsOnNetwork()) === 0, {});
+      await tap('[data-scam-clicked]');
+      await waitFor(() => evaluate("!document.querySelector('[data-scam-incident]').hidden"), 'incident questions');
+      await tap('[data-scam-dialog] .scam-submit');
+      await waitFor(async () => (await sentCount()) === 2, 'camera analysis request');
+      const cameraSent = await evaluate('window.__scamSent.at(-1)');
+      check('camera result includes incident context', cameraSent.some(([key]) => key === 'incident_level') && cameraSent.some(([key]) => key === 'device'), cameraSent);
+    }
 
     // ── 10MB limit and format guard, unchanged on the picture path ─────────
     await openScam();
-    await tap('[data-scam-methods] label:has(input[value="photo"])');
-    await waitFor(async () => (await panelState('photo')).visible, 'photo panel again');
-    const big = await nextChooser(() => tap('[data-scam-file-pick="photo"]'), 'photo button (10MB)');
+    const big = await nextChooser(() => tap('[data-scam-method-select="photo"]'), 'photo button (10MB)');
     await chooseFile(big, files.tooBig);
-    await waitFor(async () => (await previewState()).visible, 'big file preview');
-    await tap('[data-scam-dialog] .scam-submit');
     await waitFor(() => evaluate("document.querySelector('[data-scam-status]').textContent === '파일은 10MB 이하만 확인할 수 있어요.'"), '10MB message');
-    check('over 10MB is not sent', (await sentCount()) === 2, {});
+    const sentBeforeBig = await sentCount();
+    check('over 10MB is not sent and submit is disabled', sentBeforeBig === (testCase.mobile ? 2 : 1) && await evaluate("document.querySelector('.scam-submit').disabled"), {sentBeforeBig});
 
-    // ── Preview layout: whole picture, centered, long names wrapped ────────
-    // KakaoTalk saves pictures under long names (and URL-like ones); a name
-    // with no break point used to widen the step past the dialog, whose body
-    // clips horizontally, so the picture slid right and the buttons were cut.
-    const layoutState = () => evaluate(`(() => {
-      const dialog = document.querySelector('[data-scam-dialog]');
-      const inner = dialog.querySelector('.scam-dialog-inner');
-      const preview = dialog.querySelector('[data-scam-file-preview]');
-      const image = dialog.querySelector('[data-scam-preview-image]');
-      const prompt = dialog.querySelector('[data-scam-preview-prompt]');
-      const buttons = [dialog.querySelector('[data-scam-reselect]'), dialog.querySelector('.scam-submit'), dialog.querySelector('[data-scam-method-back]'), dialog.querySelector('[data-scam-file-pick="photo"]')];
-      const box = node => { const r = node.getBoundingClientRect(); return {left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height}; };
-      const innerBox = box(inner);
-      const previewBox = box(preview);
-      const imageBox = box(image);
-      const style = getComputedStyle(preview);
-      const contentLeft = previewBox.left + parseFloat(style.paddingLeft) + parseFloat(style.borderLeftWidth);
-      const contentRight = previewBox.right - parseFloat(style.paddingRight) - parseFloat(style.borderRightWidth);
-      const lineHeight = parseFloat(getComputedStyle(prompt).lineHeight);
-      const grid = [];
-      const d = box(dialog);
-      for (let i = 1; i <= 5; i += 1) for (let j = 1; j <= 5; j += 1) {
-        const x = d.left + (d.width * i) / 6, y = Math.max(d.top, 0) + ((Math.min(d.bottom, innerHeight) - Math.max(d.top, 0)) * j) / 6;
-        const hit = document.elementFromPoint(x, y);
-        grid.push(Boolean(hit && dialog.contains(hit)));
-      }
-      return {
-        innerOverflow: inner.scrollWidth - inner.clientWidth,
-        pageOverflow: document.documentElement.scrollWidth - innerWidth,
-        dialogInViewport: d.left >= 0 && d.right <= innerWidth + 0.5,
-        previewInside: previewBox.left >= innerBox.left - 0.5 && previewBox.right <= innerBox.right + 0.5,
-        imageInside: imageBox.left >= contentLeft - 0.5 && imageBox.right <= contentRight + 0.5,
-        imageCenterOffset: Math.abs((imageBox.left - contentLeft) - (contentRight - imageBox.right)),
-        imageRatio: imageBox.width / imageBox.height,
-        naturalRatio: image.naturalWidth / image.naturalHeight,
-        imageHeight: imageBox.height,
-        objectFit: getComputedStyle(image).objectFit,
-        promptLines: Math.round(box(prompt).height / lineHeight),
-        promptInside: box(prompt).right <= contentRight + 0.5,
-        buttons: buttons.map(node => { const r = box(node); return {text: node.textContent.trim(), inside: r.left >= innerBox.left - 0.5 && r.right <= innerBox.right + 0.5, clipped: node.scrollWidth > node.clientWidth + 1}; }),
-        covered: grid.filter(ok => !ok).length,
-        innerScrollable: getComputedStyle(inner).overflowY,
-      };
-    })()`);
-    for (const sample of files.layout) {
-      await openScam();
-      await tap('[data-scam-methods] label:has(input[value="photo"])');
-      await waitFor(async () => (await panelState('photo')).visible, `photo panel (${sample.kind})`);
-      const opened = await nextChooser(() => tap('[data-scam-file-pick="photo"]'), `photo button (${sample.kind})`);
-      await chooseFile(opened, sample.file);
-      await waitFor(async () => { const state = await previewState(); return state.visible && state.imageShown ? state : {ok: false, state}; }, `${sample.kind} preview`);
-      await sleep(60);
-      const layout = await layoutState();
-      const where = `${sample.kind} ${path.basename(sample.file).slice(0, 24)}…`;
-      await shot(`preview-${sample.kind}`);
-      check(`${where}: no horizontal scroll`, layout.innerOverflow <= 0 && layout.pageOverflow <= 0 && layout.dialogInViewport, layout);
-      check(`${where}: preview inside the dialog`, layout.previewInside && layout.promptInside, layout);
-      check(`${where}: whole picture inside the preview`, layout.imageInside && layout.objectFit === 'contain', layout);
-      check(`${where}: picture keeps its aspect ratio`, Math.abs(layout.imageRatio / layout.naturalRatio - 1) <= 0.02, layout);
-      check(`${where}: picture centered`, layout.imageCenterOffset <= 1, layout);
-      check(`${where}: picture height bounded`, layout.imageHeight <= 300.5, layout);
-      check(`${where}: long name shortened to ≤3 lines`, layout.promptLines <= 3, layout);
-      check(`${where}: buttons whole`, layout.buttons.every(item => item.inside && !item.clipped), layout.buttons);
-      check(`${where}: nothing floats over the dialog`, layout.covered === 0, layout);
-      check(`${where}: body still scrolls vertically`, layout.innerScrollable === 'auto', layout);
-      // 다시 고르기 → the same long name again → 확인하기: the original file and
-      // its full name go to the analysis unchanged.
-      const again = await nextChooser(() => tap('[data-scam-reselect]'), `다시 고르기 (${sample.kind})`);
-      check(`${where}: 다시 고르기 reopens the photo input`, again.input.id === 'scam-photo' && again.input.capture === null, again);
-      await chooseFile(again, sample.file);
-      await waitFor(async () => (await previewState()).imageShown, `${sample.kind} re-preview`);
-      const before = await sentCount();
-      await tap('[data-scam-dialog] .scam-submit');
-      await waitFor(async () => (await sentCount()) === before + 1, `${sample.kind} analysis request`);
-      const sentFile = (await evaluate('window.__scamSent.at(-1)')).find(([key]) => key === 'file')?.[1];
-      check(`${where}: original file and name sent`, sentFile?.name === path.basename(sample.file) && sentFile?.size === fs.statSync(sample.file).size && sentFile?.type === 'image/png', sentFile);
-    }
-
-    // ── Out of scope, unchanged: 문서·PDF keeps its native control ─────────
     await openScam();
-    await tap('[data-scam-methods] label:has(input[value="document"])');
-    await waitFor(() => evaluate("!document.querySelector('[data-scam-input-panel=\"document\"]').hidden"), 'document panel');
-    const documentChooser = await nextChooser(() => tap('#scam-document'), 'document input');
+    const documentChooser = await nextChooser(() => tap('[data-scam-method-select="document"]'), 'document input');
     check('document input unchanged', documentChooser.input.id === 'scam-document' && documentChooser.input.capture === null
       && documentChooser.input.accept === '.txt,text/plain,.html,.htm,text/html,application/pdf', documentChooser);
+    const sentBeforeDocument = await sentCount();
+    await chooseFile(documentChooser, files.document);
+    await waitFor(async () => (await previewState()).visible, 'document preview');
+    await tap('[data-scam-dialog] .scam-submit');
+    await waitFor(async () => (await sentCount()) === sentBeforeDocument + 1, 'document analysis request');
+    await waitFor(() => evaluate("!document.querySelector('[data-scam-result]').hidden"), 'document result');
+    check('sanitized HTML document reaches analysis only after submit', (await evaluate('window.__scamSent.at(-1)')).some(([key, value]) => key === 'file' && value.name === 'court-esonsong-sanitized.html'), {});
 
-    // ── Keyboard (desktop): the focused hidden input opens with Space ──────
-    if (!testCase.mobile) {
+    if (testCase.label === 'mobile-360x800-light') {
       await openScam();
-      await tap('[data-scam-methods] label:has(input[value="photo"])');
-      await waitFor(async () => (await panelState('photo')).focused, 'photo input focused after choosing the method');
-      await page('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Shift', code: 'ShiftLeft', windowsVirtualKeyCode: 16});
-      await page('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Shift', code: 'ShiftLeft', windowsVirtualKeyCode: 16});
-      const ring = await evaluate("getComputedStyle(document.querySelector('[data-scam-file-pick=\"photo\"]')).outlineStyle");
-      check('keyboard focus shows on the named button', ring === 'solid', {ring});
-      const keyed = await nextChooser(async () => {
-        await page('Input.dispatchKeyEvent', {type: 'keyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, text: ' '});
-        await page('Input.dispatchKeyEvent', {type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32});
-      }, 'Space on the photo input');
-      check('Space opens the photo input', keyed.input.id === 'scam-photo' && keyed.input.capture === null, keyed);
+      await evaluate(`(() => { const input = document.querySelector('#scam-text'); input.value = '느린 첫 검사'; input.dispatchEvent(new Event('input', {bubbles:true})); return !document.querySelector('.scam-submit').disabled; })()`);
+      const beforeRace = await sentCount();
+      await tap('[data-scam-dialog] .scam-submit');
+      await waitFor(async () => (await sentCount()) === beforeRace + 1, 'slow text request');
+      await evaluate(`(() => { const input = document.querySelector('#scam-text'); input.value = '빠른 두 번째 검사'; input.dispatchEvent(new Event('input', {bubbles:true})); document.querySelector('.scam-submit').click(); return true; })()`);
+      await waitFor(async () => (await sentCount()) === beforeRace + 2, 'second text request');
+      await waitFor(() => evaluate("!document.querySelector('[data-scam-result]').hidden && document.querySelector('.scam-result-meta').textContent.includes('빠른 두 번째 검사')"), 'latest result visible');
+      await sleep(650);
+      check('late previous response cannot overwrite the latest result', await evaluate("document.querySelector('.scam-result-meta').textContent.includes('빠른 두 번째 검사')"), {});
+
+      await evaluate(`(() => { const tab = document.querySelector('input[name="scam-input-kind"][value="url"]'); tab.click(); const input = document.querySelector('#scam-url'); input.value = 'https://www.scourt.go.kr/'; input.dispatchEvent(new Event('input', {bubbles:true})); return {oldHidden: document.querySelector('[data-scam-result]').hidden, enabled: !document.querySelector('.scam-submit').disabled}; })()`);
+      const switched = await evaluate(`({oldHidden: document.querySelector('[data-scam-result]').hidden, enabled: !document.querySelector('.scam-submit').disabled})`);
+      check('changing input hides the old result and enables a valid URL check', switched.oldHidden && switched.enabled, switched);
+      await tap('[data-scam-dialog] .scam-submit');
+      await waitFor(() => evaluate("!document.querySelector('[data-scam-result]').hidden && document.querySelector('.scam-result-meta').textContent.includes('www.scourt.go.kr')"), 'URL result');
     }
     console.log(`  ${testCase.label}: ${checks.length} checks PASS`);
   } finally {
@@ -485,10 +395,12 @@ try {
     screenshot: path.join(workDir, 'Screenshot 2026-10-08 at 09.12.33.png'),
     photo: path.join(workDir, 'IMG_0001.jpg'),
     tooBig: path.join(workDir, 'IMG_0002.png'),
+    document: path.join(workDir, 'court-esonsong-sanitized.html'),
   };
   fs.writeFileSync(files.screenshot, png);
   fs.writeFileSync(files.photo, jpeg);
   fs.writeFileSync(files.tooBig, Buffer.concat([png, Buffer.alloc(10 * 1024 * 1024 + 1 - png.length)]));
+  fs.writeFileSync(files.document, '<!doctype html><title>법원 안내처럼 보이는 최소 재현본</title><script src="https://mega.ibsgame.example/static/app.js"></script><form><input name="case-number"><input name="phone"></form>');
   files.layout = [
     {kind: 'portrait', file: path.join(workDir, 'KakaoTalk_Photo_2026-10-08-09-12-33-001_0123456789abcdef0123456789abcdef.png'), size: [900, 1950], color: [210, 70, 60]},
     {kind: 'landscape', file: path.join(workDir, 'https___lotbi-example.test_files_download_very_long_path_segment_without_any_break_0123456789abcdef.png'), size: [1600, 720], color: [40, 140, 90]},

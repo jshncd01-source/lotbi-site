@@ -255,7 +255,7 @@ assert.deepEqual(iosModel(scamDocument.accept, false), ['files'], '문서·PDF �
 assert.match(html, /<p id="scam-photo-picker-hint" class="scam-field-help scam-picker-hint" data-scam-picker-hint>고르는 창에 카메라가 함께 보이면 ‘파일’\(iPhone은 ‘사진 보관함’\)을 눌러 사진을 골라 주세요\.<\/p>/u);
 assert.match(html, /name="scamPhoto"[^>]*aria-describedby="scam-photo-help scam-photo-picker-hint"/u);
 const scamCss = read('site-scam-shield.css');
-assert.match(scamCss, /\.scam-picker-hint \{ display: none; \}\n@media \(hover: none\) and \(pointer: coarse\) \{ \.scam-picker-hint \{ display: block;/u, 'the hint shows on phones only');
+assert.match(scamCss, /\.scam-picker-hint \{ display: none; \}\r?\n@media \(hover: none\) and \(pointer: coarse\) \{ \.scam-picker-hint \{ display: block;/u, 'the hint shows on phones only');
 
 // What each photo picker tells the owner about formats is unchanged; the
 // format check after choosing still decides.

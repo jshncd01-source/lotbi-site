@@ -174,7 +174,7 @@ function normalizeScamShieldResult(payload) {
     || payload?.untrusted_file_execution !== false
     || payload?.public_file_upload_to_third_party !== false
   ) {
-    throw new SiteCoreError('진위확인 응답 형식이 올바르지 않습니다.', {code: 'SCAM_SHIELD_CONTRACT_INVALID'});
+    throw new SiteCoreError('사기·피싱 확인 응답 형식이 올바르지 않습니다.', {code: 'SCAM_SHIELD_CONTRACT_INVALID'});
   }
   const evidence = Array.isArray(payload.evidence) ? payload.evidence.filter(item => item && typeof item === 'object').map(item => ({
     type: typeof item.evidence_type === 'string' ? item.evidence_type : '',
@@ -209,7 +209,7 @@ function normalizeScamShieldResult(payload) {
 export async function analyzeScamShield(sessionToken, formData, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
-  if (!token) throw new SiteCoreError('진위확인은 개인정보 보호를 위해 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
+  if (!token) throw new SiteCoreError('사기·피싱 확인은 개인정보 보호를 위해 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
   if (!(formData instanceof FormData)) throw new SiteCoreError('확인할 내용을 선택해 주세요.', {code: 'SCAM_SHIELD_INPUT_REQUIRED', status: 422});
   let response;
   try {
@@ -218,11 +218,11 @@ export async function analyzeScamShield(sessionToken, formData, fetchImpl = glob
       headers: {Authorization: `Bearer ${token}`}, body: formData,
     });
   } catch {
-    throw new SiteCoreError('진위확인 서버에 접속하지 못했습니다.', {code: 'SCAM_SHIELD_NETWORK_ERROR', retryable: true});
+    throw new SiteCoreError('사기·피싱 확인 서버에 접속하지 못했습니다.', {code: 'SCAM_SHIELD_NETWORK_ERROR', retryable: true});
   }
   const payload = await readPayload(response);
   if (!response.ok) {
-    const error = errorFromResponse(response, payload, '진위확인을 완료하지 못했습니다.');
+    const error = errorFromResponse(response, payload, '사기·피싱 확인을 완료하지 못했습니다.');
     announceInvalidSiteSession(error);
     throw error;
   }

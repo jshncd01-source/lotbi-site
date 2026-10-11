@@ -53,8 +53,8 @@ import {
   visibleQuestions,
   visibleSteps,
   cleanAnswers,
-} from './site-trouble-helper-model.js?v=aset-b3fb2b84997d';
-import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-b3fb2b84997d';
+} from './site-trouble-helper-model.js?v=aset-53857c15acb0';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-53857c15acb0';
 
 const OPEN_FLAG_KEY = 'lotbi.trouble-helper.open.v1';
 const ROUTE_HASH_RE = /^#[a-z][a-z-]{1,30}$/u;
@@ -383,7 +383,7 @@ function stepCard(situation, record, step, number) {
   });
   const actions = el('div', {className: 'trouble-step-actions'},
     stepRoutes(step.channelIds.map(id => guides.channels.get(id)).filter(Boolean)));
-  if (step.linkScamShield) actions.append(button('진위확인으로 확인하기', openScamShield, {className: 'trouble-button trouble-button-secondary', data: {troubleScamShield: ''}}));
+  if (step.linkScamShield) actions.append(button('사기·피싱 확인으로 살펴보기', openScamShield, {className: 'trouble-button trouble-button-secondary', data: {troubleScamShield: ''}}));
   const target = step.gotoSituation ? findSituation(guides, step.gotoSituation) : null;
   if (target) {
     actions.append(button(`‘${target.title}’ 안내 보기`, () => chooseSituation(target.id),
@@ -661,7 +661,7 @@ function printSummary(situation, record) {
 }
 
 async function loadKakaoShare() {
-  try { return await import('./site-kakao-share.js?v=aset-b3fb2b84997d'); } catch { return null; }
+  try { return await import('./site-kakao-share.js?v=aset-53857c15acb0'); } catch { return null; }
 }
 
 // Opening the 정리표 readies the KakaoTalk SDK, so the tap on 카카오로 보내기
