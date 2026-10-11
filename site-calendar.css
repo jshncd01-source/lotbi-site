@@ -2430,6 +2430,9 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
 .calendar-week-day-cards .calendar-life-list .calendar-day-event.calendar-life-row[data-life-group="UNTIMED"] { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "copy amount"; }
 .calendar-week-day-cards .calendar-life-row[data-life-group="UNTIMED"] .calendar-life-time { display: none; }
 .calendar-week-day-cards .calendar-life-time { grid-area: time; padding-top: 0; white-space: nowrap; }
+/* Preserve CALENDAR-ADD-UX-01: the Korean period may stack above the digits
+   in the narrow phone week while retaining one accessible time label. */
+.calendar-week-day-cards .calendar-life-time .calendar-clock-period { display: block; color: var(--lotbi-calendar-muted-ink); font-size: 11px; font-weight: 650; line-height: 1.2; }
 .calendar-week-day-cards .calendar-life-copy { grid-area: copy; min-width: 0; gap: 1px; }
 .calendar-week-day-cards .calendar-day-event.calendar-life-row .calendar-life-title { min-width: 0; -webkit-line-clamp: 4; font-size: 14.5px; line-height: 1.35; }
 .calendar-week-day-cards .calendar-life-amount { grid-area: amount; justify-self: end; padding-top: 0; white-space: nowrap; }

@@ -317,7 +317,7 @@ assert.ok(!/\balert\s*\(/.test(conversationSource), 'confirmation must not use a
 
 const {eventSpanText} = await import('../site-calendar-manager.js');
 
-// 2026-09-12 선택 시 하단에 '09/12 15:00 → 09/13 11:00' 이 보여야 한다.
+// 2026-09-12 선택 시 하단에 '09/12 오후 3:00 → 09/13 오전 11:00' 이 보여야 한다.
 assert.equal(
   eventSpanText({
     local_date: '2026-09-12',
@@ -325,7 +325,7 @@ assert.equal(
     local_end_date: '2026-09-13',
     local_end_datetime: '2026-09-13T11:00:00',
   }),
-  '09/12 15:00 → 09/13 11:00',
+  '09/12 오후 3:00 → 09/13 오전 11:00',
 );
 // A multi-day booking with no clock shows days, not invented hours.
 assert.equal(

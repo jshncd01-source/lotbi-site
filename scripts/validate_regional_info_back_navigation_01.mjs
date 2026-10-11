@@ -48,6 +48,9 @@ const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 // ── Pure contract ───────────────────────────────────────────────────────
 const {SITE_ROUTES, isSiteRoute} = await import('../site-route.js');
 const sections = await import('../site-consumer-sections.js');
+const {LIFE_LOCAL_CARD_ENABLED: LOCAL_ON} = await import('../site-feature-flags.js');
+// 지역생활정보 is hidden until its result shows inside the screen (QA_화면전수_01 H3); its
+// steps below run only while the switch is on.
 const {lifeLocationIntent} = await import('../site-life-location.js');
 const LIFE_VIEWS = ['life-medical', 'life-news', 'life-local', 'life-my-child', 'life-education'];
 
@@ -66,8 +69,9 @@ await check('every screen inside 지역정보 is a route with a parent; chains e
   assert.equal(sections.LIFE_SHORTCUTS.find(item => item.id === 'onnuri').icon, 'voucher', '#12 plain icon');
   const local = sections.LIFE_SHORTCUTS.find(item => item.id === 'local');
   assert.deepEqual([...sections.LIFE_DETAIL_EXAMPLES.local], ['쓰레기 배출 요일', '주민센터 운영시간', '대형폐기물 버리는 방법', '공영주차장 위치']);
+  assert.equal(Boolean(local), LOCAL_ON, '지역생활정보 card follows its switch');
   for (const example of sections.LIFE_DETAIL_EXAMPLES.local) {
-    assert.equal(lifeLocationIntent(`${local.prompt}\n궁금한 생활정보: ${example}`), false, `${example}: no location sent`);
+    if (local) assert.equal(lifeLocationIntent(`${local.prompt}\n궁금한 생활정보: ${example}`), false, `${example}: no location sent`);
   }
   assert.deepEqual(SITE_ROUTES.slice(SITE_ROUTES.indexOf('life'), SITE_ROUTES.indexOf('life') + 6), ['life', ...LIFE_VIEWS]);
 });
@@ -159,11 +163,12 @@ const CASES = [
   {label: 'desktop-1280x900', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA, full: true},
 ];
 
-// Category cards that open a screen (약국 asks at once and opens none).
+// Category cards that open a screen (병원·응급실·약국 is one card since LIFE-MEDICAL-MERGE-01:
+// it lists in its own screen and asks nothing).
 const CATEGORIES = [
   {card: 'medical', hash: '#life-medical', detail: 'medical'},
   {card: 'news', hash: '#life-news', detail: 'news'},
-  {card: 'local', hash: '#life-local', detail: 'local'},
+  ...(LOCAL_ON ? [{card: 'local', hash: '#life-local', detail: 'local'}] : []),
   {card: 'my-child', hash: '#life-my-child', detail: 'my-child'},
   {card: 'festivals', hash: '#festival'},
   {card: 'ev-chargers', hash: '#ev-chargers'},
@@ -214,7 +219,7 @@ const SNAPSHOT = `(() => {
     hash: location.hash,
     route: surface?.dataset.siteRoute || '',
     workspace: surface?.dataset.workspace || '',
-    grid: Boolean(grid && !detail && grid.getClientRects().length && grid.querySelectorAll('.consumer-shortcut').length >= 10),
+    grid: Boolean(grid && !detail && grid.getClientRects().length && grid.querySelectorAll('.consumer-shortcut').length >= ${sections.LIFE_SHORTCUTS.length}),
     detail: detail?.dataset.lifeDetail || '',
     title: detail?.querySelector('h3')?.textContent || surface?.querySelector('.site-modal-header h2')?.textContent || '',
     headerBack: surface?.querySelector('.site-modal-close')?.getAttribute('aria-label') || '',
@@ -424,10 +429,27 @@ async function runCase(browser, origin, workDir, testCase) {
     await go(1);
     await atScreen(myChild, 'my-child: forward');
     const lookup = {card: 'my-child', hash: '#life-education', detail: 'education'};
-    // The link sits under the module's content: it is tapped once that content
-    // (the login notice) is on screen and the link has stopped moving.
+    // The link sits right under the title, ABOVE the content the module mounts (owner
+    // approval 2026-10-11): it used to sit under that content and slid ~175px down
+    // the moment the login notice attached, so a real tap missed. It is now measured
+    // before and after the notice renders (same place, ≥ 48 px) and tapped without
+    // waiting for the notice.
+    const linkRect = () => evaluate(`(() => {
+      const root = document.querySelector('[data-site-route="life-my-child"]');
+      const rect = node => { const r = node?.getBoundingClientRect(); return r ? {top: Math.round(r.top), bottom: Math.round(r.bottom), h: Math.round(r.height)} : null; };
+      const detail = root.querySelector('.consumer-life-detail');
+      return {link: rect(root.querySelector('[data-life-education-entry]')), title: rect(detail.querySelector('h3')), host: rect(detail.querySelector('.consumer-life-my-child')),
+        order: [...detail.children].map(node => node.tagName.toLowerCase() + (node.hasAttribute('data-life-education-entry') ? '[link]' : ''))};
+    })()`);
+    const linkAtOpen = await linkRect();
+    assert.deepEqual(linkAtOpen.order, ['h3', 'button[link]', 'div'], `${label}: title, link, then the module's content`);
+    assert.ok(linkAtOpen.link.top - linkAtOpen.title.bottom <= 40, `${label}: the link is right under the title ${JSON.stringify(linkAtOpen)}`);
+    assert.ok(linkAtOpen.link.bottom <= linkAtOpen.host.top, `${label}: the link is above the content ${JSON.stringify(linkAtOpen)}`);
+    assert.ok(linkAtOpen.link.h >= 48, `${label}: the link is a ≥ 48 px target (${linkAtOpen.link.h})`);
     await waitFor(() => evaluate(`Boolean(document.querySelector('[data-site-route="life-my-child"] [data-my-child-state="LOGIN_REQUIRED"]'))`), `${label}: 내 아이's login notice rendered`, 30000);
-    await tapSelector('[data-site-route="life-my-child"] [data-life-education-entry]', {settle: true});
+    const linkAfter = await linkRect();
+    assert.equal(linkAfter.link.top, linkAtOpen.link.top, `${label}: the link did not move when the content attached`);
+    await tapSelector('[data-site-route="life-my-child"] [data-life-education-entry]');
     const opened = await atScreen(lookup, 'the public lookup opens', 30000);
     assert.equal(opened.headerBack, '내 아이 학교·유치원으로 돌아가기', `${label}: lookup ← names its step`);
     await waitFor(() => evaluate("Boolean(document.querySelector('[data-site-route=life-education] .lotbi-edu'))"), `${label}: the lookup's tabs`);
@@ -446,41 +468,60 @@ async function runCase(browser, origin, workDir, testCase) {
     await atLife('my-child: back again');
     await headerBack();
     await atHome('my-child: done');
-    // A question asked from a screen inside 지역정보 leaves no copy of 지역정보 or
-    // of that screen in the history (the existing "left by other means" rule,
-    // SITE-REFRESH-ROUTE-PAGE-CLEANUP-05); forward reopens 지역정보, then it.
-    const homeIndex = await historyIndex();
+    // 병원·응급실·약국 (LIFE-MEDICAL-MERGE-01) lists inside its own screen and asks nothing:
+    // the card opens #life-medical with its three choices, no question is sent, and
+    // the header ← steps back to 지역정보 in one history step.
+    const askedBeforeMedical = await evaluate('globalThis.__asked.length');
     await openLife();
     await tapSelector('[data-site-route="life"] [data-life-shortcut="medical"]');
-    await atScreen(CATEGORIES[0], 'medical (ask)');
-    await tapSelector('[data-site-route="life-medical"] [data-medical-choice="hospital"]');
-    await atHome('medical: asked');
-    assert.equal(await historyIndex(), homeIndex, `${label}: asking folded 지역정보 and 병원·응급실 out of the history`);
-    await go(1);
-    await atLife('forward after the ask');
-    await go(1);
-    await atScreen(CATEGORIES[0], 'forward again');
+    await atScreen(CATEGORIES[0], 'medical');
+    assert.equal(await evaluate("document.querySelectorAll('[data-site-route=\"life-medical\"] .medical-kind').length"), 3, `${label}: the three choices are on the screen`);
+    assert.equal(await evaluate('globalThis.__asked.length'), askedBeforeMedical, `${label}: opening 병원·응급실·약국 asks the conversation nothing`);
     await go(-1);
-    await atLife('back after forward');
+    await atLife('medical: system back');
     await go(-1);
-    await atHome('back to the conversation');
-    // #14: 지역생활정보 — an empty field says what is missing (no browser bubble);
-    // an example question asks at once and closes 지역정보.
-    await openLife();
-    await tapSelector('[data-site-route="life"] [data-life-shortcut="local"]');
-    await atScreen(CATEGORIES.find(category => category.card === 'local'), 'local (#14)');
-    const form = await evaluate(`(() => { const f = document.querySelector('[data-site-route="life-local"] .consumer-life-form');
-      return {noValidate: f.noValidate, examples: [...document.querySelectorAll('[data-life-example]')].map(b => b.textContent)}; })()`);
-    assert.deepEqual(form, {noValidate: true, examples: ['쓰레기 배출 요일', '주민센터 운영시간', '대형폐기물 버리는 방법', '공영주차장 위치']});
-    await tapSelector('[data-site-route="life-local"] .consumer-life-form button[type="submit"]');
-    const status = await waitFor(() => evaluate("(() => { const s = document.querySelector('.consumer-life-form-status'); return s && !s.hidden && s.textContent ? {text: s.textContent, focused: document.activeElement?.placeholder || ''} : null; })()"), `${label}: empty-field message`);
-    assert.equal(status.text, '지역 또는 장소를 입력해 주세요.', `${label}: LOTBI's own message`);
-    const sentBefore = await evaluate('globalThis.__asked.length');
-    await tapSelector('[data-life-example="쓰레기 배출 요일"]');
-    await atHome('local: example asked');
-    const asked = await waitFor(() => evaluate(`globalThis.__asked.length > ${sentBefore} ? globalThis.__asked.at(-1) : null`), `${label}: example question sent`);
-    assert.equal(asked.text, '우리 지역 생활정보를 알려 줘\n궁금한 생활정보: 쓰레기 배출 요일');
-    assert.equal(asked.client_context?.location, undefined, `${label}: no location with an example question`);
+    await atHome('medical: second back');
+    if (LOCAL_ON) {
+      // A question asked from a screen inside 지역정보 leaves no copy of 지역정보 or
+      // of that screen in the history (the existing "left by other means" rule,
+      // SITE-REFRESH-ROUTE-PAGE-CLEANUP-05); forward reopens 지역정보, then it. The
+      // card that asks from its screen is 지역생활정보 (an example question).
+      const localCategory = CATEGORIES.find(category => category.card === 'local');
+      const homeIndex = await historyIndex();
+      await openLife();
+      await tapSelector('[data-site-route="life"] [data-life-shortcut="local"]');
+      await atScreen(localCategory, 'local (ask)');
+      await tapSelector('[data-life-example="주민센터 운영시간"]');
+      await atHome('local: asked');
+      assert.equal(await historyIndex(), homeIndex, `${label}: asking folded 지역정보 and 지역생활정보 out of the history`);
+      await go(1);
+      await atLife('forward after the ask');
+      await go(1);
+      await atScreen(localCategory, 'forward again');
+      await go(-1);
+      await atLife('back after forward');
+      await go(-1);
+      await atHome('back to the conversation');
+    }
+    if (LOCAL_ON) {
+      // #14: 지역생활정보 — an empty field says what is missing (no browser bubble);
+      // an example question asks at once and closes 지역정보.
+      await openLife();
+      await tapSelector('[data-site-route="life"] [data-life-shortcut="local"]');
+      await atScreen(CATEGORIES.find(category => category.card === 'local'), 'local (#14)');
+      const form = await evaluate(`(() => { const f = document.querySelector('[data-site-route="life-local"] .consumer-life-form');
+        return {noValidate: f.noValidate, examples: [...document.querySelectorAll('[data-life-example]')].map(b => b.textContent)}; })()`);
+      assert.deepEqual(form, {noValidate: true, examples: ['쓰레기 배출 요일', '주민센터 운영시간', '대형폐기물 버리는 방법', '공영주차장 위치']});
+      await tapSelector('[data-site-route="life-local"] .consumer-life-form button[type="submit"]');
+      const status = await waitFor(() => evaluate("(() => { const s = document.querySelector('.consumer-life-form-status'); return s && !s.hidden && s.textContent ? {text: s.textContent, focused: document.activeElement?.placeholder || ''} : null; })()"), `${label}: empty-field message`);
+      assert.equal(status.text, '지역 또는 장소를 입력해 주세요.', `${label}: LOTBI's own message`);
+      const sentBefore = await evaluate('globalThis.__asked.length');
+      await tapSelector('[data-life-example="쓰레기 배출 요일"]');
+      await atHome('local: example asked');
+      const asked = await waitFor(() => evaluate(`globalThis.__asked.length > ${sentBefore} ? globalThis.__asked.at(-1) : null`), `${label}: example question sent`);
+      assert.equal(asked.text, '우리 지역 생활정보를 알려 줘\n궁금한 생활정보: 쓰레기 배출 요일');
+      assert.equal(asked.client_context?.location, undefined, `${label}: no location with an example question`);
+    }
     // 안심케어 and Life Wallet: an empty tap keeps them; back → home.
     for (const section of ['wallet', 'care']) {
       if (testCase.mobile) {

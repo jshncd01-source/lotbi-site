@@ -47,9 +47,10 @@ function browserPath() {
 
 // The popup's own words, so the fixture is the page a guest really sees.
 const conversation = fs.readFileSync(path.join(ROOT, 'site-conversation.js'), 'utf8');
-const GUEST_DESCRIPTION = '일정과 생활 기록을 한눈에 관리하세요.';
+const GUEST_DESCRIPTION = '로그인 없이 쓸 수 있어요. 기기 간 동기화는 로그인 후 가능합니다.';
+const SIGNED_IN_DESCRIPTION = '내 일정과 생활 기록을 관리합니다.';
 if (!conversation.includes(`'${GUEST_DESCRIPTION}'`)) throw new Error('the Calendar popup description changed; update this fixture');
-if (!conversation.includes(`'${GUEST_DESCRIPTION}'`)) throw new Error('the signed-in Calendar popup description changed; update this check');
+if (!conversation.includes(`'${SIGNED_IN_DESCRIPTION}'`)) throw new Error('the signed-in Calendar popup description changed; update this check');
 
 // The stylesheets exactly as the live page loads them, in its order.
 const indexHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');

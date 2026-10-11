@@ -1,43 +1,134 @@
-/* FAMILY-LOCATION-01 「우리 가족 위치」 (site-family-location-ui.js). Every colour comes from the
-   Site theme tokens (site-theme-tokens.css: light, dark and system-dark). Large text and buttons
-   (44px and up), the last time next to the name and the battery right under it (기획서 3). */
-.family-loc-surface{display:grid;gap:14px;color:var(--lotbi-text-primary,#212121)}
+/* FAMILY-LOCATION-01 「우리 가족 위치」 (site-family-location-ui.js).
+   FAMILY-LOCATION-DESIGN-01: the same tone as the newest LOTBI screens (지역정보 cards, LOTBI line
+   icons, soft 12-16px cards, light and dark). Every colour comes from the Site theme tokens
+   (site-theme-tokens.css: light, dark and system-dark) or the LOTBI brand violet. Controls are 48px
+   and up, body text 16px, the last time next to the name and the battery right under it (기획서 3). */
+.family-loc-surface{--fl-accent:var(--brand-violet,#7b62bb);--fl-ok:var(--lotbi-success-text,#247647);--fl-warn:var(--lotbi-warning-text,#8a4b16);--fl-danger:var(--lotbi-error-text,#a02645);--fl-line:var(--lotbi-border-default,#e2e6ee);--fl-muted:var(--lotbi-text-secondary,#5d6675);--fl-card:var(--lotbi-surface-elevated,#fff);--fl-soft:var(--lotbi-surface-hover,#f3f4f7);display:grid;gap:16px;color:var(--lotbi-text-primary,#202634);font-size:16px;line-height:1.55}
 .family-loc-surface [hidden]{display:none!important}
-.family-loc-privacy{margin:0;padding:12px 14px;border-radius:12px;background:var(--lotbi-surface-hover,#f0f0f0);color:var(--lotbi-text-primary,#212121);font-size:.9rem;line-height:1.55}
-.family-loc-status{min-height:20px;margin:0;color:var(--lotbi-text-muted,#212121);font-size:.92rem;line-height:1.5}
-.family-loc-status[role=alert]{color:var(--lotbi-error-text,#a02645)}
-.family-loc-content,.family-loc-family{display:grid;gap:12px}
-.family-loc-heading{margin:8px 0 0;font-size:1.05rem;color:var(--lotbi-text-primary,#212121)}
-.family-loc-card{display:grid;gap:8px;border:1px solid var(--lotbi-border-default,#d8dde5);border-radius:16px;padding:16px;background:var(--lotbi-surface-elevated,#fff);color:var(--lotbi-text-primary,#212121)}
-.family-loc-card-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px}
-.family-loc-name{font-size:1.1rem;color:var(--lotbi-text-primary,#212121)}
-.family-loc-presence{font-size:1.05rem;font-weight:800;color:var(--lotbi-text-primary,#212121)}
-.family-loc-battery{margin:0;font-weight:700;color:var(--lotbi-text-primary,#212121)}
-.family-loc-place,.family-loc-note,.family-loc-request,.family-loc-empty{margin:0;color:var(--lotbi-text-muted,#212121);font-size:.92rem;line-height:1.5}
-.family-loc-reason{margin:0;color:var(--lotbi-warning-text,#8a4b16);font-weight:700;line-height:1.5}
+.family-loc-icon{width:24px;height:24px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* the one-line promise and the status line */
+.family-loc-privacy{display:flex;align-items:center;gap:8px;margin:0;color:var(--fl-muted);font-size:14px;line-height:1.5}
+.family-loc-privacy .family-loc-icon{width:18px;height:18px}
+.family-loc-status{min-height:0;margin:0;color:var(--fl-muted);font-size:15px;line-height:1.5}
+.family-loc-status:empty{display:none}
+.family-loc-status[role=alert]{padding:10px 14px;border-radius:12px;background:color-mix(in srgb,var(--fl-danger) 9%,transparent);color:var(--fl-danger);font-weight:600}
+.family-loc-content,.family-loc-family,.family-loc-view,.family-loc-owner{display:grid;gap:12px}
+
+/* cards */
+.family-loc-card{display:grid;gap:10px;border:1px solid var(--fl-line);border-radius:16px;padding:18px;background:var(--fl-card);color:var(--lotbi-text-primary,#202634)}
+.family-loc-family-title{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:4px}
+.family-loc-heading,.family-loc-view-title{margin:0;font-size:20px;font-weight:650;letter-spacing:-.03em;color:var(--lotbi-text-primary,#202634)}
+.family-loc-heading:focus,.family-loc-view-title:focus{outline:none}
+.family-loc-chip{display:inline-flex;align-items:center;justify-self:start;margin:0;padding:4px 12px;border-radius:999px;background:var(--fl-soft);color:var(--fl-muted);font-size:13px;font-weight:650}
+.family-loc-note,.family-loc-request,.family-loc-place,.family-loc-viewers{margin:0;color:var(--fl-muted);font-size:15px;line-height:1.55}
+.family-loc-place,.family-loc-viewers,.family-loc-battery,.family-loc-privacy{display:flex;align-items:flex-start;gap:8px}
+.family-loc-place .family-loc-icon,.family-loc-viewers .family-loc-icon{width:20px;height:20px;margin-top:2px}
+
+/* a person: avatar, name + last time, battery right under */
+.family-loc-card-head{display:flex;align-items:center;gap:12px}
+.family-loc-avatar{position:relative;display:inline-grid;place-items:center;flex:0 0 auto;width:48px;height:48px;border-radius:999px;background:color-mix(in srgb,var(--fl-accent) 14%,var(--fl-card));color:var(--fl-accent);font-size:20px;font-weight:700}
+.family-loc-avatar::after{content:"";position:absolute;right:0;bottom:0;width:14px;height:14px;border:3px solid var(--fl-card);border-radius:999px;background:var(--fl-muted)}
+.family-loc-member[data-presence=LIVE] .family-loc-avatar::after{background:var(--fl-ok)}
+.family-loc-member[data-presence=STALE] .family-loc-avatar::after{background:var(--fl-warn)}
+.family-loc-member[data-presence=PAUSED] .family-loc-avatar::after{background:var(--fl-warn)}
+.family-loc-who{display:flex;flex:1 1 auto;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 12px;min-width:0}
+.family-loc-name{font-size:20px;font-weight:700;letter-spacing:-.02em;color:var(--lotbi-text-primary,#202634);overflow-wrap:anywhere}
+.family-loc-presence{font-size:18px;font-weight:800;color:var(--lotbi-text-primary,#202634);white-space:nowrap}
+.family-loc-member[data-presence=STALE] .family-loc-presence,.family-loc-member[data-presence=PAUSED] .family-loc-presence{color:var(--fl-warn)}
+.family-loc-battery{margin:0 0 0 60px;align-items:center;font-size:16px;font-weight:700;color:var(--lotbi-text-primary,#202634)}
+.family-loc-battery .family-loc-icon{width:22px;height:22px}
+.family-loc-battery[data-low]{color:var(--fl-danger)}
+.family-loc-sos .family-loc-battery{margin-left:0}
+.family-loc-why{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--fl-warn) 10%,transparent);color:var(--fl-warn)}
+.family-loc-why .family-loc-icon{grid-row:span 2;width:22px;height:22px}
+.family-loc-why-label{font-size:13px;font-weight:700}
+.family-loc-reason{margin:0;font-weight:700;line-height:1.5;color:var(--fl-warn)}
+
+/* buttons: one big primary, quiet secondary, 48px */
+.family-loc-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;box-sizing:border-box;padding:10px 18px;border:1px solid var(--fl-line);border-radius:12px;background:transparent;color:var(--lotbi-text-primary,#202634);font:inherit;font-size:16px;font-weight:650;text-decoration:none;cursor:pointer}
+.family-loc-button:hover{background:var(--fl-soft)}
+.family-loc-button .family-loc-icon{width:20px;height:20px}
+.family-loc-primary{border-color:transparent;background:var(--lotbi-brand-solid-bg,#202634);color:var(--lotbi-brand-solid-text,#fff)}
+.family-loc-primary:hover{background:var(--lotbi-brand-solid-bg-hover,var(--lotbi-brand-solid-bg,#202634))}
+.family-loc-danger{border-color:color-mix(in srgb,var(--fl-danger) 55%,transparent);color:var(--fl-danger)}
+.family-loc-quiet{justify-self:start;border-color:transparent;padding-inline:4px;color:var(--fl-muted);font-weight:600}
+.family-loc-quiet.family-loc-danger{color:var(--fl-danger)}
+.family-loc-wide{width:100%;min-height:52px;font-size:17px}
+.family-loc-button:disabled{opacity:.6;cursor:not-allowed}
 .family-loc-actions{display:flex;flex-wrap:wrap;gap:8px}
-.family-loc-button{min-height:44px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
-.family-loc-primary{background:var(--lotbi-brand-solid-bg,#212121);color:var(--lotbi-brand-solid-text,#fff)}
-.family-loc-danger{border-color:var(--lotbi-error-text,#a02645);color:var(--lotbi-error-text,#a02645)}
-.family-loc-sos{border-color:var(--lotbi-error-text,#a02645)}
-.family-loc-sos-button{min-height:60px;width:100%;font-size:1.15rem;font-weight:900;background:var(--lotbi-error-text,#a02645);color:var(--lotbi-brand-solid-text,#fff);border-color:var(--lotbi-error-text,#a02645)}
-.family-loc-indicator{font-size:1.2rem;color:var(--lotbi-text-primary,#212121)}
-.family-loc-check{display:grid;gap:6px;padding:12px;border-radius:12px;background:var(--lotbi-surface-hover,#f0f0f0)}
+
+/* four tools under a person: icon above a short label */
+.family-loc-tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.family-loc-tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;padding:10px 6px;border:1px solid var(--fl-line);border-radius:12px;background:transparent;color:var(--lotbi-text-primary,#202634);font:inherit;font-size:14px;font-weight:600;text-align:center;text-decoration:none;word-break:keep-all;cursor:pointer}
+.family-loc-tool .family-loc-icon{color:var(--fl-muted)}
+.family-loc-tool:hover{background:var(--fl-soft)}
+
+/* status check result */
+.family-loc-check{display:grid;gap:6px;padding:14px;border-radius:12px;background:var(--fl-soft)}
 .family-loc-check-summary{margin:0;font-weight:700;line-height:1.5}
-.family-loc-check-items{margin:0;padding-left:0;list-style:none;display:grid;gap:4px;font-size:.9rem}
-.family-loc-check-items li[data-ok=false]{color:var(--lotbi-warning-text,#8a4b16);font-weight:700}
-.family-loc-family-row{display:grid;gap:8px;padding-top:10px;border-top:1px solid var(--lotbi-border-default,#d8dde5)}
-.family-loc-owner{display:grid;gap:10px}
-.family-loc-invite input,.family-loc-invite select,.family-loc-accept input,.family-loc-settings select{box-sizing:border-box;width:100%;min-height:48px;border:1px solid var(--lotbi-border-strong,#c9c9c9);border-radius:10px;padding:10px;background:var(--lotbi-surface-primary,#fff);color:var(--lotbi-text-primary,#212121);font:inherit}
-.family-loc-check-label{display:flex;align-items:center;gap:8px;min-height:44px;line-height:1.45}
-.family-loc-consent,.family-loc-consent-text{font-size:.88rem;line-height:1.55;color:var(--lotbi-text-muted,#212121)}
-.family-loc-code{margin:0;font-size:2rem;font-weight:900;letter-spacing:.3em;color:var(--lotbi-text-primary,#212121)}
-.family-loc-settings-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.family-loc-settings-row select{width:auto;flex:0 1 110px}
-.family-loc-footer{text-align:center}
-.family-loc-places,.family-loc-place-form,.family-loc-places-for-me{display:grid;gap:8px}
-.family-loc-places{padding-top:10px;border-top:1px solid var(--lotbi-border-default,#d8dde5)}
-.family-loc-place-name{font-weight:700;color:var(--lotbi-text-primary,#212121);overflow-wrap:anywhere}
-.family-loc-place-form input:not([type]),.family-loc-place-form select{box-sizing:border-box;width:100%;min-height:48px;border:1px solid var(--lotbi-border-strong,#c9c9c9);border-radius:10px;padding:10px;background:var(--lotbi-surface-primary,#fff);color:var(--lotbi-text-primary,#212121);font:inherit}
-.family-loc-button:focus-visible,.family-loc-surface input:focus-visible,.family-loc-surface select:focus-visible{outline:3px solid var(--lotbi-focus-ring,#454545);outline-offset:2px}
-@media(max-width:640px){.family-loc-card{padding:14px}.family-loc-actions{display:grid}.family-loc-actions .family-loc-button{width:100%}}
+.family-loc-check-items{margin:0;padding-left:0;list-style:none;display:grid;gap:4px;font-size:15px}
+.family-loc-check-items li[data-ok=false]{color:var(--fl-warn);font-weight:700}
+
+/* SOS: red, on top */
+.family-loc-sos{border-color:var(--fl-danger);background:color-mix(in srgb,var(--fl-danger) 6%,var(--fl-card))}
+.family-loc-sos-title{display:flex;align-items:center;gap:8px;font-size:20px;font-weight:800;color:var(--fl-danger)}
+.family-loc-sos-primary{background:var(--fl-danger);color:var(--lotbi-bg-primary,#fff)}
+.family-loc-sos-primary:hover{background:var(--fl-danger);filter:brightness(.95)}
+
+/* my sharing: easy to see */
+.family-loc-sharing{border-color:color-mix(in srgb,var(--fl-ok) 45%,var(--fl-line));background:color-mix(in srgb,var(--fl-ok) 7%,var(--fl-card))}
+.family-loc-sharing[data-sharing-state=PAUSED]{border-color:color-mix(in srgb,var(--fl-warn) 45%,var(--fl-line));background:color-mix(in srgb,var(--fl-warn) 7%,var(--fl-card))}
+.family-loc-sharing-head{display:flex;align-items:center;gap:10px}
+.family-loc-live-dot{flex:0 0 auto;width:14px;height:14px;border-radius:999px;background:var(--fl-ok);box-shadow:0 0 0 6px color-mix(in srgb,var(--fl-ok) 18%,transparent)}
+.family-loc-sharing[data-sharing-state=PAUSED] .family-loc-live-dot{background:var(--fl-warn);box-shadow:0 0 0 6px color-mix(in srgb,var(--fl-warn) 18%,transparent)}
+.family-loc-indicator{font-size:22px;font-weight:800;letter-spacing:-.03em;color:var(--lotbi-text-primary,#202634)}
+.family-loc-sos-button{width:100%;min-height:64px;border-color:var(--fl-danger);background:var(--fl-danger);color:var(--lotbi-bg-primary,#fff);font-size:19px;font-weight:900}
+.family-loc-sos-button:hover{background:var(--fl-danger);filter:brightness(.95)}
+.family-loc-family-row{display:grid;gap:8px;padding-top:12px;border-top:1px solid var(--fl-line)}
+.family-loc-places-for-me{display:grid;gap:4px}
+
+/* home tiles (지역정보 card shape) */
+.family-loc-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:4px}
+.family-loc-nav-tile{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:112px;padding:18px 16px;border:1px solid var(--fl-line);border-radius:12px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.family-loc-nav-tile .family-loc-icon{margin-bottom:8px;color:var(--fl-muted)}
+.family-loc-nav-tile strong{font-size:16px;font-weight:650}
+.family-loc-nav-tile span{color:var(--fl-muted);font-size:13px;line-height:1.45}
+.family-loc-nav-tile:hover{background:var(--fl-soft)}
+
+/* empty and failed screens always have a next button */
+.family-loc-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px 18px;border:1px dashed var(--fl-line);border-radius:16px;text-align:center}
+.family-loc-empty>.family-loc-icon{width:40px;height:40px;color:var(--fl-muted)}
+.family-loc-empty h3{margin:0;font-size:19px;letter-spacing:-.03em}
+.family-loc-empty p{max-width:440px;margin:0;color:var(--fl-muted);font-size:15px;line-height:1.6}
+.family-loc-empty .family-loc-actions{justify-content:center}
+
+/* sub screens */
+.family-loc-view-head{display:grid;gap:4px}
+.family-loc-form{gap:12px}
+.family-loc-form-title{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700}
+.family-loc-form input:not([type]),.family-loc-form input[type=text],.family-loc-form select,.family-loc-accept input{box-sizing:border-box;width:100%;min-height:52px;border:1px solid var(--lotbi-border-strong,#c9c9c9);border-radius:12px;padding:12px 14px;background:var(--lotbi-surface-primary,#fff);color:var(--lotbi-text-primary,#202634);font:inherit;font-size:16px}
+.family-loc-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.family-loc-switches{display:flex;flex-wrap:wrap;gap:4px 16px}
+.family-loc-check-label{display:flex;align-items:center;gap:10px;min-height:48px;line-height:1.45;font-size:16px}
+.family-loc-check-label input{width:22px;height:22px;margin:0;accent-color:var(--fl-accent);flex:0 0 auto}
+.family-loc-consent,.family-loc-consent-text{font-size:14px;line-height:1.6;color:var(--fl-muted)}
+.family-loc-code{margin:0;font-size:36px;font-weight:900;letter-spacing:.3em;color:var(--lotbi-text-primary,#202634)}
+.family-loc-quiet-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px}
+.family-loc-field-label{margin-top:4px;font-size:15px;font-weight:700}
+.family-loc-settings-person{display:grid;gap:2px;padding-top:10px;border-top:1px solid var(--fl-line)}
+.family-loc-pending{grid-template-columns:1fr;gap:8px}
+.family-loc-place-name{display:flex;align-items:flex-start;gap:8px;margin:0;font-weight:700;overflow-wrap:anywhere}
+.family-loc-place-name .family-loc-icon{width:20px;height:20px;margin-top:2px;color:var(--fl-muted)}
+.family-loc-footer{text-align:center;font-size:13px}
+
+.family-loc-button:focus-visible,.family-loc-tool:focus-visible,.family-loc-nav-tile:focus-visible,.family-loc-surface input:focus-visible,.family-loc-surface select:focus-visible{outline:3px solid var(--lotbi-focus-ring,#454545);outline-offset:2px}
+
+@media(max-width:640px){
+  .family-loc-card{padding:16px}
+  .family-loc-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .family-loc-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .family-loc-nav>.family-loc-nav-tile:last-child:nth-child(odd){grid-column:1/-1}
+  .family-loc-actions{display:grid}
+  .family-loc-actions .family-loc-button{width:100%}
+}
