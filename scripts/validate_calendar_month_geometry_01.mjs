@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -8,7 +9,7 @@ const INNER_REL = 'scripts/.calendar-month-geometry-inner.html';
 const INNER = path.join(ROOT, INNER_REL);
 const WRAPPER_REL = 'scripts/.calendar-month-geometry-wrapper.html';
 const WRAPPER = path.join(ROOT, WRAPPER_REL);
-const PORT = 4193;
+const PORT = 43000 + (process.pid % 1000);
 const ORIGIN = 'http://127.0.0.1:' + PORT;
 
 function browserPath() {
@@ -66,12 +67,12 @@ function makeModal(){
   return {backdrop,modal,root};
 }
 
-function addFive(repo,date){
-  for(let i=0;i<5;i+=1){
+function addSix(repo,date){
+  for(let i=0;i<6;i+=1){
     const hour=9+Math.floor(i/2);
     const minute=i%2===0?'00':'30';
     repo.create({
-      title:['치과','고객 미팅','미용실','저녁 약속','자동차 검사'][i],
+      title:['치과','고객 미팅','미용실','저녁 약속','자동차 검사','긴 제목도 옆 날짜를 침범하지 않는 마지막 일정'][i],
       local_date:date,
       local_datetime:date+'T'+String(hour).padStart(2,'0')+':'+minute+':00',
       all_day:false,
@@ -86,11 +87,11 @@ async function measure({nowIso,date,label,weeks}){
     getItem:key=>values.has(key)?values.get(key):null,
     setItem:(key,value)=>values.set(key,String(value)),
   };
-  // Five entries on one day is the point of the measurement, which is more than
+  // Six entries on one day is the approved overflow fixture, which is more than
   // a guest may create. The quota itself is asserted in
   // validate_guest_calendar_local_01.mjs, not here.
   const repo=createGuestCalendarRepository(storage,{createQuota:200});
-  addFive(repo,date);
+  addSix(repo,date);
   const {backdrop,modal,root}=makeModal();
   await mountLifeCalendarManager({
     root,
@@ -143,10 +144,10 @@ async function measure({nowIso,date,label,weeks}){
   if(getComputedStyle(modal).overflowY!=='hidden')throw new Error(label+' modal must not scroll');
   if(getComputedStyle(root).overflowY!=='hidden')throw new Error(label+' month content must not scroll');
   if(modal.scrollHeight>modal.clientHeight+1)throw new Error(label+' modal double scroll');
-  if(rows.length!==2)throw new Error(label+' Month must mount exactly two representative rows, got '+rows.length);
-  if(visible!==2)throw new Error(label+' both representative rows must be visible, got '+visible);
+  if(rows.length!==3)throw new Error(label+' Month must mount exactly three representative rows, got '+rows.length);
+  if(visible!==3)throw new Error(label+' all three representative rows must be visible, got '+visible);
   if(!overflowVisible)throw new Error(label+' +N overflow summary must be visible');
-  if(more.textContent!=='+3')throw new Error(label+' five-event overflow must read +3, got '+more.textContent);
+  if(more.textContent!=='+3개 더')throw new Error(label+' six-event overflow must read +3개 더, got '+more.textContent);
 
   const result={label,weeks,cellHeight,visible,overflow:more.textContent,unusedBottom,gridHeight:gridRect.height,modalHeight:modal.getBoundingClientRect().height};
   backdrop.remove();
@@ -193,15 +194,22 @@ function wrapperMarkup(w,h){
 
 function run(browser,w,h){
   fs.writeFileSync(WRAPPER,wrapperMarkup(w,h),'utf8');
-  const proc=spawnSync(browser,[
-    '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
-    '--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=80000',
-    '--dump-dom',ORIGIN+'/'+WRAPPER_REL
-  ],{encoding:'utf8',timeout:120000,maxBuffer:12*1024*1024});
+  const profile=fs.mkdtempSync(path.join(os.tmpdir(),'lotbi-calendar-geometry-'));
+  let proc;
+  try {
+    proc=spawnSync(browser,[
+      '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
+      `--user-data-dir=${profile}`,
+      '--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=80000',
+      '--dump-dom',ORIGIN+'/'+WRAPPER_REL
+    ],{encoding:'utf8',timeout:120000,maxBuffer:12*1024*1024});
+  } finally {
+    fs.rmSync(profile,{recursive:true,force:true});
+  }
   if(proc.error)throw proc.error;
   if(proc.status!==0)throw new Error('browser '+proc.status+' '+proc.stderr);
   const a='<pre id="result">',b='</pre>',i=proc.stdout.indexOf(a),j=proc.stdout.indexOf(b,i);
-  if(i<0||j<0)throw new Error('result missing');
+  if(i<0||j<0)throw new Error(`result missing (stdout=${String(proc.stdout||'').slice(0,500)}, stderr=${String(proc.stderr||'').slice(0,500)})`);
   const raw=proc.stdout.slice(i+a.length,j).replaceAll('&quot;','"').replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>');
   const value=JSON.parse(raw);
   if(!value.ok)throw new Error(w+'x'+h+' '+value.error);

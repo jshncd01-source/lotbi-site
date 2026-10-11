@@ -1218,7 +1218,7 @@ body.calendar-editor-open { overflow: hidden; }
   border-top: 1px solid #e8ecf2;
   background: inherit;
 }
-.calendar-editor-actions button { min-height: 48px; padding: 10px 16px; border: 1px solid #7d8796; border-radius: 10px; background: #fff; color: var(--lotbi-text-primary, var(--text, #212121)); cursor: pointer; font: inherit; font-weight: 800; }
+.calendar-editor-actions button { min-height: 44px; padding: 8px 14px; border: 1px solid #7d8796; border-radius: 10px; background: #fff; color: var(--lotbi-text-primary, var(--text, #212121)); cursor: pointer; font: inherit; font-weight: 800; }
 .calendar-editor-save { border-color: var(--brand-navy, #182a46) !important; background: var(--brand-navy, #182a46) !important; color: #fff !important; }
 .calendar-editor-save:disabled { cursor: not-allowed; opacity: .45; }
 .calendar-editor-delete { margin-right: auto; border-color: #c95555 !important; color: #a13232 !important; }
@@ -1551,10 +1551,6 @@ body[data-site-theme="dark"] .calendar-unscheduled-group { border-top-color: #39
 body[data-site-theme="dark"] .calendar-unscheduled-note { color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .calendar-agenda-range { border-color: #465162; background: #171c25; color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .calendar-agenda-range[aria-pressed="true"] { background: #edf0f5; color: #212121; }
-body[data-site-theme="dark"] .calendar-editor-time-period { border-color: #515b69; }
-body[data-site-theme="dark"] .calendar-editor-time-period-choice { background: #121720; color: var(--lotbi-text-primary, var(--text, #212121)); }
-body[data-site-theme="dark"] .calendar-editor-time-period-choice + .calendar-editor-time-period-choice { border-left-color: #515b69; }
-body[data-site-theme="dark"] .calendar-editor-time-period-choice[aria-pressed="true"] { background: #edf0f5; color: #212121; }
 body[data-site-theme="dark"] .calendar-week-strip { border-color: #39424f; background: rgba(18, 23, 32, .96); }
 body[data-site-theme="dark"] .calendar-week-date { color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .calendar-week-date[data-selected="true"],
@@ -1609,6 +1605,10 @@ body[data-site-theme="dark"] .calendar-editor-time-quick button,
 body[data-site-theme="dark"] .calendar-editor-time-actions button,
 body[data-site-theme="dark"] .calendar-editor-category-sheet button,
 body[data-site-theme="dark"] .calendar-editor-end-time { border-color: #515b69; background: #121720; color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .calendar-editor-time-period { border-color: #515b69; }
+body[data-site-theme="dark"] .calendar-editor-time-period-choice { background: #121720; color: var(--lotbi-text-primary, var(--text, #212121)); }
+body[data-site-theme="dark"] .calendar-editor-time-period-choice + .calendar-editor-time-period-choice { border-left-color: #515b69; }
+body[data-site-theme="dark"] .calendar-editor-time-period-choice[aria-pressed="true"] { background: #edf0f5; color: #212121; }
 body[data-site-theme="dark"] .calendar-delete-confirm-dialog { border-color: #39424f; background: #171c25; }
 body[data-site-theme="dark"] .calendar-delete-confirm-dialog h4 { color: var(--lotbi-text-primary, var(--text, #212121)); }
 body[data-site-theme="dark"] .calendar-delete-confirm-dialog > p { color: var(--lotbi-text-primary, var(--text, #212121)); }
@@ -1841,14 +1841,13 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
     font-size: 11px;
     line-height: 1.35;
   }
-  /* CALENDAR-ADD-UX-01: the open day's own [+ 일정 추가] -- the sheet covers
-     the bar above it -- at the 48px touch size, not the old 30px/11px. */
-  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-actions { gap: 8px; }
+  /* Still above the 24px pointer-target floor. */
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-actions { gap: 6px; }
   .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-button {
-    min-height: 48px;
-    padding: 10px 14px;
-    border-radius: 12px;
-    font-size: 14px;
+    min-height: 30px;
+    padding: 5px 9px;
+    border-radius: 9px;
+    font-size: 11px;
   }
   /* Empty day: "등록된 일정이 없어요." shares the secondary row rather than
      taking a line of its own. The sentence yields the width and the buttons
@@ -1974,7 +1973,7 @@ body[data-site-theme="dark"] .calendar-delete-confirm-submit { border-color: #d3
      to spend. Both buttons stay above the pointer-target floor. */
   .calendar-day-panel:not([data-presentation="FLOW"]) { padding-inline: 9px; }
   .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-day-heading { font-size: 12px; }
-  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-button { font-size: 13px; padding-inline: 10px; }
+  .calendar-day-panel:not([data-presentation="FLOW"]) .calendar-add-button { font-size: 11px; padding-inline: 6px; }
 
   .calendar-year-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .calendar-year-month { min-height: 74px; padding: 10px; }
@@ -2176,8 +2175,7 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
 .calendar-day-event.calendar-life-row {
   min-height: 48px;
   display: grid;
-  /* "오후 12:30" on one line (CALENDAR-ADD-UX-01: 12-hour like the editor). */
-  grid-template-columns: 66px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(74px, max-content) minmax(0, 1fr) auto;
   align-items: start;
   gap: 10px;
   padding: 10px 4px;
@@ -2243,7 +2241,7 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
   letter-spacing: .01em;
 }
 
-/* + 일정 추가 and 사진으로 추가: 48px everywhere (CALENDAR-ADD-UX-01). */
+/* CALENDAR-ADD-UX-01: both add paths keep a 48px target. */
 .calendar-add-actions .calendar-add-button { min-height: 48px; padding: 8px 14px; font-size: 14px; }
 .calendar-add-actions .calendar-add-detail-button { font-weight: 750; }
 .calendar-action-slot[hidden] { display: none !important; }
@@ -2276,9 +2274,6 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
 .calendar-action-slot[data-calendar-action-bar="pinned"] .calendar-add-image-button { flex: 0 0 auto; }
 .calendar-action-slot[data-calendar-action-bar="pinned"] .calendar-add-detail-button { flex: 1 1 auto; }
 .calendar-day-panel .calendar-add-actions { margin-top: 6px; padding-top: 10px; justify-content: flex-end; }
-/* CALENDAR-ADD-UX-01 (QA 02 A4): the one place every view but 년 offers
-   [+ 일정 추가] and 사진으로 추가 -- under the toolbar, 48px and up, readable
-   type; on a phone the add button takes the rest of the row and may wrap. */
 .calendar-action-slot[data-calendar-action-bar="top"] .calendar-add-actions {
   position: static;
   flex-wrap: wrap;
@@ -2435,8 +2430,8 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
 .calendar-week-day-cards .calendar-life-list .calendar-day-event.calendar-life-row[data-life-group="UNTIMED"] { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "copy amount"; }
 .calendar-week-day-cards .calendar-life-row[data-life-group="UNTIMED"] .calendar-life-time { display: none; }
 .calendar-week-day-cards .calendar-life-time { grid-area: time; padding-top: 0; white-space: nowrap; }
-/* 오전/오후 on its own small line above the digits keeps the phone week's
-   clock column as narrow as "12:30" (CALENDAR-ADD-UX-01: 12-hour clock). */
+/* Preserve CALENDAR-ADD-UX-01: the Korean period may stack above the digits
+   in the narrow phone week while retaining one accessible time label. */
 .calendar-week-day-cards .calendar-life-time .calendar-clock-period { display: block; color: var(--lotbi-calendar-muted-ink); font-size: 11px; font-weight: 650; line-height: 1.2; }
 .calendar-week-day-cards .calendar-life-copy { grid-area: copy; min-width: 0; gap: 1px; }
 .calendar-week-day-cards .calendar-day-event.calendar-life-row .calendar-life-title { min-width: 0; -webkit-line-clamp: 4; font-size: 14.5px; line-height: 1.35; }
@@ -2643,17 +2638,14 @@ body[data-site-theme="dark"] .calendar-deep-open-notice {
 .calendar-editor-section-label { color: var(--lotbi-calendar-muted-ink); font-size: 13px; font-weight: 650; }
 .calendar-editor-time-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .calendar-editor-time-row .calendar-editor-time { width: 104px; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
-/* CALENDAR-ADD-UX-01 (QA 02 A6): [오전] [오후] beside the time box. */
 .calendar-editor-time-period { display: inline-flex; flex: 0 0 auto; overflow: hidden; border: 1px solid #cfd6e2; border-radius: 10px; }
 .calendar-editor-time-period-choice { min-width: 56px; min-height: 48px; padding: 8px 12px; border: 0; background: #fff; color: var(--lotbi-text-primary, var(--text, #212121)); font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
 .calendar-editor-time-period-choice + .calendar-editor-time-period-choice { border-left: 1px solid #cfd6e2; }
-/* CALENDAR-ADD-UX-01: everything a finger presses in the add form is at least
-   48px, beating the shared 44px rules by being scoped to the editor. */
+.calendar-editor-time-period-choice[aria-pressed="true"] { background: var(--brand-navy, #182a46); color: #fff; }
 .calendar-editor-dialog .calendar-editor-chip,
 .calendar-editor-dialog .calendar-editor-time-quick button,
 .calendar-editor-dialog .calendar-editor-amount-control .calendar-editor-category-choice,
 body.chat-home-page .calendar-editor-dialog .calendar-editor-actions button { min-height: 48px; }
-.calendar-editor-time-period-choice[aria-pressed="true"] { background: var(--brand-navy, #182a46); color: #fff; }
 .calendar-editor-time-clear {
   min-height: 44px;
   padding: 6px 12px;
@@ -2816,10 +2808,6 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
      for the top row; the date button's label still says it in words. */
   .calendar-month-grid .calendar-date-cell { position: relative; }
   .calendar-month-grid .calendar-attention-marker { position: absolute; right: 5px; bottom: 4px; max-width: calc(100% - 10px); margin: 0; font-size: 10px; }
-  /* CALENDAR-ADD-UX-01: with [+ 일정 추가] above the grid a six-week month's
-     cells are ~72px, and 확인 필요 meets the 💧 line under the forecast. A cell
-     that carries 확인 필요 leaves the 💧 to its day panel. */
-  .calendar-month-grid .calendar-date-cell:has(.calendar-attention-marker) .calendar-weather-precip { display: none; }
 }
 
 /* Touch widths: one scroll, a slimmer toolbar, the day under the month. */
@@ -2982,15 +2970,15 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   .calendar-date-cell[data-lunar="true"]:has(.calendar-date-line[data-lunar-kind="month-start"]) .calendar-weather-summary { top: 35px; bottom: auto; }
   .calendar-date-cell[data-lunar="true"]:has(.calendar-date-line[data-lunar-kind="month-start"]) .calendar-weather-temperature { display: none; }
   .calendar-day-panel[data-presentation="FLOW"] .calendar-day-event.calendar-life-row {
-    grid-template-columns: 48px minmax(0, 1fr) auto;
-    gap: 8px;
+    grid-template-columns: minmax(74px, max-content) minmax(0, 1fr) auto;
+    gap: 6px;
   }
   .calendar-editor-body { padding: 14px 16px; }
   .calendar-editor-header { padding: 14px 16px 10px; }
   .calendar-editor-actions { padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
 }
 @media (max-width: 380px) {
-  .calendar-day-event.calendar-life-row { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 6px; }
+  .calendar-day-event.calendar-life-row { grid-template-columns: minmax(70px, max-content) minmax(0, 1fr) auto; gap: 4px; }
   .calendar-add-actions .calendar-add-button { padding-inline: 10px; font-size: 13px; }
   /* The month name must stay whole on a folded phone; the button's own
      label still says it opens the year. */
@@ -3020,6 +3008,305 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
 }
 @media (prefers-reduced-motion: reduce) {
   .calendar-week-day-group { scroll-behavior: auto; }
+}
+
+
+
+/* CALENDAR-HOME-REDESIGN-01 — confirmed desktop rail and responsive flow. */
+body.chat-home-page .site-modal.site-calendar-chat-popup {
+  width: min(1180px, calc(100vw - 32px));
+  height: min(880px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 26px 28px;
+}
+body.chat-home-page .site-calendar-chat-popup > .site-modal-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+}
+body.chat-home-page .site-calendar-chat-popup > .site-modal-header h2 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 850;
+  letter-spacing: -.045em;
+}
+body.chat-home-page .site-calendar-chat-popup > .site-modal-description {
+  margin: 2px 0 18px;
+  padding: 0;
+  color: var(--lotbi-calendar-muted-ink);
+  font-size: 15px;
+}
+.calendar-modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.calendar-primary-add-button,
+.calendar-day-empty-add {
+  min-height: 46px;
+  padding: 10px 18px;
+  border: 1px solid #0877ea;
+  border-radius: 12px;
+  background: #0877ea;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.calendar-modal-actions .calendar-settings-button { min-height: 46px; border-radius: 12px; }
+.calendar-primary-add-button:focus-visible,
+.calendar-day-empty-add:focus-visible { outline: 3px solid rgba(8, 119, 234, .28); outline-offset: 2px; }
+
+.calendar-product-shell { grid-template-rows: auto auto auto minmax(0, 1fr); gap: 10px; }
+.calendar-product-shell > .calendar-toolbar { grid-row: 1; }
+.calendar-product-shell > .calendar-status { grid-row: 2; }
+.calendar-product-shell > .calendar-action-slot[data-calendar-action-bar="top"] { grid-row: 3; }
+.calendar-product-shell > .calendar-viewport { grid-row: 4; }
+.calendar-toolbar {
+  grid-template-columns: minmax(96px, auto) minmax(220px, 1fr) minmax(96px, auto) minmax(82px, auto);
+  grid-template-rows: 50px 48px;
+  gap: 8px 10px;
+}
+.calendar-toolbar > .calendar-nav-button[data-calendar-navigation="previous"] { grid-column: 1; grid-row: 1; }
+.calendar-toolbar > .calendar-title-button { grid-column: 2; grid-row: 1; }
+.calendar-toolbar > .calendar-nav-button[data-calendar-navigation="next"] { grid-column: 3; grid-row: 1; }
+.calendar-toolbar > .calendar-today-button { grid-column: 4; grid-row: 1; }
+.calendar-toolbar > .calendar-mode-tabs {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 12px;
+}
+.calendar-toolbar .calendar-mode-tab { min-height: 46px; border: 0; border-radius: 0; box-shadow: none; }
+.calendar-toolbar .calendar-mode-tab[aria-selected="true"] { background: #0877ea; box-shadow: none; }
+.calendar-status { grid-row: 2; }
+.calendar-status:empty + .calendar-viewport,
+.calendar-viewport { grid-row: 2 / 3; }
+.calendar-amount-slot { display: none !important; }
+
+.calendar-month-layout {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 37%);
+  gap: 14px;
+}
+@media (min-width: 901px) {
+  .calendar-month-layout[data-day-detail="SIDE"][data-detail-open="true"] {
+    grid-template-columns: minmax(0, 1fr) minmax(380px, 37%);
+    gap: 14px;
+  }
+}
+.calendar-month { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.calendar-month-grid { min-height: 0; grid-auto-rows: minmax(0, 1fr); }
+.calendar-date-cell { min-height: 0; padding: 4px 5px; }
+.calendar-date-header { min-height: 30px; }
+.calendar-date-trigger { min-width: 30px; min-height: 30px; place-items: start; padding: 4px; }
+.calendar-date-number { font-size: 15px; }
+.calendar-weather-summary { grid-template-columns: auto; justify-items: end; gap: 0; }
+.calendar-weather-summary > .calendar-weather-icon { width: 18px; height: 18px; font-size: 16px; line-height: 18px; }
+.calendar-month-grid .calendar-weather-temperature { width: auto; height: auto; margin-right: 0; font-size: 9px; font-weight: 750; letter-spacing: -.14em; white-space: nowrap; transform: translateX(2px); }
+.calendar-month-grid .calendar-date-cell .calendar-weather-temperature { position: static; top: auto; right: auto; }
+.calendar-month-grid .calendar-date-cell[data-lunar="true"] .calendar-date-header { min-height: 43px; }
+.calendar-month-grid .calendar-date-cell[data-lunar="true"] .calendar-date-line { flex-direction: column; align-items: flex-start; }
+.calendar-month-grid .calendar-date-cell[data-lunar="true"] .calendar-date-lunar { line-height: 8px; transform: translateY(-2px); }
+.calendar-month-grid .calendar-date-cell[data-lunar="true"] .calendar-weather-temperature { transform: translate(2px, 12px); }
+@media (min-width: 901px) {
+  @container calendar-month (min-width: 520px) {
+    .calendar-month-grid .calendar-date-cell[data-lunar="true"] .calendar-date-header { min-height: 30px; }
+    .calendar-month-grid .calendar-date-cell[data-lunar="true"] .calendar-date-line { flex-direction: row; align-items: center; }
+    .calendar-month-grid .calendar-date-cell[data-lunar="true"] .calendar-date-lunar { line-height: normal; transform: none; }
+    .calendar-month-grid .calendar-date-cell[data-lunar="true"] .calendar-weather-temperature { transform: translateX(2px); }
+  }
+}
+.calendar-month-grid .calendar-weather-temperature > span { position: static; transform: none; }
+.calendar-month-grid .calendar-weather-temperature-separator { margin-inline: 1px; font-size: 9px; }
+.calendar-month-grid .calendar-weather-temperature-value { padding-top: 0; }
+.calendar-event-stack { gap: 0; }
+.calendar-month-grid .calendar-event-chip { min-height: 12px; padding: 0 3px; font-size: 9px; line-height: 12px; }
+.calendar-month-grid .calendar-event-time { font-size: 8px; }
+.calendar-month-grid .calendar-event-overflow { min-height: 12px; margin: 0; padding: 0 5px; font-size: 9px; line-height: 12px; }
+.calendar-cell-day-amount {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 10px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.calendar-month-grid .calendar-date-cell[data-selected="true"] { box-shadow: inset 0 0 0 2px #0877ea; }
+
+.calendar-day-panel[data-presentation="SIDE"] {
+  position: relative;
+  top: auto;
+  height: 100%;
+  max-height: none;
+  overflow: hidden;
+  padding: 14px;
+  border-color: var(--lotbi-calendar-grid-line);
+  background: var(--lotbi-surface-primary, #fff);
+  box-shadow: none;
+}
+.calendar-day-panel[data-presentation="SIDE"] .calendar-day-panel-head { flex: 0 0 auto; }
+.calendar-day-panel[data-presentation="SIDE"] .calendar-day-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+.calendar-day-panel-head { align-items: center; }
+.calendar-day-heading { flex-basis: 100%; font-size: 22px; font-weight: 850; }
+.calendar-day-today { margin-left: 6px; margin-right: 0; border: 0; background: #0877ea; color: #fff; vertical-align: 2px; }
+.calendar-day-submeta { display: flex; align-items: center; gap: 8px; color: var(--lotbi-calendar-muted-ink); font-size: 12px; }
+.calendar-day-lunar { color: inherit; }
+.calendar-day-weather-card {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 13px;
+  background: var(--lotbi-calendar-week-selected-surface, #f5f8fc);
+}
+.calendar-day-weather-card-icon { width: 42px; height: 42px; font-size: 36px; line-height: 42px; }
+.calendar-day-weather-card-copy { min-width: 0; display: grid; gap: 4px; }
+.calendar-day-weather-location,
+.calendar-day-weather-unavailable { margin: 0; color: var(--lotbi-calendar-muted-ink); font-size: 12px; line-height: 1.45; }
+.calendar-day-weather-readings { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; font-variant-numeric: tabular-nums; }
+.calendar-day-weather-readings strong { font-size: 20px; }
+.calendar-day-weather-readings span { color: var(--lotbi-calendar-muted-ink); font-size: 12px; }
+.calendar-day-timeline { min-width: 0; display: grid; }
+.calendar-day-timeline > h4 { margin: 4px 0 0; padding-bottom: 5px; border-bottom: 1px solid var(--lotbi-calendar-grid-line); font-size: 14px; }
+.calendar-day-panel[data-presentation="SIDE"] .calendar-day-event.calendar-life-row { grid-template-columns: minmax(68px, max-content) minmax(0, 1fr) auto; gap: 6px; padding: 7px 2px; }
+.calendar-day-panel[data-presentation="SIDE"] .calendar-day-event.calendar-life-row time { font-size: 12px; }
+.calendar-day-panel[data-presentation="SIDE"] .calendar-day-event.calendar-life-row .calendar-life-title { -webkit-line-clamp: 2; font-size: 13px; }
+.calendar-day-panel .calendar-day-event.calendar-life-row .calendar-life-copy { padding-inline-start: 10px; }
+.calendar-life-category { justify-self: start; padding: 2px 7px; border-radius: 999px; background: var(--lotbi-calendar-week-selected-surface); color: var(--lotbi-calendar-muted-ink); font-size: 10px; font-weight: 750; }
+.calendar-day-panel[data-presentation="SIDE"] .calendar-life-amount { font-size: 12px; }
+.calendar-day-empty { min-height: 210px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 18px; border-radius: 13px; background: var(--lotbi-calendar-week-selected-surface); text-align: center; }
+.calendar-day-empty .calendar-day-empty-icon { width: 52px; height: 52px; padding: 12px; border-radius: 50%; background: rgba(8, 119, 234, .1); color: #0877ea; }
+.calendar-day-empty strong { font-size: 17px; }
+.calendar-day-empty p { max-width: 260px; margin: 0; color: var(--lotbi-calendar-muted-ink); font-size: 13px; line-height: 1.6; }
+.calendar-day-empty-add { width: 100%; }
+.calendar-day-expense-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 13px 14px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 13px;
+}
+.calendar-day-expense-label { font-size: 13px; font-weight: 750; }
+.calendar-day-expense-value { font-size: 20px; font-weight: 850; font-variant-numeric: tabular-nums; }
+.calendar-day-panel .calendar-amount-overview { margin-top: 0; padding: 12px 14px; border: 1px solid var(--lotbi-calendar-grid-line); border-radius: 13px; }
+.calendar-day-panel .calendar-add-actions { display: none; }
+.calendar-weather-credit { font-size: 9px; }
+
+body[data-site-theme="dark"] .calendar-day-panel[data-presentation="SIDE"],
+body[data-site-theme="dark"] .calendar-day-weather-card,
+body[data-site-theme="dark"] .calendar-day-empty { background: #171c25; }
+
+/* From the tablet edge through the narrow desktop rail, the 9px forecast line
+   begins immediately below the 18px glyph. Linux's taller default line box
+   let a two-digit date reach into that line even though the visible glyphs
+   were separate (Gate returns at 610px and 1024px). Tighten only the date line
+   box; its font size and approved position stay unchanged, while the compact
+   phone layout keeps its deliberately roomier line height. */
+@media (min-width: 601px) {
+  .calendar-month-grid .calendar-date-number { line-height: 1; }
+}
+
+@media (max-width: 900px) {
+  body.chat-home-page .site-modal.site-calendar-chat-popup { width: calc(100vw - 16px); height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); padding: 14px; }
+  body.chat-home-page .site-calendar-chat-popup > .site-modal-header { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  body.chat-home-page .site-calendar-chat-popup > .site-modal-header h2 { font-size: 24px; }
+  body.chat-home-page .site-calendar-chat-popup > .site-modal-header .site-modal-close { grid-column: 2; grid-row: 1; }
+  .calendar-modal-actions { grid-column: 1 / -1; grid-row: 2; }
+  .calendar-modal-actions .calendar-primary-add-button { flex: 1 1 auto; }
+  body.chat-home-page .site-calendar-chat-popup > .site-modal-description { margin: 4px 0 12px; font-size: 13px; }
+  body.chat-home-page .site-calendar-chat-popup > .site-modal-content[data-calendar-manager-view="month"] { overflow-y: auto; }
+  .calendar-product-shell { height: auto; display: grid; grid-template-rows: auto auto auto auto; }
+  .calendar-toolbar { grid-template-columns: 64px minmax(0, 1fr) 64px 56px; grid-template-rows: 44px 44px; gap: 6px; }
+  .calendar-toolbar .calendar-nav-button,
+  .calendar-toolbar .calendar-title-button,
+  .calendar-toolbar .calendar-today-button,
+  .calendar-toolbar .calendar-mode-tab { min-height: 44px; padding-inline: 6px; font-size: 12px; }
+  .calendar-month-layout { height: auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .calendar-month { min-height: 520px; }
+  .calendar-date-cell { height: auto; min-height: 78px; max-height: none; gap: 1px; padding: 2px; }
+  .calendar-date-header { min-height: 29px; }
+  .calendar-date-trigger { width: auto; height: auto; min-width: 29px; min-height: 29px; max-height: none; padding: 3px; }
+  .calendar-month-grid .calendar-weather-summary,
+  .calendar-month-grid .calendar-date-cell[data-lunar="true"] .calendar-weather-summary {
+    top: 3px;
+    right: 3px;
+    bottom: auto;
+    height: 27px;
+  }
+  .calendar-month-grid .calendar-date-cell .calendar-weather-temperature {
+    position: static;
+    top: auto;
+    right: auto;
+  }
+  .calendar-date-cell[data-lunar="true"] .calendar-date-header { min-height: 43px; }
+  .calendar-date-cell[data-lunar="true"] .calendar-date-line { flex-direction: column; align-items: flex-start; }
+  .calendar-date-cell[data-lunar="true"] .calendar-date-lunar { line-height: 8px; transform: translateY(-2px); }
+  .calendar-date-cell[data-lunar="true"] .calendar-weather-temperature { transform: translate(2px, 12px); }
+  .calendar-month-grid .calendar-record-dots { display: none; }
+  .calendar-month-grid .calendar-date-cell[data-weather="true"] .calendar-attention-marker {
+    top: 5px;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    margin: 0;
+    border-radius: 999px;
+    background: #a56720;
+    font-size: 0;
+    transform: translateX(-50%);
+  }
+  .calendar-event-stack { display: grid; }
+  .calendar-event-chip { min-height: 12px; padding: 0 2px; font-size: 9px; line-height: 12px; }
+  .calendar-event-time { display: none; }
+  .calendar-event-overflow { min-height: 12px; padding-block: 0; font-size: 9px; line-height: 12px; }
+  .calendar-cell-day-amount { display: none; }
+  .calendar-day-panel[data-presentation="FLOW"] { margin: 0; padding: 14px; border: 1px solid var(--lotbi-calendar-grid-line); border-radius: 14px; background: var(--lotbi-surface-primary, #fff); }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-body { overflow: visible; }
+  .calendar-day-heading { font-size: 20px; }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-day-event.calendar-life-row { grid-template-columns: minmax(74px, max-content) minmax(0, 1fr) auto; gap: 6px; }
+  .calendar-day-panel[data-presentation="FLOW"] .calendar-add-actions { display: none; }
+}
+
+@media (max-width: 420px) {
+  body.chat-home-page .site-modal.site-calendar-chat-popup { padding: 10px; }
+  .calendar-modal-actions { gap: 6px; }
+  .calendar-primary-add-button { min-height: 44px; padding-inline: 12px; font-size: 14px; }
+  .calendar-modal-actions .calendar-settings-button { min-width: 58px; min-height: 44px; }
+  .calendar-toolbar { grid-template-columns: 52px minmax(0, 1fr) 52px 48px; gap: 4px; }
+  .calendar-toolbar .calendar-title-button { font-size: 13px; }
+  .calendar-date-cell[data-lunar="true"] .calendar-date-header { min-height: 43px; }
+  .calendar-date-cell[data-lunar="true"] .calendar-date-line { flex-direction: column; align-items: flex-start; }
+  .calendar-date-cell[data-lunar="true"] .calendar-date-lunar { line-height: 8px; transform: translateY(-2px); }
+  .calendar-date-cell[data-lunar="true"] .calendar-weather-temperature { transform: translate(2px, 12px); }
+  .calendar-month { min-height: 500px; }
+  .calendar-day-weather-card { padding: 10px; }
+  .calendar-day-weather-card-icon { width: 34px; height: 34px; font-size: 30px; line-height: 34px; }
+  .calendar-day-expense-card { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* The redesign's tablet rule above restores bounded titled rows up to 900px.
+   On phones the date button also keeps its schedule-presence dots. Move those
+   below the forecast band so a holiday surface never masks the schedule. */
+@media (max-width: 600px) {
+  .calendar-month-grid .calendar-record-dots {
+    position: absolute;
+    left: 6px;
+    top: 58px;
+    display: flex;
+  }
 }
 
 /* BEGIN GENERATED: system-dark mirror -- scripts/generate_calendar_system_dark.mjs */
@@ -3135,14 +3422,6 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-agenda-range { border-color: #465162; background: #171c25; color: var(--lotbi-text-primary, var(--text, #212121)); }
   body[data-site-theme="system"] .calendar-agenda-range[aria-pressed="true"],
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-agenda-range[aria-pressed="true"] { background: #edf0f5; color: #212121; }
-  body[data-site-theme="system"] .calendar-editor-time-period,
-  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-time-period { border-color: #515b69; }
-  body[data-site-theme="system"] .calendar-editor-time-period-choice,
-  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-time-period-choice { background: #121720; color: var(--lotbi-text-primary, var(--text, #212121)); }
-  body[data-site-theme="system"] .calendar-editor-time-period-choice + .calendar-editor-time-period-choice,
-  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-time-period-choice + .calendar-editor-time-period-choice { border-left-color: #515b69; }
-  body[data-site-theme="system"] .calendar-editor-time-period-choice[aria-pressed="true"],
-  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-time-period-choice[aria-pressed="true"] { background: #edf0f5; color: #212121; }
   body[data-site-theme="system"] .calendar-week-strip,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-week-strip { border-color: #39424f; background: rgba(18, 23, 32, .96); }
   body[data-site-theme="system"] .calendar-week-date,
@@ -3247,6 +3526,14 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-category-sheet button,
   body[data-site-theme="system"] .calendar-editor-end-time,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-end-time { border-color: #515b69; background: #121720; color: var(--lotbi-text-primary, var(--text, #212121)); }
+  body[data-site-theme="system"] .calendar-editor-time-period,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-time-period { border-color: #515b69; }
+  body[data-site-theme="system"] .calendar-editor-time-period-choice,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-time-period-choice { background: #121720; color: var(--lotbi-text-primary, var(--text, #212121)); }
+  body[data-site-theme="system"] .calendar-editor-time-period-choice + .calendar-editor-time-period-choice,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-time-period-choice + .calendar-editor-time-period-choice { border-left-color: #515b69; }
+  body[data-site-theme="system"] .calendar-editor-time-period-choice[aria-pressed="true"],
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-editor-time-period-choice[aria-pressed="true"] { background: #edf0f5; color: #212121; }
   body[data-site-theme="system"] .calendar-delete-confirm-dialog,
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-delete-confirm-dialog { border-color: #39424f; background: #171c25; }
   body[data-site-theme="system"] .calendar-delete-confirm-dialog h4,
@@ -3279,5 +3566,11 @@ body[data-site-theme="dark"] .calendar-mode-tab[aria-selected="true"] { border-c
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-add-actions .calendar-add-detail-button,
   body[data-site-theme="system"] .calendar-mode-tab[aria-selected="true"],
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-mode-tab[aria-selected="true"] { border-color: #edf0f5; background: #edf0f5; color: #212121; }
+  body[data-site-theme="system"] .calendar-day-panel[data-presentation="SIDE"],
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-panel[data-presentation="SIDE"],
+  body[data-site-theme="system"] .calendar-day-weather-card,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-weather-card,
+  body[data-site-theme="system"] .calendar-day-empty,
+  html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-empty { background: #171c25; }
 }
 /* END GENERATED: system-dark mirror */

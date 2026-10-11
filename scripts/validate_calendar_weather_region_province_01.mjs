@@ -217,7 +217,7 @@ try {
     relationship: dialog.querySelector('.calendar-settings-weather-overview small')?.textContent || '',
   });
   const openSettings = async () => {
-    click(root.querySelector('.calendar-settings-button'));
+    click(document.querySelector('.calendar-settings-button'));
     await wait(() => root.querySelector('.calendar-settings-dialog'), 'settings dialog');
     return root.querySelector('.calendar-settings-dialog');
   };
