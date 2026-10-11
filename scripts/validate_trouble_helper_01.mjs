@@ -592,6 +592,21 @@ async function runFlow(browser, origin, dir, testCase) {
           sentence: Boolean(v.querySelector('[data-trouble-portal-sentence], [data-trouble-portal-copy]')),
           beforeNarrow: Boolean(v.querySelector('[data-trouble-portal]').compareDocumentPosition(narrow) & Node.DOCUMENT_POSITION_FOLLOWING),
         },
+        // Linux gate fonts are narrower than Windows ones: with every glyph 3px
+        // narrower, no button on 할 일 (바로 전화, tabs, answers, portal) may drop under 48px.
+        narrowGlyphs: await (async () => {
+          const style = document.createElement('style');
+          style.textContent = '[data-trouble-dialog] * { letter-spacing: -3px !important; }';
+          document.head.append(style);
+          await __th.sleep(40);
+          const small = [...v.querySelectorAll('.trouble-quick-call, .trouble-option, .trouble-tab, .trouble-button, [data-trouble-portal] a, .trouble-check, .trouble-speak')]
+            .filter(__th.visible).filter(n => { const r = n.getBoundingClientRect(); return r.width < 47.5 || r.height < 47.5; })
+            .map(n => (n.className || n.tagName) + ':' + Math.round(n.getBoundingClientRect().width) + 'x' + Math.round(n.getBoundingClientRect().height) + ':' + n.textContent.trim().slice(0, 10));
+          const applied = getComputedStyle(v.querySelector('.trouble-quick-call')).letterSpacing;
+          style.remove();
+          await __th.sleep(40);
+          return {small, applied};
+        })(),
         progressLine: Boolean(__th.dialog().querySelector('[data-trouble-progress]')) || /질문 \\d+\\/\\d+/.test(__th.dialogText().replace(/답한 질문 \\d+\\/\\d+/g, '')),
         measure: __th.measure(),
         text: __th.dialogText(),
@@ -1067,6 +1082,8 @@ try {
       assert.deepEqual(r.car.ids, ['call_119', 'stay_safe', 'call_112', 'photos', 'blackbox', 'insurer', 'fault_reference'], 'nothing answered: every step, data order');
       assertFirstScreen(r.car.first, testCase, `${label} car`, ['119', '112'], 'call_119');
       assert.equal(r.car.progressLine, false, 'no "질문 n/m" anywhere');
+      assert.equal(r.car.narrowGlyphs.applied, '-3px', 'narrow-glyph stage applied');
+      assert.deepEqual(r.car.narrowGlyphs.small, [], 'narrow glyphs: every 할 일 button stays 48px or more');
       assertElderly(r.car.measure, `${label} car first`, testCase.width);
       assertReadable(r.firstThemes, `${label} car first`);
     });

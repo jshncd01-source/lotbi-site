@@ -96,6 +96,9 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* Never under 48px wide either, whatever the font (a narrower Linux font
+     must not shrink a short label like "119 전화" below a finger). */
+  min-width: 48px;
   min-height: 56px;
   margin: 0;
   padding: 10px 18px;
@@ -160,6 +163,7 @@
 .trouble-dialog .trouble-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; margin: 0; }
 .trouble-dialog .trouble-option {
   width: 100%;
+  min-width: 48px;
   min-height: 64px;
   padding: 12px 18px;
   border: 2px solid var(--lotbi-border-strong);
@@ -186,7 +190,7 @@
 /* ③ ④ ⑤ 단계 표시 */
 .trouble-dialog .trouble-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0; }
 .trouble-dialog .trouble-tab {
-  min-width: 0;
+  min-width: 48px;
   min-height: 56px;
   padding: 6px 4px;
   border: 2px solid var(--lotbi-border-strong);
@@ -210,6 +214,7 @@
 /* ③ 할 일 — '바로 전화' first: 112 · 119, the danger color, the largest buttons. */
 .trouble-dialog .trouble-quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 0 0 14px; }
 .trouble-dialog .trouble-quick-call {
+  min-width: 48px;
   min-height: 64px;
   border-color: var(--lotbi-error-text);
   background: var(--lotbi-error-text);
