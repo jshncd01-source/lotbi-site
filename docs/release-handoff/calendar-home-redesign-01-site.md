@@ -4,11 +4,11 @@ REPO=lotbi-site
 OWNER=jshncd01-source
 FEATURE_BRANCH=feature/calendar-home-redesign-01-site
 PR=없음 (Ncloud Git 브랜치 인계)
-READY_CODE_SHA=bdd06d53c575df97f30bb91cf306c5653124d5d9
+READY_CODE_SHA=017f421b90486909dbf0da3c4d7583fd0c6b10d4
 BASE_MAIN_SHA=9147419fb079e6452ff26d82c52a1b8f1dca36e4
 INITIAL_MAIN_SHA=7c4f09445676287f242271cbdfb32d91ec33891e (SITE-T54, 작업 시작 기준)
 REMOTE=ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git
-ASSET_VERSION=aset-b12b92fabdba
+ASSET_VERSION=aset-951201bb4e11
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 SECRET_CHANGE_REQUIRED=NO
@@ -39,6 +39,16 @@ DEPLOYED=NO
 - 새 자산 버전은 `aset-b12b92fabdba`; `--write` 후 `--check` PASS (`targets=169`, `refs=206`).
 - 재READY 스크린샷: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\reready-main-9147419f\`.
 
+## 2026-10-12 Gate 1.0.6 반환 수정
+
+- 반환 Gate: `run_id=20261011T154031Z-4157238-19829856`, 실패 문구 `610-auth: 2026-10-10 calendar-weather-temperature-min overlaps the date`.
+- 원인: 601~900px 월 달력에서 15px 날짜와 9px 최저/최고 온도는 시각적으로 분리돼 있었지만, Linux의 더 높은 기본 글꼴 line box가 온도 줄로 약 1px 내려와 좌표 검사상 겹쳤다.
+- 수정: `site-calendar.css`에서 601~900px 월 달력 날짜 숫자의 line-height만 `1`로 고정했다. 글자 크기·위치·온도·일정·승인 디자인은 바꾸지 않았다.
+- 회귀 고정: `validate_calendar_month_temperature_01.mjs`에 비음력 `610-auth-wide`를 추가했다. 수정 전에는 Gate와 같은 `calendar-weather-temperature-min overlaps the date`로 실패하고 수정 후 PASS한다. 기존 단언·허용 오차·표시 기대값은 변경하지 않았다.
+- 코드 커밋: `017f421b90486909dbf0da3c4d7583fd0c6b10d4`.
+- 자산 버전: `aset-951201bb4e11`; `asset_cache_version --write` 후 `--check` PASS (`targets=169`, `refs=206`).
+- 증거: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\gate-return-610-temperature\` (`610-auth.png`, `610-auth-wide.png`, 600/700/768 및 기존 최종 시안 상태 포함).
+
 ## 구현 범위
 
 1. 상단: 제목/설명, `+ 일정 추가`, 설정, 닫기. 추가 버튼은 현재 선택 날짜로 실제 편집기를 연다.
@@ -61,7 +71,7 @@ DEPLOYED=NO
 `BASE_MAIN_SHA..READY_CODE_SHA` 기준 116개다. 정확한 목록은 다음 명령으로 재현한다.
 
 ```text
-git diff --name-status 9147419fb079e6452ff26d82c52a1b8f1dca36e4..bdd06d53c575df97f30bb91cf306c5653124d5d9
+git diff --name-status 9147419fb079e6452ff26d82c52a1b8f1dca36e4..017f421b90486909dbf0da3c4d7583fd0c6b10d4
 ```
 
 직접 기능 변경:
@@ -101,10 +111,16 @@ git diff --name-status 9147419fb079e6452ff26d82c52a1b8f1dca36e4..bdd06d53c575df9
 
 자산 캐시 생성 결과:
 
-- `site-asset-version.json`과 HTML/JS의 자산 query 참조가 `aset-b12b92fabdba`로 함께 갱신됐다.
+- `site-asset-version.json`과 HTML/JS의 자산 query 참조가 `aset-951201bb4e11`로 함께 갱신됐다.
 - 새 CSS 파일은 추가하지 않았다. `index.html`, `auth/callback/index.html`, 기타 정적 진입점의 기존 CSS 순서를 바꾸지 않았다.
 
 ## 검사 결과
+
+- Gate 1.0.6 반환 수정: PASS.
+  - `validate_calendar_month_temperature_01`: 41개 조합 PASS. 기존 40개에 `610-auth-wide`를 추가했고 610px 인증 기본/넓은 글꼴/음력/다크/한파 조합이 모두 PASS.
+  - 자산 갱신 후 인접 핵심 검사 10개 PASS: holiday surface/settings icon, modal runtime, month geometry, mobile week/weather, cross-platform UX, system dark, toolbar polish, lunar compact layout, responsive, weather glyph legibility.
+  - 캘린더 `validate_calendar*.mjs` 50개 전체 실행: 48 PASS, 2 기존 실패. `validate_calendar_quiet_location_01`은 설정 위치 토글 DOM 없음, `validate_calendar_touch_monthnav_daysheet_01`은 월 보기가 자동 상세 없이 열려야 한다는 구 계약으로 실패했다. 두 검사는 수정 전 READY SHA `e26de09062a91612620aba7458b149942c5cdfd9`의 분리 checkout에서도 같은 오류로 실패해 이번 변경의 신규 회귀가 아니다.
+  - 스크린샷 확인: 610px 인증 기본/넓은 글꼴, 600px 다크, 700px 음력 넓은 글꼴에서 날짜·최저/최고 온도·날씨 아이콘·일정이 겹치지 않는다.
 
 - 최신 main `9147419f` 재READY 핵심 검사: 모두 PASS.
   - 캘린더: `validate_calendar_holiday_surface_settings_icon_01`, `validate_calendar_month_temperature_01`(40개 조합), `validate_calendar_modal_runtime_02`, `validate_calendar_month_geometry_01`, `validate_calendar_mobile_week_ux_weather_01`, `validate_calendar_cross_platform_ux_01`, `validate_calendar_system_dark_01`, `validate_calendar_toolbar_polish_01`.
@@ -156,6 +172,7 @@ git diff --name-status 9147419fb079e6452ff26d82c52a1b8f1dca36e4..bdd06d53c575df9
 - 수정 후: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\after\`
 - 반환 수정 후 재캡처: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\gate-return\`
 - 최신 main 재READY 후 재캡처: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\reready-main-9147419f\`
+- Gate 1.0.6 610px 반환 수정 후: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\gate-return-610-temperature\`
 
 시안 1 대응 빈 상태:
 
