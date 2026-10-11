@@ -27,6 +27,7 @@ import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const conversationSource = fs.readFileSync(path.join(ROOT, 'site-conversation.js'), 'utf8');
 const NAME = 'validate_calendar_command_recognition_p0_01';
 const SAMPLES = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/fixtures/calendar_command_samples_p0_01.json'), 'utf8'));
 
@@ -207,6 +208,21 @@ try {
     await wait(() => threadText().includes('반복 일정은 로그인한 뒤 등록할 수 있어요'), 'guest repeat answer');
     const after2 = JSON.parse(localStorage.getItem('lotbi.guest.calendar.v1') || 'null');
     result.guestEventsAfterRepeat = (after2?.events || []).length;
+    // CALENDAR-GUEST-RECURRING-LOGIN-01: the answer is not a dead end.
+    const loginButtons = [...document.querySelectorAll('[data-login-retry-text]')];
+    const loginButton = loginButtons.at(-1);
+    const loginBox = loginButton?.getBoundingClientRect();
+    loginButton?.scrollIntoView({block: 'center'});
+    const loginHitBox = loginButton?.getBoundingClientRect();
+    const loginHit = loginHitBox ? document.elementFromPoint(loginHitBox.left + loginHitBox.width / 2, loginHitBox.top + loginHitBox.height / 2) : null;
+    result.guestRepeatLogin = {
+      count: loginButtons.length,
+      label: loginButton?.textContent || '',
+      retryText: loginButton?.dataset.loginRetryText || '',
+      height: Math.round(loginBox?.height || 0),
+      pressable: Boolean(loginButton && loginHit && (loginHit === loginButton || loginButton.contains(loginHit))),
+      stored: (() => { try { return Object.keys(localStorage).some(key => String(localStorage.getItem(key) || '').includes('"loginAction":{"label":"로그인하고 등록"')); } catch { return false; } })(),
+    };
     mark = calls.length;
     await send('10월 1일 오후 3시 회의 추가해줘', after(mark, c => c.path !== '/v2/life/commands/preview' && c.path.startsWith('/v2/') && !c.path.startsWith('/v2/life/')), 'guest refused falls through');
     result.guestRefused = calls.slice(mark).map(c => c.path);
@@ -316,6 +332,16 @@ try {
   const guest = values['0'];
   assert.deepEqual(guest.guestEvents, [{title: '엄마 생신', local_date: '2026-11-03', local_datetime: null, all_day: true}], `an all-day command is an all-day guest event, got ${JSON.stringify(guest.guestEvents)}`);
   assert.equal(guest.guestEventsAfterRepeat, 1, 'a repeat is not saved to the browser Calendar');
+  // CALENDAR-GUEST-RECURRING-LOGIN-01 (T55 운영 확인 S3, 기준 ③): one control that logs in and sends it again.
+  assert.equal(guest.guestRepeatLogin.count, 1, `the repeat answer must offer exactly one login control, got ${guest.guestRepeatLogin.count}`);
+  assert.equal(guest.guestRepeatLogin.label, '로그인하고 등록');
+  assert.equal(guest.guestRepeatLogin.retryText, '매주 월요일 오전 10시 팀 회의 등록해줘', 'login must carry the sentence to send again');
+  assert.ok(guest.guestRepeatLogin.height >= 48, `the login control is at least 48px, got ${guest.guestRepeatLogin.height}`);
+  assert.equal(guest.guestRepeatLogin.pressable, true, 'the login control must be pressable');
+  assert.equal(guest.guestRepeatLogin.stored, true, 'the control must survive a reload (kept in the stored answer)');
+  assert.match(conversationSource, /target\?\.closest\('\[data-login-retry-text\]'\)/u, 'a press on it must be handled');
+  assert.match(conversationSource, /beginGuestClaimingSiteHandoff\(loginRetry\.dataset\.loginRetryText \|\| ''\)/u, 'the press logs in with the sentence (auth-callback sends it again)');
+  assert.match(fs.readFileSync(path.join(ROOT, 'site-conversation-sync.js'), 'utf8'), /DEVICE_ONLY_META = new Set\(\[[^\]]*'loginAction'/u, 'the login control stays on this device, never synced to the account');
   assert.ok(guest.guestRefused.includes('/v2/life/commands/preview') && guest.guestRefused.some(c => !c.startsWith('/v2/life/')),
     `a refused guest command must go on to the conversation, got ${JSON.stringify(guest.guestRefused)}`);
   console.log(`${NAME}: PASS (${SAMPLES.accept.length} accepted, ${SAMPLES.reject.length} rejected, ${SAMPLES.reject_by_date.length} sent and refused by date; conversation signed in and out)`);
