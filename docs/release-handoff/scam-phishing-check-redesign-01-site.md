@@ -9,12 +9,12 @@ READY_FOR_DEPLOY=YES
 - READY 보고 대상: `배포총괄 관리`
 - 브랜치: `feature/scam-phishing-check-redesign-01-site`
 - PR: 없음(Ncloud feature 브랜치 직접 인계)
-- 기준 Ncloud main: `9147419fb079e6452ff26d82c52a1b8f1dca36e4` (SITE-T57a3)
+- 기준 Ncloud main: `300859c4829b414fb333558a2df545e5c40933ce` (대화 UI 배포 후 main)
 - 통합·검증 SHA: `4192b875263aa8a16dab1b1ceb5a92312ff99540`
 - Gate 반환 수정·재검증 SHA: `99434a4de5008920d4e98855924d5d0da963fc28`
 - 이전 READY checkpoint: `a50b29b01be40105f94522f9dfef687a93d372b0`
 - 최종 push HEAD: 이 문서를 포함한 READY 커밋 SHA를 최종 보고에서 별도 기재한다.
-- asset cache: `aset-f04cc336a932` (`targets=169`, `refs=206`)
+- asset cache: `aset-b7a4d80ad707` (`targets=169`, `refs=206`)
 
 ## Gate 1.0.6 반환과 수정
 
@@ -89,6 +89,14 @@ READY_FOR_DEPLOY=YES
 - 최신 main의 `calendar-guest-recurring-login`, `trouble-helper-urgent-first`, `site-dark-sheet`, brand/avatar v5, 문서 polish를 보존했다.
 - 현재 RED와 즉시 조율할 항목은 없다. 위 3개 공통 파일을 추가 수정할 때는 캘린더·대화·분쟁 도우미 owner와 fresh 확인한다.
 
+## Site main `300859c4` 재통합
+
+- 기존 재READY `f1eac869f6de7b327e621e92f6195a39c7833ea5` 이후 대화 UI가 먼저 배포되어 main이 `300859c4829b414fb333558a2df545e5c40933ce`로 이동했다. 이전 READY를 STALE로 처리하고 같은 feature 브랜치에 새 main을 정상 merge했다.
+- merge base는 이전 main `9147419fb079e6452ff26d82c52a1b8f1dca36e4`이며 rebase·reset·force-push·history rewrite는 사용하지 않았다.
+- 88개 파일의 130개 conflict hunk를 `aset-*` 정규화 후 전수 비교했다. 130개 모두 asset token 차이였고 실제 코드·제품 동작 conflict hunk는 0건이었다.
+- 새 main의 대화 레이아웃·장소 카드 회전, 관련 CSS·검증기·READY 문서는 자동 통합 결과를 그대로 보존했다. C안의 네이티브 `<dialog>`, 운영명, 입력·결과·라우팅 및 네 차례 Gate 반환 수정도 유지했다.
+- 공식 생성기로 통합 asset token `aset-b7a4d80ad707`을 재생성했다. hardening 잠금 문서는 본문 변경이나 relock 없이 PASS했다.
+
 ## 재READY 변경 범위
 
 - 최신 main merge 및 자동 통합
@@ -157,6 +165,17 @@ READY_FOR_DEPLOY=YES
 - `validate_trouble_helper_01.mjs`, `validate_connected_services_menu_hidden_01.mjs`: PASS — `사기·피싱 확인` 다음 도우미 순서와 `연결 서비스` 숨김 유지.
 - `validate_scam_shield_photo_picker_01.mjs`, `validate_site_refresh_route_restore_01.mjs`: PASS.
 - `validate_accessibility.py`, `validate_hardening.py`, `asset_cache_version.mjs --check`: PASS.
+
+### main `300859c4` 재통합 영향검사
+
+- conflict audit: 88개 파일 / 130개 hunk 중 token-only 130, 실제 코드 conflict 0.
+- `validate_conversation_design_01.mjs`, `validate_place_card_rotation_01.mjs`: PASS — 새 main의 대화·장소 카드 레이아웃과 회전 계약 보존.
+- `validate_common_ui_polish_01.mjs`, `validate_common_ui_polish_02.mjs`, `validate_consumer_design_shell_01.mjs`: PASS.
+- `validate_scam_shield_mvp_01.mjs`, `validate_scam_shield_connection_01.mjs`, `validate_scam_shield_photo_picker_01.mjs`: PASS.
+- `validate_scam_shield_double_check_p0.mjs`, `validate_scam_shield_result_banner_contrast_01.mjs`, `validate_scam_shield_login_gate_contrast_01.mjs`: PASS.
+- `validate_site_refresh_route_restore_01.mjs`, `validate_trouble_helper_01.mjs`, `validate_connected_services_menu_hidden_01.mjs`: PASS.
+- `validate_accessibility.py`, `validate_hardening.py`, `validate_legal_pages.py`, `validate_social_legal_manifest_01.py`: PASS.
+- `asset_cache_version.mjs --check`: PASS — `aset-b7a4d80ad707`, targets 169 / refs 206.
 
 ## 최신 통합 사용자 시나리오
 
