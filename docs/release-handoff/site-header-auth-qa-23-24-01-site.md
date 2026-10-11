@@ -2,7 +2,7 @@ READY_FOR_DEPLOY=YES
 MIGRATION=NO
 DEPLOY_ORDER=SITE 단독 (Core·Web·App 변경 없음, 같은 묶음의 Web QA #22와 순서 무관)
 USER_DECISION_NEEDED=NONE
-SUPERSEDES=279da9ec56110873766eefef4ac0226cf5d8d30f (gate FAIL: validate_accessibility.py:127 "index.html: expected one mobile menu open control")
+SUPERSEDES=d7cd420344731d63c6f4988c7a3fbf395970623a (FIX 02), 그 앞 279da9ec56110873766eefef4ac0226cf5d8d30f (gate FAIL: validate_accessibility.py:127 "index.html: expected one mobile menu open control")
 
 # site-header-auth-qa-23-24-01-site — release handoff
 
@@ -10,11 +10,26 @@ TASK=배포총괄방 QA #23(Header "계정 확인 중"이 오래 걸릴 때 로�
 REPO=lotbi-site (Ncloud)
 FEATURE_BRANCH=feature/site-header-auth-qa-23-24-01-site
 FEATURE_SHA=이 문서 커밋(branch HEAD, `git ls-remote origin refs/heads/feature/site-header-auth-qa-23-24-01-site`로 확인)
-CODE_SHA=7f5c45ba01b9785c434aa1339b3696370beaefa5 (77feafe6 기능 → 24a2762c main afb7057d 정상 merge → 7f5c45ba FIX 02)
+CODE_SHA=251320592f411d89e9c8b0605a685b4bdad6fe4a (77feafe6 기능 → 24a2762c main afb7057d 정상 merge → 7f5c45ba FIX 02 → 이 커밋 FIX 03)
 BASE_MAIN=afb7057d1d8c149e2b46eb1d656b1049e36b831d (작업 시작 61d3ce37 → READY 직전 ls-remote에서 afb7057d로 움직여 정상 merge. 충돌은 토큰 줄과 main이 새로 넣은 import·link 줄뿐, 해당 구간은 main 쪽을 그대로 씀)
-ASSET_VERSION=aset-c2ddf661acdd (LF checkout에서 `asset_cache_version.mjs --check` PASS)
+ASSET_VERSION=aset-901119375843 (LF checkout에서 `asset_cache_version.mjs --check` PASS)
 FLAG=없음
 PRODUCTION_CHANGED=NO / DB_CHANGED=NO / NEW_SECRET_CREATED=NO / LIVE_MONEY=NO / NEW_PAID_RESOURCE_CREATED=NO
+
+## 사용자 시나리오 (USER_FIRST_STANDARD 8) — FIX 03
+
+상세·스크린샷·측정 원본: `C:/Users/jshnc/LOTBI-NCLOUD/release-control/user-scenarios/site-header-auth-qa-23-24-01/` (SCENARIOS.md, results.json, PNG)
+
+| # | 흐름 | 탭 수 | 막힌 곳 |
+|---|---|---|---|
+| S1 | 로그인한 휴대폰 → Header 프로필 → 메뉴 서랍(계정 줄까지는 +1) · 라이트·다크 | 1 (+1) | 없음 |
+| S3 | 로그인 안 한 휴대폰, Account 3초 → 약 1.3~1.5초에 로그인 버튼 → 누르면 계정 로그인 주소로 이동 · 라이트·다크 | 1 | 처음 0.8초는 버튼 없음(의도) |
+| S4 | 로그인 안 한 PC, Account 3초 → 사이드바 "계정 확인 중" 옆에 약 1.5~2.0초에 로그인 버튼 → 이동 · 라이트·다크 | 1 | 처음 0.8초는 버튼 없음(의도) |
+| S5 | 로그인한 휴대폰, 응답 빠름 → 홈 열기만 | 0 | 없음, 로그인 깜빡임 0 |
+| S6 | 로그인한 PC → 홈 열기만 · 라이트·다크 | 0 | 없음 |
+
+따라 해서 발견해 고친 것(FIX 03): ① PC에는 #23이 안 닿았다(Header 계정 영역이 PC에는 없고 "계정 확인 중"은 사이드바에 글자뿐) → 사이드바(PC·휴대폰 서랍)에도 같은 지연 로그인. ② 터치 44px → 프로필 버튼 48, 로그인은 눌리는 영역 48+.
+고치지 않고 보고하는 것: 다크 모드에서 "계정 확인 중"이 길면 본문이 흰색+연한 글자(현재 main T54에서도 동일, 원인·스크린샷은 SCENARIOS.md). 햄버거(44)·확인 후 로그인/회원가입 버튼(약 36)도 48 미달(기존, 범위 밖).
 
 ## FIX 02 — gate 반환 원인과 조치 (재READY)
 
