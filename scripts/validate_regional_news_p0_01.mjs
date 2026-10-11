@@ -157,7 +157,7 @@ assert.equal((read('site-core.js').match(/newsResult: payload\.news_result/gu) |
 // stories (two pages of 20; sports last under 전체; one unlinkable item that the
 // Site drops), 문화·축제·관광 has none (its tab is hidden), 1주일 has seven days of
 // at most ten stories.
-function screenFeed(now, label, source, params) {
+function screenFeed(now, label, source, params, provinceLabel = label) {
   const at = minutes => new Date(now - minutes * 60000).toISOString();
   const short = label.slice(0, 2);
   const plan = ['politics', 'economy', 'society', 'education', 'welfare', 'traffic_realestate', 'weather_safety'];
@@ -174,7 +174,8 @@ function screenFeed(now, label, source, params) {
   const category = params.category || 'all';
   const counts = Object.fromEntries(Object.keys(labels).map(id => [id, today.filter(item => item.category === id).length]));
   const categories = [{id: 'all', label: '전체', count: today.length}, ...Object.keys(labels).map(id => ({id, label: labels[id], count: counts[id]}))];
-  const body = {status: 'OK', contract_id: 'CORE-REGIONAL-NEWS-FEED-01', region: {level: 'PROVINCE', label, source},
+  const body = {status: 'OK', contract_id: 'CORE-REGIONAL-NEWS-FEED-01', region: {level: provinceLabel === label ? 'PROVINCE' : 'CITY', label, source}, province: provinceLabel,
+    cities: /전북/u.test(provinceLabel) ? ['전주시', '군산시', '익산시', '완주군'] : /세종/u.test(provinceLabel) ? [] : ['중구', '서구'],
     period: params.period || 'today', category, categories, attribution: '검색: NAVER · 기사: 각 언론사'};
   if ((params.period || 'today') === 'week') {
     body.days = [];
@@ -301,9 +302,11 @@ try {
       const params = parsed.searchParams;
       const current = params.has('latitude');
       const asked = params.get('region') || '';
-      const label = current || /전주|전북/u.test(asked) ? '전북특별자치도' : asked;
+      const province = current || /전주|전북/u.test(asked) ? '전북특별자치도' : asked;
+      const city = params.get('city') || '';
       const source = current ? 'CURRENT_LOCATION' : 'TEXT';
-      return json(SCREEN_FEED(Date.now(), label, source, Object.fromEntries(params)));
+      const label = city && !/전북/u.test(province) ? province + ' ' + city : (city || province);
+      return json(SCREEN_FEED(Date.now(), label, source, Object.fromEntries(params), province));
     }
     if (parsed.origin !== location.origin) return json({items:[]});
     return nativeFetch(url, init);
@@ -349,11 +352,16 @@ const PROBE = `(() => {
   const news = newsRoot ? {
     state: newsRoot.dataset.newsState || '', title: newsRoot.querySelector('.lotbi-news-title')?.textContent || '',
     basis: newsRoot.querySelector('.lotbi-news-basis')?.textContent || '',
-    toggle: (() => { const t = newsRoot.querySelector('[data-news-region-toggle]'); return t ? {label: t.getAttribute('aria-label'), expanded: t.getAttribute('aria-expanded'), box: box(t)} : null; })(),
+    modes: [...newsRoot.querySelectorAll('[data-news-mode]')].map(b => ({mode: b.dataset.newsMode, pressed: b.getAttribute('aria-pressed'), shown: !b.hidden && b.getClientRects().length > 0, h: b.getBoundingClientRect().height, w: b.getBoundingClientRect().width})),
+    iconToggle: Boolean(newsRoot.querySelector('[data-news-region-toggle], .lotbi-news-region-toggle')),
+    allowWords: /위치 허용/u.test(newsRoot.textContent || ''),
+    cityShown: Boolean(newsRoot.querySelector('.lotbi-news-cities') && !newsRoot.querySelector('.lotbi-news-cities').hidden),
+    cityChips: [...newsRoot.querySelectorAll('[data-news-city]')].map(b => ({id: b.dataset.newsCity, label: b.textContent, pressed: b.getAttribute('aria-pressed'), h: b.getBoundingClientRect().height, shown: b.getClientRects().length > 0})),
+    cityRowBox: (() => { const r = newsRoot.querySelector('.lotbi-news-cities'); return r && !r.hidden ? box(r) : null; })(),
+    provinceShown: [...newsRoot.querySelectorAll('[data-news-province]')].some(b => b.getClientRects().length > 0),
+    provinceChips: [...newsRoot.querySelectorAll('[data-news-province]')].map(b => ({id: b.dataset.newsProvince, label: b.textContent, pressed: b.getAttribute('aria-pressed'), h: b.getBoundingClientRect().height, w: b.getBoundingClientRect().width, right: b.getBoundingClientRect().right})),
+    summary: newsRoot.querySelector('[data-news-mode="pick"]')?.textContent || '',
     pickerOpen: !newsRoot.querySelector('.lotbi-news-picker').hidden,
-    options: [...newsRoot.querySelectorAll('[data-news-region] option')].map(o => o.value),
-    selected: newsRoot.querySelector('[data-news-region]')?.value ?? '',
-    allow: (() => { const a = newsRoot.querySelector('[data-news-allow-location]'); return a && !a.hidden ? {box: box(a), text: a.textContent} : null; })(),
     periods: [...newsRoot.querySelectorAll('[data-news-period]')].map(b => ({id: b.dataset.newsPeriod, pressed: b.getAttribute('aria-pressed'), visible: b.getClientRects().length > 0, h: b.getBoundingClientRect().height})),
     items: [...newsRoot.querySelectorAll('.lotbi-news-item')].map(a => ({href: a.href, target: a.target, rel: a.rel, box: box(a),
       title: a.querySelector('.lotbi-news-item-title')?.textContent || '', meta: a.querySelector('.lotbi-news-item-meta')?.textContent || '',
@@ -577,8 +585,17 @@ async function runCase(browser, origin, dir, testCase) {
       await openLife();
       await tap(await reveal('.consumer-workspace [data-life-shortcut="news"]'));
     };
+    const mode = (news, name) => news.modes.find(item => item.mode === name);
+    // One tap on a 시·도 chip (opening the chips first when they are folded) and
+    // one on a 시·군·구 chip — real touches, counted by the callers.
+    let taps = 0;
+    const countedTap = async center => { taps += 1; await tap(center); };
     const pick = async value => {
-      await evaluate(`(() => { const s = document.querySelector('[data-news-region]'); s.value = ${JSON.stringify(value)}; s.dispatchEvent(new Event('change', {bubbles: true})); return true; })()`);
+      if (!(await probe()).news?.provinceShown) await countedTap(await reveal('[data-news-mode="pick"]'));
+      await countedTap(await reveal(`[data-news-province="${value}"]`));
+    };
+    const pickCity = async value => {
+      await countedTap(await reveal(`[data-news-city="${value}"]`));
     };
     const checkList = (value, step, count = 20) => {
       const list = value.news;
@@ -599,20 +616,29 @@ async function runCase(browser, origin, dir, testCase) {
     };
 
     // 2. No saved region, location use on but not allowed yet: the screen asks
-    //    for a 시·도 (no typing), shows [위치 허용], and reads nothing yet.
+    //    for a 시·도 (no typing) with two ways to choose — [현재 위치] and
+    //    [시·도 선택] (QA #13: no 지역 변경 icon, no separate 위치 허용 button) — and
+    //    reads nothing yet.
     await openNews();
     state = await newsState(news => news.state === 'PICK', 'pick a region');
     assert.equal(state.news.title, '지역뉴스');
     assert.equal(state.news.pickerOpen, true);
-    assert.equal(state.news.options[0], '', 'placeholder first');
-    assert.equal(state.news.options.length, 18, '시·도 선택 + 17 시·도');
-    assert.ok(state.news.allow && state.news.allow.box.h >= 44, `${testCase.label}: [위치 허용] while location use is on but not allowed`);
-    assert.equal(state.news.toggle.label, '지역 변경');
-    assert.ok(state.news.toggle.box.h >= 44 && state.news.toggle.box.w >= 44, `${testCase.label}: 지역 변경 touch target`);
+    assert.equal(state.news.provinceChips.length, 17, '17 시·도, one chip each (no dropdown)');
+    assert.ok(state.news.provinceChips.every(chip => chip.h >= 44 && chip.right <= state.viewport.w), `${testCase.label}: every 시·도 chip is a 44px target inside the screen`);
+    assert.deepEqual(state.news.provinceChips.slice(0, 3).map(chip => chip.label), ['서울', '부산', '대구']);
+    assert.equal(state.news.summary, '시·도 선택 ▾');
+    assert.equal(await evaluate("document.querySelectorAll('.consumer-workspace select').length"), 0, `${testCase.label}: no dropdown on the 지역뉴스 screen`);
+    assert.deepEqual(state.news.modes.map(item => item.mode), ['current', 'pick'], `${testCase.label}: exactly two ways to choose`);
+    assert.ok(mode(state.news, 'current').shown && mode(state.news, 'current').h >= 44, `${testCase.label}: [현재 위치] offered while location use is on but not allowed`);
+    assert.ok(mode(state.news, 'pick').shown && mode(state.news, 'pick').h >= 44 && mode(state.news, 'pick').pressed === 'true');
+    assert.equal(state.news.provinceShown, true);
+    assert.equal(state.news.cityShown, false, `${testCase.label}: no 시·군·구 before a 시·도 is read`);
+    assert.equal(state.news.iconToggle, false, `${testCase.label}: no 지역 변경 icon`);
+    assert.equal(state.news.allowWords, false, `${testCase.label}: no 위치 허용 button`);
     assert.equal(state.news.textInputs, 0, `${testCase.label}: nothing to type`);
     assert.equal(state.news.status, '지역을 골라 주세요.');
     assert.equal(await evaluate('globalThis.__newsRequests.length'), 0, `${testCase.label}: nothing read before a region`);
-    assert.equal(await evaluate('globalThis.__geolocationCalls'), 0, `${testCase.label}: no position asked before [위치 허용]`);
+    assert.equal(await evaluate('globalThis.__geolocationCalls'), 0, `${testCase.label}: no position asked before [현재 위치]`);
     assert.ok(!['INPUT', 'TEXTAREA'].includes(state.active?.tag), `${testCase.label}: no keyboard`);
     assert.ok(state.pageOverflowX <= 0 && state.panelOverflowX <= 0, `${testCase.label}: pick screen fits`);
     await shot('02-news-pick');
@@ -628,8 +654,12 @@ async function runCase(browser, origin, dir, testCase) {
     const sentBefore = await evaluate('globalThis.__sent.length');
     await openNews();
     await newsState(news => news.state === 'PICK', 'pick again');
+    taps = 0;
     await pick('전북특별자치도');
     state = await newsState(news => news.state === 'READY', 'province list');
+    assert.equal(taps, 1, `${testCase.label}: a 시·도 is one tap (the chips are already open)`);
+    assert.equal(state.news.provinceShown, false, `${testCase.label}: the 시·도 chips fold away once one is picked`);
+    assert.equal(state.news.summary, '전북 ▾', `${testCase.label}: the one-line summary says what is read`);
     assert.equal(state.news.title, '전북특별자치도 지역뉴스');
     assert.equal(state.news.basis, '선택한 지역 · 오늘 · 최신순');
     assert.deepEqual(await evaluate('globalThis.__newsRequests.at(-1)'), {region: '전북특별자치도', period: 'today', limit: '20', view: 'feed'});
@@ -673,10 +703,40 @@ async function runCase(browser, origin, dir, testCase) {
       const contrast = Math.abs(luminance(state.news.items[0].titleColor) - luminance(state.pageBackground));
       assert.ok(contrast > 0.4, `${testCase.label}: list text readable on the dark page`);
     }
-    // 지역 변경 opens the picker again.
-    await tap(await reveal('[data-news-region-toggle]'));
-    state = await newsState(news => news.pickerOpen, '지역 변경');
-    assert.equal(state.news.toggle.expanded, 'true');
+    // REGIONAL-NEWS-CITY-SELECT-01: after a 시·도 is read, a 시·군·구 (전체 by
+    // default, Core's list) narrows the news; 전체 goes back to the 시·도.
+    assert.equal(state.news.cityShown, true);
+    assert.deepEqual(state.news.cityChips.map(chip => `${chip.id}:${chip.label}`), [':전체', '전주시:전주시', '군산시:군산시', '익산시:익산시', '완주군:완주군']);
+    assert.equal(state.news.cityChips[0].pressed, 'true');
+    assert.ok(state.news.cityChips.every(chip => chip.h >= 44 && chip.shown), `${testCase.label}: 시·군·구 chips are 44px targets in one row`);
+    await pickCity('전주시');
+    state = await newsState(news => news.state === 'READY' && news.title === '전주시 지역뉴스', '시·군 list');
+    assert.equal(state.news.summary, '전북 · 전주시 ▾');
+    assert.deepEqual(await evaluate('globalThis.__newsRequests.at(-1)'), {region: '전북특별자치도', city: '전주시', period: 'week', limit: '20', view: 'feed'});
+    assert.equal(state.news.basis, '선택한 지역 · 1주일 · 날짜별 대표 기사');
+    assert.equal(state.news.cityChips.find(chip => chip.id === '전주시').pressed, 'true');
+    assert.ok(state.news.items.length > 0 && state.news.items.every(item => item.title.includes('전주')), `${testCase.label}: only 전주 stories`);
+    await shot('03d-news-city');
+    await pickCity('');
+    state = await newsState(news => news.state === 'READY' && news.title === '전북특별자치도 지역뉴스', '전체 again');
+    assert.equal((await evaluate('globalThis.__newsRequests.at(-1)')).city, undefined, `${testCase.label}: 전체 sends no city`);
+
+    // 대전 서구: 지역뉴스 → 시·도 chip → 시·군·구 chip = three taps; on a phone the
+    // first article is on the first screen once the choice is made.
+    await tap(await reveal('.consumer-workspace .site-modal-close'));
+    await waitFor(async () => !(await probe()).detail, `${testCase.label}: back to 지역정보`);
+    taps = 0;
+    await countedTap(await reveal('.consumer-workspace [data-life-shortcut="news"]'));
+    await newsState(news => news.state === 'PICK' || news.state === 'READY', 'news screen again');
+    await pick('대전광역시');
+    await newsState(news => news.state === 'READY' && news.title === '대전광역시 지역뉴스', '대전 list');
+    await pickCity('서구');
+    state = await newsState(news => news.state === 'READY' && news.title === '대전광역시 서구 지역뉴스', '서구 list');
+    assert.equal(taps, 3, `${testCase.label}: 대전 서구 in three taps (지역뉴스 → 시·도 → 시·군·구)`);
+    assert.equal(state.news.summary, '대전 · 서구 ▾');
+    const first = state.news.items[0];
+    assert.ok(first && first.box.bottom <= state.viewport.h, `${testCase.label}: the first article is on the first screen (bottom ${first && Math.round(first.box.bottom)} of ${state.viewport.h})`);
+    await shot('03e-news-seogu-three-taps');
 
     // 3b. Core news off or failing: a plain error with 다시 시도, no list and
     //     nothing old shown in its place.
@@ -701,20 +761,37 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(state.news.title, '전북특별자치도 지역뉴스');
     assert.equal(state.news.basis, '저장 지역 기준 · 오늘 · 최신순');
     assert.deepEqual(await evaluate('globalThis.__newsRequests.at(-1)'), {region: '전주시', period: 'today', limit: '20', view: 'feed'});
-    assert.ok(state.news.allow, `${testCase.label}: [위치 허용] still offered`);
-    assert.equal(await evaluate('globalThis.__geolocationCalls'), geoBeforeSaved, `${testCase.label}: saved-region news never asks for the position`);
+    assert.ok(mode(state.news, 'current').shown, `${testCase.label}: [현재 위치] still offered`);
+    // [현재 위치] is what asks the browser: denied → a plain notice, the list stays;
+    // allowed → the current location's 시·도 list and no further button.
+    const geoBeforeAsk = await evaluate('globalThis.__geolocationCalls');
+    await tap(await reveal('[data-news-mode="current"]'));
+    state = await newsState(news => news.status === '위치를 확인하지 못했어요. 시·도를 골라 주세요.', 'location denied');
+    assert.equal(await evaluate('globalThis.__geolocationCalls') - geoBeforeAsk, 1, `${testCase.label}: one position request, made by [현재 위치]`);
+    assert.equal(mode(state.news, 'pick').pressed, 'true');
+    assert.equal(state.news.title, '전북특별자치도 지역뉴스', `${testCase.label}: the saved list stays after a denied request`);
+    await shot('04a-news-location-denied');
+    await evaluate(`globalThis.__permission = 'granted', true`);
+    await tap(await reveal('[data-news-mode="current"]'));
+    state = await newsState(news => news.state === 'READY' && news.basis.startsWith('현재 위치'), '현재 위치 after allow');
+    assert.equal(mode(state.news, 'current').pressed, 'true');
+    await evaluate(`globalThis.__permission = 'prompt', true`);
+    assert.equal(await evaluate('globalThis.__geolocationCalls') - geoBeforeAsk, 2, `${testCase.label}: only [현재 위치] asked for the position`);
+    assert.equal(geoBeforeAsk, geoBeforeSaved, `${testCase.label}: saved-region news never asks for the position`);
     checkList(state, 'saved');
 
     // 5. Location already allowed: the current location's 광역시·도 list shows
-    //    at once and [위치 허용] is not shown. With location use off in LOTBI
+    //    at once and no 위치 허용 button exists. With location use off in LOTBI
     //    settings the position is not even asked for and no button shows.
     await evaluate(`globalThis.__permission = 'granted', true`);
     await openNews();
     state = await newsState(news => news.state === 'READY' && news.basis.startsWith('현재 위치'), 'current location list');
     assert.equal(state.news.title, '전북특별자치도 지역뉴스');
     assert.equal(state.news.basis, '현재 위치 기준 · 오늘 · 최신순');
-    assert.equal(state.news.allow, null, `${testCase.label}: no [위치 허용] once allowed`);
-    assert.equal(state.news.selected, 'current');
+    assert.equal(state.news.allowWords, false, `${testCase.label}: no 위치 허용 button once allowed`);
+    assert.equal(mode(state.news, 'current').pressed, 'true');
+    assert.equal(state.news.provinceShown, false, `${testCase.label}: current location needs no 시·도 pick`);
+    assert.equal(state.news.cityShown, true, `${testCase.label}: a 시·군·구 may still narrow the current 시·도`);
     const currentRequest = await evaluate('globalThis.__newsRequests.at(-1)');
     assert.deepEqual(currentRequest, {latitude: '35.813', longitude: '127.118', period: 'today', limit: '20', view: 'feed'}, `${testCase.label}: coarse coordinates only`);
     checkList(state, 'current');
@@ -723,7 +800,13 @@ async function runCase(browser, origin, dir, testCase) {
     const geoBeforeOff = await evaluate('globalThis.__geolocationCalls');
     await openNews();
     state = await newsState(news => news.state === 'READY' && news.basis.startsWith('저장 지역'), 'location use off');
-    assert.equal(state.news.allow, null, `${testCase.label}: location use off → no [위치 허용]`);
+    assert.equal(mode(state.news, 'current').shown, false, `${testCase.label}: location use off → no [현재 위치]`);
+    // Without [현재 위치] the only button left is the summary line: it says what is read
+    // and opens the 시·도 chips, so it stays.
+    assert.deepEqual(state.news.modes.filter(item => item.shown).map(item => item.mode), ['pick'], `${testCase.label}: only the summary line, no [현재 위치]`);
+    assert.equal(state.news.summary, '전북 ▾');
+    await shot('04b-news-location-off');
+    assert.equal(state.news.allowWords, false);
     assert.equal(await evaluate('globalThis.__geolocationCalls'), geoBeforeOff, `${testCase.label}: location use off → no position asked`);
     await evaluate(`document.cookie = 'lotbi_location_usage_v1=; path=/; max-age=0', true`);
     await evaluate(`globalThis.__permission = 'prompt', true`);
