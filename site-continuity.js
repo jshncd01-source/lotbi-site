@@ -1,5 +1,5 @@
-import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-c2ddf661acdd';
-import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-c2ddf661acdd';
+import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-901119375843';
+import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-901119375843';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
@@ -180,7 +180,15 @@ function sidebarCheckingNodes(message) {
   status.className = 'sr-only';
   status.setAttribute('role', 'status');
   status.textContent = message;
-  return [placeholder, status];
+
+  // SITE-HEADER-AUTH-QA-23-24-01 FIX 03 (#23 on a PC and in the phone drawer) —
+  // the sidebar account row is where "계정 확인 중" is on screen on a PC (the
+  // Header account area only exists on a phone). Same delayed 로그인 as the
+  // Header's: hidden for 0.8 s so a quick answer never flashes it, withdrawn
+  // when Account answers signed-in (withdrawLoginWhileChecking). It reuses the
+  // sidebar's own recovery-button look.
+  const login = recoveryLoginLink('sidebar-account-recovery-action account-login-while-checking');
+  return [placeholder, status, login];
 }
 
 function sidebarAccountLink({href, label, primary, secondary}) {

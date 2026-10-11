@@ -82,6 +82,33 @@
   animation: lotbi-checking-yields 0s linear 0.8s forwards;
 }
 
+/* FIX 03 — the same delayed 로그인 beside "계정 확인 중" in the sidebar account
+   row (a PC's only account area; the phone drawer's too). */
+.sidebar-account-slot[data-auth-state="checking"] {
+  position: relative;
+}
+
+.sidebar-account-slot[data-auth-state="checking"] .account-login-while-checking {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  margin-block: auto;
+  height: fit-content;
+  opacity: 0;
+  pointer-events: none;
+  animation: lotbi-login-while-checking 0s linear 0.8s forwards;
+}
+
+/* USER_FIRST_STANDARD 6 — the look stays the size of the buttons it turns into,
+   the part that takes a tap is at least 48px (pointer-events are inherited, so
+   it is as inert as the button until the delay ends). */
+.account-login-while-checking::after {
+  content: "";
+  position: absolute;
+  inset-block: -9px;
+  inset-inline: -6px;
+}
+
 @keyframes lotbi-login-while-checking {
   to {
     opacity: 1;
@@ -104,8 +131,8 @@
 
 @media (max-width: 900px) {
   body[data-site-authenticated="true"] .mobile-header-account {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     padding: 0;
     display: inline-grid;
     place-items: center;
