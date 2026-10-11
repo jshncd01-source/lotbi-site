@@ -3287,6 +3287,18 @@ body[data-site-theme="dark"] .calendar-day-empty { background: #171c25; }
   .calendar-day-expense-card { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* The redesign's tablet rule above restores bounded titled rows up to 900px.
+   On phones the date button also keeps its schedule-presence dots. Move those
+   below the forecast band so a holiday surface never masks the schedule. */
+@media (max-width: 600px) {
+  .calendar-month-grid .calendar-record-dots {
+    position: absolute;
+    left: 6px;
+    top: 58px;
+    display: flex;
+  }
+}
+
 /* BEGIN GENERATED: system-dark mirror -- scripts/generate_calendar_system_dark.mjs */
 /* Do not edit by hand. Run the generator; the validator fails on drift. */
 @media (prefers-color-scheme: dark) {
