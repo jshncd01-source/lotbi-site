@@ -123,7 +123,7 @@ function ensureNewsStyles(doc) {
   if (!doc?.head || doc.querySelector('link[data-site-regional-news-styles]')) return;
   const link = doc.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-regional-news.css?v=aset-ec76ce0fd86f';
+  link.href = '/site-regional-news.css?v=aset-58bd1f7cb22a';
   link.dataset.siteRegionalNewsStyles = 'true';
   doc.head.appendChild(link);
 }
