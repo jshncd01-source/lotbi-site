@@ -6,6 +6,7 @@ READY_FOR_DEPLOY=YES
 
 - 저장소: `lotbi-site`
 - owner: 사기·피싱 확인 기존 Codex 개발방
+- READY 보고 대상: `LOTBI ① 작업방 총괄관리`
 - 브랜치: `feature/scam-phishing-check-redesign-01-site`
 - PR: 없음(Ncloud feature 브랜치 직접 인계)
 - 기준 Ncloud main: `9147419fb079e6452ff26d82c52a1b8f1dca36e4` (SITE-T57a3)
@@ -112,8 +113,9 @@ READY_FOR_DEPLOY=YES
 
 1. `CORE-T51` HOLD를 이 방에서 해제하지 않는다.
 2. Core가 MASTER 승인으로 배포되고 헬스·분석 endpoint가 확인된 뒤 Site를 배포한다.
-3. Site main 병합·Production 배포는 Codex 배포총괄방이 MASTER 승인 후 수행한다.
-4. 이 방은 feature 재READY까지만 담당한다.
+3. 이 개발방은 READY를 `LOTBI ① 작업방 총괄관리`에 보고한다. 배포 실행방에 직접 전달하지 않는다.
+4. 총괄관리방 확인 후 `LOTBI ② Ncloud 병합·운영배포 실행`이 MASTER 승인 범위에서 Site main 병합·Production 배포를 수행한다.
+5. 이 방은 feature 재READY까지만 담당한다.
 
 환경변수 변경 없음. DB 변경·migration 없음. 비밀값 추가 없음.
 
