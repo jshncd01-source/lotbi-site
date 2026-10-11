@@ -9,13 +9,15 @@ READY_FOR_DEPLOY=YES
 - READY 보고 대상: `배포총괄 관리`
 - 브랜치: `feature/scam-phishing-check-redesign-01-site`
 - PR: 없음(Ncloud feature 브랜치 직접 인계)
-- 기준 Ncloud main: `300859c4829b414fb333558a2df545e5c40933ce` (대화 UI 배포 후 main)
+- 기준 Ncloud main: `f2f56e364e0c0913f1cb961ab355ea66f442b96e` (캘린더 Production 반영 후 main)
 - 통합·검증 SHA: `4192b875263aa8a16dab1b1ceb5a92312ff99540`
 - Gate 반환 수정·재검증 SHA: `99434a4de5008920d4e98855924d5d0da963fc28`
 - 다섯 번째 Gate 반환 수정·재검증 SHA: `8ce0d00cda2bb809b084978b1f1ebdaf8ebb11fa`
-- 이전 READY checkpoint: `a50b29b01be40105f94522f9dfef687a93d372b0`
+- 최신 main 정상 merge SHA: `404b33f031d8e2803cb54b765eb14f99d1fd4586`
+- STALE READY checkpoint: `93c9fec3047e9494110e94e31de569dd8bf3d21c`
+- 최초 READY checkpoint: `a50b29b01be40105f94522f9dfef687a93d372b0`
 - 최종 push HEAD: 이 문서를 포함한 READY 커밋 SHA를 최종 보고에서 별도 기재한다.
-- asset cache: `aset-6c2448ed185b` (`targets=169`, `refs=206`)
+- asset cache: `aset-ccefbf0a4bed` (`targets=169`, `refs=206`)
 
 ## Gate 1.0.6 반환과 수정
 
@@ -111,6 +113,15 @@ READY_FOR_DEPLOY=YES
 - 새 main의 대화 레이아웃·장소 카드 회전, 관련 CSS·검증기·READY 문서는 자동 통합 결과를 그대로 보존했다. C안의 네이티브 `<dialog>`, 운영명, 입력·결과·라우팅 및 네 차례 Gate 반환 수정도 유지했다.
 - 공식 생성기로 통합 asset token `aset-b7a4d80ad707`을 재생성했다. hardening 잠금 문서는 본문 변경이나 relock 없이 PASS했다.
 
+## 캘린더 Production main `f2f56e36` 재통합
+
+- 캘린더가 Production 반영되어 Site main이 `f2f56e364e0c0913f1cb961ab355ea66f442b96e`로 이동했다. 기준 main `300859c4`의 READY `93c9fec3047e9494110e94e31de569dd8bf3d21c`는 STALE로 처리했다.
+- fresh 확인 후 rebase·reset·force-push 없이 정상 merge했다. merge SHA는 `404b33f031d8e2803cb54b765eb14f99d1fd4586`, parents는 `93c9fec3047e9494110e94e31de569dd8bf3d21c f2f56e364e0c0913f1cb961ab355ea66f442b96e`다.
+- merge 중 88개 파일에서 130개 conflict hunk가 표시됐다. 각 stage와 충돌 표식을 전수 비교한 결과 130개 모두 `aset-*` token 차이였다.
+- `about.html`, `index.html`, `site-calendar-manager.js`, `site-calendar-product.js`, `site-conversation.js`, `site-trouble-helper.js`, `subscribe.html`은 양쪽 stage 전체에 별도 제품 변경이 있었지만 conflict hunk 자체는 token-only였다. 파일 전체를 한쪽으로 덮지 않고 Git의 자동 통합 결과를 보존한 채 token 구간만 정리했다.
+- 새 main의 캘린더 확정 디자인, 601px 이상 날짜 line-height 보정, Linux 동등 1023/1024/1025/1100/1101/1280px 날씨 비겹침 검사와 대화·장소 변경을 보존했다. 사기·피싱 C안, 운영명, 네이티브 dialog, 초점 1회 복원과 이전 Gate 반환 수정도 유지했다.
+- 공식 생성기로 통합 asset token `aset-ccefbf0a4bed`을 재생성했다.
+
 ## 재READY 변경 범위
 
 - 최신 main merge 및 자동 통합
@@ -205,6 +216,19 @@ READY_FOR_DEPLOY=YES
 - `validate_accessibility.py`, `validate_hardening.py`, `validate_legal_pages.py`, `validate_social_legal_manifest_01.py`: PASS. Windows cp949 출력 실패 후 테스트 내용 변경 없이 `PYTHONUTF8=1`로 동일 검사를 재실행했다.
 - `validate_conversation_design_01.mjs`, `validate_place_card_rotation_01.mjs`: PASS — 새 main 대화·장소 카드 계약 보존.
 - `asset_cache_version.mjs --check`: PASS — `aset-6c2448ed185b`, targets 169 / refs 206.
+
+### 캘린더 Production main `f2f56e36` 재통합 영향검사
+
+- conflict audit: 88개 파일 / 130개 hunk 중 token-only 130, 실제 코드 conflict hunk 0건. 충돌 표식 0건, `git diff --check` PASS.
+- 사기·피싱: `validate_consumer_sections_02.mjs`, `validate_common_ui_polish_01.mjs`, `validate_common_ui_polish_02.mjs`, `validate_consumer_design_shell_01.mjs`, `validate_scam_shield_mvp_01.mjs`, `validate_scam_shield_connection_01.mjs`, `validate_connected_services_menu_hidden_01.mjs`, `validate_photo_input_no_camcorder_01.mjs`: PASS.
+- 실제 Chrome 사진 선택: `validate_scam_shield_photo_picker_01.mjs` PASS — 360 light/dark, 390 KakaoTalk UA, 412 Android UA, 1280 desktop light/dark.
+- 결과·대조·로그인 대비: `validate_scam_shield_double_check_p0.mjs` 16 renders PASS, `validate_scam_shield_result_banner_contrast_01.mjs`와 `validate_scam_shield_login_gate_contrast_01.mjs` 각 30 renders PASS, WCAG AA.
+- 라우팅·초점: `validate_site_refresh_route_restore_01.mjs` PASS — iPhone 375/390 각 171 checks, desktop 1280 169 checks. 네이티브 close 초점 복원은 각 환경에서 정확히 1회다.
+- 캘린더: `validate_calendar*.mjs` 50개 전체 PASS (`50/50`, 실패 0). `validate_calendar_month_temperature_01.mjs`의 Linux 동등 1024px 경계와 인접 1023/1025/1100/1101/1280px 날짜·최저/최고 온도 비겹침을 포함한다.
+- 대화·장소: `validate_conversation_design_01.mjs`, `validate_place_card_rotation_01.mjs`, `validate_place_card_carousel_no_drift_01.mjs`, `validate_conversation_answer_ux_01.mjs`: PASS.
+- 인접 기능: `validate_trouble_helper_01.mjs` PASS — 52 checks.
+- 접근성·잠금: `validate_accessibility.py`, `validate_hardening.py`, `validate_legal_pages.py`, `validate_social_legal_manifest_01.py`: PASS.
+- `asset_cache_version.mjs --check`: PASS — `aset-ccefbf0a4bed`, targets 169 / refs 206.
 
 ## 최신 통합 사용자 시나리오
 
