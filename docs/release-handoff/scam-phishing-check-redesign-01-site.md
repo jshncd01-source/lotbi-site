@@ -12,9 +12,10 @@ READY_FOR_DEPLOY=YES
 - 기준 Ncloud main: `300859c4829b414fb333558a2df545e5c40933ce` (대화 UI 배포 후 main)
 - 통합·검증 SHA: `4192b875263aa8a16dab1b1ceb5a92312ff99540`
 - Gate 반환 수정·재검증 SHA: `99434a4de5008920d4e98855924d5d0da963fc28`
+- 다섯 번째 Gate 반환 수정·재검증 SHA: `8ce0d00cda2bb809b084978b1f1ebdaf8ebb11fa`
 - 이전 READY checkpoint: `a50b29b01be40105f94522f9dfef687a93d372b0`
 - 최종 push HEAD: 이 문서를 포함한 READY 커밋 SHA를 최종 보고에서 별도 기재한다.
-- asset cache: `aset-b7a4d80ad707` (`targets=169`, `refs=206`)
+- asset cache: `aset-6c2448ed185b` (`targets=169`, `refs=206`)
 
 ## Gate 1.0.6 반환과 수정
 
@@ -58,6 +59,19 @@ READY_FOR_DEPLOY=YES
 - 원인: COMMON-UI-02의 회사 소개 기능명 계약은 확정명으로 갱신됐지만, 별도 consumer design shell의 desktop/mobile 8개 메뉴 기대 배열에는 이전 명칭 `진위확인`이 남아 있었다.
 - 수정: 8개 메뉴의 개수·순서·목적지 단언은 그대로 유지하고 네 번째 메뉴 기대값만 실제 운영명 `사기·피싱 확인`으로 갱신했다. `validate_home_chat.py`와 sidebar IA 검사는 이름이 아니라 목적지 훅·순서를 검사하며 별도 이전 명칭 계약이 없음을 확인했다.
 - cache: 제품 asset 변경이 없어 `aset-f04cc336a932`을 그대로 유지했다.
+
+## Gate 1.0.6 다섯 번째 반환과 수정
+
+- 반환 release: `release/20261010-site-t57b5-work`
+- 반환 release HEAD: `96b85abbd313b605624a6459231d8d01f159ab98`
+- 반환 대상 READY: `25bcb48f4fa87caabd91682ccb9af11bfbe9c2dc`
+- Gate run: `20261011T184721Z-184913-300493376`
+- 결과: `TEST_FAILED`, 실패 단계 `scripts/validate_consumer_sections_02.mjs`, 단언 `native close restores focus`. main `300859c4829b414fb333558a2df545e5c40933ce`와 Production은 변경되지 않았다.
+- 원인: 네이티브 `<dialog>` 복원 때 `close` 이벤트는 `finishDialogClose()`만 호출하고, 초점 복원은 그 정리 함수 내부에서 처리했다. 실제 초점은 돌아왔지만 Gate가 보호하는 `dialog.addEventListener('close', restoreDialogFocus)` 직접 계약을 잃었다.
+- 수정: 네이티브 `close` 이벤트가 `restoreDialogFocus`를 직접 한 번 호출하도록 복원하고, `finishDialogClose()`에서는 초점 이동을 제거했다. 즉시 라우팅 알림과 body·`aria-current` 정리는 기존처럼 멱등으로 유지해 늦은 `close` 이벤트가 중복 알림을 만들지 않는다.
+- fallback: `showModal()`/`close()`를 지원하지 않는 환경에서는 `open`·`aria-modal`을 명시적으로 정리하고 `restoreDialogFocus()`를 한 번 호출한다. 네이티브 경로와 fallback 경로가 동시에 초점을 옮기지 않는다.
+- 실제 Chrome 회귀에 진입점 `focus` 횟수 검사를 추가했다. 중복 ×·취소·Escape가 겹치는 닫기에서도 iPhone 375/390과 desktop 1280 모두 정확히 1회 복원됐다.
+- cache: 공식 생성기로 `aset-6c2448ed185b`을 재생성했다.
 
 ## 확정 C안 보존
 
@@ -176,6 +190,21 @@ READY_FOR_DEPLOY=YES
 - `validate_site_refresh_route_restore_01.mjs`, `validate_trouble_helper_01.mjs`, `validate_connected_services_menu_hidden_01.mjs`: PASS.
 - `validate_accessibility.py`, `validate_hardening.py`, `validate_legal_pages.py`, `validate_social_legal_manifest_01.py`: PASS.
 - `asset_cache_version.mjs --check`: PASS — `aset-b7a4d80ad707`, targets 169 / refs 206.
+
+### 다섯 번째 Gate 반환 수정 재검증
+
+- fresh 확인: `origin/main=300859c4829b414fb333558a2df545e5c40933ce`, 원격 feature는 수정 전 HEAD `25bcb48f4fa87caabd91682ccb9af11bfbe9c2dc`와 일치했다. 추가 main merge는 필요하지 않았다.
+- `validate_consumer_sections_02.mjs`: PASS — 네이티브 `close` 직접 초점 복원과 fallback 초점 복원 계약 유지.
+- `validate_site_refresh_route_restore_01.mjs`: PASS — iPhone 375/390 각 171 checks, desktop 1280 169 checks. 초점 복원 횟수는 세 환경 모두 정확히 1회였다.
+- `validate_common_ui_polish_01.mjs`, `validate_common_ui_polish_02.mjs`, `validate_consumer_design_shell_01.mjs`: PASS — drawer-before-`showModal()`과 확정 메뉴 계약 유지.
+- `validate_scam_shield_mvp_01.mjs`, `validate_scam_shield_connection_01.mjs`, `validate_connected_services_menu_hidden_01.mjs`, `validate_photo_input_no_camcorder_01.mjs`: PASS.
+- `validate_scam_shield_photo_picker_01.mjs`: PASS — 360 light/dark, 390 KakaoTalk UA, 412 Android UA, 1280 desktop light/dark.
+- `validate_scam_shield_double_check_p0.mjs`: PASS — 16 renders, 가로 넘침 0, WCAG AA.
+- `validate_scam_shield_result_banner_contrast_01.mjs`, `validate_scam_shield_login_gate_contrast_01.mjs`: PASS — 각각 30 renders, WCAG AA.
+- `validate_trouble_helper_01.mjs`: PASS — 52 checks.
+- `validate_accessibility.py`, `validate_hardening.py`, `validate_legal_pages.py`, `validate_social_legal_manifest_01.py`: PASS. Windows cp949 출력 실패 후 테스트 내용 변경 없이 `PYTHONUTF8=1`로 동일 검사를 재실행했다.
+- `validate_conversation_design_01.mjs`, `validate_place_card_rotation_01.mjs`: PASS — 새 main 대화·장소 카드 계약 보존.
+- `asset_cache_version.mjs --check`: PASS — `aset-6c2448ed185b`, targets 169 / refs 206.
 
 ## 최신 통합 사용자 시나리오
 
