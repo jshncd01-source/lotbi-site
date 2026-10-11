@@ -214,6 +214,11 @@ jobs:
       - name: Validate LOTBI 404 page
         run: node scripts/validate_not_found_page_01.mjs
 
+      # 소유자 결정 2026-10-11: 연결 서비스's partners are all still being prepared, so the
+      # entries to them stay hidden behind one constant until one is really open.
+      - name: Validate 연결 서비스 menu switch
+        run: node scripts/validate_connected_services_menu_hidden_01.mjs
+
       # The viewport-sized scroll container must not be a tab stop: its focus
       # ring reached the screen as two blue vertical lines.
       - name: Validate container focus ring
