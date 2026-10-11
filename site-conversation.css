@@ -4210,3 +4210,92 @@ body[data-site-theme="dark"] .lotbi-region-picker-saved .lotbi-region-picker-chi
   background: transparent;
   color: var(--lotbi-text-primary, #212121);
 }
+
+/* SITE-CONVERSATION-DESIGN-01 — shared Account palette, scoped to chat.
+   Place rail geometry, gestures and result contracts remain unchanged. */
+body.chat-home-page.conversation-active .chat-home-shell {
+  background: var(--lotbi-surface-subtle);
+}
+body.chat-home-page.conversation-active .chat-composer-stack {
+  background: linear-gradient(to bottom, transparent, var(--lotbi-surface-subtle) 18px);
+}
+body.chat-home-page.conversation-active .chat-composer-stack .chat-composer {
+  border-color: var(--lotbi-border-strong);
+  background: var(--lotbi-surface-elevated);
+  box-shadow: 0 3px 14px rgb(0 0 0 / 4%);
+}
+body.chat-home-page.conversation-active .chat-composer-stack .chat-composer:focus-within {
+  border-color: var(--lotbi-focus-ring);
+  box-shadow: 0 0 0 2px var(--lotbi-border-default);
+}
+body.chat-home-page.conversation-active .composer-button.send-button:disabled {
+  background: var(--lotbi-surface-hover);
+  color: var(--lotbi-text-disabled);
+  opacity: 1;
+  cursor: default;
+}
+body.chat-home-page.conversation-active .composer-button.send-button:not(:disabled) {
+  background: var(--brand-blue);
+  color: var(--lotbi-brand-solid-text);
+}
+body.chat-home-page.conversation-active .chat-message-assistant > .chat-message-body {
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 16px;
+  background: var(--lotbi-surface-primary);
+  font-size: 17px;
+  line-height: 1.75;
+}
+body.chat-home-page.conversation-active .chat-message-body > :is(p, ul, .chat-table-scroll, pre) + :is(p, ul, .chat-table-scroll, pre) {
+  margin-top: 14px;
+}
+body.chat-home-page.conversation-active .chat-message-assistant .chat-message-list {
+  gap: 6px;
+}
+body.chat-home-page.conversation-active .chat-message-assistant .chat-code-block {
+  border-color: var(--lotbi-border-default);
+  background: var(--lotbi-surface-subtle);
+  line-height: 1.6;
+  font-size: .9em;
+}
+body.chat-home-page.conversation-active .chat-message-assistant > .chat-message-actions {
+  gap: 4px;
+  margin: 12px 0 0;
+}
+body.chat-home-page.conversation-active .chat-message-actions .chat-message-action:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+}
+body.chat-home-page .nav-history-list .conversation-history-open {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 8px 56px 8px 12px;
+  border-radius: 8px;
+}
+body.chat-home-page.conversation-active .nav-history-list .conversation-history-open[aria-current="true"] {
+  background: var(--lotbi-selected-bg);
+  color: var(--lotbi-selected-text);
+  box-shadow: inset 3px 0 var(--brand-blue);
+  font-weight: 650;
+}
+body.chat-home-page .conversation-history-actions {
+  right: 2px;
+}
+body.chat-home-page .conversation-history-menu-trigger {
+  width: 44px;
+  height: 44px;
+}
+body.chat-home-page .conversation-history-item:has(.conversation-history-open[aria-current="true"]) > .conversation-history-actions > summary {
+  color: var(--lotbi-selected-text);
+}
+body.chat-home-page .conversation-history-menu-trigger:focus-visible,
+body.chat-home-page .conversation-history-open:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: -2px;
+}
+@media (max-width: 760px) {
+  body.chat-home-page.conversation-active .chat-message-assistant > .chat-message-body {
+    padding: 12px;
+    font-size: 16px;
+  }
+}

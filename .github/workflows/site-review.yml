@@ -263,6 +263,9 @@ jobs:
       - name: Validate long answer scroll anchor
         run: node scripts/validate_chat_long_answer_scroll_anchor_01.mjs
 
+      - name: 대화 화면 선택·입력·가독성 연결 검사
+        run: node scripts/validate_conversation_design_01.mjs
+
       # 실사용 (Samsung 계열 모바일): with the keyboard open the composer rose to
       # just under the header, and the first characters typed sat behind the +
       # button. Measured as bounding rects (glyphs, caret, +, send, composer)
