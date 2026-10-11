@@ -171,3 +171,13 @@ export function birthYearOptions(now = new Date(), earliest = 1900) {
   for (let year = now.getFullYear(); year >= earliest; year -= 1) years.push(year);
   return years;
 }
+
+// QA 02 D2: where the birth-year wheel starts before anything is chosen, by
+// relationship — a parent born in 1950 should not need seventy years of
+// scrolling from this year. Only the starting position; nothing is saved
+// until the guardian confirms.
+const BIRTH_YEAR_START_AGE = Object.freeze({CHILD: 8, PARENT: 65, SPOUSE: 40, FAMILY: 45, DEPENDENT: 70, OTHER: 45});
+export function birthYearStart(relationship, now = new Date()) {
+  const age = BIRTH_YEAR_START_AGE[relationship] ?? BIRTH_YEAR_START_AGE.OTHER;
+  return now.getFullYear() - age;
+}

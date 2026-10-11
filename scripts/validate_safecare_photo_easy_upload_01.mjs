@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-// SAFECARE-PHOTO-EASY-UPLOAD-01 — 사람 안심케어 1차 (owner decision 2026-10-10).
+// SAFECARE-PHOTO-EASY-UPLOAD-01 — 사람 안심케어 1차·2차 (owner decisions 2026-10-10).
 //
 // A. photo step: the ten tiles are examples; '사진 여러 장 선택' is the only way
-//    in; a tile offers '이 칸 다시 고르기' only after a batch could not fill it
-//    (pure rule personRetrySlots; the screen itself is covered in
+//    in (2nd round: no tile picker at all — the 1st-round '이 칸 다시 고르기'
+//    rule personRetrySlots is gone); three face photos and two body photos
+//    complete the set, ten is only recommended; 사진 갱신·관리 can take a stored
+//    photo out (the screen itself is covered in
 //    validate_safecare_photo_bulk_upload_01.mjs);
 // B. 실종 전환 and 사람 발견 제보 start with 112 / 182 call buttons, and their
 //    copy says what happens today (administrator intake; no promise of an
@@ -26,15 +28,14 @@ const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 // ------------------------------------------------------------------ A. rules
 const bulk = await import(pathToFileURL(path.join(ROOT, 'site-person-bulk-photos.js')).href);
 const person = await import(pathToFileURL(path.join(ROOT, 'site-person.js')).href);
-const retry = (filled, attention) => [...bulk.personRetrySlots(new Set(filled), attention)].sort((a, b) => a - b);
-assert.deepEqual(retry([], {}), [], 'a new registration offers no tile picker before its first batch');
-assert.deepEqual(retry([], {ran: true}), [1], 'after a batch without a front only 정면 얼굴 offers a picker');
-assert.deepEqual(retry([], {ran: true, failed: [8]}), [1], 'a refused non-front photo waits for the front');
-assert.deepEqual(retry([1, 2, 6], {}), [3, 4, 5, 7, 8, 9, 10], 'a resumed registration offers the empty tiles');
-assert.deepEqual(retry([1, 2, 6], {ran: true, running: true}), [], 'no tile picker while a batch runs');
-assert.deepEqual(retry([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], {ran: true, failed: [4]}), [4], 'a stored tile whose new photo was refused offers 사진 바꾸기');
-assert.deepEqual(retry([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], {ran: true}), [], 'a complete set offers no tile picker');
-assert.deepEqual([...bulk.personRetrySlots(new Map([[1, {}], [3, {}]]), {})].sort((a, b) => a - b), [2, 4, 5, 6, 7, 8, 9, 10], 'a Map of stored photos (the photo step passes one) works too');
+assert.equal(bulk.personRetrySlots, undefined, '2nd round: no tile picker rule any more');
+assert.equal(typeof person.putPersonIdentityPhoto, 'function', 'the per-slot PUT stays for older callers (nothing deleted)');
+// The set: three faces and two bodies; ten only recommended.
+assert.equal(bulk.personPhotoSetMessage({complete: false, faceCount: 2, bodyCount: 2}), '얼굴이 잘 보이는 사진 1장이 더 있으면 등록을 마칠 수 있어요.');
+assert.equal(bulk.personPhotoSetMessage({complete: true, faceCount: 3, bodyCount: 2, photoCount: 5}), '등록할 수 있어요. 사진을 더 올리면(최대 10장) 찾을 확률을 높일 수 있어요.');
+for (const text of [bulk.PERSON_BULK_ANGLE_GUIDE, bulk.personPhotoSetMessage({complete: true, photoCount: 6})]) {
+  assert.ok(!/10장을 모두|반드시|필수/.test(text), `ten is never required: ${text}`);
+}
 
 // Copy says what happens today.
 for (const text of [person.PERSON_SOS_FORM_NOTE, person.PERSON_SOS_ACTIVE_NOTE, person.PERSON_FOUND_FORM_NOTE]) {
@@ -48,7 +49,10 @@ assert.ok(person.PERSON_FOUND_EMERGENCY_TEXT.includes('112'));
 const ui = read('site-person-ui.js');
 const petUi = read('site-pet-ui.js');
 assert.ok(!ui.includes('정면 얼굴을 먼저 등록하면 선택할 수 있습니다.'), 'the per-tile lock sentence is gone');
-assert.ok(!ui.includes('safecareSlotLocked'), 'tiles are no longer locked, only offered a picker');
+assert.ok(!ui.includes('safecareSlotLocked'), 'tiles are no longer locked');
+assert.ok(!ui.includes('data-person-slot-retry') && !ui.includes('이 칸 다시 고르기'), '2nd round: no tile picker');
+assert.ok(ui.includes("'사진 빼기'") && ui.includes('한 번 더 누르면 사진을 빼요'), '사진 갱신·관리 takes a photo out on a second tap');
+assert.ok(!/식별 사진 10장을 모두|10장을 모두 등록/.test(ui + petUi), 'no screen says all ten are required');
 assert.ok(!/발견 제보와 비교합니다|사진 5장 이상을 받은 뒤 실종 상태로 등록되고/.test(ui + petUi), 'person and pet copy no longer promise a comparison');
 console.log('SAFECARE-PHOTO-EASY-UPLOAD-01 rules PASS');
 
