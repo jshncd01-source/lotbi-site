@@ -2,6 +2,37 @@ READY_FOR_DEPLOY=NO
 
 # 가족 지킴이 ① 이름·디자인 — Site 검증 기록
 
+## 2026-10-12 재개 검증 — 현행 판정
+
+이 절이 현재 상태이며 아래 2026-10-11 절의 SHA·검사 수·보류 사유는 과거 체크포인트다. 과거 완료분은 보존하되 현재 exact-head 검증 또는 배포 완료로 확대하지 않는다.
+
+- 기존 브랜치 feature/family-guardian-p1-01-site 재사용. fresh Ncloud main: 9147419fb079e6452ff26d82c52a1b8f1dca36e4.
+- 이번 기능 검증 코드 HEAD: b1cd7340dde52b9dc275191b762335e70236fe97. 이후 문서만 변경한 최종 exact SHA와 Ncloud push/readback은 Work 산출물 outputs/family-guardian-resume-2026-10-12.md에서 확인한다. 자기 문서 커밋 SHA를 추정해 기록하지 않는다.
+- 최신 T57a3 포함 main을 정상 merge했다. 88개 충돌 파일의 캐시 버전 문자열만 정규화해 동일성을 검사한 뒤 128개 cache-only hunk를 해결했다. index/auth callback의 CSS 2 hunk는 양쪽 로드 목록과 가족 CSS를 같은 순서로 보존했다. 기능/인증 변경을 한쪽 파일로 덮어쓰지 않았다.
+- 기존 가족 검사·동작 계약 PASS, 360·1280 라이트·다크 4조합 PASS. 새 PNG96장: outputs/screenshots/site/phase1-fresh-main-after/. 이전 before/after 원본 보존.
+- 캐시 write/check PASS: aset-58bd1f7cb22a, 208개 참조 검사. LF·diff/conflict marker 확인 PASS. .github/workflows/site-review.yml 등록과 실행 직전 mkdtemp 유지.
+- 관리자 17번째 증거의 회원 등록 요약 GUI는 이번 Admin②·③ v2 폴더로 보완했다. ①의 반려동물 요약과 ②의 사람 요약을 구분한다. App Native 증거가 남아 공동 ① READY는 NO다.
+- 새 GUI manifest: outputs/family-guardian-component-evidence-fresh-main-20261012.json 및 family-guardian-component-evidence-members-fresh-main-20261012-v2.json. 초기 v1 회원 캡처는 긴 모달/빈 영역을 포함해 보존만 하며 현행 판정에 사용하지 않는다.
+- Admin 자체 다크 전환은 기존 구조상 미지원이다. OS dark 설정의 화면 확인을 다크 테마 구현 PASS로 표현하지 않는다. 웹 폭 에뮬레이션은 Native 실기기 검증이 아니다.
+- 전체 단계 READY는 NO다. Core·Admin·Site·App·Account가 해당 단계 모두 READY여야 한꺼번에 배포한다. Core①·②만 선배포 금지. T57b5c42a38e 선행 조건 취소 유지.
+- Work 종료점은 feature 검증·문서 커밋·Ncloud push/readback이다. READY 완료 후 배포총괄 관리방으로 전달하며 실제 운영 반영방에 직접 실행 지시하지 않는다. main 병합·Production·Play 업로드 없음.
+- 휴대폰 조작·설치·삭제·로그아웃은 이번 재개에서 실행하지 않는다. 최신 검증 내부 APK는 배포방 제작, Play 내부 테스트 업로드는 매회 소유자 승인. 공개 출시 없음. iOS Native는 NOT TESTED다.
+
+### 다섯 저장소 검색 결과 (2026-10-12 실행 소스 재확인)
+
+| 저장소 | 바꾼 곳 | 일부러 남긴 곳과 이유 |
+|---|---|---|
+| Core | 사용자 답변·푸시·구독 설명, 실행 소스 옛 이름 0건 | 옛 질문 입력/부정 assertion·역사 문서·내부 safecare 식별자: 호환·회귀 보존 |
+| Admin | 메뉴·서비스명·일반 안내, src 옛 이름 0건 | 역사 문서·검색표 자체. 신고 전 최소 요약 경계 유지 |
+| Site | 메뉴·제목·일반 안내·구독·접근성 | terms.html 1곳 및 식별 사진/법정대리인 동의 2곳은 별도 정책 승인 전 보존. 실행 JS 주석 9곳·과거 문서·legacy fixture도 보존 |
+| App | 메뉴·제목·버튼·접근성·구독, src/packages 옛 이름 0건 | 구버전 구독 응답 fixture 7곳·과거 문서: 호환 원문 보존 |
+| Account | 요금제·구독·등록 용량 설명, src 옛 이름 0건 | 과거 문서·검색표 자체. 인증 owner의 디자인/기능 보존 |
+
+저장소 전체 검색 0건 주장이 아니다. 개인정보 정책·약관·동의 계약은 승인 없이 치환하지 않았다. 사진·권한·자동 매칭·위치 동의·의미별 상태색·다른 카테고리 및 인증 배경을 보존한다. 운영 E2E 기입란은 아래 빈칸 그대로 유지한다.
+
+## 이하 2026-10-11 이전 체크포인트 — 역사 기록
+
+
 ## 식별자·역할
 
 - 담당: Work / Codex. 기존 owner 작업을 보존한 ① Site 담당 브랜치.
