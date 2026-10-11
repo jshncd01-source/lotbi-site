@@ -18,8 +18,8 @@ import {
   safeKindergartenLink,
   searchKindergartens,
   telHref,
-} from './site-kindergarten-client.js?v=aset-648925ffc6ee';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-648925ffc6ee';
+} from './site-kindergarten-client.js?v=aset-976ee65147ba';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-976ee65147ba';
 
 const PREFERENCE_PREFIX = 'lotbi.site.ux.v1.life-kindergarten';
 const LAST_REGION_KEY = 'lotbi.site.ux.v1.life-kindergarten-region';

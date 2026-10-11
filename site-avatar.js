@@ -1,15 +1,15 @@
 import * as THREE from 'three';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js?v=aset-648925ffc6ee';
-import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=aset-648925ffc6ee';
-import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs?v=aset-648925ffc6ee';
-import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=aset-648925ffc6ee';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js?v=aset-976ee65147ba';
+import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=aset-976ee65147ba';
+import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs?v=aset-976ee65147ba';
+import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=aset-976ee65147ba';
 
-// SITE-AVATAR-LOGO-ALIGN-01: the home character is the header logo character
-// (assets/brand/lotbi-mark-512.png) in 3D -- head, visor, glowing eyes, ears,
-// horn, bean body, arms and badge rebuilt from the logo picture on the approved
-// V5 rig by tools/build_logo_character_v4.py; the 13 animations are unchanged.
-const MODEL_URL = '/assets/models/lotbi-logo-character-v4-rigged.glb';
-const MODEL_SHA256 = '3e2354ec52c0ee95e2571da54e67380cace6dc9297f8ece4cf87cae0b4298464';
+// SITE-AVATAR-LOGO-ALIGN-02: the home character is the header logo character
+// (assets/brand/lotbi-mark-512.png) in 3D -- shapes measured on the logo and
+// checked by overlay, on the approved V5 rig, by tools/build_logo_character_v5.py;
+// the 13 animations are unchanged.
+const MODEL_URL = '/assets/models/lotbi-logo-character-v5-rigged.glb';
+const MODEL_SHA256 = '2c1576a6a29cffb8f006b4ce0497906792efa356191e7ec2d57c5e0bf3f6e8a8';
 const AVATAR_SOURCE_HEAD = 'b131f898246ce9852d23dd17009f5914b6ae252e';
 const CLIPS_URL = '/assets/animations/lotbi-clips.v1.json?v=20260924-running1';
 const CONTRACT_URL = '/avatar-runtime/contracts/avatar-rig-controls.v2.json';
@@ -63,7 +63,7 @@ function disposeScene(root) {
 function currentSnapshot() {
   const stage = document.querySelector('[data-lotbi-avatar-stage]');
   return Object.freeze({
-    version: 'site-avatar-logo-character-v4-01',
+    version: 'site-avatar-logo-character-v5-01',
     sourceHead: AVATAR_SOURCE_HEAD,
     model: MODEL_URL,
     modelSha256: MODEL_SHA256,
@@ -235,7 +235,10 @@ async function mountAvatar(stage) {
     avatarRoot.add(gltf.scene);
     scene.add(avatarRoot);
 
-    // No floor disc: the logo character floats (its body ends in a rounded tail).
+    // The logo character floats (its body ends in a rounded tail): no floor disc.
+    // It faces the camera, which sits to the right of the stage, as the logo is
+    // drawn from the front.
+    avatarRoot.rotation.y = Math.atan2(.62, 2.9);
 
     if (gltf.animations.length !== 13) throw new Error('Approved V5 animation set missing');
     const binding = createFaithfulBinding(gltf.scene, contract);

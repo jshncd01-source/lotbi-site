@@ -8,15 +8,14 @@ falls back to /favicon.ico, and iOS fetches /apple-touch-icon.png on its own, so
 these still showed the old drawing.
 
 Clean alpha. lotbi-mark-512.png is cut out of the white-background master
-(assets/lotbi-main-logo.png) by tools/build-brand-assets.py, whose background
-flood accepts anything >= 237 -- it leaks into the robot's white rim
-highlights and leaves see-through crescents on the helmet, ears, arms and
-body. On white that is invisible; on a dark page, dark browser tab strip or
-the app's dark mode the character shows black streaks. This tool first
-reproduces lotbi-mark-512.png exactly (same crop, pad and resample -- checked
-byte for byte), then fills the robot's interior from the master with the
-master's own colours: the strict background (>= 249) never leaks, so every
-pixel two steps inside it is robot. Same picture, same place, opaque inside.
+(assets/lotbi-main-logo.png) by tools/build-brand-assets.py. Its background
+flood accepts anything >= 237 and leaks into the robot's white rim
+highlights; since BRAND-MARK-CLEAN-ALPHA-01 that tool fills them back
+(fill_mascot_rim: every pixel two steps inside a strict >= 249 outline gets its
+own colour, opaque, inside the mascot's bounding box). This tool reproduces
+lotbi-mark-512.png exactly from the master the same way (checked pixel for
+pixel, it stops otherwise), and composites the square without the brand
+tool's paste-with-mask, so the icons' edges are not darkened.
 
     python tools/build_site_favicons.py [out_dir] [--app-character app_brand_dir]
 
@@ -79,16 +78,26 @@ def _mark_square(rgba: np.ndarray, clean: bool) -> Image.Image:
     return pad.resize((512, 512), Image.LANCZOS)
 
 
+def _fill_mascot_rim(cut: np.ndarray, rgb: np.ndarray) -> np.ndarray:
+    """tools/build-brand-assets.py fill_mascot_rim: the robot's see-through rim, filled."""
+    inside = ndimage.binary_erosion(~_border_flood((rgb >= 255 - 6).all(axis=2)), structure=FOUR, iterations=2)
+    left, top, right, bottom = Image.fromarray(cut.astype(np.uint8), "RGBA").getbbox()
+    box = Image.fromarray(cut[top:bottom, left:min(right, left + 490)].astype(np.uint8), "RGBA").getbbox()
+    region = np.zeros_like(inside)
+    region[top + box[1]:top + box[3], left + box[0]:left + box[2]] = True
+    fill = inside & region & (cut[..., 3] < 255)
+    out = cut.copy()
+    out[fill, :3] = rgb[fill]
+    out[fill, 3] = 255
+    return out
+
+
 def clean_mark() -> Image.Image:
     rgb = np.asarray(Image.open(MASTER).convert("RGB")).astype(np.int32)
-    cut = _brand_tool_cutout(rgb)
+    cut = _fill_mascot_rim(_brand_tool_cutout(rgb), rgb)
     official = np.asarray(Image.open(MARK).convert("RGBA"))
     if not np.array_equal(np.asarray(_mark_square(cut, clean=False)), official):
         raise SystemExit("the master no longer reproduces assets/brand/lotbi-mark-512.png -- stop")
-    inside = ndimage.binary_erosion(~_border_flood((rgb >= 255 - 6).all(axis=2)), structure=FOUR, iterations=2)
-    fill = inside & (cut[..., 3] < 255)
-    cut[fill, :3] = rgb[fill]
-    cut[fill, 3] = 255
     return _mark_square(cut, clean=True)
 
 

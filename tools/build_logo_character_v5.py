@@ -1,40 +1,43 @@
-"""Build the home 3D character (v4) in the shape of the official LOTBI logo character.
+"""Build the home 3D character (v5): the official LOTBI logo character in 3D.
 
-SITE-AVATAR-LOGO-ALIGN-01, second pass. The owner's reference is the logo
-character, assets/brand/lotbi-mark-512.png (the same character as the header
-lockup, the 404 mascot and the app splash). The first pass (v3) only recoloured
-the approved V5 model, and next to the logo it still read as a different
-character: small round head, upright round body standing on a floor shadow,
-small ears, thin crest, thin pale eyes, small badge, tube arms.
+SITE-AVATAR-LOGO-ALIGN-02. Reference: assets/brand/lotbi-mark-512.png (the header
+lockup's character). v4 (build_logo_character_v4.py) was turned back by the
+owner: arms looked cut off (separate from the body, dark joint dots), the eyes
+read as a thick double ring, the body as a long round capsule, the visor and
+badge as flat. v5 is measured again against the logo, row by row, and checked
+by overlaying an orthographic front render on the logo (same 512 px grid):
 
-v4 rebuilds every visible shape from measurements of the logo picture, while
-keeping what makes it move:
+* body: the logo's pear -- narrow under the head, leaning left, widest low,
+  a rounded tail to the lower left;
+* arms: the left one a broad flat fin hanging down-left, attached along a long
+  seam on the body's left side; the right one a big raised paddle (the waving
+  hand) on the body's right side; both start inside the body, so no gap shows
+  at rest or while they move, and there is no dark joint dot (the joint meshes
+  are white shoulder fillets inside the seam);
+* eyes: one thin glowing arc each with a soft glow spread on the glass (three
+  faint layers, no hard ring);
+* visor: a glass reflection on its upper left and a faint lower rim;
+* badge: a glowing white rim with a soft halo;
+* head: the logo's rounder helmet, ears closer to the head, the horn's blunt
+  end higher.
 
-* kept from V5: the rig -- Rig_Root/Body/Head/LeftArm/RightArm, their rest
-  transforms and parenting -- all 13 animations byte for byte, every node and
-  mesh name, the materials the runtime looks up (EyeCyanGlow, VisorDeepBlack),
-  no mouth, no morph targets;
-* moved: the two eye pivots (Rig_LeftEye/Rig_RightEye) to the centre of the new
-  eyes, so a blink still closes each eye on itself (eye clips only scale and
-  rotate them, never translate);
-* rebuilt from the logo: a wide helmet head, a large black visor, thick glowing
-  blue arc eyes (core + soft halo), big red/blue ear pods, a thick curved red
-  horn on a white stalk, a bean-shaped body that ends in a rounded tail to the
-  lower left (no feet), a wing arm down-left and a paddle arm raised to the
-  right, a large red-to-blue chest badge with a glowing white rim. The head and
-  horn lean 7 degrees like the logo.
+Kept from V5: the rig (Rig_Root/Body/Head and their rest transforms), all 13
+animations byte for byte, every node and mesh name, the materials the runtime
+looks up (EyeCyanGlow, VisorDeepBlack), no mouth, no morph targets. Moved: the
+eye pivots to the new eyes and the arm pivots to the new arm roots -- no clip
+translates an eye or an arm pivot (they only rotate or scale them), and the
+mesh nodes cancel their pivot so vertices stay in model space.
 
-Logo measurements (512 px picture, x right, y down) are mapped to model space
-(Z-up, -Y toward the viewer, +X to the viewer's right) by X = (x - 267) * K and
-Z = TOP - y * K, so the horn tip lands inside the site camera frame and the
-tail ends above its bottom edge (see frame check in the validator).
+Logo measurements (512 px picture, x right, y down) map to model space (Z-up,
+-Y toward the viewer, +X to the viewer's right) by X = (x - 267) * K and
+Z = TOP - y * K.
 
 Deterministic: numpy float32 output from fixed parameters -- the same V5 input
 gives the same bytes.
 
-    python tools/build_logo_character_v4.py \
+    python tools/build_logo_character_v5.py \
         assets/models/lotbi-faithful-v2-rigged.glb \
-        assets/models/lotbi-logo-character-v4-rigged.glb
+        assets/models/lotbi-logo-character-v5-rigged.glb
 """
 from __future__ import annotations
 
@@ -90,28 +93,30 @@ LEFT_EYE_V5 = np.array([-0.205, -0.676, 1.43])
 # Head: logo helmet 335 x 220 px centred at (267, 195), leaning 7 degrees (the
 # viewer's right side lower: ears at y 204 / 233, eyes at y 205 / 219).
 HEAD_C = np.array([0.0, 0.0, logo(267, 195)[1]])
-HEAD_R = np.array([0.94, 0.70, 0.665])
-HEAD_E_FRONT, HEAD_E_CROSS = 2.08, 2.0
-ROLL = np.radians(7.0)
+HEAD_R = np.array([0.885, 0.68, 0.625])
+HEAD_E_FRONT, HEAD_E_CROSS = 2.0, 2.0
+ROLL = np.radians(9.0)
 
 # Visor: 254 x 178 px, a little below the head centre.
-VISOR_HALF = np.array([0.675, 0.525])
-VISOR_CZ = -0.085
-VISOR_E = 2.35
+VISOR_HALF = np.array([0.690, 0.455])
+VISOR_CZ = -0.03
+VISOR_E = 2.4
 
 # Eyes: arcs 55 px wide, 9 px thick, centres 113 px apart.
-EYE_X = 57 * K
+EYE_X = 60 * K
+EYE_DX = 0.058           # the logo's eyes sit a little right of the head centre
 EYE_R = 27 * K
-EYE_CZ = -0.215          # arc circle centre below the head centre (unrolled)
-EYE_TUBE = 0.028
-EYE_HALO = (0.056, 0.088)
+EYE_CZ = -0.17          # arc circle centre below the head centre (unrolled)
+EYE_TUBE = 0.019
+EYE_GLOW = ((0.030, 0.62), (0.046, 0.30), (0.068, 0.13))   # (radius, alpha)
 EYE_ARC = (np.radians(8.0), np.radians(172.0))
 
 # Ears: pods about 0.6 x 0.5 head units, sunk into the head sides.
-EAR_R = np.array([0.17, 0.28, 0.33])
+EAR_R = np.array([0.15, 0.265, 0.30])
+EAR_OUT = 0.075          # how far an ear stands out of the head side
 EAR_CZ = -0.10
 
-GRID = dict(head=(72, 40), ear=(40, 22), body=64)
+GRID = dict(head=(64, 34), ear=(32, 18), body=56)
 
 
 # ------------------------------------------------------------------ glb io ----
@@ -381,14 +386,14 @@ def head_shell():
     model = roll_head(pos)
     n = vertex_normals(model, faces)
     # Faint iridescence like the logo: pink on the lower left, blue on the right.
-    pink = 0.10 * smoothstep(0.35, 0.95, -n[:, 0]) * smoothstep(0.2, -0.6, n[:, 2])
-    blue = 0.12 * smoothstep(0.35, 0.95, n[:, 0])
+    pink = 0.22 * smoothstep(0.45, 0.98, -n[:, 0]) * smoothstep(0.3, -0.6, n[:, 2])
+    blue = 0.22 * smoothstep(0.45, 0.98, n[:, 0])
     colours = WHITE * (1 - pink - blue)[:, None] + PINK_TINT * pink[:, None] + BLUE_TINT * blue[:, None]
     return model, n, colours, faces
 
 
 def visor():
-    nr, nt = 22, 120
+    nr, nt = 18, 96
     rho = np.linspace(0, 1, nr + 1)[1:]
     theta = np.linspace(-np.pi, np.pi, nt, endpoint=False)
     rr, tt = np.meshgrid(rho, theta, indexing="ij")
@@ -418,12 +423,12 @@ def visor():
 def eye(side: float, radius_scale: float = 1.0, ring=12):
     """One ^-shaped arc on the visor, side -1 = viewer's left. Halos (scale > 1)
     are flattened onto the glass so the glow spreads over the visor."""
-    phi = np.linspace(EYE_ARC[0], EYE_ARC[1], 40)
-    x = side * EYE_X + EYE_R * np.cos(phi)
+    phi = np.linspace(EYE_ARC[0], EYE_ARC[1], 32)
+    x = EYE_DX + side * EYE_X + EYE_R * np.cos(phi)
     z = EYE_CZ + EYE_R * np.sin(phi)
     y = head_front_y(x, z) - visor_lift(visor_rho(x, z)) - 0.010
     centre = np.stack([x, y, z], axis=-1)
-    squash = 1.0 if radius_scale == 1.0 else 0.30 / radius_scale
+    squash = 1.0 if radius_scale == 1.0 else 0.22 / radius_scale
     pos, faces = tube(centre, np.full(len(phi), EYE_TUBE * radius_scale), np.array([0.0, -1.0, 0.0]),
                       ring=ring, squash=squash)
     return roll_head(pos), faces
@@ -431,13 +436,14 @@ def eye(side: float, radius_scale: float = 1.0, ring=12):
 
 def eye_pivot(side: float):
     z = EYE_CZ + EYE_R * 0.55
-    return roll_head(np.array([side * EYE_X, head_front_y(side * EYE_X, z) - 0.02, z]))
+    x = EYE_DX + side * EYE_X
+    return roll_head(np.array([x, head_front_y(x, z) - 0.02, z]))
 
 
 def ear(side: float, colour):
     pos, faces = superellipsoid(EAR_R, 2.3, 2.6, *GRID["ear"])
     half_width = HEAD_R[0] * (1 - abs(EAR_CZ / HEAD_R[2]) ** HEAD_E_FRONT) ** (1 / HEAD_E_FRONT)
-    pos = pos + np.array([side * (half_width - 0.035), 0.03, EAR_CZ])
+    pos = pos + np.array([side * (half_width + EAR_OUT - EAR_R[0]), 0.03, EAR_CZ])
     model = roll_head(pos)
     n = vertex_normals(model, faces)
     lighter = 0.10 * smoothstep(0.3, 0.95, n[:, 2])        # top highlight tint
@@ -448,13 +454,13 @@ def ear(side: float, colour):
 def horn():
     """The logo's thick red horn: blunt left end over the stalk, tip up-right."""
     t = np.linspace(0, 1, 48)
-    p = [np.array(v, float) for v in ((logo(272, 58)[0], 0.0, logo(272, 58)[1]),
-                                     (logo(312, 44)[0], 0.0, logo(312, 44)[1]),
-                                     (logo(348, 36)[0], 0.0, logo(348, 36)[1]),
-                                     (logo(363, 5)[0], 0.0, logo(363, 5)[1]))]
+    p = [np.array(v, float) for v in ((logo(286, 44)[0], 0.0, logo(286, 44)[1]),
+                                     (logo(320, 36)[0], 0.0, logo(320, 36)[1]),
+                                     (logo(349, 22)[0], 0.0, logo(349, 22)[1]),
+                                     (logo(364, 3)[0], 0.0, logo(364, 3)[1]))]
     u = 1 - t
     centre = (u ** 3)[:, None] * p[0] + (3 * u * u * t)[:, None] * p[1] + (3 * u * t * t)[:, None] * p[2] + (t ** 3)[:, None] * p[3]
-    half = 0.118 * (1 - t) ** 0.75 + 0.012
+    half = 0.095 * (1 - t) ** 0.75 + 0.011
     pos, faces = tube(centre, half, np.array([0.0, 0.0, 1.0]), ring=24)
     # Flatten front-to-back a little (the logo horn is a fin, not a cone).
     pos[:, 1] *= 0.86
@@ -467,91 +473,106 @@ def horn():
 
 
 def stalk():
-    """White stalk from the crown up into the horn."""
-    bottom = np.array([logo(306, 98)[0], 0.0, logo(306, 98)[1]])
-    top = np.array([logo(312, 58)[0], 0.0, logo(312, 58)[1]])
-    t = np.linspace(0, 1, 16)
-    centre = bottom + (top - bottom) * t[:, None]
-    radius = 0.145 - 0.035 * t
-    pos, faces = tube(centre, radius, np.array([1.0, 0.0, 0.0]), ring=28)
+    """The white base under the horn (logo rows 40..100): a low collar on the crown and a
+    short column up into the horn's middle, one mesh."""
+    centre = np.array([logo(300, 94)[0], 0.0, logo(300, 94)[1]])
+    collar, collar_faces = superellipsoid(np.array([0.22, 0.17, 0.17]), 2.0, 2.0, 32, 16)
+    collar = collar + centre
+    bottom = np.array([logo(310, 90)[0], 0.0, logo(310, 90)[1]])
+    top = np.array([logo(318, 40)[0], 0.0, logo(318, 40)[1]])
+    t = np.linspace(0, 1, 10)
+    column, column_faces = tube(bottom + (top - bottom) * t[:, None], 0.120 - 0.025 * t,
+                                np.array([1.0, 0.0, 0.0]), ring=20)
+    pos = np.vstack([collar, column])
+    faces = np.vstack([collar_faces, column_faces + len(collar)])
     n = vertex_normals(pos, faces)
     return pos, n, np.tile(WHITE, (len(pos), 1)), faces
 
 
 def body():
-    """Bean-shaped body: under the head, widest low, a rounded tail to the lower left."""
-    top_z, z_c, cap_h, cap_r = 1.05, -0.10, 0.30, 0.50
-    zs = np.linspace(top_z, z_c, 34)
-    radius = catmull([-0.10, 0.15, 0.45, 0.72, 1.05], [0.500, 0.495, 0.440, 0.360, 0.30], zs)
-    cx = catmull([-0.10, 0.15, 0.45, 0.72, 1.05], [-0.22, -0.12, -0.04, 0.0, 0.02], zs)
-    belly = catmull([-0.10, 0.15, 0.45, 0.72, 1.05], [-0.02, -0.04, -0.03, -0.01, 0.0], zs)
-    alpha = np.linspace(0, np.pi / 2, 14)[1:-1]
+    """The logo's pear: narrow under the head, leaning left, widest low, rounded tail.
+
+    Logo rows (y: left..right edge of the body without the arms): 330: 162..323,
+    390: 125..331, 410: 123..327, 440: 129..320, 460: 137..309, 480: 150..293,
+    500: 176..265, 510: 204..237 -> centre and half width per height below.
+    """
+    top_z = 1.0
+    knots_z = [-0.05, 0.12, 0.22, 0.55, 0.75, 1.0]
+    half = catmull(knots_z, [0.520, 0.551, 0.556, 0.435, 0.355, 0.30], np.linspace(top_z, -0.05, 36))
+    zs = np.linspace(top_z, -0.05, 36)
+    cx = catmull(knots_z, [-0.232, -0.227, -0.211, -0.135, -0.03, 0.0], zs)
+    belly = catmull(knots_z, [-0.02, -0.04, -0.04, -0.03, -0.01, 0.0], zs)
+    # rounded tail: from the widest-low ring down to the tip at logo y ~514
+    z_c, cap_h, cap_r = -0.05, 0.396, 0.520
+    alpha = np.linspace(0, np.pi / 2, 16)[1:-1]
     zs = np.concatenate([zs, z_c - cap_h * np.sin(alpha)])
-    radius = np.concatenate([radius, cap_r * np.cos(alpha)])
-    cx = np.concatenate([cx, -0.22 - 0.08 * np.sin(alpha)])
+    half = np.concatenate([half, cap_r * np.cos(alpha) ** 1.3])
+    cx = np.concatenate([cx, -0.232 - 0.03 * np.sin(alpha)])
     belly = np.concatenate([belly, -0.02 * np.cos(alpha)])
     seg = GRID["body"]
     phi = np.linspace(-np.pi, np.pi, seg, endpoint=False)
-    ring = np.stack([cx[:, None] + radius[:, None] * np.cos(phi)[None, :],
-                     belly[:, None] + 0.84 * radius[:, None] * np.sin(phi)[None, :],
+    ring = np.stack([cx[:, None] + half[:, None] * np.cos(phi)[None, :],
+                     belly[:, None] + 0.80 * half[:, None] * np.sin(phi)[None, :],
                      np.repeat(zs[:, None], seg, axis=1)], axis=-1).reshape(-1, 3)
-    # rings run top -> bottom; poles: top (hidden in the head) and the tail tip
+    global BODY_PROFILE
+    order = np.argsort(zs)
+    BODY_PROFILE = (zs[order], cx[order], belly[order], half[order])
     top = np.array([cx[0], belly[0], top_z + 0.02])
-    tail = np.array([-0.30, -0.02, z_c - cap_h])
+    tail = np.array([-0.262, -0.01, z_c - cap_h])
     positions = np.vstack([ring, top, tail])
     faces = ring_faces(len(zs), seg, len(ring), len(ring) + 1)
-    faces = outward(positions, faces, np.array([-0.08, 0.0, 0.3]))
+    faces = outward(positions, faces, np.array([-0.15, 0.0, 0.3]))
     n = vertex_normals(positions, faces)
-    pink = 0.14 * smoothstep(0.25, 0.95, -n[:, 0]) * smoothstep(0.6, -0.2, positions[:, 2])
-    blue = 0.12 * smoothstep(0.3, 0.95, n[:, 0])
+    pink = 0.26 * smoothstep(0.35, 0.97, -n[:, 0]) * smoothstep(0.6, -0.2, positions[:, 2])
+    blue = 0.20 * smoothstep(0.4, 0.97, n[:, 0])
     colours = WHITE * (1 - pink - blue)[:, None] + PINK_TINT * pink[:, None] + BLUE_TINT * blue[:, None]
     return positions, n, colours, faces
 
 
-def body_surface(x, z):
-    """Front point and normal of the body near (x, z) (for the badge)."""
-    pos, n, _, _ = BODY
-    front = pos[(pos[:, 1] < 0)]
-    normals = n[(pos[:, 1] < 0)]
-    d = (front[:, 0] - x) ** 2 + (front[:, 2] - z) ** 2
-    k = np.argsort(d)[:6]
-    w = 1 / (d[k] + 1e-6)
-    return (front[k] * w[:, None]).sum(0) / w.sum(), (normals[k] * w[:, None]).sum(0) / w.sum()
+BODY_PROFILE = None
+
+
+def body_front_y(x, z):
+    """Front (-Y) surface of the body at (x, z) -- the body is horizontal elliptic rings."""
+    zs, cx, belly, half = BODY_PROFILE
+    c = np.interp(z, zs, cx)
+    b_ = np.interp(z, zs, belly)
+    h = np.interp(z, zs, half)
+    return b_ - 0.80 * h * np.sqrt(np.clip(1 - ((x - c) / h) ** 2, 0, None))
 
 
 def badge():
-    cx, cz = logo(249, 381)
-    point, normal = body_surface(cx, cz)
-    normal /= np.linalg.norm(normal)
-    e1 = np.cross(np.array([0.0, 0.0, 1.0]), normal)
-    e1 /= np.linalg.norm(e1)
-    e2 = np.cross(normal, e1)
-    radius = 28 * K
+    """A round disc facing the viewer (the logo shows a circle), following the body."""
+    cx, cz = logo(250, 380)
+    radius = 31 * K
     nr, nt = 10, 72
     rho = np.linspace(0, 1, nr + 1)[1:]
     theta = np.linspace(0, 2 * np.pi, nt, endpoint=False)
     rr, tt = np.meshgrid(rho, theta, indexing="ij")
-    dome = 0.014 + 0.010 * (1 - rr ** 2)
-    ring = (point + (radius * rr * np.cos(tt))[..., None] * e1 + (radius * rr * np.sin(tt))[..., None] * e2
-            + dome[..., None] * normal).reshape(-1, 3)
-    centre = point + 0.024 * normal
+    x = cx + radius * rr * np.cos(tt)
+    z = cz + radius * rr * np.sin(tt)
+    y = body_front_y(x, z) - (0.014 + 0.010 * (1 - rr ** 2))
+    ring = np.stack([x, y, z], axis=-1).reshape(-1, 3)
+    centre = np.array([[cx, body_front_y(cx, cz) - 0.024, cz]])
     positions = np.vstack([ring, centre])
     faces = []
     for i in range(nr - 1):
         for k in range(nt):
-            a, b = i * nt + k, i * nt + (k + 1) % nt
-            faces += [(a, b, a + nt), (b, b + nt, a + nt)]
+            a_, b_ = i * nt + k, i * nt + (k + 1) % nt
+            faces += [(a_, b_, a_ + nt), (b_, b_ + nt, a_ + nt)]
     faces += [(len(ring), (k + 1) % nt, k) for k in range(nt)]
     faces = np.asarray(faces, dtype=np.int64)
     n = vertex_normals(positions, faces)
-    if np.dot(n.mean(0), normal) < 0:
+    if np.mean(n[:, 1]) > 0:
         faces = faces[:, ::-1].copy()
         n = -n
-    s = smoothstep(-0.75, 0.75, (positions - point) @ e1 / radius)
-    colours = LOGO_RED * (1 - s)[:, None] + LOGO_BLUE * s[:, None]
-    rim_centre = point + (radius + 0.004) * (np.cos(theta)[:, None] * e1 + np.sin(theta)[:, None] * e2) + 0.016 * normal
+    s_ = smoothstep(-0.75, 0.75, (positions[:, 0] - cx) / radius)
+    colours = LOGO_RED * (1 - s_)[:, None] + LOGO_BLUE * s_[:, None]
+    rx = cx + (radius + 0.004) * np.cos(theta)
+    rz = cz + (radius + 0.004) * np.sin(theta)
+    rim_centre = np.stack([rx, body_front_y(rx, rz) - 0.016, rz], axis=-1)
     rim_centre = np.vstack([rim_centre, rim_centre[:1]])
-    return (positions, n, colours, faces), (rim_centre, normal)
+    return (positions, n, colours, faces), (rim_centre, np.array([0.0, -1.0, 0.0]))
 
 
 def badge_rim(rim_centre, normal, radius, ring=10):
@@ -559,36 +580,79 @@ def badge_rim(rim_centre, normal, radius, ring=10):
     return pos, faces
 
 
+# Arm roots (inside the body) and tips, from the logo. Left: a broad fin whose
+# seam runs from (160, 315) to (125, 395) on the body's left side, tip at
+# (63, 388). Right: a paddle from the seam at x ~330 (y 340..380) up to the
+# hand at (445, 312).
+LEFT_ROOT = np.array([logo(170, 345)[0], -0.06, logo(170, 345)[1]])
+LEFT_TIP = np.array([logo(58, 389)[0], -0.14, logo(58, 389)[1]])
+RIGHT_ROOT = np.array([logo(314, 366)[0], -0.06, logo(314, 366)[1]])
+RIGHT_TIP = np.array([logo(447, 306)[0], -0.14, logo(447, 306)[1]])
+ARM_PIVOT = {-1.0: np.array([logo(150, 352)[0], -0.08, logo(150, 352)[1]]),
+             1.0: np.array([logo(333, 360)[0], -0.08, logo(333, 360)[1]])}
+
+
 def arm(side: float):
-    if side < 0:   # the logo's wing: down and out to the viewer's left
-        root = np.array([logo(170, 332)[0], -0.06, logo(170, 332)[1]])
-        tip = np.array([logo(70, 400)[0], -0.16, logo(70, 400)[1]])
-        width_hint = np.array([0.35, 0.0, 0.94])
-        pos, faces = paddle(root, tip, width_hint, width=0.27, thickness=0.09, taper=(0.72, 1.0))
-    else:          # the waving paddle raised to the viewer's right
-        root = np.array([logo(334, 338)[0], -0.08, logo(334, 338)[1]])
-        tip = np.array([logo(446, 288)[0], -0.14, logo(446, 288)[1]])
-        width_hint = np.array([-0.2, 0.0, 1.0])
-        pos, faces = paddle(root, tip, width_hint, width=0.33, thickness=0.12, taper=(0.70, 1.0))
+    if side < 0:   # the logo's fin: broad at the body, narrowing down and out to the left
+        pos, faces = paddle(LEFT_ROOT, LEFT_TIP, np.array([0.45, 0.0, 0.89]), width=0.56, thickness=0.085,
+                            taper=(1.0, 0.30), nu=32, nv=22)
+    else:          # the waving hand: narrower at the body, a big round paddle at the end
+        pos, faces = paddle(RIGHT_ROOT, RIGHT_TIP, np.array([-0.38, 0.0, 0.92]), width=0.40, thickness=0.13,
+                            taper=(0.80, 1.0), nu=32, nv=22)
     n = vertex_normals(pos, faces)
-    pink = (0.16 if side < 0 else 0.0) * smoothstep(0.2, 0.9, -n[:, 2])
-    blue = (0.10 if side > 0 else 0.0) * smoothstep(0.2, 0.9, n[:, 0])
+    pink = (0.18 if side < 0 else 0.0) * smoothstep(0.2, 0.9, -n[:, 2])
+    blue = (0.12 if side > 0 else 0.0) * smoothstep(0.2, 0.9, n[:, 0])
     colours = WHITE * (1 - pink - blue)[:, None] + PINK_TINT * pink[:, None] + BLUE_TINT * blue[:, None]
+    root, tip = (LEFT_ROOT, LEFT_TIP) if side < 0 else (RIGHT_ROOT, RIGHT_TIP)
     return pos, n, colours, faces, root, tip
 
 
 def joint(root, tip):
+    """A white shoulder fillet over the seam (no dark joint dot)."""
     axis = (tip - root) / np.linalg.norm(tip - root)
     centre = root + axis * 0.05
-    pos, faces = superellipsoid(np.array([0.03, 0.045, 0.065]), 2.0, 2.0, 24, 12)
-    # orient: local z along a vertical-ish ring around the arm root
+    pos, faces = superellipsoid(np.array([0.06, 0.065, 0.095]), 2.0, 2.0, 20, 12)
     zax = np.cross(axis, np.array([0.0, 1.0, 0.0]))
     zax /= np.linalg.norm(zax)
     yax = np.cross(zax, axis)
-    rot = np.stack([axis, yax, zax], axis=1)
-    model = pos @ rot.T + centre
+    model = pos @ np.stack([axis, yax, zax], axis=1).T + centre
     n = vertex_normals(model, faces)
-    return model, n, np.tile(JOINT, (len(model), 1)), faces
+    return model, n, np.tile(WHITE, (len(model), 1)), faces
+
+
+def visor_reflection():
+    """Glass reflections like the logo: a soft crescent upper left, a faint lower rim."""
+    shapes = []
+    for (t0, t1, r0, r1, alpha) in ((np.radians(100), np.radians(165), 0.80, 0.93, 0.30),
+                                    (np.radians(205), np.radians(335), 0.88, 0.96, 0.14)):
+        tt = np.linspace(t0, t1, 48)
+        rr = np.linspace(r0, r1, 5)
+        T, R = np.meshgrid(tt, rr, indexing="ij")
+        m = 2.0 / VISOR_E
+        x = VISOR_HALF[0] * R * spow(np.cos(T), m)
+        z = VISOR_CZ + VISOR_HALF[1] * R * spow(np.sin(T), m)
+        y = head_front_y(x, z) - visor_lift(visor_rho(x, z)) - 0.004
+        pts = np.stack([x, y, z], axis=-1)
+        # fade both ends of the crescent with a narrower band
+        mid = (r0 + r1) / 2
+        taper = np.sin(np.linspace(0, np.pi, len(tt)))[:, None] ** 0.7
+        pts[..., 0] = VISOR_HALF[0] * (mid + (R - mid) * taper) * spow(np.cos(T), m)
+        pts[..., 2] = VISOR_CZ + VISOR_HALF[1] * (mid + (R - mid) * taper) * spow(np.sin(T), m)
+        pts[..., 1] = head_front_y(pts[..., 0], pts[..., 2]) - visor_lift(visor_rho(pts[..., 0], pts[..., 2])) - 0.004
+        faces = []
+        nt, nr = pts.shape[:2]
+        for i in range(nt - 1):
+            for k in range(nr - 1):
+                a_ = i * nr + k
+                faces += [(a_, a_ + 1, a_ + nr), (a_ + 1, a_ + nr + 1, a_ + nr)]
+        faces = np.asarray(faces, dtype=np.int64)
+        flat = roll_head(pts.reshape(-1, 3))
+        nrm = vertex_normals(flat, faces)
+        if np.mean(nrm[:, 1]) > 0:
+            faces = faces[:, ::-1].copy()
+            nrm = -nrm
+        shapes.append((flat, nrm, faces, alpha))
+    return shapes
 
 
 # ------------------------------------------------------------------ build ----
@@ -639,26 +703,31 @@ def build(source: Path, target: Path) -> dict:
 
     # Materials: tune the existing ones, add the glow halos (unlit, blended).
     mats = doc["materials"]
-    mats[materials["GlossyWhite"]]["emissiveFactor"] = [0.07, 0.072, 0.08]
+    mats[materials["GlossyWhite"]]["emissiveFactor"] = [0.10, 0.10, 0.11]
     mats[materials["VisorDeepBlack"]]["pbrMetallicRoughness"].update(metallicFactor=0.2, roughnessFactor=0.06)
-    mats[materials["EyeCyanGlow"]]["emissiveFactor"] = [0.34, 0.60, 0.95]     # x2.2..3.9 at runtime: near-white blue core
+    mats[materials["EyeCyanGlow"]]["emissiveFactor"] = [0.30, 0.58, 1.0]     # x2.2..3.9 at runtime: near-white blue core
     mats[materials["AccentPink"]]["emissiveFactor"] = [float(v) for v in (LOGO_RED * 0.10).round(4)]
     mats[materials["AccentBlue"]]["emissiveFactor"] = [float(v) for v in (LOGO_BLUE * 0.10).round(4)]
     mats[materials["ContinuousGradientGloss"]]["emissiveFactor"] = [0.0, 0.0, 0.0]
     unlit = {"KHR_materials_unlit": {}}
-    halo_inner = add_material({"name": "EyeGlowHaloInner", "pbrMetallicRoughness": {
-        "baseColorFactor": [0.0, 0.0, 0.0, 0.95], "metallicFactor": 0.0, "roughnessFactor": 1.0},
-        "emissiveFactor": [0.02, 0.26, 0.95], "alphaMode": "BLEND"})
-    halo_outer = add_material({"name": "EyeGlowHaloOuter", "pbrMetallicRoughness": {
-        "baseColorFactor": [0.0, 0.0, 0.0, 0.40], "metallicFactor": 0.0, "roughnessFactor": 1.0},
-        "emissiveFactor": [0.02, 0.20, 0.85], "alphaMode": "BLEND"})
+    glow_materials = []
+    for index, (_, alpha) in enumerate(EYE_GLOW):
+        glow_materials.append(add_material({"name": f"EyeGlowSoft{index + 1}", "pbrMetallicRoughness": {
+            "baseColorFactor": [0.0, 0.0, 0.0, alpha], "metallicFactor": 0.0, "roughnessFactor": 1.0},
+            "emissiveFactor": [0.02, 0.24, 1.0], "alphaMode": "BLEND"}))
+    reflection_materials = [add_material({"name": f"VisorReflection{index + 1}", "pbrMetallicRoughness": {
+        "baseColorFactor": [1.0, 1.0, 1.0, alpha], "metallicFactor": 0.0, "roughnessFactor": 1.0},
+        "alphaMode": "BLEND", "extensions": unlit}) for index, alpha in enumerate((0.30, 0.14))]
     rim_glow = add_material({"name": "BadgeRimGlow", "pbrMetallicRoughness": {
         "baseColorFactor": [1.0, 1.0, 1.0, 1.0], "metallicFactor": 0.0, "roughnessFactor": 0.2},
-        "emissiveFactor": [0.55, 0.75, 1.0]})
+        "emissiveFactor": [0.85, 0.95, 1.0]})
     badge_face = add_material({"name": "BadgeGradientUnlit", "pbrMetallicRoughness": {
         "baseColorFactor": [1.0, 1.0, 1.0, 1.0], "metallicFactor": 0.0, "roughnessFactor": 1.0}, "extensions": unlit})
+    rim_halo_soft = add_material({"name": "BadgeRimHaloSoft", "pbrMetallicRoughness": {
+        "baseColorFactor": [0.45, 0.70, 1.0, 0.14], "metallicFactor": 0.0, "roughnessFactor": 1.0},
+        "alphaMode": "BLEND", "extensions": unlit})
     rim_halo = add_material({"name": "BadgeRimHalo", "pbrMetallicRoughness": {
-        "baseColorFactor": [0.55, 0.80, 1.0, 0.45], "metallicFactor": 0.0, "roughnessFactor": 1.0},
+        "baseColorFactor": [0.55, 0.80, 1.0, 0.32], "metallicFactor": 0.0, "roughnessFactor": 1.0},
         "alphaMode": "BLEND", "extensions": unlit})
     doc["extensionsUsed"] = sorted(set(doc.get("extensionsUsed", [])) | {"KHR_materials_unlit"})
 
@@ -668,7 +737,8 @@ def build(source: Path, target: Path) -> dict:
     # Head (children of Rig_Head; mesh nodes keep their V5 offsets, so the
     # vertices are in model space).
     set_mesh("HeadShell", primitive(*head_shell(), white))
-    set_mesh("Visor", primitive(*visor(), visor_m), primitive(*visor_bezel(), white))
+    reflections = [primitive(flat, nrm, None, faces, mat) for (flat, nrm, faces, _), mat in zip(visor_reflection(), reflection_materials)]
+    set_mesh("Visor", primitive(*visor(), visor_m), primitive(*visor_bezel(), white), *reflections)
     set_mesh("LeftEarPink", primitive(*ear(-1.0, BASE_RED), materials["AccentPink"]))
     set_mesh("RightEarBlue", primitive(*ear(1.0, BASE_BLUE), materials["AccentBlue"]))
     set_mesh("CrestContinuousGradient", primitive(*horn(), gloss))
@@ -681,8 +751,8 @@ def build(source: Path, target: Path) -> dict:
         pos, faces = eye(side)
         core_colour = np.tile(EYE_CORE, (len(pos), 1))
         prims = [primitive(pos, None, core_colour, faces, eye_m)]
-        for scale, mat in ((EYE_HALO[0] / EYE_TUBE, halo_inner), (EYE_HALO[1] / EYE_TUBE, halo_outer)):
-            hpos, hfaces = eye(side, scale, ring=12)
+        for (radius, _), mat in zip(EYE_GLOW, glow_materials):
+            hpos, hfaces = eye(side, radius / EYE_TUBE, ring=8)
             prims.append(primitive(hpos, None, None, hfaces, mat))
         set_mesh(name, *prims)
         pivot = eye_pivot(side)
@@ -694,16 +764,24 @@ def build(source: Path, target: Path) -> dict:
     set_mesh("SlimDropletTorso", primitive(*BODY, white))
     (badge_geo, (rim_centre, normal)) = badge()
     set_mesh("BadgeContinuousGradient", primitive(*badge_geo, badge_face))
-    rim_pos, rim_faces = badge_rim(rim_centre, normal, 0.016)
-    halo_pos, halo_faces = badge_rim(rim_centre, normal, 0.036)
+    rim_pos, rim_faces = badge_rim(rim_centre, normal, 0.014)
+    halo_pos, halo_faces = badge_rim(rim_centre, normal, 0.030)
+    halo2_pos, halo2_faces = badge_rim(rim_centre, normal, 0.050)
     set_mesh("BadgeGlowRim", primitive(rim_pos, None, np.tile(WHITE, (len(rim_pos), 1)), rim_faces, rim_glow),
-             primitive(halo_pos, None, None, halo_faces, rim_halo))
+             primitive(halo_pos, None, None, halo_faces, rim_halo),
+             primitive(halo2_pos, None, None, halo2_faces, rim_halo_soft))
 
     # Arms + joints (children of Rig_LeftArm / Rig_RightArm).
-    for mesh_name, joint_name, side in (("LeftArm", "LeftShoulderJoint", -1.0), ("RightWaveArm", "RightShoulderJoint", 1.0)):
+    for mesh_name, joint_name, rig, side in (("LeftArm", "LeftShoulderJoint", "Rig_LeftArm", -1.0),
+                                              ("RightWaveArm", "RightShoulderJoint", "Rig_RightArm", 1.0)):
         pos, n, colours, faces, root, tip = arm(side)
         set_mesh(mesh_name, primitive(pos, n, colours, faces, white))
-        set_mesh(joint_name, primitive(*joint(root, tip), materials["JointDark"]))
+        set_mesh(joint_name, primitive(*joint(root, tip), white))
+        # The arm pivot moves to the new arm root (arm clips only rotate it).
+        pivot = ARM_PIVOT[side]
+        nodes[rig]["translation"] = [float(v) for v in np.round(pivot, 6)]
+        for child in (mesh_name, joint_name):
+            nodes[child]["translation"] = [float(v) for v in np.round(-pivot, 6)]
 
     # Drop accessors the new meshes no longer use (keep animation data).
     used = set()
@@ -741,13 +819,13 @@ def build(source: Path, target: Path) -> dict:
     extras.update({
         "visualTarget": "assets/brand/lotbi-mark-512.png (official logo character, header lockup)",
         "visualTargetSha256": hashlib.sha256(logo_path.read_bytes()).hexdigest(),
-        "visualStatus": "LOGO_CHARACTER_V4_OWNER_REVIEW",
+        "visualStatus": "LOGO_CHARACTER_V5_OWNER_REVIEW",
         "derivedFrom": "assets/models/lotbi-faithful-v2-rigged.glb",
         "derivedFromSha256": source_sha,
-        "logoAlignment": "all visible shapes rebuilt from the logo picture; rig, nodes and 13 animations of V5 kept, eye pivots moved to the new eyes",
+        "logoAlignment": "v5: all visible shapes rebuilt from the logo picture (overlay-checked); V5 rig and 13 animations kept; eye and arm pivots moved to the new eyes and arm roots",
         "mouth": False,
     })
-    doc["asset"]["generator"] = "LOTBI tools/build_logo_character_v4.py (logo character on the V5 rig)"
+    doc["asset"]["generator"] = "LOTBI tools/build_logo_character_v5.py (logo character on the V5 rig)"
     out = write_glb(doc, kept_arr, target)
     return {"source_sha256": source_sha, "target": str(target),
             "target_sha256": hashlib.sha256(out).hexdigest(), "bytes": len(out)}

@@ -808,6 +808,12 @@ jobs:
       # 320·360·375·390·412·1280 실제 터치/마우스.
       - name: Validate life medical auto search and turning cards
         run: node scripts/validate_life_medical_auto_search_card_01.mjs
+      # LIFE-MEDICAL-MERGE-01: 지역정보 「병원·응급실·약국」 카드 하나 → 같은 화면의
+      # 가까운 곳 목록(대화로 보내지 않음). 칩 [병원·의원][응급실][약국]·기억, 5곳+더 보기,
+      # 응급실 119 항상 위, 위치 5상태·지역 고르기 기억, 문제 12종 다음 버튼, 48px·다크 대비.
+      # 360·375·390·412·1280 실제 터치/마우스.
+      - name: Validate life medical one-screen list
+        run: node scripts/validate_life_medical_list_01.mjs
       # KINDERGARTEN-OFFICIAL-INFO-01: 생활정보 → 유치원·학교 → 유치원. 유치원알리미
       # 시도·시군구 → 목록 → 설립유형·주소·연락처·운영시간·학급·정원·원아·홈페이지·
       # 공시 기준 + 상세 공시 8개, 내 유치원(학교 저장값과 분리), Core 꺼짐 안내,
@@ -1018,7 +1024,7 @@ jobs:
             exit 1
           fi
 
-          for path in / /about /subscribe /refund /exchange /dispute /account-deletion /contact /terms /privacy /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/models/lotbi-logo-character-v4-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-kakao-share.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /site-life-wallet.css /site-life-wallet.js /kakao-navi.html /site-kakao-navi-handoff.js /site-attachments.js /site-media-upload.js /site-media-upload-mock-core.js /site-media-upload-ui.js /site-media-upload.css /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /site-festival.css /site-festival-client.js /site-festival-ui.js /site-current-location.js /site-bottom-sheet.js /auth-callback.js /auth/callback/ /auth/start/; do
+          for path in / /about /subscribe /refund /exchange /dispute /account-deletion /contact /terms /privacy /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/models/lotbi-logo-character-v5-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-kakao-share.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /site-life-wallet.css /site-life-wallet.js /kakao-navi.html /site-kakao-navi-handoff.js /site-attachments.js /site-media-upload.js /site-media-upload-mock-core.js /site-media-upload-ui.js /site-media-upload.css /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /site-festival.css /site-festival-client.js /site-festival-ui.js /site-current-location.js /site-bottom-sheet.js /auth-callback.js /auth/callback/ /auth/start/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
 

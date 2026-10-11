@@ -34,8 +34,9 @@ assert.ok(callbackHtml.includes('"three": "/avatar-runtime/vendor/three/three.mo
 assert.ok(callback.includes("new CustomEvent('lotbi:home-shell-hydrated')"));
 
 for (const token of [
-  "const MODEL_URL = '/assets/models/lotbi-logo-character-v4-rigged.glb'",
-  "const MODEL_SHA256 = '3e2354ec52c0ee95e2571da54e67380cace6dc9297f8ece4cf87cae0b4298464'",
+  "const MODEL_URL = '/assets/models/lotbi-logo-character-v5-rigged.glb'",
+  "const MODEL_SHA256 = '2c1576a6a29cffb8f006b4ce0497906792efa356191e7ec2d57c5e0bf3f6e8a8'",
+  'avatarRoot.rotation.y = Math.atan2(.62, 2.9)',
   "const AVATAR_SOURCE_HEAD = 'b131f898246ce9852d23dd17009f5914b6ae252e'",
   "const CLIPS_URL = '/assets/animations/lotbi-clips.v1.json?v=20260924-running1'",
   "const CONTRACT_URL = '/avatar-runtime/contracts/avatar-rig-controls.v2.json'",
@@ -104,8 +105,8 @@ assert.ok(conversationCss.includes('.assistant-avatar-slot'));
 
 const requiredFiles = [
   'assets/models/lotbi-faithful-v2-rigged.glb',
-  'assets/models/lotbi-logo-character-v4-rigged.glb',
-  'tools/build_logo_character_v4.py',
+  'assets/models/lotbi-logo-character-v5-rigged.glb',
+  'tools/build_logo_character_v5.py',
   'assets/animations/lotbi-clips.v1.json',
   'avatar-runtime/contracts/avatar-rig-controls.v2.json',
   'avatar-runtime/runtime/controller.mjs',
@@ -156,15 +157,15 @@ for (const action of ['idle', 'listening', 'thinking', 'speaking', 'wave', 'nod'
 }
 assert.equal(Object.keys(contract.bones).length, 5);
 
-// SITE-AVATAR-LOGO-ALIGN-01 — the shipped model is the logo character
+// SITE-AVATAR-LOGO-ALIGN-02 — the shipped model is the logo character
 // (assets/brand/lotbi-mark-512.png) in 3D. Every visible shape is rebuilt from the
-// logo by tools/build_logo_character_v4.py on the sealed V5 rig above (V5 stays
+// logo by tools/build_logo_character_v5.py on the sealed V5 rig above (V5 stays
 // byte-identical and is still served for cached pages): same rig, same 13 clips.
-const CHARACTER = 'assets/models/lotbi-logo-character-v4-rigged.glb';
+const CHARACTER = 'assets/models/lotbi-logo-character-v5-rigged.glb';
 assert.equal(
   createHash('sha256').update(bytes(CHARACTER)).digest('hex'),
-  '3e2354ec52c0ee95e2571da54e67380cace6dc9297f8ece4cf87cae0b4298464',
-  'logo character GLB bytes changed (rebuild with tools/build_logo_character_v4.py and re-review)',
+  '2c1576a6a29cffb8f006b4ce0497906792efa356191e7ec2d57c5e0bf3f6e8a8',
+  'logo character GLB bytes changed (rebuild with tools/build_logo_character_v5.py and re-review)',
 );
 assert.ok(bytes(CHARACTER).length <= bytes('assets/models/lotbi-faithful-v2-rigged.glb').length, 'no heavier than the V5 model');
 const readGlb = buffer => {
@@ -187,24 +188,31 @@ const character = readGlb(bytes(CHARACTER));
 assert.equal(character.doc.asset.extras.derivedFromSha256, 'fb2729f56f18844e85a821f1cc8f2f6a7c64c95fa858bfcda994632131a35c3d');
 assert.equal(character.doc.asset.extras.mouth, false);
 assert.equal(character.doc.asset.extras.animationCount, 13);
-// Same rig: every node keeps its name, parent, rotation, scale and mesh; every
-// rest position is V5's except the two eye pivots, which sit at the new eyes.
-// That is safe because no clip translates an eye pivot (checked below), and the
-// eye mesh nodes cancel their pivot so the eye vertices stay in model space.
-const EYE_NODES = ['Rig_LeftEye', 'Rig_RightEye', 'LeftEye', 'RightEye'];
+// Same rig: every node keeps its name, parent, rotation, scale and mesh. Rest
+// positions are V5's except the eye and arm pivots, which sit at the new eyes and
+// arm roots: no clip translates them (checked below), and their mesh nodes cancel
+// the pivot so the vertices stay in model space.
+const MOVED = {
+  Rig_LeftEye: ['Rig_Head', 'LeftEye'], Rig_RightEye: ['Rig_Head', 'RightEye'],
+  Rig_LeftArm: ['Rig_Root', 'LeftArm', 'LeftShoulderJoint'], Rig_RightArm: ['Rig_Root', 'RightWaveArm', 'RightShoulderJoint'],
+};
+const movedNames = new Set(Object.entries(MOVED).flatMap(([pivot, [, ...children]]) => [pivot, ...children]));
 assert.deepEqual(character.doc.nodes.map(({name, children, rotation, scale, mesh}) => ({name, children, rotation, scale, mesh})),
   v5.doc.nodes.map(({name, children, rotation, scale, mesh}) => ({name, children, rotation, scale, mesh})));
 for (const [index, node] of character.doc.nodes.entries()) {
-  if (!EYE_NODES.includes(node.name)) assert.deepEqual(node.translation, v5.doc.nodes[index].translation, `${node.name}: rest position`);
+  if (!movedNames.has(node.name)) assert.deepEqual(node.translation, v5.doc.nodes[index].translation, `${node.name}: rest position`);
 }
 const nodeByName = name => character.doc.nodes.find(node => node.name === name);
-for (const side of ['Left', 'Right']) {
-  const sum = [0, 1, 2].map(k => nodeByName('Rig_Head').translation[k] + nodeByName(`Rig_${side}Eye`).translation[k] + nodeByName(`${side}Eye`).translation[k]);
-  assert.ok(sum.every(v => Math.abs(v) < 1e-5), `${side} eye vertices stay in model space`);
+const translation = name => nodeByName(name).translation ?? [0, 0, 0];
+for (const [pivot, [parent, ...children]] of Object.entries(MOVED)) {
+  for (const child of children) {
+    const sum = [0, 1, 2].map(k => translation(parent)[k] + translation(pivot)[k] + translation(child)[k]);
+    assert.ok(sum.every(v => Math.abs(v) < 1e-5), `${child} vertices stay in model space`);
+  }
 }
 assert.ok(v5.doc.animations.every(animation => animation.channels.every(channel =>
-  !(['Rig_LeftEye', 'Rig_RightEye'].includes(v5.doc.nodes[channel.target.node].name) && channel.target.path === 'translation'))),
-'no clip translates an eye pivot');
+  !(Object.keys(MOVED).includes(v5.doc.nodes[channel.target.node].name) && channel.target.path === 'translation'))),
+'no clip translates an eye or arm pivot');
 assert.deepEqual(character.doc.meshes.map(mesh => mesh.name), v5.doc.meshes.map(mesh => mesh.name));
 const materialNames = character.doc.materials.map(material => material.name);
 for (const name of v5.doc.materials.map(material => material.name)) assert.ok(materialNames.includes(name), `material kept: ${name}`);
@@ -220,8 +228,8 @@ for (const [index, animation] of character.doc.animations.entries()) {
     assert.deepEqual([...character.accessor(sampler.output)], [...v5.accessor(before.samplers[s].output)], `${animation.name}: values`);
   }
 }
-// Inside the home camera frame (it shows model z from about -0.54 to 2.43; the V5
-// crest reached 2.37) -- the horn tip and the tail both keep a margin.
+// Inside the home camera frame (model z about -0.54 to 2.43; the V5 crest reached
+// 2.37) -- the horn tip and the tail both keep a margin.
 const primitives = name => character.doc.meshes.find(m => m.name === name).primitives;
 const bounds = name => primitives(name).reduce((box, primitive) => {
   const acc = character.doc.accessors[primitive.attributes.POSITION];
@@ -231,11 +239,11 @@ for (const mesh of character.doc.meshes) {
   const box = bounds(mesh.name);
   assert.ok(box.max[2] <= 2.375 && box.min[2] >= -0.48, `${mesh.name} stays inside the home frame (${box.min[2]}..${box.max[2]})`);
 }
-// The logo's shape: a head much wider than the body, a body that ends in a tail
-// to the lower left (no feet), a horn up to the right, the waving arm raised.
+// The logo's shape: a head much wider than the body, a body ending in a tail to the
+// lower left (no feet), a horn up to the right, the waving arm raised.
 const head = bounds('HeadShell');
 const torso = bounds('SlimDropletTorso');
-assert.ok(head.max[0] - head.min[0] >= 1.5 * (torso.max[0] - torso.min[0]), 'big helmet head, about 1.7x the body width like the logo');
+assert.ok(head.max[0] - head.min[0] >= 1.5 * (torso.max[0] - torso.min[0]), 'big helmet head, about 1.6x the body width like the logo');
 assert.ok(torso.min[2] < -0.3, 'the body ends in the logo tail');
 const torsoPositions = character.accessor(primitives('SlimDropletTorso')[0].attributes.POSITION);
 let lowest = 0;
@@ -243,8 +251,28 @@ for (let i = 0; i < torsoPositions.length; i += 3) if (torsoPositions[i + 2] < t
 assert.ok(torsoPositions[lowest] < -0.15, "the tail leans to the viewer's left like the logo");
 assert.ok(bounds('CrestContinuousGradient').max[0] > 0.4, "the horn points up to the viewer's right");
 assert.ok(bounds('RightWaveArm').max[2] > bounds('LeftArm').max[2], 'the right arm is the raised one');
+// Arms attached: each arm starts inside the body (no gap at the seam), and the
+// shoulder fillets are white -- no dark joint dot.
+// The arm's innermost point is compared with the body's edge at that same height.
+const bodyEdgeAt = (z, side) => {
+  let edge = side > 0 ? -Infinity : Infinity;
+  for (let i = 0; i < torsoPositions.length; i += 3) {
+    if (Math.abs(torsoPositions[i + 2] - z) < 0.04) edge = side > 0 ? Math.max(edge, torsoPositions[i]) : Math.min(edge, torsoPositions[i]);
+  }
+  return edge;
+};
+for (const [name, side] of [['LeftArm', -1], ['RightWaveArm', 1]]) {
+  const arm = character.accessor(primitives(name)[0].attributes.POSITION);
+  let inner = 0;
+  for (let i = 0; i < arm.length; i += 3) if (side * arm[i] < side * arm[inner]) inner = i;
+  const edge = bodyEdgeAt(arm[inner + 2], side);
+  assert.ok(side * (edge - arm[inner]) >= 0.05, `${name} starts at least 0.05 inside the body (${arm[inner]} vs edge ${edge})`);
+}
+for (const name of ['LeftShoulderJoint', 'RightShoulderJoint']) {
+  assert.ok(primitives(name).every(p => character.doc.materials[p.material].name !== 'JointDark'), `${name}: no dark joint dot`);
+}
 assert.ok(!avatar.includes('CircleGeometry'), 'no floor disc under the floating logo character');
-// The logo's measured colours (vertex colours are linear RGB).
+// The logo's measured colours (vertex colours are linear RGB) and glow.
 const colourMean = name => {
   const values = character.accessor(primitives(name)[0].attributes.COLOR_0);
   const sum = [0, 0, 0];
@@ -256,12 +284,14 @@ const [rr, rg, rb] = colourMean('RightEarBlue');
 assert.ok(lr > 0.6 && lg < 0.15 && lb < 0.2, `left ear is the logo's coral red (${lr}, ${lg}, ${lb})`);
 assert.ok(rb > 0.75 && rr < 0.1 && rg < 0.35, `right ear is the logo's blue (${rr}, ${rg}, ${rb})`);
 const material = name => character.doc.materials.find(m => m.name === name);
-const [gr, gg, gb] = material('EyeGlowHaloInner').emissiveFactor;
+const [gr, gg, gb] = material('EyeGlowSoft1').emissiveFactor;
 assert.ok(gb >= 0.9 && gr <= 0.05 && gg < 0.35, 'eyes glow the logo blue');
 for (const side of ['LeftEye', 'RightEye']) {
-  assert.ok(primitives(side).some(p => character.doc.materials[p.material].name === 'EyeCyanGlow'), `${side}: glowing core`);
-  assert.ok(primitives(side).some(p => character.doc.materials[p.material].name === 'EyeGlowHaloInner'), `${side}: blue glow`);
+  const names = primitives(side).map(p => character.doc.materials[p.material].name);
+  assert.ok(names.includes('EyeCyanGlow'), `${side}: one thin glowing arc`);
+  assert.ok(names.filter(n => n.startsWith('EyeGlowSoft')).length === 3, `${side}: a soft glow on the glass`);
 }
+assert.ok(primitives('Visor').some(p => character.doc.materials[p.material].name.startsWith('VisorReflection')), 'the visor has the logo glass reflection');
 const crestColours = character.accessor(primitives('CrestContinuousGradient')[0].attributes.COLOR_0);
 let reddish = 0;
 for (let i = 0; i < crestColours.length; i += 3) if (crestColours[i] > 0.6 && crestColours[i + 2] < 0.5) reddish += 1;
@@ -274,4 +304,4 @@ for (let i = 0; i < badgeColours.length; i += 3) {
 }
 assert.ok(red > 0 && blue > 0, 'the badge runs from the logo red to the logo blue');
 
-console.log('SITE-WEB-3D-AVATAR-INTEGRATION-01 + FALLBACK-RETRY-02 + LOGO-ALIGN-01 CONTRACT PASS');
+console.log('SITE-WEB-3D-AVATAR-INTEGRATION-01 + FALLBACK-RETRY-02 + LOGO-ALIGN-02 CONTRACT PASS');
