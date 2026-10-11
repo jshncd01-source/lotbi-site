@@ -200,6 +200,11 @@ for (const [label, fg, bg, min] of [
   // subscribe.css: the solid plan button inverts in Dark, so its label flips too.
   ['plan button label', BG, TEXT, 4.5],
   ['plan button label, hover', BG, '#ffffff', 4.5],
+  // SITE-SUBSCRIBE-DARK-CONTRAST-01: the three plan buttons and the 추천 badge use the same
+  // inverted surface, so they take the same flipped label (measured on the real page in
+  // validate_subscribe_dark_contrast_01.mjs).
+  ['plan card button label', BG, TEXT, 4.5],
+  ['recommended badge label', BG, TEXT, 4.5],
   // 제6조 6.1 국외이전 고지표: styles.css writes its cells #343942, which measured
   // 1.52:1 on the dark page. A disclosure a reviewer cannot read is not a disclosure.
   ['overseas-transfer table cell', TEXT, BG, 4.5],

@@ -172,8 +172,9 @@
 }
 
 .mobile-menu-button {
-  width: 44px;
-  height: 44px;
+  /* USER_FIRST_STANDARD 6 — 48px touch target (was 44). */
+  width: 48px;
+  height: 48px;
   padding: 0;
   display: none;
   place-items: center;
@@ -431,8 +432,8 @@
   }
 
   .mobile-drawer-close {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     padding: 0;
     border-radius: 10px;
     font-size: 26px;
@@ -463,8 +464,8 @@
   }
 
   .mobile-menu-button {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
   }
 
   .account-actions {

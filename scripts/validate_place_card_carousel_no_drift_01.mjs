@@ -7,7 +7,7 @@
 // to a card edge (153-161px on phones) and the center card slid off to the
 // side. This test rotates the orbit every way a person can — prev/next taps
 // (swipes on phones, which have no arrows), side-card taps, arrow/Home/End
-// keys, 다른 장소 보기 — plus scrollIntoView and a
+// keys, all five cards round (PLACE-CARD-RAIL-ALL-RESULTS-01) — plus scrollIntoView and a
 // programmatic scroll, and checks after each step that the rail is still at
 // scrollLeft 0 and the center card sits exactly where it started.
 //
@@ -163,7 +163,7 @@ const PROBE = `(() => {
     title: box(center.querySelector('.lotbi-rich-card-title')),
     prev: box(rail.querySelector('.lotbi-place-orbit-control-prev')),
     next: box(rail.querySelector('.lotbi-place-orbit-control-next')),
-    more: box(rail.querySelector('.lotbi-place-orbit-more')),
+    footerButtons: rail.querySelectorAll('.lotbi-place-orbit-more, .lotbi-place-orbit-footer button').length,
     cardCount: Number(rail.dataset.cardCount),
     sideStrip: rightBox ? {cx: (centerBox.x + centerBox.w + visibleRight) / 2, cy: centerBox.cy, width: visibleRight - (centerBox.x + centerBox.w)} : null,
     snap: getComputedStyle(rail).scrollSnapType,
@@ -311,9 +311,11 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(initial.scrollLeft, 0);
     assert.ok(initial.pageOverflow <= 0, `${testCase.label}: no horizontal page scroll`);
     const restingOffset = initial.centerOffset;
-    // Three cards first; the other two wait behind 다른 장소 보기 (PLACE-MEDICAL-CARD-UX-FINAL-01).
-    let count = initial.cardCount;
-    assert.equal(count, 3, `${testCase.label}: three cards first`);
+    // Every place Core sent turns in the rail; nothing waits behind a button
+    // (PLACE-CARD-RAIL-ALL-RESULTS-01).
+    const count = initial.cardCount;
+    assert.equal(count, PLACE_RESULT.results.length, `${testCase.label}: all ${PLACE_RESULT.results.length} cards`);
+    assert.equal(initial.footerButtons, 0, `${testCase.label}: no 다른 장소 보기`);
     let expected = 0;
     // Phones have no ‹ › any more: a swipe on the card turns it there.
     if (testCase.mobile) assert.ok(initial.prev.w === 0 && initial.next.w === 0, `${testCase.label}: no arrows on a phone`);
@@ -358,10 +360,9 @@ async function runCase(browser, origin, dir, testCase) {
     // A browser (find-in-page, focus, scrollIntoView) can no longer scroll the clipped rail.
     await step('scrollIntoView-side-title', () => evaluate("document.querySelector('.lotbi-place-orbit [data-orbit-slot^=\"RIGHT\"] .lotbi-rich-card-title').scrollIntoView({inline: 'center', block: 'nearest'}), true"), 0);
     await step('programmatic-scrollLeft', () => evaluate("document.querySelector('.lotbi-place-orbit').scrollLeft = 160, true"), 0);
-    // 다른 장소 보기 brings the other two in; the rail still never scrolls.
-    count = PLACE_RESULT.results.length;
-    await step('more', b => tap(b.more.cx, b.more.cy), 3);
-    await step('next(after more)', goNext, expected + 1);
+    // The fourth and fifth cards are reached by turning; the rail still never scrolls.
+    await step('prev(wrap to 5)', goPrev, expected - 1);
+    await step('prev(to 4)', goPrev, expected - 1);
     await step('scrollIntoView-back-title', () => evaluate("document.querySelector('.lotbi-place-orbit [data-orbit-slot=\"RIGHT_BACK\"] .lotbi-rich-card-title').scrollIntoView({inline: 'center', block: 'nearest'}), true"), expected);
     return log;
   } finally {

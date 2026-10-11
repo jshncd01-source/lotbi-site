@@ -3,12 +3,16 @@
 // index.html with a fake Core, at 320/360/390/412 (phone) and 1280 (desktop).
 //
 //   #7 지역정보 → 약국 with no location: Core asks "어느 지역에서 찾을까요?" with
-//      follow_up.reason LOCATION_REQUIRED, and the answer offers
-//      [현재 위치 사용] [지역 선택] (location use off → [지역 선택] only).
-//      - 현재 위치 사용: asks the same question again once, with the location;
+//      follow_up.reason LOCATION_REQUIRED, and the answer offers the shared
+//      위치 허용 row (NEARBY-LOCATION-ALLOW-PROMPT-01, site-location-allow.js):
+//      [현재 위치로 찾기] [지역 고르기], and with LOTBI location use off
+//      [위치 허용하고 찾기] [지역 고르기] (the tap turns it on; its own
+//      validator, validate_nearby_location_allow_prompt_01, covers that).
+//      - 현재 위치로 찾기: asks the same question again once, with the location;
 //        a browser that blocks location gets words and no second question.
-//      - 지역 선택: the region list (Core /v2/life/weather/regions) → one
-//        question "전북특별자치도 전주시 근처 약국 찾아줘".
+//      - 지역 고르기: the region list (Core /v2/life/weather/regions) → one
+//        question "전북특별자치도 전주시 근처 약국 찾아줘". A PC keeps the pick as
+//        the saved region, offered next time beside the two buttons.
 //      - REGION_AMBIGUOUS or an older Core without a reason: no buttons.
 //      - The buttons survive a reload; nothing waits in the composer and the
 //        composer is never focused by any of this.
@@ -59,8 +63,9 @@ const conversationSource = read('site-conversation.js');
 assert.match(conversationSource, /function answerLocationRequest\(response, question\) \{/u);
 assert.match(conversationSource, /const reason = response\?\.followUp\?\.reason \|\| response\?\.intent\?\.clarification;/u);
 assert.equal((conversationSource.match(/const locationRequest = answerLocationRequest\(response, message\);/gu) || []).length, 2, 'guest and signed-in answers both remember it');
-assert.match(conversationSource, /import\('\.\/site-region-picker\.js\?v=aset-[0-9a-f]{12}'\)/u, 'the region list loads only when asked');
-assert.doesNotMatch(conversationSource, /^import [^\n]*site-region-picker/mu, 'no new module in the first bundle');
+assert.match(conversationSource, /import\('\.\/site-location-allow\.js\?v=aset-[0-9a-f]{12}'\)/u, 'the location row loads only with a "where?" answer');
+assert.doesNotMatch(conversationSource, /^import [^\n]*site-(?:region-picker|location-allow)/mu, 'no new module in the first bundle');
+assert.match(read('site-location-allow.js'), /import\('\.\/site-region-picker\.js\?v=aset-[0-9a-f]{12}'\)/u, 'the region list loads only when asked');
 // styles.css is a locked file (validate_hardening.py); the app's own base sheet carries it.
 assert.match(read('home-chat.css'), /body \{ word-break: keep-all; overflow-wrap: break-word; \}/u);
 
@@ -253,35 +258,37 @@ try {
     } else if (action === 'region') {
       const before = focusEvents + focusCalls;
       locationRow(answerNode).querySelector('[data-location-request="region"]').click();
+      // NEARBY-LOCATION-ALLOW-PROMPT-01: chips — a 시·도 chip, then a 시·군 chip that asks at once.
       const sheet = await wait(() => document.querySelector('.lotbi-sheet .lotbi-region-picker'), 'region picker');
-      const province = await wait(() => { const s = sheet.querySelector('[data-region-picker="province"]'); return s && !s.disabled && s.options.length > 1 ? s : null; }, 'provinces');
+      await wait(() => sheet.querySelector('[data-region-province]'), 'province chips');
+      const provinceChip = name => sheet.querySelector('[data-region-province="' + name + '"]');
       result.picker = {
         title: sheet.querySelector('.lotbi-region-picker-title')?.textContent || '',
-        provinces: [...province.options].map(o => o.value).filter(Boolean),
+        provinces: [...sheet.querySelectorAll('[data-region-province]')].map(b => b.dataset.regionProvince),
         dialog: sheet.closest('.lotbi-sheet')?.getAttribute('role') || '',
-        submitDisabledAtStart: sheet.querySelector('[data-region-picker="submit"]').disabled,
+        selects: sheet.querySelectorAll('select').length,
+        confirmButtons: [...sheet.querySelectorAll('button')].filter(b => /이 지역으로 찾기/.test(b.textContent)).length,
+        chipHeights: [...sheet.querySelectorAll('.lotbi-region-picker-chip')].map(b => Math.round(b.getBoundingClientRect().height)),
         box: box(sheet.closest('.lotbi-sheet')),
         contrast: {
           title: contrast(sheet.querySelector('.lotbi-region-picker-title')),
           note: contrast(sheet.querySelector('.lotbi-region-picker-note')),
-          select: contrast(province),
+          chip: contrast(provinceChip('전북특별자치도')),
         },
       };
-      province.value = '전북특별자치도'; province.dispatchEvent(new Event('change', {bubbles: true}));
-      const city = sheet.querySelector('[data-region-picker="city"]');
-      result.picker.cities = [...city.options].map(o => o.value).filter(Boolean);
-      city.value = '전북특별자치도 전주시'; city.dispatchEvent(new Event('change', {bubbles: true}));
+      provinceChip('전북특별자치도').click();
+      await wait(() => sheet.querySelector('[data-region-city]'), 'city chips');
+      result.picker.cities = [...sheet.querySelectorAll('[data-region-city]')].map(b => b.dataset.regionCity);
+      result.picker.stillOpenAfterProvince = Boolean(document.querySelector('.lotbi-sheet .lotbi-region-picker'));
       await shot('region-picker');
-      const submit = sheet.querySelector('[data-region-picker="submit"]');
-      result.picker.contrast.submit = contrast(submit);
-      result.picker.submitEnabled = !submit.disabled;
-      submit.click();
+      sheet.querySelector('[data-region-city="전북특별자치도 전주시"]').click();
       await wait(() => mine().length >= 2, 'region question');
       await settle(2);
       result.picker.closed = !document.querySelector('.lotbi-sheet .lotbi-region-picker');
       result.picker.focusDuring = focusEvents + focusCalls - before;
       result.regionLists = globalThis.__regionLists;
     }
+    result.note = locationRow(answerNode)?.querySelector('.lotbi-location-allow-note')?.textContent?.trim() || '';
     const after = lastAnswer();
     result.final = snapshot();
     result.finalTools = tools(after);
@@ -445,11 +452,11 @@ function assertQuiet(run, label) {
   assert.equal(run.activeIsPrompt, false, `${label}: composer not focused`);
 }
 
-function assertRow(run, label, testCase, kinds) {
+function assertRow(run, label, testCase, kinds, {usageOff = false} = {}) {
   assert.deepEqual(run.rowButtons.map(button => button.kind), kinds, `${label}: location buttons ${JSON.stringify(run.rowButtons)}`);
-  assert.deepEqual(run.rowButtons.map(button => button.text), kinds.map(kind => (kind === 'current' ? '현재 위치 사용' : '지역 선택')));
+  assert.deepEqual(run.rowButtons.map(button => button.text), kinds.map(kind => (kind === 'current' ? (usageOff ? '위치 허용하고 찾기' : '현재 위치로 찾기') : '지역 고르기')));
   for (const button of run.rowButtons) {
-    assert.ok(button.h >= 44, `${label}: ${button.text} touch height ${button.h}`);
+    assert.ok(button.h >= 48, `${label}: ${button.text} touch height ${button.h} (USER_FIRST_STANDARD 6)`);
     assert.ok(button.x >= 0 && button.right <= run.viewport.w, `${label}: ${button.text} inside the screen`);
   }
   NO_TOOLS_CALENDAR(run.tools);
@@ -486,12 +493,14 @@ try {
       assert.equal(region.afterFirst.requests[0].location, null, `${label}: the first question went without a location`);
       assert.ok(region.answerText.startsWith('어느 지역에서 찾을까요?'), `${label}: Core asked where`);
       assertRow(region, `${label}/region`, testCase, ['current', 'region']);
-      assert.equal(region.picker.title, '지역 선택');
+      assert.equal(region.picker.title, '지역 고르기');
       assert.equal(region.picker.dialog, 'dialog', `${label}: the region list is a dialog`);
       assert.deepEqual(region.picker.provinces, ['세종특별자치시', '전북특별자치도']);
       assert.deepEqual(region.picker.cities, ['전북특별자치도 전주시', '전북특별자치도 익산시']);
-      assert.equal(region.picker.submitDisabledAtStart, true, `${label}: nothing picked, nothing to send`);
-      assert.equal(region.picker.submitEnabled, true);
+      assert.equal(region.picker.selects, 0, `${label}: chips, no dropdown`);
+      assert.equal(region.picker.confirmButtons, 0, `${label}: a 시·군 chip asks at once, nothing to confirm`);
+      assert.ok(region.picker.chipHeights.length > 0 && region.picker.chipHeights.every(h => h >= 48), `${label}: chips ${region.picker.chipHeights}`);
+      assert.equal(region.picker.stillOpenAfterProvince, true, `${label}: a 시·도 with several 시·군 shows them`);
       assert.ok(region.picker.box.x >= 0 && region.picker.box.right <= testCase.width, `${label}: the region list inside the screen ${JSON.stringify(region.picker.box)}`);
       assert.deepEqual(region.final.requests.map(item => item.text), [PHARMACY, `전북특별자치도 전주시 ${PHARMACY}`], `${label}: one question with the picked region`);
       assert.equal(region.picker.closed, true, `${label}: the region list closes after the pick`);
@@ -504,7 +513,9 @@ try {
       // Reload: the "where?" answer keeps its buttons; nothing is sent again.
       const reloaded = await runPhase(devtools, page('phase=reload'), `${label}/reload`);
       assert.ok(reloaded.answerText.startsWith('어느 지역에서 찾을까요?'), `${label}: the "where?" answer is restored`);
-      assert.deepEqual(reloaded.rowButtons.map(button => button.kind), ['current', 'region'], `${label}: its buttons survive a reload`);
+      // A PC kept the picked region: it is offered beside the two buttons.
+      assert.deepEqual(reloaded.rowButtons.map(button => button.kind), testCase.mobile ? ['current', 'region'] : ['current', 'region', 'saved'], `${label}: its buttons survive a reload`);
+      if (!testCase.mobile) assert.equal(reloaded.rowButtons[2].text, '전북특별자치도 전주시에서 찾기', `${label}: the saved region chip`);
       assert.deepEqual(reloaded.final.requests, [], `${label}: reload sends nothing`);
       assert.equal(reloaded.final.users.length, 2, `${label}: both questions restored once`);
       assertQuiet(reloaded.final, `${label}/reload`);
@@ -522,11 +533,12 @@ try {
         // A browser that blocks location: words, no second question.
         const blocked = await runPhase(devtools, page('phase=clarify&perm=denied&action=current'), `${label}/blocked`);
         assert.deepEqual(blocked.final.requests.map(item => item.text), [PHARMACY], `${label}: blocked location sends nothing more`);
+        assert.match(blocked.note, /자물쇠 아이콘 → 위치 → 허용/u, `${label}: a blocked browser says where to allow it (${blocked.note})`);
         assertQuiet(blocked.final, `${label}/blocked`);
 
-        // LOTBI location use off: [지역 선택] only.
+        // LOTBI location use off: [위치 허용하고 찾기] still shows (the tap turns it on).
         const off = await runPhase(devtools, page('phase=clarify&perm=granted&usage=off'), `${label}/usage-off`);
-        assertRow(off, `${label}/usage-off`, testCase, ['region']);
+        assertRow(off, `${label}/usage-off`, testCase, ['current', 'region'], {usageOff: true});
 
         // REGION_AMBIGUOUS and an older Core without a reason: no buttons.
         for (const text of ['중구 근처 약국 찾아줘', '옛 근처 약국 찾아줘']) {
@@ -585,4 +597,4 @@ try {
 }
 
 for (const line of summary) console.log(`CAU contrast ${line}`);
-console.log('CONVERSATION-ANSWER-UX-01 OK — a "where?" answer offers 현재 위치 사용 / 지역 선택 and asks once more without the keyboard; 캘린더에 추가 only with a schedule; place categories read as their last step; home examples ask at once; Korean words wrap whole (viewport emulation, not a device run)');
+console.log('CONVERSATION-ANSWER-UX-01 OK — a "where?" answer offers 현재 위치로 찾기 / 지역 고르기 and asks once more without the keyboard; 캘린더에 추가 only with a schedule; place categories read as their last step; home examples ask at once; Korean words wrap whole (viewport emulation, not a device run)');
