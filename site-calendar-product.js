@@ -1,8 +1,8 @@
 // Pure Calendar presentation decisions shared by Week, Month, and Schedule.
 // These labels are derived at read time; no inferred kind or state is stored.
-import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-c51b254b23d8';
-import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-c51b254b23d8';
-import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-c51b254b23d8';
+import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-648925ffc6ee';
+import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-648925ffc6ee';
+import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-648925ffc6ee';
 
 // "15:00" -> "오후 3:00": the clock the record editor shows, so every place the
 // Calendar names a time says it the same way (CALENDAR-ADD-UX-01). '' for
