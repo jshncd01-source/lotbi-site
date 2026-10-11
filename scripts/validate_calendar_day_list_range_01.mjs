@@ -3,7 +3,7 @@
 // 대표님이 확인하고 싶어 하신 것: 2026-09-12 를 누르면 하단에
 //
 //   라마다 프라자 호텔 자은도 숙박
-//   09/12 15:00 → 09/13 11:00
+//   09/12 오후 3:00 → 09/13 오전 11:00
 //
 // 이 그대로 보이는가. 체크인만 보이고 언제 나가는지 안 보이면 숙박 일정이 아니다.
 //
@@ -201,13 +201,13 @@ try {
     const stay = find('라마다 프라자 호텔 자은도 숙박');
     if (!stay) throw new Error(`${label}: the stay must be listed on the day it begins, got ${JSON.stringify(v.rows.map(r => r.title))}`);
     // The line 대표님 asked for.
-    if (!stay.meta.includes('09/12 15:00 → 09/13 11:00')) {
-      throw new Error(`${label}: the stay must say when it ends — expected "09/12 15:00 → 09/13 11:00", got "${stay.meta}"`);
+    if (!stay.meta.includes('09/12 오후 3:00 → 09/13 오전 11:00')) {
+      throw new Error(`${label}: the stay must say when it ends — expected "09/12 오후 3:00 → 09/13 오전 11:00", got "${stay.meta}"`);
     }
     // The time column still shows where it starts, as it always did.
-    if (stay.time !== '15:00') throw new Error(`${label}: the stay must start at 15:00 in the time column, got "${stay.time}"`);
+    if (stay.time !== '오후 3:00') throw new Error(`${label}: the stay must start at 오후 3:00 in the time column, got "${stay.time}"`);
     // A screen reader hears the same thing a sighted owner reads.
-    if (!stay.label.includes('09/12 15:00 → 09/13 11:00')) {
+    if (!stay.label.includes('09/12 오후 3:00 → 09/13 오전 11:00')) {
       throw new Error(`${label}: the accessible name must carry the span too, got "${stay.label}"`);
     }
 
@@ -225,11 +225,11 @@ try {
     if (appointment.meta.includes('→')) {
       throw new Error(`${label}: an ordinary appointment must not grow an ending, got "${appointment.meta}"`);
     }
-    if (appointment.time !== '10:30') throw new Error(`${label}: the appointment must show 10:30, got "${appointment.time}"`);
+    if (appointment.time !== '오전 10:30') throw new Error(`${label}: the appointment must show 오전 10:30, got "${appointment.time}"`);
 
     console.log(label, JSON.stringify(v.rows.map(r => `${r.time} | ${r.title} | ${r.meta}`)));
   }
-  console.log('CALENDAR DAY LIST RANGE 01 PASS — a stay shows 09/12 15:00 → 09/13 11:00 in the day list and its accessible name, a dateless multi-day booking shows days without invented hours, and an ordinary appointment keeps its single time.');
+  console.log('CALENDAR DAY LIST RANGE 01 PASS — a stay shows 09/12 오후 3:00 → 09/13 오전 11:00 in the day list and its accessible name, a dateless multi-day booking shows days without invented hours, and an ordinary appointment keeps its single time.');
 } finally {
   server.kill();
   try { fs.unlinkSync(INNER); } catch {}

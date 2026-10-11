@@ -22,6 +22,7 @@ const {lifeLocationIntent} = await import('../site-life-location.js');
 const {medicalStatusLines} = await import('../site-life-medical.js');
 const {normalizePlaceResult, buildDefaultMapHref} = await import('../site-navigation.js');
 const {LIFE_SHORTCUTS} = await import('../site-consumer-sections.js');
+const {LIFE_LOCAL_CARD_ENABLED: LOCAL_ON} = await import('../site-feature-flags.js');
 
 let passed = 0;
 async function check(name, fn) {
@@ -190,7 +191,8 @@ await check('registry-only medical card says there are no hours and never "진�
 await check('no 전북 맛집·음식 card or entry on 지역정보; the sentence builder Core reads is unchanged; location only for 내 주변', async () => {
   // REGIONAL-CARDS-BUNDLE-01 (owner decision 2026-10-10): 지역생활정보 is followed
   // directly by 내 아이 학교·유치원; no card, entry form or 전북 label on the menu.
-  assert.deepEqual(LIFE_SHORTCUTS.slice(-2).map(item => item.label), ['지역생활정보', '내 아이 학교·유치원']);
+  // (지역생활정보 is hidden until its result shows inside the screen — QA_화면전수_01 H3.)
+  assert.deepEqual(LIFE_SHORTCUTS.slice(-2).map(item => item.label), [LOCAL_ON ? '지역생활정보' : '부동산 실거래가', '내 아이 학교·유치원']);
   assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'jeonbuk-food' || item.regionalFood || /전북/u.test(item.label)), false);
   const sectionsSource = fs.readFileSync(path.join(ROOT, 'site-consumer-sections.js'), 'utf8');
   assert.doesNotMatch(sectionsSource, /createJeonbukFoodForm|regionalFood|site-life-regional/);
@@ -313,10 +315,10 @@ try {
   reading.food.darkColor = getComputedStyle(food).color;
   document.body.dataset.siteTheme = 'light';
 
-  // 지역정보 home (REGIONAL-CARDS-BUNDLE-01): ten shortcuts, no empty cell in any
+  // 지역정보 home (REGIONAL-CARDS-BUNDLE-01, LIFE-MEDICAL-MERGE-01): nine shortcuts, no empty cell in any
   // row, and no 전북 맛집·음식 card, entry form or 전북 label anywhere on it.
   document.querySelector('[data-consumer-section="life"]').click();
-  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === 10 ? g : null; }, 'life grid');
+  const grid = await wait(() => { const g = document.querySelector('.consumer-workspace .consumer-shortcuts'); return g && g.children.length === __LIFE_COUNT__ ? g : null; }, 'life grid');
   await sleep(300);
   const rows = () => {
     const g = box(grid), byRow = new Map();
@@ -328,19 +330,21 @@ try {
     foodShortcut:Boolean(workspace.querySelector('[data-life-shortcut="jeonbuk-food"]')),
     foodForm:Boolean(document.querySelector('[data-regional-food-form]')),
     jeonbukText:/전북/u.test(workspace.textContent)};
-  // Every card that opens an in-panel form (지역생활정보) still opens it, and none
-  // of them is the 전북 food form.
-  const before = sent.length;
-  grid.querySelector('[data-life-shortcut="local"]').click();
-  const detail = await wait(() => document.querySelector('.consumer-life-detail'), 'local detail');
-  await sleep(100);
-  reading.detail = {title:detail.querySelector('h3')?.textContent||'', foodForm:Boolean(document.querySelector('[data-regional-food-form]')),
-    chips:detail.querySelectorAll('[data-regional-chip]').length};
-  reading.handoff = {sent:sent.slice(before)};
+  // Every card that opens an in-panel form (지역생활정보, while its switch is on) still
+  // opens it, and none of them is the 전북 food form.
+  if (__LOCAL_ON__) {
+    const before = sent.length;
+    grid.querySelector('[data-life-shortcut="local"]').click();
+    const detail = await wait(() => document.querySelector('.consumer-life-detail'), 'local detail');
+    await sleep(100);
+    reading.detail = {title:detail.querySelector('h3')?.textContent||'', foodForm:Boolean(document.querySelector('[data-regional-food-form]')),
+      chips:detail.querySelectorAll('[data-regional-chip]').length};
+    reading.handoff = {sent:sent.slice(before)};
+  }
   out.textContent = JSON.stringify(reading);
 } catch(e) { fail(e); }
 </script><pre id="jeonbuk-result">pending</pre>`;
-  return html.replace(runtime[0], harness);
+  return html.replace(runtime[0], harness.replaceAll('__LIFE_COUNT__', String(LIFE_SHORTCUTS.length)).replaceAll('__LOCAL_ON__', String(LOCAL_ON)));
 }
 
 function waitServer() {
@@ -437,18 +441,22 @@ try {
       // Registry-only medical card.
       assert.deepEqual(r.medical.lines.map(line => line.state), ['REGISTRY', 'REGISTRY_NO_HOURS']);
       assert.ok(r.medical.lines.every(line => !/진료 중/u.test(line.text)));
-      // 생활정보 home grid: ten cards, full rows, no 전북 맛집·음식 card, form or label.
-      assert.deepEqual(r.life.labels, ['병원·응급실', '약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', '지역생활정보', '내 아이 학교·유치원']);
-      assertRowsFilled(`${where} ten`, r.life.rows);
-      assert.equal(r.life.rows.rows.length, 5, `${where}: five rows of two`);
+      // 생활정보 home grid: eight cards (one 병원·응급실·약국, 지역생활정보 hidden), full rows (an odd count's last card spans), no 전북 맛집·음식 card, form or label.
+      assert.deepEqual(r.life.labels, ['병원·응급실·약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', ...(LOCAL_ON ? ['지역생활정보'] : []), '내 아이 학교·유치원']);
+      assertRowsFilled(`${where} ${LIFE_SHORTCUTS.length} cards`, r.life.rows);
+      assert.equal(r.life.rows.rows.length, Math.ceil(LIFE_SHORTCUTS.length / 2), `${where}: rows of two (an odd last card on its own row)`);
       assert.equal(r.life.foodShortcut, false, `${where}: a 전북 맛집·음식 card is on 지역정보`);
       assert.equal(r.life.foodForm, false, `${where}: a 전북 맛집·음식 form is on the page`);
       assert.equal(r.life.jeonbukText, false, `${where}: 전북 appears on the 지역정보 home`);
-      // 지역생활정보 opens its own form, not the 전북 food form, and asks nothing yet.
-      assert.equal(r.detail.title, '지역생활정보');
-      assert.equal(r.detail.foodForm, false, `${where}: the 전북 food form opened`);
-      assert.equal(r.detail.chips, 0, `${where}: 전북 chips in the 지역생활정보 form`);
-      assert.deepEqual(r.handoff.sent, [], `${where}: opening 지역생활정보 sent ${JSON.stringify(r.handoff)}`);
+      // 지역생활정보 (while shown) opens its own form, not the 전북 food form, and asks nothing yet.
+      if (LOCAL_ON) {
+        assert.equal(r.detail.title, '지역생활정보');
+        assert.equal(r.detail.foodForm, false, `${where}: the 전북 food form opened`);
+        assert.equal(r.detail.chips, 0, `${where}: 전북 chips in the 지역생활정보 form`);
+        assert.deepEqual(r.handoff.sent, [], `${where}: opening 지역생활정보 sent ${JSON.stringify(r.handoff)}`);
+      } else {
+        assert.equal(r.detail, undefined, `${where}: no 지역생활정보 card, so no form opened`);
+      }
     });
   }
 } finally {

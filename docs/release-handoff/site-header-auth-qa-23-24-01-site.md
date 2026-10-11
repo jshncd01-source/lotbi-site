@@ -2,7 +2,7 @@ READY_FOR_DEPLOY=YES
 MIGRATION=NO
 DEPLOY_ORDER=SITE 단독 (Core·Web·App 변경 없음, 같은 묶음의 Web QA #22와 순서 무관)
 USER_DECISION_NEEDED=NONE
-SUPERSEDES=279da9ec56110873766eefef4ac0226cf5d8d30f (gate FAIL: validate_accessibility.py:127 "index.html: expected one mobile menu open control")
+SUPERSEDES=beb248373308c0fb8acac673ce36b573765b229d (FIX 03), d7cd420344731d63c6f4988c7a3fbf395970623a (FIX 02), 그 앞 279da9ec56110873766eefef4ac0226cf5d8d30f (gate FAIL: validate_accessibility.py:127 "index.html: expected one mobile menu open control")
 
 # site-header-auth-qa-23-24-01-site — release handoff
 
@@ -10,11 +10,47 @@ TASK=배포총괄방 QA #23(Header "계정 확인 중"이 오래 걸릴 때 로�
 REPO=lotbi-site (Ncloud)
 FEATURE_BRANCH=feature/site-header-auth-qa-23-24-01-site
 FEATURE_SHA=이 문서 커밋(branch HEAD, `git ls-remote origin refs/heads/feature/site-header-auth-qa-23-24-01-site`로 확인)
-CODE_SHA=7f5c45ba01b9785c434aa1339b3696370beaefa5 (77feafe6 기능 → 24a2762c main afb7057d 정상 merge → 7f5c45ba FIX 02)
+CODE_SHA=26e803dcf2daf1b0f6c7dc41167e69785db0c2c4 (77feafe6 기능 → 24a2762c main afb7057d merge → 7f5c45ba FIX 02 → 25132059 FIX 03 → 이 커밋 FIX 04)
 BASE_MAIN=afb7057d1d8c149e2b46eb1d656b1049e36b831d (작업 시작 61d3ce37 → READY 직전 ls-remote에서 afb7057d로 움직여 정상 merge. 충돌은 토큰 줄과 main이 새로 넣은 import·link 줄뿐, 해당 구간은 main 쪽을 그대로 씀)
-ASSET_VERSION=aset-c2ddf661acdd (LF checkout에서 `asset_cache_version.mjs --check` PASS)
+ASSET_VERSION=aset-711d4c2e1f93 (LF checkout coherence PASS) (LF checkout에서 `asset_cache_version.mjs --check` PASS)
 FLAG=없음
 PRODUCTION_CHANGED=NO / DB_CHANGED=NO / NEW_SECRET_CREATED=NO / LIVE_MONEY=NO / NEW_PAID_RESOURCE_CREATED=NO
+
+## FIX 04 — 다크 첫 화면 + 48px (배포총괄방 (나) 지시)
+
+원인 [확인된 사실: 시간대별 색 측정 + CSS 읽기]
+- 홈 다크 색은 `body[data-site-theme="dark"]`에만 묶여 있었습니다(`home-bare-white.css`의 `--home-skin-*`, `--home-sidebar-*`).
+- 그 속성은 `site-conversation.js`가 Account 응답 뒤에야 붙입니다.
+- 그래서 응답을 기다리는 동안(1~3초, 부하 때 8초+) 본문·PC 사이드바 계정 칸이 흰색(255)이고, 글자는 다크용(245)이라 거의 안 보였습니다. 현재 운영 main 7c4f0944에서도 같습니다.
+
+조치
+| 파일 | 내용 |
+|---|---|
+| home-bare-white.css | 같은 다크 변수 묶음을 `html[data-site-theme-bootstrap="dark"]`(첫 페인트 전 index.html이 붙임)에도 겁니다. body에 아직 `data-site-theme`가 없을 때만이라 사용자가 고른 값이 나중에 이깁니다. 시스템+어두운 OS도 같습니다. `site-theme-tokens.css`와 같은 방식입니다 |
+| home-chat.css | 햄버거 48×48(기본·휴대폰 규칙 둘 다, 전 44), 드로어 닫기 48(전 44) |
+| site-auth-continuity.css | 확인 후 로그인·회원가입은 모양 그대로, 눌리는 영역 위아래 +6px(테두리 1px 고려해 -7px) → 48 이상 |
+| scripts/validate_site_header_auth_qa_23_24_01.mjs | 화면 모드별 첫 페인트 색 시나리오를 추가했습니다. 휴대폰은 다크·시스템+다크·라이트·시스템+라이트, PC는 다크·시스템+다크·라이트이고, 응답 전에는 body에 테마가 없는 상태로 잽니다. 다크 로그인 빠른 응답에서 흰 깜빡임 0, 햄버거·로그인·회원가입 48 단정도 넣었습니다 |
+
+검증 (CODE_SHA)
+- 내 검사기 17 시나리오 PASS.
+- gate의 python 검사기 14개 PASS: 접근성, bare_white_home_skin_01(LF checkout) 포함.
+- 브라우저·계약 검사기 23/24 PASS. 나머지 1개 `validate_mobile_footer_legal_sheet_01`(761px)는 **현재 main 7c4f0944에서도 같은 단정으로 실패하는 기존 실패**입니다(이 방에서 main으로 재현).
+- 전후 사진·색 측정: 시나리오 폴더 `dark-checking-before-after/`. 수정 전 휴대폰·PC 255(흰색), 수정 후 33.
+
+## 사용자 시나리오 (USER_FIRST_STANDARD 8) — FIX 03
+
+상세·스크린샷·측정 원본: `C:/Users/jshnc/LOTBI-NCLOUD/release-control/user-scenarios/site-header-auth-qa-23-24-01/` (SCENARIOS.md, results.json, PNG)
+
+| # | 흐름 | 탭 수 | 막힌 곳 |
+|---|---|---|---|
+| S1 | 로그인한 휴대폰 → Header 프로필 → 메뉴 서랍(계정 줄까지는 +1) · 라이트·다크 | 1 (+1) | 없음 |
+| S3 | 로그인 안 한 휴대폰, Account 3초 → 약 1.3~1.5초에 로그인 버튼 → 누르면 계정 로그인 주소로 이동 · 라이트·다크 | 1 | 처음 0.8초는 버튼 없음(의도) |
+| S4 | 로그인 안 한 PC, Account 3초 → 사이드바 "계정 확인 중" 옆에 약 1.5~2.0초에 로그인 버튼 → 이동 · 라이트·다크 | 1 | 처음 0.8초는 버튼 없음(의도) |
+| S5 | 로그인한 휴대폰, 응답 빠름 → 홈 열기만 | 0 | 없음, 로그인 깜빡임 0 |
+| S6 | 로그인한 PC → 홈 열기만 · 라이트·다크 | 0 | 없음 |
+
+따라 해서 발견해 고친 것(FIX 03): ① PC에는 #23이 안 닿았다(Header 계정 영역이 PC에는 없고 "계정 확인 중"은 사이드바에 글자뿐) → 사이드바(PC·휴대폰 서랍)에도 같은 지연 로그인. ② 터치 44px → 프로필 버튼 48, 로그인은 눌리는 영역 48+.
+고치지 않고 보고하는 것: 다크 모드에서 "계정 확인 중"이 길면 본문이 흰색+연한 글자(현재 main T54에서도 동일, 원인·스크린샷은 SCENARIOS.md). 햄버거(44)·확인 후 로그인/회원가입 버튼(약 36)도 48 미달(기존, 범위 밖).
 
 ## FIX 02 — gate 반환 원인과 조치 (재READY)
 

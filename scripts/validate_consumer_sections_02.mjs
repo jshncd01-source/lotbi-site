@@ -1,26 +1,33 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {LIFE_MEDICAL_QUESTIONS, LIFE_SHORTCUTS} from '../site-consumer-sections.js';
+import {LIFE_SHORTCUTS} from '../site-consumer-sections.js';
+import {LIFE_LOCAL_CARD_ENABLED as LOCAL_ON} from '../site-feature-flags.js';
 const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 const source = read('site-consumer-sections.js');
 const conversation = read('site-conversation.js');
 const css = read('site-consumer-design.css');
-// REGIONAL-INFO-APPROVED-UX-RESTORE-P0: the approved menu — one 병원·응급실 card,
-// 약국 on its own, no 유치원·학교 card (owner decision 2026-10-10).
-// REGIONAL-CARDS-BUNDLE-01: ten cards — no 전북 맛집·음식 card or entry form (owner
-// decision 2026-10-10: LOTBI serves the whole country, not 전북 only).
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', '지역생활정보', '내 아이 학교·유치원']);
-assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 10);
+// REGIONAL-INFO-APPROVED-UX-RESTORE-P0: no 유치원·학교 card (owner decision 2026-10-10).
+// REGIONAL-CARDS-BUNDLE-01: no 전북 맛집·음식 card or entry form (owner decision
+// 2026-10-10: LOTBI serves the whole country, not 전북 only).
+// LIFE-MEDICAL-MERGE-01 (owner decision 2026-10-11): 병원·응급실·약국 is ONE card, so
+// nine cards in all.
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실·약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', ...(LOCAL_ON ? ['지역생활정보'] : []), '내 아이 학교·유치원']);
+// QA_화면전수_01 H3 (2026-10-11): 지역생활정보 stays hidden (LIFE_LOCAL_CARD_ENABLED) until its
+// result shows inside the screen, so eight cards; turning the flag on makes nine.
+assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, LOCAL_ON ? 9 : 8);
+assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'local'), LOCAL_ON);
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'jeonbuk-food' || item.regionalFood || /전북/u.test(item.label)), false);
 assert.doesNotMatch(source, /createJeonbukFoodForm|regionalFood|site-life-regional/);
-assert.equal(LIFE_SHORTCUTS.some(item => ['hospital', 'emergency', 'education'].includes(item.id)), false);
-// 병원·응급실 asks nothing by itself: it opens 병원·의원 찾기 / 응급실 찾기, each
-// the existing medical question (LIFE-MEDICAL-AUTO-SEARCH-01). 약국 asks at once.
+assert.equal(LIFE_SHORTCUTS.some(item => ['hospital', 'emergency', 'pharmacy', 'education'].includes(item.id)), false);
+// 병원·응급실·약국 asks nothing: it opens its own screen (site-life-medical-list.js)
+// that lists the nearest places itself (LIFE-MEDICAL-MERGE-01) — no card asks the
+// conversation any more.
 const medical = LIFE_SHORTCUTS.find(item => item.id === 'medical');
 assert.equal(medical.ask, undefined);
-assert.deepEqual(medical.choices.map(choice => [choice.id, choice.label]), [['hospital', '병원·의원 찾기'], ['emergency', '응급실 찾기']]);
-for (const choice of medical.choices) assert.equal(typeof LIFE_MEDICAL_QUESTIONS[choice.id], 'string');
-assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => item.id), ['pharmacy']);
+assert.equal(medical.choices, undefined);
+assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => item.id), []);
+assert.match(source, /else if \(item\.id === 'medical'\) openMedical\(item\);/);
+assert.match(source, /if \(name === 'life-medical' && items\.medical\) openMedical\(items\.medical\);/);
 // 축제·행사 and 온누리상품권 open their own surfaces (ONNURI-MERCHANT-01);
 // 지역뉴스, 전기차 충전소 and 내 아이 학교·유치원 open their own screens.
 assert.ok(LIFE_SHORTCUTS.filter(item => !['medical', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'my-child'].includes(item.id) && !item.ask).every(item => typeof item.prompt === 'string'));

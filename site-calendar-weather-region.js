@@ -45,6 +45,33 @@ export function writeCalendarManualWeatherRegion(region, storage = globalThis.lo
   }
 }
 
+// NEARBY-LOCATION-ALLOW-PROMPT-01 — a region the person picked on a PC
+// (지역 고르기) is saved the way Calendar saves its own manual pick: the
+// region (its list name and the list's own coordinates) and MANUAL as where
+// it came from, so Calendar keeps it rather than replacing it with a current
+// location, and every 지역정보 lookup uses it next time.
+const ORIGIN_STORAGE_KEY = 'lotbi.calendar.weather-region-origin.v1';
+
+export function readCalendarWeatherRegionOrigin(storage = globalThis.localStorage) {
+  if (!storage || typeof storage.getItem !== 'function') return null;
+  try {
+    const raw = storage.getItem(ORIGIN_STORAGE_KEY);
+    return raw === 'MANUAL' || raw === 'CURRENT_LOCATION' ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveChosenWeatherRegion(region, storage = globalThis.localStorage) {
+  if (!writeCalendarManualWeatherRegion(region, storage)) return false;
+  try {
+    storage.setItem(ORIGIN_STORAGE_KEY, 'MANUAL');
+  } catch {
+    // The region itself is saved; Calendar then reads it as a manual one.
+  }
+  return true;
+}
+
 export function clearCalendarManualWeatherRegion(storage = globalThis.localStorage) {
   if (!storage || typeof storage.removeItem !== 'function') return;
   try {

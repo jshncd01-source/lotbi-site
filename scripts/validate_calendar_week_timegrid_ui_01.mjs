@@ -238,10 +238,10 @@ try {
     if (v.firstVisibleHour !== '06:00' || v.initialScrollTop !== 0) throw new Error(`${where}: Week must begin with 06:00 without scroll positioning, got "${v.firstVisibleHour}" at scrollTop=${v.initialScrollTop}`);
     const expectedHours = Array.from({length: 24}, (_, index) => `${String((6 + index) % 24).padStart(2, '0')}:00`);
     if (JSON.stringify(v.hourOrder) !== JSON.stringify(expectedHours)) throw new Error(`${where}: Week hours must run 06:00-23:00 then 00:00-05:00, got ${JSON.stringify(v.hourOrder)}`);
-    if (JSON.stringify(v.weekActions.labels) !== JSON.stringify(['사진에서 기록 읽기', '+ 기록'])) {
+    if (JSON.stringify(v.weekActions.labels) !== JSON.stringify(['사진으로 추가', '+ 일정 추가'])) {
       throw new Error(`${where}: Week must show both record actions, got ${JSON.stringify(v.weekActions.labels)}`);
     }
-    if (v.weekActions.placement !== 'week-top' || !v.weekActions.afterAmount || !v.weekActions.beforeViewport || !v.weekActions.aboveWeek) {
+    if (v.weekActions.placement !== 'top' || !v.weekActions.afterAmount || !v.weekActions.beforeViewport || !v.weekActions.aboveWeek) {
       throw new Error(`${where}: Week actions must sit directly after the amount summary and above the weekly grid, got ${JSON.stringify(v.weekActions)}`);
     }
     if (v.columnCount !== 7 || !v.columnsIncreasing || !v.columnsSameRow) {
