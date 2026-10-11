@@ -18,7 +18,7 @@
 //
 // Nothing in this module ever reads another namespace: a different account on
 // the same browser has a different namespace and its own engine state.
-import {CORE_ORIGIN} from './site-core.js?v=aset-577fd151dea9';
+import {CORE_ORIGIN} from './site-core.js?v=aset-d1b6de155d92';
 
 const API = '/v2/conversation-history';
 const STORAGE_PREFIX = 'lotbi.site.ux.v1';
@@ -37,7 +37,7 @@ const PULL_INTERVAL_MS = 90 * 1000;
 const RETRY_STEPS_MS = [5000, 15000, 30000, 60000, 120000, 300000];
 // Device-bound actions: an approval offered on this device must never be
 // replayable from another one. Core drops them as well.
-const DEVICE_ONLY_META = new Set(['calendarAction', 'calendarDraft', 'petAction']);
+const DEVICE_ONLY_META = new Set(['calendarAction', 'calendarDraft', 'petAction', 'loginAction']);
 
 export const CONVERSATION_SYNC_EVENT = 'lotbi:conversation-sync-state';
 
