@@ -1,5 +1,65 @@
 READY_FOR_DEPLOY=YES
 
+# SITE-CONVERSATION-DESIGN-01 — 최신 main 통합 재READY
+
+- 작성 시각(KST): 2026-10-12T00:03:36+09:00
+- 현재 체계: 롯비 MASTER / 총괄관리방. 배포 실행은 총괄 확인 후 별도 배포방 담당.
+- 저장소: lotbi-site / Ncloud ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git
+- 대표 feature: `feature/site-conversation-design-01-site`
+- 기준 Ncloud main: `9147419fb079e6452ff26d82c52a1b8f1dca36e4`
+- 검증된 통합 코드 commit: `669ec0697a50048d35b00198cd97f23869c3a560`
+- 기존 제출 HEAD: `bc6ffc7eabdf7900bb4acd4c9125642f82efca19`; 선행 접수 장소 카드: `c00a4717585c76b40fbc894261cf45451de6e997`
+- 최종 문서 포함 HEAD·Ncloud push/readback은 외부 `outputs/READY-재검증-대화화면.md`에 기록한다.
+
+## 통합 범위·보존
+
+최신 main을 기존 feature에 정상 merge했다. 신규 디자인은 만들지 않았다. 확정 장소 카드 렌더러·회전 CSS·후속 대화 CSS는 이전 제출본과 동일하다. 장소 렌더러를 제외한 전체 site-conversation.js는 최신 main과 캐시 토큰 외에 동일하며 캘린더 등 공통 변경을 보존한다. index와 공통 색 토큰 역시 최신 main 그대로다. 메뉴 이름을 임의로 변경하지 않았다. 다른 담당 기능·공식 로고 및 캐릭터 자산·약관을 덮어쓰지 않았다.
+
+- 발생 충돌 88개: 캐시 관련 87개는 최신 main 기능 원문 보존, 실제 양쪽 코드 변경은 site-conversation.js 1개.
+- site-conversation.js는 캐시 토큰을 정규화한 3-way 통합으로 양쪽 코드를 보존했다. CSS와 workflow는 정상 자동 통합했다.
+- 최신 main 대비 범위 밖 차이 87개는 캐시 갱신뿐이다. `재READY-충돌분류.json`, `재READY-보존검증.json`에 근거를 보존했다.
+- 캐시: `aset-2422a7f21207`, 169 targets / 206 refs, check PASS.
+- 기존 새 검사 2개는 .github/workflows/site-review.yml에 등록된 상태로 보존했다. 실행 직전 mkdtemp Chrome 프로필 조건 유지.
+
+## 검사기 변경과 실패 처리
+
+기존 검사기 6개의 동등 강도 변경 목록·이유는 아래 이전 제출 기록에 보존했다. 이번 추가 변경은 `validate_place_medical_card_ux_final_01.mjs`의 회전 완료 대기뿐이다. 고정 450ms 뒤 마지막 전환 프레임의 opacity `8.57154e-9`가 관찰돼 기존 exact 0 assertion이 실패했다. 450ms 대기 후 실제 카드 CSS animation이 종료됐는지 최대 2초 이내 확인하도록 보강했다. opacity 0, 중앙 위치·가림·전화·지도·순환·점·키보드 assertion 및 기존 허용 오차는 그대로다. 제품 카드 JS/CSS는 수정하지 않았다. 최초 실패 로그도 삭제하지 않았다.
+
+## 이번 재검증
+
+Windows 실제 headless Chrome + 로컬 fixture 결과이며 운영 API/실기기 성공으로 확대하지 않는다.
+
+| 검사 | 결과·근거 |
+|---|---|
+| 대화 선택·입력·가독성, ②③④, 360/1280 × 라이트/다크 | PASS / 재READY-대화검사.json |
+| 회전·점·키보드·동작 축소, 20조합 | PASS / 재READY-회전검사.txt |
+| 기존 장소 검사 6개 | PASS / 재READY-기존장소검사.txt + 재READY-기존장소검사-완료.txt |
+| 3가지 모바일 키보드·PC 입력창 | PASS / 재READY-입력창검사.txt |
+| 긴 답변·스트리밍·읽기 위치·키보드 | PASS / 재READY-긴답변검사.txt |
+| 읽어주기 7조건 | PASS / 재READY-읽어주기검사.txt |
+| sidebar·관리·Markdown·전송·공유·첨부·테마 | PASS / 재READY-공통회귀검사.txt |
+| 최신 main 캘린더 액션·게스트·반복 일정 로그인·avatar 계약 | PASS / 재READY-공통회귀검사.txt |
+| 약관 잠금·보안 경계 | PASS / 재READY-하드닝검사.txt |
+| Site 정적·build env 5개·theme bootstrap·JS 문법·범위 diff check | PASS |
+| 확정 디자인·최신 main 공통 기능·캐시 전용 차이 | PASS / 재READY-보존검증.json |
+
+새 main 통합 화면은 reREADY-conversation/ 20장과 reREADY-place/ 20장에 보존했다. 360 라이트 기록·1280 다크 긴 답변 및 360 다크/1280 라이트 장소 실제 PNG를 육안 확인했다. 기존 전후 24쌍(48장)과 첨부 확정 원본은 유지한다.
+
+## 미검증·다음 단계
+
+- FEATURE_READY=YES / MAIN_MERGED_BY_THIS_ROOM=NO / PRODUCTION_DEPLOYED_BY_THIS_ROOM=NO.
+- trusted Linux gate, Android Chrome·Samsung Internet·iPhone Safari 실기기, 화면 읽기 실제 음성, 운영 API·전화/지도 연결, Production served SHA·배포 ID·digest: NOT_TESTED / UNVERIFIED.
+- 사용자 장소 카드 접수 기록 있음. 후속 대화 디자인에 대한 사용자의 별도 브라우저 최종 승인 기록은 UNVERIFIED. 재READY 실행·총괄방 전달은 이번 사용자 직접 승인에 근거한다.
+- Production DB·Secret·DNS·환경변수·LIVE MONEY·소셜 공개·유료 인프라 변경 없음.
+- 다른 후보가 먼저 main에 반영되면 fresh main 정상 merge와 영향을 받는 검사 후 새로운 exact HEAD로 판단해야 한다.
+- 본 문서는 feature 준비 완료이며 배포 완료를 뜻하지 않는다. 총괄관리방 확인 → 배포방 trusted gate → 정상 main 병합 → Production·실기기 검증 순서다.
+
+## 이전 제출 기록 — 당시 기준의 보존 자료
+
+아래 SHA/main/담당·배포 상태는 과거 기록이다. 현행 값은 위 재READY 항목을 따른다.
+
+READY_FOR_DEPLOY=YES
+
 # SITE-CONVERSATION-DESIGN-01 — 전체 대화 화면 후속 READY
 
 - 상태: IMPLEMENTED / READY. 배포총괄: Claude.
