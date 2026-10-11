@@ -240,18 +240,17 @@ try {
     lastAnswer: assistants().pop()?.querySelector('.chat-message-body')?.innerText?.trim() || '',
     cards: document.querySelectorAll('.lotbi-place-orbit-card').length,
   });
+  // Chips: 시·도 then 시·군, which asks at once (no dropdown, nothing to confirm).
   const pickJeonju = async () => {
     const sheet = await wait(() => document.querySelector('.lotbi-sheet .lotbi-region-picker'), 'region picker');
-    const province = await wait(() => { const s = sheet.querySelector('[data-region-picker="province"]'); return s && !s.disabled && s.options.length > 1 ? s : null; }, 'provinces');
-    result.pickerPreselected = province.value;
-    province.value = '전북특별자치도'; province.dispatchEvent(new Event('change', {bubbles: true}));
-    result.taps += 1;
-    const city = sheet.querySelector('[data-region-picker="city"]');
-    city.value = '전북특별자치도 전주시'; city.dispatchEvent(new Event('change', {bubbles: true}));
-    result.taps += 1;
+    await wait(() => sheet.querySelector('[data-region-province]'), 'province chips');
+    result.pickerSaved = sheet.querySelector('[data-region-saved]')?.textContent || '';
+    result.pickerSelects = sheet.querySelectorAll('select').length;
+    await tap(sheet.querySelector('[data-region-province="전북특별자치도"]'));
+    await wait(() => sheet.querySelector('[data-region-city]'), 'city chips');
     await shot('picker');
-    result.pickerSizes = [...sheet.querySelectorAll('select, button:not([hidden])')].map(n => box(n).h);
-    await tap(sheet.querySelector('[data-region-picker="submit"]'));
+    result.pickerSizes = [...sheet.querySelectorAll('button:not([hidden])')].map(n => box(n).h);
+    await tap(sheet.querySelector('[data-region-city="전북특별자치도 전주시"]'));
   };
 
   if (PHASE === 'typed') {
@@ -509,6 +508,7 @@ try {
       const picked = await runPhase(devtools, page(`phase=menu&perm=granted&geo=unavailable&action=region&expect=picker&then=${encodeURIComponent('근처 병원 찾아줘')}`), `${label}/picked`);
       assert.deepEqual(picked.final.sent.slice(0, 2).map(item => item.text), [PHARMACY, `전북특별자치도 전주시 ${PHARMACY}`]);
       assert.ok(picked.pickerSizes.every(height => height >= 48), `${label}: region list controls ${picked.pickerSizes}`);
+      assert.equal(picked.pickerSelects, 0, `${label}: chips, no dropdown`);
       if (pc) {
         assert.deepEqual(picked.final.saved, {label: '전북특별자치도 전주시', latitude: 35.82, longitude: 127.15, midRegionCode: null}, `${label}: a PC saves the picked region`);
         assert.equal(picked.final.savedOrigin, 'MANUAL');

@@ -6,8 +6,8 @@
 // the pick also carries the list's own coordinates for that 시·군, so a PC
 // can keep it as the person's region (site-location-allow.js decides), and
 // the saved region is chosen when the list opens.
-import {CORE_ORIGIN} from './site-core.js?v=aset-a2d909963241';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-a2d909963241';
+import {CORE_ORIGIN} from './site-core.js?v=aset-e44fd9da283f';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-e44fd9da283f';
 
 const REGION_LIST_TIMEOUT_MS = 8000;
 let regionChoicesRequest = null;
@@ -76,45 +76,39 @@ function element(tag, className = '', text = '') {
   return node;
 }
 
-function fillOptions(select, placeholder, entries) {
-  const first = element('option', '', placeholder);
-  first.value = '';
-  select.replaceChildren(first, ...entries.map(([value, text]) => {
-    const option = element('option', '', text);
-    option.value = value;
-    return option;
-  }));
+// NEARBY-LOCATION-ALLOW-PROMPT-01 (owner, after SITE-T55): chips, not two
+// dropdowns and a submit — the same as 지역뉴스 (REGIONAL-NEWS-CITY-SELECT-01).
+// A 시·도 chip shows that 시·도's 시·군 chips; a 시·군 chip asks at once. A 시·도
+// with one 시·군 (세종) asks at once from the 시·도 chip. The saved region, when
+// it is on the list, is one chip at the top. 지역 고르기 → 시·도 → 시·군: two
+// taps after the button, nothing to confirm.
+function chip(text, dataset) {
+  const node = element('button', 'lotbi-region-picker-chip', text);
+  node.type = 'button';
+  Object.assign(node.dataset, dataset);
+  return node;
 }
 
 export function openRegionPicker({onPick, returnFocus = null, initialName = '', fetchImpl = globalThis.fetch, origin = CORE_ORIGIN} = {}) {
   const titleId = `lotbi-region-picker-title-${Math.random().toString(36).slice(2, 10)}`;
   const body = element('div', 'lotbi-region-picker');
-  const title = element('h3', 'lotbi-region-picker-title', '지역 선택');
+  const title = element('h3', 'lotbi-region-picker-title', '지역 고르기');
   title.id = titleId;
-  const description = element('p', 'lotbi-region-picker-note', '찾을 시·도와 시·군을 고르세요.');
-  const provinceField = element('label', 'lotbi-region-picker-field', '시·도');
-  const province = element('select');
-  province.dataset.regionPicker = 'province';
-  provinceField.appendChild(province);
-  const cityField = element('label', 'lotbi-region-picker-field', '시·군');
-  const city = element('select');
-  city.dataset.regionPicker = 'city';
-  cityField.appendChild(city);
+  const description = element('p', 'lotbi-region-picker-note', '시·도를 누르면 시·군이 나와요. 시·군을 누르면 바로 찾아요.');
+  const savedRow = element('div', 'lotbi-region-picker-chips lotbi-region-picker-saved');
+  savedRow.hidden = true;
+  const stepLabel = element('p', 'lotbi-region-picker-step');
+  const chips = element('div', 'lotbi-region-picker-chips');
+  chips.setAttribute('role', 'group');
   const status = element('p', 'lotbi-region-picker-status');
   status.setAttribute('role', 'status');
   const actions = element('div', 'lotbi-region-picker-actions');
   const retry = element('button', 'lotbi-region-picker-secondary', '다시 불러오기');
   retry.type = 'button';
   retry.hidden = true;
-  const submit = element('button', 'lotbi-region-picker-submit', '이 지역으로 찾기');
-  submit.type = 'button';
-  submit.dataset.regionPicker = 'submit';
-  submit.disabled = true;
-  actions.append(retry, submit);
+  actions.append(retry);
   const missing = element('p', 'lotbi-region-picker-note', '목록에 없는 지역은 입력창에 지역 이름을 적어 보내 주세요.');
-  body.append(title, description, provinceField, cityField, status, actions, missing);
-  province.disabled = true;
-  city.disabled = true;
+  body.append(title, description, savedRow, stepLabel, chips, status, actions, missing);
 
   let choices = null;
   let picked = false;
@@ -127,23 +121,39 @@ export function openRegionPicker({onPick, returnFocus = null, initialName = '', 
     },
   });
 
-  const syncSubmit = () => { submit.disabled = !city.value; };
-  const fillCities = () => {
-    const entries = choices?.byProvince.get(province.value) || [];
-    fillOptions(city, '시·군 선택', entries.map(entry => [entry.name, entry.label]));
-    city.disabled = !entries.length;
-    if (entries.length === 1) city.value = entries[0].name;
-    syncSubmit();
-  };
-  province.addEventListener('change', fillCities);
-  city.addEventListener('change', syncSubmit);
-  submit.addEventListener('click', () => {
-    const name = city.value;
-    if (!name || typeof onPick !== 'function') return;
-    const entry = (choices?.byProvince.get(province.value) || []).find(item => item.name === name) || null;
+  const pick = entry => {
+    if (!entry || typeof onPick !== 'function') return;
     picked = true;
     sheet.close();
-    onPick(name, entry);
+    onPick(entry.name, entry);
+  };
+  const showProvinces = () => {
+    stepLabel.textContent = '시·도';
+    chips.setAttribute('aria-label', '시·도');
+    chips.replaceChildren(...choices.provinces.map(value => chip(value, {regionProvince: value})));
+    chips.querySelector('button')?.focus({preventScroll: true});
+  };
+  const showCities = province => {
+    const entries = choices.byProvince.get(province) || [];
+    if (entries.length === 1) { pick(entries[0]); return; }
+    stepLabel.textContent = province;
+    chips.setAttribute('aria-label', `${province} 시·군`);
+    const back = chip('← 시·도 다시 고르기', {regionPicker: 'back'});
+    back.classList.add('is-back');
+    chips.replaceChildren(back, ...entries.map(entry => chip(entry.label, {regionCity: entry.name})));
+    chips.querySelector('[data-region-city]')?.focus({preventScroll: true});
+  };
+  chips.addEventListener('click', event => {
+    const target = event.target?.closest?.('button');
+    if (!target || !choices) return;
+    if (target.dataset.regionPicker === 'back') { showProvinces(); return; }
+    if (target.dataset.regionProvince) { showCities(target.dataset.regionProvince); return; }
+    if (target.dataset.regionCity) {
+      for (const entries of choices.byProvince.values()) {
+        const entry = entries.find(item => item.name === target.dataset.regionCity);
+        if (entry) { pick(entry); return; }
+      }
+    }
   });
 
   const load = async () => {
@@ -158,18 +168,22 @@ export function openRegionPicker({onPick, returnFocus = null, initialName = '', 
       return;
     }
     status.textContent = '';
-    fillOptions(province, '시·도 선택', choices.provinces.map(value => [value, value]));
-    province.disabled = false;
-    // The saved region, when it is on the list, is already chosen.
+    // The saved region, when it is on the list, is one tap.
     const wanted = String(initialName || '').trim();
-    const home = wanted ? choices.provinces.find(value => (choices.byProvince.get(value) || []).some(entry => entry.name === wanted || entry.label === wanted)) : '';
-    if (home) province.value = home;
-    fillCities();
-    if (home) {
-      const entry = choices.byProvince.get(home).find(item => item.name === wanted || item.label === wanted);
-      if (entry) city.value = entry.name;
-      syncSubmit();
+    let saved = null;
+    if (wanted) {
+      for (const entries of choices.byProvince.values()) {
+        saved = entries.find(entry => entry.name === wanted || entry.label === wanted) || null;
+        if (saved) break;
+      }
     }
+    if (saved) {
+      const savedChip = chip(`${saved.name}에서 찾기`, {regionSaved: saved.name});
+      savedChip.addEventListener('click', () => pick(saved));
+      savedRow.replaceChildren(savedChip);
+      savedRow.hidden = false;
+    }
+    showProvinces();
   };
   retry.addEventListener('click', () => { void load(); });
 

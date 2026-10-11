@@ -258,29 +258,30 @@ try {
     } else if (action === 'region') {
       const before = focusEvents + focusCalls;
       locationRow(answerNode).querySelector('[data-location-request="region"]').click();
+      // NEARBY-LOCATION-ALLOW-PROMPT-01: chips — a 시·도 chip, then a 시·군 chip that asks at once.
       const sheet = await wait(() => document.querySelector('.lotbi-sheet .lotbi-region-picker'), 'region picker');
-      const province = await wait(() => { const s = sheet.querySelector('[data-region-picker="province"]'); return s && !s.disabled && s.options.length > 1 ? s : null; }, 'provinces');
+      await wait(() => sheet.querySelector('[data-region-province]'), 'province chips');
+      const provinceChip = name => sheet.querySelector('[data-region-province="' + name + '"]');
       result.picker = {
         title: sheet.querySelector('.lotbi-region-picker-title')?.textContent || '',
-        provinces: [...province.options].map(o => o.value).filter(Boolean),
+        provinces: [...sheet.querySelectorAll('[data-region-province]')].map(b => b.dataset.regionProvince),
         dialog: sheet.closest('.lotbi-sheet')?.getAttribute('role') || '',
-        submitDisabledAtStart: sheet.querySelector('[data-region-picker="submit"]').disabled,
+        selects: sheet.querySelectorAll('select').length,
+        confirmButtons: [...sheet.querySelectorAll('button')].filter(b => /이 지역으로 찾기/.test(b.textContent)).length,
+        chipHeights: [...sheet.querySelectorAll('.lotbi-region-picker-chip')].map(b => Math.round(b.getBoundingClientRect().height)),
         box: box(sheet.closest('.lotbi-sheet')),
         contrast: {
           title: contrast(sheet.querySelector('.lotbi-region-picker-title')),
           note: contrast(sheet.querySelector('.lotbi-region-picker-note')),
-          select: contrast(province),
+          chip: contrast(provinceChip('전북특별자치도')),
         },
       };
-      province.value = '전북특별자치도'; province.dispatchEvent(new Event('change', {bubbles: true}));
-      const city = sheet.querySelector('[data-region-picker="city"]');
-      result.picker.cities = [...city.options].map(o => o.value).filter(Boolean);
-      city.value = '전북특별자치도 전주시'; city.dispatchEvent(new Event('change', {bubbles: true}));
+      provinceChip('전북특별자치도').click();
+      await wait(() => sheet.querySelector('[data-region-city]'), 'city chips');
+      result.picker.cities = [...sheet.querySelectorAll('[data-region-city]')].map(b => b.dataset.regionCity);
+      result.picker.stillOpenAfterProvince = Boolean(document.querySelector('.lotbi-sheet .lotbi-region-picker'));
       await shot('region-picker');
-      const submit = sheet.querySelector('[data-region-picker="submit"]');
-      result.picker.contrast.submit = contrast(submit);
-      result.picker.submitEnabled = !submit.disabled;
-      submit.click();
+      sheet.querySelector('[data-region-city="전북특별자치도 전주시"]').click();
       await wait(() => mine().length >= 2, 'region question');
       await settle(2);
       result.picker.closed = !document.querySelector('.lotbi-sheet .lotbi-region-picker');
@@ -492,12 +493,14 @@ try {
       assert.equal(region.afterFirst.requests[0].location, null, `${label}: the first question went without a location`);
       assert.ok(region.answerText.startsWith('어느 지역에서 찾을까요?'), `${label}: Core asked where`);
       assertRow(region, `${label}/region`, testCase, ['current', 'region']);
-      assert.equal(region.picker.title, '지역 선택');
+      assert.equal(region.picker.title, '지역 고르기');
       assert.equal(region.picker.dialog, 'dialog', `${label}: the region list is a dialog`);
       assert.deepEqual(region.picker.provinces, ['세종특별자치시', '전북특별자치도']);
       assert.deepEqual(region.picker.cities, ['전북특별자치도 전주시', '전북특별자치도 익산시']);
-      assert.equal(region.picker.submitDisabledAtStart, true, `${label}: nothing picked, nothing to send`);
-      assert.equal(region.picker.submitEnabled, true);
+      assert.equal(region.picker.selects, 0, `${label}: chips, no dropdown`);
+      assert.equal(region.picker.confirmButtons, 0, `${label}: a 시·군 chip asks at once, nothing to confirm`);
+      assert.ok(region.picker.chipHeights.length > 0 && region.picker.chipHeights.every(h => h >= 48), `${label}: chips ${region.picker.chipHeights}`);
+      assert.equal(region.picker.stillOpenAfterProvince, true, `${label}: a 시·도 with several 시·군 shows them`);
       assert.ok(region.picker.box.x >= 0 && region.picker.box.right <= testCase.width, `${label}: the region list inside the screen ${JSON.stringify(region.picker.box)}`);
       assert.deepEqual(region.final.requests.map(item => item.text), [PHARMACY, `전북특별자치도 전주시 ${PHARMACY}`], `${label}: one question with the picked region`);
       assert.equal(region.picker.closed, true, `${label}: the region list closes after the pick`);

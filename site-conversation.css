@@ -4036,21 +4036,52 @@ body[data-site-theme="dark"] .lotbi-location-allow-note {
   color: var(--lotbi-text-secondary, #212121);
 }
 .lotbi-region-picker-status:empty { display: none; }
-.lotbi-region-picker-field {
-  display: grid;
-  gap: 6px;
+/* NEARBY-LOCATION-ALLOW-PROMPT-01: 시·도 / 시·군 as chips (one tap each), the
+   same as 지역뉴스 (REGIONAL-NEWS-CITY-SELECT-01). */
+.lotbi-region-picker-step {
+  margin: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--lotbi-text-secondary, #212121);
 }
-.lotbi-region-picker-field select {
+.lotbi-region-picker-step:empty { display: none; }
+.lotbi-region-picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lotbi-region-picker-chips[hidden] { display: none; }
+.lotbi-region-picker-chip {
   min-height: 48px;
-  padding: 0 12px;
+  min-width: 56px;
+  padding: 0 16px;
   border: 1px solid var(--lotbi-border-default, #e5e5e5);
-  border-radius: 12px;
+  border-radius: 999px;
   background: var(--lotbi-surface-elevated, #fff);
   color: var(--lotbi-text-primary, #212121);
   font: inherit;
   font-size: 15px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.lotbi-region-picker-chip:hover { background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5); }
+.lotbi-region-picker-chip:focus-visible { outline: 3px solid rgba(64, 116, 255, .35); outline-offset: 2px; }
+.lotbi-region-picker-chip.is-back { border-style: dashed; }
+.lotbi-region-picker-saved .lotbi-region-picker-chip {
+  border-color: transparent;
+  background: var(--lotbi-text-primary, #212121);
+  color: var(--lotbi-surface-elevated, #fff);
+  font-weight: 700;
+}
+body[data-site-theme="dark"] .lotbi-region-picker-chip {
+  border-color: #515b69;
+  background: rgba(23, 28, 37, .94);
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+body[data-site-theme="dark"] .lotbi-region-picker-saved .lotbi-region-picker-chip {
+  border-color: transparent;
+  background: var(--lotbi-text-primary, #e8ecf2);
+  color: #171c25;
 }
 .lotbi-region-picker-actions {
   display: flex;
@@ -4058,7 +4089,6 @@ body[data-site-theme="dark"] .lotbi-location-allow-note {
   justify-content: flex-end;
   gap: 8px;
 }
-.lotbi-region-picker-submit,
 .lotbi-region-picker-secondary {
   min-height: 48px;
   padding: 0 18px;
@@ -4067,15 +4097,6 @@ body[data-site-theme="dark"] .lotbi-location-allow-note {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-}
-.lotbi-region-picker-submit {
-  border: 0;
-  background: var(--lotbi-text-primary, #212121);
-  color: var(--lotbi-surface-elevated, #fff);
-}
-.lotbi-region-picker-submit:disabled {
-  opacity: .45;
-  cursor: default;
 }
 .lotbi-region-picker-secondary {
   border: 1px solid var(--lotbi-border-default, #e5e5e5);
