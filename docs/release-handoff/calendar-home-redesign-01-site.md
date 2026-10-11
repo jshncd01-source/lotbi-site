@@ -4,11 +4,11 @@ REPO=lotbi-site
 OWNER=jshncd01-source
 FEATURE_BRANCH=feature/calendar-home-redesign-01-site
 PR=없음 (Ncloud Git 브랜치 인계)
-READY_CODE_SHA=5c66fd6b4ae5b2692ba3a962878feb76ab558fdd
-BASE_MAIN_SHA=f2e391adbe8b3a1424962fc9b024a693bbf98e9d (SITE-T56, push 직전 merge)
+READY_CODE_SHA=b1dfa5a625507da2f46c2ab60b1391700dfbdfbf
+BASE_MAIN_SHA=b09f6e4d21096a4f897d5ba82b958fc5dc384d35 (SITE-T56r, 반환 수정 전 merge)
 INITIAL_MAIN_SHA=7c4f09445676287f242271cbdfb32d91ec33891e (SITE-T54, 작업 시작 기준)
 REMOTE=ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git
-ASSET_VERSION=aset-1da545462423
+ASSET_VERSION=aset-c50b4a7a7524
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 SECRET_CHANGE_REQUIRED=NO
@@ -47,10 +47,10 @@ DEPLOYED=NO
 
 ## 변경 파일
 
-`origin/main..READY_CODE_SHA` 기준 114개다. 정확한 목록은 다음 명령으로 재현한다.
+`BASE_MAIN_SHA..READY_CODE_SHA` 기준 116개다. 정확한 목록은 다음 명령으로 재현한다.
 
 ```text
-git diff --name-status f2e391adbe8b3a1424962fc9b024a693bbf98e9d..5c66fd6b4ae5b2692ba3a962878feb76ab558fdd
+git diff --name-status b09f6e4d21096a4f897d5ba82b958fc5dc384d35..b1dfa5a625507da2f46c2ab60b1391700dfbdfbf
 ```
 
 직접 기능 변경:
@@ -90,10 +90,19 @@ git diff --name-status f2e391adbe8b3a1424962fc9b024a693bbf98e9d..5c66fd6b4ae5b26
 
 자산 캐시 생성 결과:
 
-- `site-asset-version.json`과 HTML/JS의 자산 query 참조가 `aset-1da545462423`으로 함께 갱신됐다.
+- `site-asset-version.json`과 HTML/JS의 자산 query 참조가 `aset-c50b4a7a7524`로 함께 갱신됐다.
 - 새 CSS 파일은 추가하지 않았다. `index.html`, `auth/callback/index.html`, 기타 정적 진입점의 기존 CSS 순서를 바꾸지 않았다.
 
 ## 검사 결과
+
+- 반환 gate 수정: PASS.
+  - `scripts/validate_calendar_holiday_surface_settings_icon_01.mjs`를 Linux gate와 같은 `mkdtemp` 격리 Chrome 프로필로 직접 실행했다.
+  - 360×780/1280×860, 라이트·다크에서 공휴일 배경·일정 제목·일정 점·설정 SVG·공휴일 조회 실패 격리를 모두 확인했다.
+  - 검사기의 색상·크기·표시 기대값은 바꾸지 않았다. 실행 프로필을 매번 새로 만들고, 상단으로 이동한 설정 버튼을 실제 모달 범위에서 찾도록 fixture 탐색 범위만 바로잡았다.
+- 반환 수정 인접 회귀: PASS.
+  - `validate_calendar_month_temperature_01.mjs` 40개 조합(351~1280px, 인증/게스트, 라이트/다크, 음력, 넓은 Linux 글꼴, 최종 빈 상태/6개 상태).
+  - `validate_calendar_modal_runtime_02.mjs`, `validate_calendar_month_geometry_01.mjs`, `validate_calendar_mobile_week_ux_weather_01.mjs`, `validate_calendar_cross_platform_ux_01.mjs`, `validate_calendar_system_dark_01.mjs`, `validate_calendar_toolbar_polish_01.mjs`.
+  - 모바일 360px은 기존 일정 최대 3개/`+3개 더`를 유지하면서 일정 존재 점을 온도 줄 아래로 내려 겹침을 제거했다.
 
 - 변경된 캘린더 검사기 28개: PASS.
   - 첫 일괄 실행에서 `validate_calendar_system_dark_01.mjs`가 브라우저 과부하로 결과 보고 전 1회 시간 초과했으나 단독 재실행 PASS. 단언 실패는 없었다.
@@ -128,6 +137,7 @@ git diff --name-status f2e391adbe8b3a1424962fc9b024a693bbf98e9d..5c66fd6b4ae5b26
 
 - 수정 전: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\before\`
 - 수정 후: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\after\`
+- 반환 수정 후 재캡처: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\gate-return\`
 
 시안 1 대응 빈 상태:
 
@@ -156,7 +166,7 @@ git diff --name-status f2e391adbe8b3a1424962fc9b024a693bbf98e9d..5c66fd6b4ae5b26
 - 실제 iPhone Safari, Android Chrome, Samsung Internet, 카카오톡 내장 브라우저 실기기.
 - Production 배포 및 Production 사용자 계정의 실제 일정·지출 저장/재조회.
 - Production 날씨/음력 공급자의 실시간 응답과 장애 전환. 로컬은 API 계약 fixture/실패 fixture 기반.
-- Linux 전체 merge gate. 이 방에서는 관련 로컬 검사만 실행했다.
+- Linux 전체 merge gate. 반환된 단일 검사기는 Linux gate 조건과 같은 `mkdtemp` 격리 프로필로 직접 PASS했지만, 이 Windows 작업 호스트에는 WSL 배포판이 없어 전체 Linux gate 자체는 실행하지 않았다.
 - Claude의 main 병합, 배포 브랜치 병합, Production 배포, 배포 후 사용자 검증.
 
 ## Claude 배포 절차와 확인 항목
