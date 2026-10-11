@@ -1,11 +1,15 @@
 import * as THREE from 'three';
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js?v=aset-70329a0b5652';
-import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=aset-70329a0b5652';
-import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs?v=aset-70329a0b5652';
-import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=aset-70329a0b5652';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js?v=aset-2bb17a3c63bc';
+import {AvatarController} from './avatar-runtime/runtime/controller.mjs?v=aset-2bb17a3c63bc';
+import {createFaithfulBinding} from './avatar-runtime/runtime/faithful-binding.mjs?v=aset-2bb17a3c63bc';
+import {sampleRefinement} from './avatar-runtime/runtime/refinement.mjs?v=aset-2bb17a3c63bc';
 
-const MODEL_URL = '/assets/models/lotbi-faithful-v2-rigged.glb';
-const MODEL_SHA256 = 'fb2729f56f18844e85a821f1cc8f2f6a7c64c95fa858bfcda994632131a35c3d';
+// SITE-AVATAR-LOGO-ALIGN-02: the home character is the header logo character
+// (assets/brand/lotbi-mark-512.png) in 3D -- shapes measured on the logo and
+// checked by overlay, on the approved V5 rig, by tools/build_logo_character_v5.py;
+// the 13 animations are unchanged.
+const MODEL_URL = '/assets/models/lotbi-logo-character-v5-rigged.glb';
+const MODEL_SHA256 = '2c1576a6a29cffb8f006b4ce0497906792efa356191e7ec2d57c5e0bf3f6e8a8';
 const AVATAR_SOURCE_HEAD = 'b131f898246ce9852d23dd17009f5914b6ae252e';
 const CLIPS_URL = '/assets/animations/lotbi-clips.v1.json?v=20260924-running1';
 const CONTRACT_URL = '/avatar-runtime/contracts/avatar-rig-controls.v2.json';
@@ -59,7 +63,7 @@ function disposeScene(root) {
 function currentSnapshot() {
   const stage = document.querySelector('[data-lotbi-avatar-stage]');
   return Object.freeze({
-    version: 'site-avatar-v5-approved-integration-01',
+    version: 'site-avatar-logo-character-v5-01',
     sourceHead: AVATAR_SOURCE_HEAD,
     model: MODEL_URL,
     modelSha256: MODEL_SHA256,
@@ -96,7 +100,6 @@ async function mountAvatar(stage) {
   let renderer = null;
   let scene = null;
   let avatarRoot = null;
-  let floor = null;
   let resizeObserver = null;
   let animationFrame = 0;
   let disposed = false;
@@ -151,8 +154,6 @@ async function mountAvatar(stage) {
     reducedMotionQuery?.removeEventListener?.('change', handleReducedMotion);
     renderer?.domElement.removeEventListener('webglcontextlost', handleContextLost);
     disposeScene(avatarRoot);
-    floor?.geometry.dispose();
-    floor?.material.dispose();
     renderer?.dispose();
     renderer?.forceContextLoss?.();
     renderer?.domElement.remove();
@@ -234,13 +235,10 @@ async function mountAvatar(stage) {
     avatarRoot.add(gltf.scene);
     scene.add(avatarRoot);
 
-    floor = new THREE.Mesh(
-      new THREE.CircleGeometry(.33, 64),
-      new THREE.MeshBasicMaterial({color: 0xdce5f5, transparent: true, opacity: .72}),
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -.07;
-    avatarRoot.add(floor);
+    // The logo character floats (its body ends in a rounded tail): no floor disc.
+    // It faces the camera, which sits to the right of the stage, as the logo is
+    // drawn from the front.
+    avatarRoot.rotation.y = Math.atan2(.62, 2.9);
 
     if (gltf.animations.length !== 13) throw new Error('Approved V5 animation set missing');
     const binding = createFaithfulBinding(gltf.scene, contract);
