@@ -235,8 +235,8 @@ assert.doesNotMatch(dayPanelRuntime, /toggleLabel|\[접기\]|presentation\s*!==\
 // same words as the editor's date chip.
 assert.ok(dayPanelRuntime.includes('/^\\d+월 \\d+일 [일월화수목금토]요일$/'),
   'day-panel runtime must keep the selected-date heading contract');
-assert.match(monthGeometry, /rows\.length\s*!==\s*2[\s\S]*more\.textContent\s*!==\s*'\+3'/,
-  'Month geometry must lock two mounted rows plus a visible +3 overflow summary');
+assert.match(monthGeometry, /rows\.length\s*!==\s*3[\s\S]*more\.textContent\s*!==\s*'\+3개 더'/,
+  'Month geometry must lock three mounted rows plus a visible +3개 더 overflow summary');
 assert.match(modalRuntime, /visible\s*!==\s*expectedRows[\s\S]*overflowVisible/,
   'modal density must assert actual row and overflow visibility');
 

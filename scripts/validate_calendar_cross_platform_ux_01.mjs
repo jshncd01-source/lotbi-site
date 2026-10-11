@@ -19,7 +19,7 @@ assert.ok(manager.includes(': renderWeekTimeGrid(state, actions, {weatherByDate,
 assert.ok(manager.includes('? renderWeekVertical(state, actions, {weatherByDate, holidayMap})'));
 assert.ok(manager.includes("group.dataset.calendarWeekGroup = day.date"));
 assert.ok(manager.includes("group.dataset.weekday = String(day.weekday)"));
-assert.ok(manager.includes("'이번 주에는 기록이 없어요.'"));
+assert.ok(manager.includes("'이번 주에는 일정이 없어요.'"));
 
 // Month is deliberately bounded regardless of how many events a day has, and
 // it exposes measured weather rather than inventing values for missing days.
@@ -46,7 +46,7 @@ for (const scope of ['month', 'upcoming', 'amount', 'unscheduled']) {
 for (const retired of ["['all', '전체']", "['reservation', '예약']", "['schedule', '일정']"]) {
   assert.ok(!manager.includes(retired), `retired 목록 filter still rendered: ${retired}`);
 }
-assert.ok(manager.includes("'이 달에는 기록이 없어요.'"));
+assert.ok(manager.includes("'이 달에는 일정이 없어요.'"));
 
 // Common controls stay visually compact while retaining a full touch target.
 assert.ok(css.includes('min-height: 44px'));
@@ -61,7 +61,7 @@ assert.ok(css.includes('.calendar-week-day[data-weekday="0"] { background: var(-
 assert.ok(css.includes('.calendar-week-day[data-weekday="6"] { background: var(--lotbi-calendar-weekend-sat-surface);'));
 assert.ok(css.includes('.calendar-week-hour-axis'));
 assert.ok(css.includes('.calendar-week-add-actions .calendar-add-button { width: auto;'));
-assert.ok(manager.includes("loading.textContent = '기록을 불러오는 중'"));
+assert.ok(manager.includes("loading.textContent = '일정을 불러오는 중'"));
 assert.ok(manager.includes("'일정을 불러오지 못했습니다.'"));
 
 // Both tablists use the same wrapping keyboard contract and activate the

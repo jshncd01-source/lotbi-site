@@ -289,7 +289,7 @@ try{
     eventButton.focus();
     click(eventButton);
     await wait(()=>modal.querySelector('.calendar-editor-dialog'),'event editor');
-    if(modal.querySelector('.calendar-editor-dialog h3')?.textContent!=='기록 수정')throw new Error('event click opened wrong surface');
+    if(modal.querySelector('.calendar-editor-dialog h3')?.textContent!=='일정 수정')throw new Error('event click opened wrong surface');
     const editorTitle=modal.querySelector('.calendar-editor-title');
     const deleteButton=modal.querySelector('.calendar-editor-delete');
     if(!(editorTitle instanceof HTMLInputElement)||!(deleteButton instanceof HTMLButtonElement))throw new Error('event delete controls missing');
@@ -299,8 +299,8 @@ try{
     if(modal.querySelectorAll('.calendar-delete-confirm-dialog').length!==1)throw new Error('duplicate delete confirmation dialog');
     const deleteDialog=modal.querySelector('.calendar-delete-confirm-dialog');
     if(deleteDialog.getAttribute('role')!=='dialog'||deleteDialog.getAttribute('aria-modal')!=='true')throw new Error('delete dialog semantics');
-    if(deleteDialog.querySelector('h4')?.textContent!=='이 기록을 삭제하시겠습니까?')throw new Error('delete dialog title');
-    if(deleteDialog.querySelector('#calendar-delete-confirm-description')?.textContent!=='삭제한 기록은 복구할 수 없습니다.')throw new Error('delete dialog description');
+    if(deleteDialog.querySelector('h4')?.textContent!=='이 일정을 삭제하시겠습니까?')throw new Error('delete dialog title');
+    if(deleteDialog.querySelector('#calendar-delete-confirm-description')?.textContent!=='삭제한 일정은 복구할 수 없습니다.')throw new Error('delete dialog description');
     const cancelDelete=deleteDialog.querySelector('.calendar-delete-confirm-cancel');
     if(!(cancelDelete instanceof HTMLButtonElement))throw new Error('delete cancel missing');
     await wait(()=>document.activeElement===cancelDelete,'safe delete focus');

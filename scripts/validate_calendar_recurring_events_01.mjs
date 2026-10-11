@@ -192,11 +192,11 @@ try {
 
   // 5. A new record: custom weekdays + until + reminder.
   click(root.querySelector('[data-calendar-date-trigger="2026-10-12"]'));
-  await wait(() => root.querySelector('[data-calendar-add]'), 'add button');
-  click(root.querySelector('[data-calendar-add]'));
+  await wait(() => root.querySelector('.calendar-action-slot[data-calendar-action-bar="top"] [data-calendar-add]'), 'add button');
+  click(root.querySelector('.calendar-action-slot[data-calendar-action-bar="top"] [data-calendar-add]'));
   await wait(() => root.querySelector('.calendar-editor-dialog'), 'new editor');
   dialog = root.querySelector('.calendar-editor-dialog');
-  result.newSectionsHidden = [...dialog.querySelectorAll('[data-editor-section]')].every(s => s.hidden);
+  result.newSectionsOpen = [...dialog.querySelectorAll('[data-editor-section]')].filter(s => !s.hidden).map(s => s.dataset.editorSection);
   const newTitle = dialog.querySelector('.calendar-editor-title'); newTitle.value = '필라테스'; newTitle.dispatchEvent(new Event('input', {bubbles: true}));
   click(dialog.querySelector('[data-editor-chip="repeat"]'));
   const custom = dialog.querySelector('.calendar-editor-repeat'); custom.value = 'CUSTOM'; custom.dispatchEvent(new Event('change', {bubbles: true}));
@@ -210,7 +210,7 @@ try {
   result.minControlHeight = Math.min(...[...dialog.querySelectorAll('.calendar-editor-repeat, .calendar-editor-reminder, .calendar-editor-weekday, .calendar-editor-repeat-interval, .calendar-editor-repeat-end-mode, .calendar-editor-repeat-until')]
     .filter(n => n.getClientRects().length).map(n => n.getBoundingClientRect().height));
   // An amount cannot ride on a repeating record (expense repetition is separate).
-  click(dialog.querySelector('[data-editor-chip="amount"]'));
+  if (dialog.querySelector('[data-editor-section="amount"]').hidden) click(dialog.querySelector('[data-editor-chip="amount"]'));
   const amount = dialog.querySelector('.calendar-editor-amount'); amount.value = '12000'; amount.dispatchEvent(new Event('input', {bubbles: true}));
   dialog.querySelector('.calendar-editor-form').requestSubmit();
   await sleep(120);
@@ -239,8 +239,8 @@ try {
     settingsStorage: {getItem: () => JSON.stringify({showKoreaHolidays: false}), setItem() {}}, locationProvider: null, locationPermissions: null, fetchImpl});
   await wait(() => guestRoot.querySelector('.calendar-month-grid'), 'guest grid');
   click(guestRoot.querySelector('[data-calendar-date-trigger="2026-10-12"]'));
-  await wait(() => guestRoot.querySelector('[data-calendar-add]'), 'guest add');
-  click(guestRoot.querySelector('[data-calendar-add]'));
+  await wait(() => guestRoot.querySelector('.calendar-action-slot[data-calendar-action-bar="top"] [data-calendar-add]'), 'guest add');
+  click(guestRoot.querySelector('.calendar-action-slot[data-calendar-action-bar="top"] [data-calendar-add]'));
   await wait(() => guestRoot.querySelector('.calendar-editor-dialog'), 'guest editor');
   result.guestChips = [...guestRoot.querySelectorAll('[data-editor-chip]')].map(c => c.dataset.editorChip);
   out.textContent = JSON.stringify(result);
@@ -307,18 +307,18 @@ function check(v) {
   assert.deepEqual(v.seriesEdit.body.recurrence, {frequency: 'WEEKLY', interval: 2, weekdays: [], until: null});
   assert.deepEqual(v.seriesEdit.body.reminder_offsets_minutes, [10]);
   assert.equal(v.seriesEdit.body.temporal.local_datetime, '2026-10-06T10:00:00', 'the series keeps its first date');
-  assert.equal(v.deleteTitle, '반복 기록을 삭제하시겠습니까?');
+  assert.equal(v.deleteTitle, '반복 일정을 삭제하시겠습니까?');
   assert.deepEqual(v.deleteButtons, ['취소', '이 날짜만 삭제', '반복 전체 삭제']);
   assert.deepEqual(v.occurrenceDelete.body.scope, 'OCCURRENCE');
   assert.deepEqual(v.occurrenceDelete.body.occurrence_key, '2026-10-20');
   assert.match(v.seriesDelete.path, /\/remove$/);
   assert.equal(v.seriesDelete.body.scope, 'SERIES', '반복 전체 삭제는 범위를 밝힌다');
   assert.equal('occurrence_key' in v.seriesDelete.body, false);
-  assert.equal(v.newSectionsHidden, true, 'a blank record opens with every section closed');
+  assert.deepEqual(v.newSectionsOpen, ['time', 'amount'], 'a blank record opens with only time and amount open');
   assert.deepEqual(v.customDefault, ['월'], 'custom starts on the chosen date\'s weekday');
   assert.equal(v.allDayHintShown, true);
   assert.ok(v.minControlHeight >= 44, `${tag} repeat/reminder controls are 44px targets, got ${v.minControlHeight}`);
-  assert.match(v.amountError, /반복 기록에는 금액을 함께 저장할 수 없어요/);
+  assert.match(v.amountError, /반복 일정에는 금액을 함께 저장할 수 없어요/);
   assert.equal(v.requestsAfterAmount, 3, 'nothing is sent while the amount conflicts');
   assert.equal(v.create.method, 'POST');
   assert.deepEqual(v.create.body.recurrence, {frequency: 'WEEKLY', interval: 1, weekdays: [0, 2, 4], until: '2026-11-30'});

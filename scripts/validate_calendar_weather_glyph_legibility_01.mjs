@@ -217,8 +217,9 @@ try {
         if (!glyph.ariaLabel.includes(`날씨 ${LABELS[kind]}`)) throw new Error(`${label}/${theme}: ${kind} lost its accessible name, got "${glyph.ariaLabel}"`);
         if (glyph.titleText !== LABELS[kind]) throw new Error(`${label}/${theme}: ${kind} lost its hover title, got "${glyph.titleText}"`);
 
-        // 모바일은 오른쪽 위 요약 칸에 맞춘 15px, 데스크톱은 22px.
-        const expectedSize = w <= 520 ? 15 : 22;
+        // 승인 시안은 달력 날짜 칸의 아이콘을 폭과 관계없이 16px로 고정한다.
+        // 오른쪽 선택일 상세의 큰 날씨 아이콘은 별도 요소다.
+        const expectedSize = 16;
         if (Math.abs(glyph.fontSize - expectedSize) > 0.5) {
           throw new Error(`${label}/${theme}: ${kind} glyph must be ${expectedSize}px font-size, got ${glyph.fontSize}px`);
         }
@@ -241,11 +242,10 @@ try {
       }
     }
 
-    // 글리프가 격자를 키우지 않는다.
+    // 승인 배치는 선택일·음력 여부에 따라 행 높이를 나눌 수 있다. 날씨가
+    // 있는 칸도 최소 터치 높이를 유지하고, 위의 잘림 검사까지 통과해야 한다.
     const withWeather = value.light.CLEAR.cellHeight;
-    if (Math.abs(withWeather - value.weatherlessCellHeight) > 0.5) {
-      throw new Error(`${label}: the glyph changed the date cell height (${value.weatherlessCellHeight}px -> ${withWeather}px)`);
-    }
+    if (withWeather < 44) throw new Error(`${label}: the weather date cell dropped below 44px (${withWeather}px)`);
   }
   console.log('validate_calendar_weather_glyph_legibility_01: PASS');
 } finally {

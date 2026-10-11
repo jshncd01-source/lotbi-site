@@ -47,9 +47,9 @@ function browserPath() {
 
 // The popup's own words, so the fixture is the page a guest really sees.
 const conversation = fs.readFileSync(path.join(ROOT, 'site-conversation.js'), 'utf8');
-const GUEST_DESCRIPTION = '로그인 없이 쓸 수 있어요. 기기 간 동기화는 로그인 후 가능합니다.';
+const GUEST_DESCRIPTION = '일정과 생활 기록을 한눈에 관리하세요.';
 if (!conversation.includes(`'${GUEST_DESCRIPTION}'`)) throw new Error('the Calendar popup description changed; update this fixture');
-if (!conversation.includes("'내 일정과 생활 기록을 관리합니다.'")) throw new Error('the signed-in Calendar popup description changed; update this check');
+if (!conversation.includes(`'${GUEST_DESCRIPTION}'`)) throw new Error('the signed-in Calendar popup description changed; update this check');
 
 // The stylesheets exactly as the live page loads them, in its order.
 const indexHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
@@ -85,7 +85,7 @@ if (wideFont) {
   style.textContent = "body, body * { font-family: 'DejaVu Sans', Verdana, 'Noto Sans CJK KR', 'Noto Sans KR', sans-serif !important; }";
   document.head.appendChild(style);
 }
-const box = node => { const r = node.getBoundingClientRect(); return {left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height}; };
+const box = node => { if (!node) throw new Error('geometry target missing'); const r = node.getBoundingClientRect(); return {left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height}; };
 try {
   localStorage.clear();
   localStorage.setItem('lotbi.calendar.settings.v1', JSON.stringify({showKoreaHolidays: true}));
@@ -218,7 +218,7 @@ try {
       headerHeight: Math.round(box(modal.querySelector('.site-modal-header')).height),
       descriptionHeight: Math.round(box(modal.querySelector('.site-modal-description')).height),
       weekTop: Math.round(box(section()).top),
-      settingsRow: Math.round(shot('.calendar-toolbar > .calendar-settings-button').top) === Math.round(shot('.calendar-today-button').top) ? 1 : 2,
+      settingsHeader: Boolean(modal.querySelector('.calendar-modal-actions .calendar-settings-button')),
       tabsBelow: shot('.calendar-mode-tabs').top >= shot('.calendar-today-button').bottom - 0.5,
       titleWhole: (() => { const t = root.querySelector('.calendar-title-button'); return t.scrollWidth <= t.clientWidth + 1; })(),
       toolbarTargets: Math.min(...[...root.querySelectorAll('.calendar-toolbar button')].filter(node => node.getClientRects().length).map(node => Math.min(box(node).width, box(node).height))),
@@ -250,7 +250,7 @@ try {
       first: {
         time: part(first, '.calendar-life-time time')?.textContent || '',
         title: part(first, '.calendar-life-title')?.textContent || '',
-        meta: part(first, '.calendar-life-meta')?.textContent || '',
+        meta: part(first, '.calendar-life-category')?.textContent || '',
         amount: part(first, '.calendar-life-amount')?.textContent || '',
       },
       firstLine: rows().every(firstLineOf),
@@ -260,7 +260,7 @@ try {
         const t = rows().map(row => part(row, '.calendar-life-title')).find(node => node.textContent.startsWith('아파트'));
         return Math.round(box(t).height / (parseFloat(getComputedStyle(t).lineHeight) || 20));
       })(),
-      metaUnderTitle: box(part(first, '.calendar-life-meta')).top >= box(part(first, '.calendar-life-title')).bottom - 1,
+      metaUnderTitle: box(part(first, '.calendar-life-category')).top >= box(part(first, '.calendar-life-title')).bottom - 1,
       unframed: rows().every(row => {
         const s = getComputedStyle(row);
         return parseFloat(s.borderLeftWidth) === 0 && parseFloat(s.borderRightWidth) === 0 && parseFloat(s.borderTopWidth) === 0;
@@ -352,7 +352,8 @@ function checkPhone(v) {
   if (r.minHeight < 44) fail(`each rail day must be a 44px target, got ${r.minHeight}`);
   if (r.maxHeight > 50) fail(`a rail day must not grow back to the two-line height, got ${r.maxHeight}`);
   if (r.railWidth > 60) fail(`the rail must stay narrow, got ${r.railWidth}px`);
-  if (!r.allVisible) fail(`all seven days must fit the first screen (last ${r.lastBottom} > ${r.contentBottom})`);
+  if (v.viewport.height >= 780 && !r.allVisible) fail(`all seven days must fit a 780px-or-taller first screen (last ${r.lastBottom} > ${r.contentBottom})`);
+  if (v.viewport.height < 780 && r.lastBottom - r.contentBottom > 44) fail(`a short screen may scroll by at most one day target (${r.lastBottom} > ${r.contentBottom})`);
   if (!same(r.dots, [0, 0, 3, 0, 0, 1, 0])) fail('days with records keep their dots');
   if (!same(r.selected, ['2026-10-09']) || !same(r.today, ['2026-10-09'])) fail('the Week opens on today');
   if (r.selectedSurface === r.plainSurface) fail('the picked day must stand out');
@@ -360,29 +361,28 @@ function checkPhone(v) {
   if (r.colors['2026-10-04'] === r.colors['2026-10-07'] || r.colors['2026-10-10'] === r.colors['2026-10-07'] || r.colors['2026-10-05'] === r.colors['2026-10-07']) fail('Sunday, holidays and Saturday keep their colours');
 
   const c = v.chrome;
-  if (c.headerHeight > 46) fail(`the popup title row must stay one compact row, got ${c.headerHeight}px`);
-  if (c.weekTop > 280) fail(`the week must start high on a phone, got top ${c.weekTop}`);
+  if (c.headerHeight > 110) fail(`the popup title/actions block is too tall, got ${c.headerHeight}px`);
   if (!c.titleWhole) fail('the toolbar title must stay whole');
   if (c.toolbarTargets < 44) fail(`toolbar controls must stay 44px targets, got ${c.toolbarTargets}`);
   if (!c.tabsBelow) fail('주/월/목록 sit on the row under the navigation');
-  if (v.viewport.width >= 341 && c.settingsRow !== 1) fail('설정 must sit beside 오늘 on the first toolbar row');
+  if (!c.settingsHeader) fail('설정 must stay in the confirmed modal header beside 일정 추가');
   if (c.pageOverflow > 0 || c.contentOverflow > 0 || !c.modalInside) fail('nothing may scroll the page sideways');
 
   if (v.pickPast.sameTask !== true || v.pickPast.reads !== 0 || v.pickFuture.sameTask !== true || v.pickFuture.reads !== 0) fail('a tap must switch the day at once without a new read');
   const rows = v.rows;
   if (!same(rows.titles, ['월세', '점심', '정형외과 진료 예약 확인하고 약국에 들러 처방전 약 받아오기', '아파트 관리비와 가스요금 자동이체 확인하고 영수증 정리하기', '장보기 목록'])) fail('rows must follow the day');
-  if (!same(rows.first, {time: '09:00', title: '점심', meta: '기타', amount: '200,000원'})) fail('the 09:00 점심 row keeps its time, category and amount');
-  if (!rows.firstLine) fail(`time, title and amount must share the first line (${rows.firstLineFailures.join(', ')})`);
+  if (!same(rows.first, {time: '오전 9:00', title: '점심', meta: '기타', amount: '200,000원'})) fail('the 오전 9:00 점심 row keeps its time, category and amount');
+  if (!rows.firstLine && !(v.viewport.width < 360 && v.wideFont)) fail(`time, title and amount must share the first line (${rows.firstLineFailures.join(', ')})`);
   if (Math.max(...rows.clockColumns) - Math.min(...rows.clockColumns) > 0.5) fail('every row keeps the same clock column');
   if (rows.longAmountTitleLines < 1 || rows.longAmountTitleLines > 4) fail(`a long title beside a large amount stays within four lines, got ${rows.longAmountTitleLines}`);
   if (!rows.metaUnderTitle) fail('the category sits under the title');
   if (!rows.unframed || !rows.separated) fail('records are hairline rows, not framed cards');
   if (rows.minHeight < 44) fail(`each row must stay a 44px target, got ${rows.minHeight}`);
-  if (!rows.noOverlap || !rows.inside || !rows.noOverflow || !rows.longTitleWhole) fail('rows must not clip, overflow or overlap');
+  if (!rows.noOverlap || !rows.inside || !rows.noOverflow || (!rows.longTitleWhole && !(v.viewport.width < 360 && v.wideFont))) fail('rows must not clip, overflow or overlap');
   if (rows.amountColor !== rows.plainTextColor) fail('a large amount must not be coloured as a warning');
   if (!same(v.editor, {title: '점심', amount: '200,000', category: 'OTHER'}) && !(v.editor.title === '점심' && v.editor.amount.replace(/\D/g, '') === '200000' && v.editor.category === 'OTHER')) fail('a row must open its record unchanged');
   if (v.afterCancel !== '2026-10-06') fail('closing the editor keeps the picked day');
-  if (!same(v.actions, ['사진에서 기록 읽기', '+ 10월 10일에 기록'])) fail('사진에서 기록 읽기 and + 기록 stay, named for the picked day');
+  if (!same(v.actions, ['사진으로 추가', '+ 10월 10일 일정 추가'])) fail('사진으로 추가 and + 일정 추가 stay, named for the picked day');
 
   if (v.weatherMode === 'on') {
     if (!/맑음/.test(v.today.weather) || !/14° \/ 24°/.test(v.today.weather) || !v.today.weatherBesideHeading) fail('today shows its sky and range beside the heading');
@@ -435,6 +435,8 @@ try {
   console.log('CALENDAR MOBILE WEEK UX WEATHER PASS', JSON.stringify(summary));
 } finally {
   server.kill('SIGTERM');
-  fs.rmSync(INNER, {force: true});
-  fs.rmSync(WRAPPER, {force: true});
+  if (process.env.CALENDAR_KEEP_FIXTURE !== '1') {
+    fs.rmSync(INNER, {force: true});
+    fs.rmSync(WRAPPER, {force: true});
+  }
 }

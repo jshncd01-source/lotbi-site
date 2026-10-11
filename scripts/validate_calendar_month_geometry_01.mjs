@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -8,7 +9,7 @@ const INNER_REL = 'scripts/.calendar-month-geometry-inner.html';
 const INNER = path.join(ROOT, INNER_REL);
 const WRAPPER_REL = 'scripts/.calendar-month-geometry-wrapper.html';
 const WRAPPER = path.join(ROOT, WRAPPER_REL);
-const PORT = 4193;
+const PORT = 43000 + (process.pid % 1000);
 const ORIGIN = 'http://127.0.0.1:' + PORT;
 
 function browserPath() {
@@ -193,15 +194,22 @@ function wrapperMarkup(w,h){
 
 function run(browser,w,h){
   fs.writeFileSync(WRAPPER,wrapperMarkup(w,h),'utf8');
-  const proc=spawnSync(browser,[
-    '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
-    '--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=80000',
-    '--dump-dom',ORIGIN+'/'+WRAPPER_REL
-  ],{encoding:'utf8',timeout:120000,maxBuffer:12*1024*1024});
+  const profile=fs.mkdtempSync(path.join(os.tmpdir(),'lotbi-calendar-geometry-'));
+  let proc;
+  try {
+    proc=spawnSync(browser,[
+      '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',
+      `--user-data-dir=${profile}`,
+      '--window-size=1600,1000','--force-device-scale-factor=1','--virtual-time-budget=80000',
+      '--dump-dom',ORIGIN+'/'+WRAPPER_REL
+    ],{encoding:'utf8',timeout:120000,maxBuffer:12*1024*1024});
+  } finally {
+    fs.rmSync(profile,{recursive:true,force:true});
+  }
   if(proc.error)throw proc.error;
   if(proc.status!==0)throw new Error('browser '+proc.status+' '+proc.stderr);
   const a='<pre id="result">',b='</pre>',i=proc.stdout.indexOf(a),j=proc.stdout.indexOf(b,i);
-  if(i<0||j<0)throw new Error('result missing');
+  if(i<0||j<0)throw new Error(`result missing (stdout=${String(proc.stdout||'').slice(0,500)}, stderr=${String(proc.stderr||'').slice(0,500)})`);
   const raw=proc.stdout.slice(i+a.length,j).replaceAll('&quot;','"').replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>');
   const value=JSON.parse(raw);
   if(!value.ok)throw new Error(w+'x'+h+' '+value.error);

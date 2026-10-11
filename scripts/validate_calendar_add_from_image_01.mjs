@@ -10,7 +10,7 @@
 // never kept, and the card says so.
 //
 // Covered contracts:
-//   - the day's actions read 사진에서 기록 읽기 then + 기록, each with its own hook
+//   - the actions under the toolbar read 사진으로 추가 then + 일정 추가 (CALENDAR-ADD-UX-01), each with its own hook
 //   - the attachment id the upload returned is the one sent to the conversation
 //     route (it is `id` on that contract, and reading the wrong key silently
 //     sent an empty attachment list)
@@ -163,7 +163,7 @@ try{
 
   const addImage=root.querySelector('[data-calendar-add-image]');
   const addPlain=root.querySelector('[data-calendar-add]');
-  result.buttonOrder=[...root.querySelectorAll('.calendar-add-actions button')].map(n=>n.textContent);
+  result.buttonOrder=[...root.querySelectorAll('.calendar-action-slot .calendar-add-actions button')].map(n=>n.textContent);
   result.pickerHidden=Boolean(root.querySelector('[data-calendar-image-picker]')?.hidden);
   result.pickerAcceptsImages=root.querySelector('[data-calendar-image-picker]')?.accept||'';
   result.plainButtonPresent=Boolean(addPlain);
@@ -202,6 +202,8 @@ try{
     const val=cls=>dialog.querySelector('.calendar-editor-'+cls)?.value??null;
     result.prefill={
       title:val('title'),date:val('date'),time:val('time'),
+      // CALENDAR-ADD-UX-01: the clock is shown 12-hour beside a pressed 오전/오후.
+      period:dialog.querySelector('.calendar-editor-time-period [aria-pressed="true"]')?.dataset.timePeriod||'',
       amount:String(val('amount')??'').replace(/,/g,''),category:val('category'),
       place:val('place'),merchant:val('merchant'),memo:val('memo'),
     };
@@ -248,7 +250,7 @@ try{
   result.refusedAskedChat=refused.calls.some(c=>c.method==='POST'&&c.path.endsWith('/messages'));
   // A 403 is this route being refused, never evidence the session died: the
   // month must still be standing behind the message.
-  result.refusedCalendarStanding=Boolean(root.querySelector('.calendar-day-view'));
+  result.refusedCalendarStanding=Boolean(root.querySelector('.calendar-month-layout')&&root.querySelector('.calendar-day-panel'));
 
   // --- a signed-out owner ------------------------------------------------
   const guest=stubFetch();
@@ -306,8 +308,8 @@ try {
     const fail = message => { throw new Error(`${label}: ${message}`); };
 
     // Two ways in, picture first; the plain one opens the editor directly.
-    if (v.buttonOrder.join('|') !== '사진에서 기록 읽기|+ 기록') fail(`the day's actions must read 사진에서 기록 읽기 then + 기록, got ${v.buttonOrder.join('|')}`);
-    if (!v.plainButtonPresent) fail('+ 기록 must keep its own data hook');
+    if (v.buttonOrder.join('|') !== '사진으로 추가|+ 일정 추가') fail(`the actions under the toolbar must read 사진으로 추가 then + 일정 추가, got ${v.buttonOrder.join('|')}`);
+    if (!v.plainButtonPresent) fail('+ 일정 추가 must keep its own data hook');
     if (!v.pickerHidden) fail('the file input must stay hidden');
     if (!v.pickerAcceptsImages.includes('image/')) fail(`the file input must ask for images, got "${v.pickerAcceptsImages}"`);
 
@@ -337,7 +339,7 @@ try {
     // 수정: the editor, field by field, with what a picture is allowed to fill in.
     if (!v.cardGone) fail('수정 must replace the card with the editor');
     const expected = {
-      title: '야놀자 호텔 예약', date: '2026-09-26', time: '15:00',
+      title: '야놀자 호텔 예약', date: '2026-09-26', time: '3:00', period: 'PM',
       amount: '208320', category: 'TRAVEL', place: '제주 호텔', merchant: 'NOL',
     };
     for (const [field, want] of Object.entries(expected)) {
@@ -360,13 +362,13 @@ try {
 
     for (const key of ['noDraft', 'notTransaction']) {
       const state = v[key];
-      if (!/찾지 못했어요/.test(state.text) || !/\+ 기록/.test(state.text)) fail(`${key}: nothing legible must be said, with + 기록 as the way on, got "${state.text}"`);
+      if (!/찾지 못했어요/.test(state.text) || !/\+ 일정 추가/.test(state.text)) fail(`${key}: nothing legible must be said, with + 일정 추가 as the way on, got "${state.text}"`);
       if (!/저장되지 않아요/.test(state.text)) fail(`${key}: the message must say the photo is not kept, got "${state.text}"`);
       if (state.opened) fail(`${key}: nothing legible must not open a card or an empty editor`);
       if (state.writes.length) fail(`${key}: nothing may be written, got ${state.writes.join(', ')}`);
     }
 
-    if (!/\+ 기록/.test(v.refusedText) || !/직접/.test(v.refusedText)) fail(`a refused upload must point at + 기록, got "${v.refusedText}"`);
+    if (!/\+ 일정 추가/.test(v.refusedText) || !/직접/.test(v.refusedText)) fail(`a refused upload must point at + 일정 추가, got "${v.refusedText}"`);
     if (/로그인/.test(v.refusedText)) fail(`a 403 is the route, not the session — it must not send the owner to a login screen, got "${v.refusedText}"`);
     if (v.refusedAskedChat) fail('a refused upload must not go on to ask for a draft');
     if (!v.refusedCalendarStanding) fail('a 403 must leave the active Calendar view standing');
@@ -377,7 +379,7 @@ try {
 
     console.log(label, JSON.stringify({attachment: v.sentAttachmentIds, text: v.sentText, card: v.card, heading: v.heading, prefill: v.prefill}));
   }
-  console.log('LOTBI Calendar 사진에서 기록 읽기: PASS');
+  console.log('LOTBI Calendar 사진으로 추가: PASS');
 } finally {
   server.kill();
   try { fs.unlinkSync(INNER); } catch {}

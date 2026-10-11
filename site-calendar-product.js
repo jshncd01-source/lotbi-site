@@ -1,8 +1,22 @@
 // Pure Calendar presentation decisions shared by Week, Month, and Schedule.
 // These labels are derived at read time; no inferred kind or state is stored.
-import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-577fd151dea9';
-import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-577fd151dea9';
-import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-577fd151dea9';
+import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-823fb9fb63c8';
+import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-823fb9fb63c8';
+import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-823fb9fb63c8';
+
+// The approved add UX uses the same Korean 12-hour clock in the editor and
+// every calendar read surface. Stored values remain 24-hour local datetimes.
+export function koreanClockLabel(clock) {
+  const match = /^(\d{2}):(\d{2})$/u.exec(clock || '');
+  if (!match) return '';
+  const hour = Number(match[1]);
+  return `${hour < 12 ? '오전' : '오후'} ${hour % 12 === 0 ? 12 : hour % 12}:${match[2]}`;
+}
+
+export function datetimeClockLabel(datetime) {
+  return typeof datetime === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d/u.test(datetime)
+    ? koreanClockLabel(datetime.slice(11, 16)) : '';
+}
 
 function weekStartDate(date, weekStart) {
   const {year, month, day} = civilDateParts(date);
@@ -75,8 +89,8 @@ function eventSpanLabel(item) {
   if (!validCivilDate(startDate) || !validCivilDate(endDate)) return '';
   const stamp = (date, datetime) => {
     const day = `${date.slice(5, 7)}/${date.slice(8, 10)}`;
-    return typeof datetime === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(datetime)
-      ? `${day} ${datetime.slice(11, 16)}` : day;
+    const clock = datetimeClockLabel(datetime);
+    return clock ? `${day} ${clock}` : day;
   };
   const start = stamp(startDate, item.local_datetime);
   const end = stamp(endDate, item.local_end_datetime);
@@ -114,7 +128,7 @@ export function calendarEventPresentation(item) {
     sourceLabel: authority,
     spanLabel,
     timeLabel: validCivilDate(item?.local_date)
-      ? (typeof item?.local_datetime === 'string' ? item.local_datetime.slice(11, 16) : '종일')
+      ? (typeof item?.local_datetime === 'string' ? (datetimeClockLabel(item.local_datetime) || item.local_datetime.slice(11, 16)) : '종일')
       : '미정',
     metaText: [spanLabel, ...secondary, authority].filter(Boolean).join(' · '),
   });
@@ -332,12 +346,11 @@ export function lifeTimelineForDate(items, date) {
   });
 }
 
-// "09/12 15:00": the same stamp the Calendar has always used for a stay's two ends.
+// "09/12 오후 3:00": the stamp for a stay's two ends.
 function shortStamp(date, datetime) {
   const day = `${date.slice(5, 7)}/${date.slice(8, 10)}`;
-  return typeof datetime === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(datetime)
-    ? `${day} ${datetime.slice(11, 16)}`
-    : day;
+  const clock = datetimeClockLabel(datetime);
+  return clock ? `${day} ${clock}` : day;
 }
 
 function rowAmountLabel(entry) {
@@ -373,10 +386,10 @@ export function lifeRowPresentation(item, {date = item?.local_date, today = ''} 
       else if (start === today) statusLabel = '오늘 마감';
     }
   } else if (group === LIFE_TIMELINE_GROUP.TIMED) {
-    timeLabel = item.local_datetime.slice(11, 16);
-    const endClock = typeof item?.local_end_datetime === 'string' && /T\d\d:\d\d/.test(item.local_end_datetime)
-      ? item.local_end_datetime.slice(11, 16) : '';
-    if (endClock && !spans) timeDetail = `~${endClock}`;
+    timeLabel = datetimeClockLabel(item.local_datetime) || item.local_datetime.slice(11, 16);
+    const endClock = datetimeClockLabel(item?.local_end_datetime);
+    const samePeriod = endClock && endClock.slice(0, 3) === timeLabel.slice(0, 3);
+    if (endClock && !spans) timeDetail = `~${samePeriod ? endClock.slice(3) : endClock}`;
   } else if (!validCivilDate(start)) {
     // 날짜 미정: the list view's own group; it has no day to belong to yet.
     timeLabel = '미정';

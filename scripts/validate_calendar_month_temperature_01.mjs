@@ -427,7 +427,7 @@ function check(label, width, query, value) {
         if (width > 900 && (state.cellAmount !== '208,000원' || !inside(state.cellAmountBox, state.cell))) problems.push(`the day amount is clipped or reads "${state.cellAmount}"`);
         if (state.rows.length !== 6) problems.push(`detail lists ${state.rows.length} events, not 6`);
         const times = state.rows.map(row => row.time).join(',');
-        if (times !== '09:00,11:00,13:00,15:00,17:00,19:00') problems.push(`detail order is ${times}`);
+        if (times !== '오전 9:00,오전 11:00,오후 1:00,오후 3:00,오후 5:00,오후 7:00') problems.push(`detail order is ${times}`);
         if (state.rows.some(row => !row.category || !row.amount)) problems.push('detail row lost a category or amount');
         if (state.dailyLabel !== '오늘 지출' || state.dailyAmount !== '208,000원') problems.push(`daily expense is "${state.dailyLabel} ${state.dailyAmount}"`);
         if (state.categoryAmountsClipped) problems.push('a monthly category amount is clipped');
@@ -484,6 +484,10 @@ try {
     if (!value.ok) throw new Error(`${label}: ${value.error}`);
     if (shots) {
       fs.mkdirSync(shots, {recursive: true});
+      if (query.includes('final=') && width <= 600) {
+        await evaluate("window.scrollTo(0,0); const m=document.querySelector('.site-modal-content'); if(m)m.scrollTop=0; true");
+        await sleep(100);
+      }
       const {data} = await page('Page.captureScreenshot', {format: 'png'});
       fs.writeFileSync(path.join(shots, `${label}.png`), Buffer.from(data, 'base64'));
       if (query.includes('final=') && width <= 600) {
