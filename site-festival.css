@@ -306,6 +306,24 @@
   background: var(--lotbi-surface-primary);
 }
 
+/* Desktop (INLINE) [일정 등록] picker, opened right under the button inside
+   the card (FESTIVAL-CALENDAR-SHEET-PC-01; same reason as the region anchor
+   above). The sheet itself draws the box, so the anchor adds only spacing. */
+.festival-calendar-add-desktop-anchor:empty {
+  display: none;
+}
+
+.festival-calendar-add-desktop-anchor {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* A month grid as wide as the card would make 90px days; 420px keeps every
+   day at least 48px without the picker filling the screen. */
+.festival-calendar-add-desktop-anchor > .lotbi-sheet {
+  max-width: 420px;
+}
+
 /* ---------------------------------------------------------- list state -- */
 .festival-status,
 .festival-error,
@@ -465,7 +483,9 @@
 .festival-card-action-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  /* Top-aligned: "일정을 등록했어요." under [일정 등록] must not push the
+     map button down to the middle of the taller column. */
+  align-items: flex-start;
   gap: 6px;
   padding: 0 14px 14px;
 }
@@ -822,7 +842,8 @@ html[data-subview-back-shell] .festival-back-button[data-subview-back] {
 .festival-schedule-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  /* 2px keeps a 390px phone's days at 48px or more. */
+  gap: 2px;
 }
 
 .festival-schedule-weekday {

@@ -63,21 +63,21 @@ import {
   listFestivalRegions,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
-} from './site-festival-client.js?v=aset-65100b69715e';
-import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-65100b69715e';
+} from './site-festival-client.js?v=aset-c9bac48dfafe';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-c9bac48dfafe';
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
-} from './site-current-location.js?v=aset-65100b69715e';
-import {isLocationUsageEnabled, LOCATION_USAGE_EVENT, readDefaultMapProvider} from './site-location-preference.js?v=aset-65100b69715e';
+} from './site-current-location.js?v=aset-c9bac48dfafe';
+import {isLocationUsageEnabled, LOCATION_USAGE_EVENT, readDefaultMapProvider} from './site-location-preference.js?v=aset-c9bac48dfafe';
 // The visit-date picker inside "일정 등록" is a compact month grid, not a
 // custom date engine -- calendarMonthGrid() is the exact same pure cell
 // generator (leading/trailing days, leap years, week length) the main
 // Calendar view itself uses, reused here read-only.
-import {calendarMonthGrid} from './site-calendar-model.js?v=aset-65100b69715e';
+import {calendarMonthGrid} from './site-calendar-model.js?v=aset-c9bac48dfafe';
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -87,23 +87,23 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
-} from './site-festival-calendar.js?v=aset-65100b69715e';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-65100b69715e';
+} from './site-festival-calendar.js?v=aset-c9bac48dfafe';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-c9bac48dfafe';
 // Reuses the exact same default-map builders the chat Place Card and the
 // 온누리 card use — one link in the 지도앱 chosen in Settings (네이버지도 when
 // none is saved), no new API key, no SDK, no re-derived URL scheme.
-import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-65100b69715e';
+import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-c9bac48dfafe';
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
-import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-65100b69715e';
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-c9bac48dfafe';
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
-} from './site-calendar-weather.js?v=aset-65100b69715e';
+} from './site-calendar-weather.js?v=aset-c9bac48dfafe';
 
 const PAGE_SIZE = 20;
 
@@ -628,12 +628,39 @@ function buildCalendarAddSection(root, festival, {authenticated, sessionToken, g
   };
 
   trigger.addEventListener('click', () => {
+    // A second press on the desktop closes the open picker instead of
+    // stacking another one under it (a phone's sheet covers the button).
+    if (sheetRef) { sheetRef.close(); return; }
+    const presentation = defaultPresentation();
+    // FESTIVAL-CALENDAR-SHEET-PC-01: INLINE (desktop) is mounted right under
+    // [일정 등록], as openRegionSheet does for 지역 변경 -- the primitive's
+    // default host (document.body) put it after everything else in <body>,
+    // below the screen, so a desktop click looked like it did nothing. On a
+    // card it goes under the whole action row, not between its buttons.
+    // SHEET (phone) keeps the default host: it is already a fixed overlay.
+    let desktopAnchor = null;
+    if (presentation === SHEET_PRESENTATION.INLINE) {
+      desktopAnchor = el('div', 'festival-calendar-add-desktop-anchor');
+      const actionRow = wrap.closest('.festival-card-action-row');
+      if (actionRow) actionRow.after(desktopAnchor);
+      else wrap.insertBefore(desktopAnchor, feedback);
+    }
     sheetRef = createBottomSheet({
       label: '일정 등록',
       content: () => buildScheduleGridBody(festival, {onConfirm: visitDate => submit(visitDate)}),
-      onClose: () => { sheetRef = null; },
+      presentation,
+      root: desktopAnchor || undefined,
+      onClose: () => {
+        sheetRef = null;
+        desktopAnchor?.remove();
+        if (desktopAnchor) trigger.setAttribute('aria-expanded', 'false');
+      },
     });
     sheetRef.open();
+    if (desktopAnchor) {
+      trigger.setAttribute('aria-expanded', 'true');
+      desktopAnchor.scrollIntoView?.({block: 'nearest'});
+    }
   });
 
   return wrap;
