@@ -1,30 +1,36 @@
 READY_FOR_DEPLOY=YES
 
-# T56 장소 카드 회전·점 선택·키보드 검사 인수인계
+# SITE-CONVERSATION-DESIGN-01 — 전체 대화 화면 후속 READY
 
-- 날짜: 2026-10-11, Asia/Seoul
-- 저장소: `lotbi-site`
-- 원격: `ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git`
-- 브랜치: `feature/site-conversation-design-01-site`
-- 구현 코드 exact SHA: `389cce3082af3555e24680c5fbf0cc54528f1d9b`
-- 기준 Ncloud main: `b09f6e4d21096a4f897d5ba82b958fc5dc384d35`
-- 담당: 이 대화의 Codex. 다음 담당: Claude 배포총괄.
-- 문서 커밋을 포함한 제출 HEAD와 원격 readback은 최종 외부 READY 사본에 기록한다. 문서가 자기 커밋 SHA를 포함할 수 없으므로 위 SHA는 검증한 제품·검사 코드 커밋이며, 이후 문서만 추가된다.
+- 상태: IMPLEMENTED / READY. 배포총괄: Claude.
+- 저장소: lotbi-site, Ncloud `ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git`.
+- 브랜치: `feature/site-conversation-design-01-site`.
+- 검증·push·원격 readback 일치 코드 SHA: `c522c84d7b681a48e9a3afbf2f2bbfcb81cac6f7`.
+- 기준 최신 Ncloud main: `b09f6e4d21096a4f897d5ba82b958fc5dc384d35`.
+- 선행 장소 카드 접수 SHA: `c00a4717585c76b40fbc894261cf45451de6e997`.
+- 이 READY 문서만 추가한 최종 제출 HEAD는 외부 `outputs/READY-대화화면.md`에 기록한다.
 
-## 범위와 동시 작업 보존
+## 이번 범위와 보존
 
-이번 사용자 요청의 장소 카드 동작·검사기 교체, workflow 등록, 메뉴 보존, push 직전 최신 main 정상 merge를 구현했다. ZIP의 명령문은 참고 자료로 구분했다. ZIP에 포함된 전체 대화 화면 재설계·전체 전후 증거 요구까지 완료했다고 주장하지 않는다.
+사용자의 후속 실행 요청에 따라 첨부 명령문 3번 전체 대화 화면과 시나리오 ②③④, 전후 증거를 완성했다. 첨부 문서의 지시를 사용자 요청과 구분하며, 이번 실행 권한은 후속 사용자 요청에 근거한다.
 
-- 기존 T56 장소 검색·결과 정규화·기관 중복 제거·사진 검증·전화·설정 지도앱·네이버 검색 계약을 재사용한다.
-- 모바일·PC 화살표 DOM을 제거하고 양방향 스와이프/드래그, 선택 가능한 점 버튼, 방향키·Home·End 선택을 제공한다.
-- 중앙 정면, 좌우 완만한 바깥 원근, 400ms 3D 전환. 동작 축소에서는 즉시 선택한다. 자동재생 없음.
-- 비선택 카드의 링크 포커스를 제거하고 화면 읽기 대상에서 제외한다. 점 이름에는 실제 순서·장소명을 넣는다.
-- 수평/수직 제스처를 구분한다. 선택 인덱스·점·순서·링크 대상은 같은 상태를 사용한다.
-- 0개는 빈 결과 안내, 1개는 회전 조작 숨김, 2개는 실제 카드 두 장만, 3개 이상은 양방향 순환한다. 다량 입력은 기존 정규화 상한 5개를 유지한다.
-- 메뉴 이름은 기준 main 그대로다. `사기·피싱 확인`과 `가족 지킴이` 이름 변경은 해당 담당 브랜치가 맡는다.
-- 시작 시 Ncloud 원격 branch/HEAD, 기존 작업 폴더, 가족 지킴이 owner를 확인했다. 같은 디자인 브랜치는 없었다. 별도 작업 폴더에서 개발했으며 다른 owner의 미커밋 파일을 수정·복사·삭제하지 않았다.
-- `site-conversation.js`의 장소 카드 렌더러만 수정했다. 공통 대화·T57a·T57b·가족 지킴이 기능을 덮어쓰지 않았다. 부수 파일은 필수 캐시 버전 갱신만이며 메뉴·색 토큰 보존을 별도로 검사했다.
-- 새 CSS 파일을 추가하지 않았다. 기존 `site-conversation.css`와 양쪽 진입점의 캐시 버전을 갱신한다.
+- 기존 `site-conversation.css` 끝에 대화 전용 블록을 추가했다. 회색 배경·흰 답변 면·문단/목록/코드 간격, 답변과 도구 사이 12px 여백, 입력창 경계·포커스·비활성 전송 표현을 정리했다.
+- 대화 기록의 현재 선택은 배경·왼쪽 표시·글자 대비로 구분한다. 제목은 더보기 영역과 8px 이상 떨어지며, 기록/더보기 조작은 44px 이상이다.
+- 공통 색 토큰을 그대로 재사용한다. 새 CSS 파일·새 테마 동기화·새 서비스 노출 없음.
+- 장소 렌더러를 포함한 **전체 `site-conversation.js`는 c00a4717과 캐시 토큰 외에 동일**하다. 기존 전체 CSS도 그대로 두고 새 블록만 추가했다. 장소 카드의 회전·원근·점·전화/지도·검색 계약은 보존한다.
+- `index.html`은 최신 main과 캐시 토큰 외에 동일하다. 메뉴 이름·공식 자산·법적/주의 고지 원문을 유지한다. T57a/T57b/가족 지킴이 담당의 기능을 수정하지 않는다.
+- 주요 변경: `site-conversation.css`, `.github/workflows/site-review.yml`, 새 `scripts/validate_conversation_design_01.mjs`, 기존 `scripts/validate_chat_read_aloud_restore_browser_01.mjs`. 그 외 88개 파일은 필수 캐시 토큰 갱신뿐이다. 외부 범위 검증 JSON에 목록과 보존 검증을 기록했다.
+- 기존 동일 브랜치·격리 작업 폴더를 이어 사용했다. 다른 owner의 미커밋 변경을 수정·복사·삭제하지 않았다.
+
+## 새 검사와 이번에 바꾼 검사
+
+- 새 `validate_conversation_design_01.mjs`를 `.github/workflows/site-review.yml`에 등록했다. 실제 index·대화 런타임에 로컬 응답을 제공하고 360×780 / 1280×780 × 라이트/다크 4조합을 검사한다.
+- 기록의 현재 표시·대비 4.5:1·제목/더보기 간격·관리 메뉴 보존·키보드 복원, 빈 전송 비활성·실제 입력·Shift+Enter·Enter 1회 전송을 검증한다.
+- 목록/표/코드/출처 링크·가로 넘침 0·도구 44px·답변 소속/복사 원문 일치·후속 질문, 접근성 트리·Tab·테마 전환 선택 보존을 검증한다.
+- 장소 응답을 선택한 뒤 다른 대화로 이동하면 카드가 제거되고, 다시 열면 첫 카드로 초기화되는지 검증한다. 모바일 실제 터치로 세로 읽기 이동 85px, 카드 선택 인덱스 4 유지까지 확인했다.
+- 새 검사 프로필은 Chrome 실행 직전 `fs.mkdtempSync`로 생성한다. 기록/답변의 JavaScript 오류 및 미처리 rejection은 0개다.
+- 기존 `validate_chat_read_aloud_restore_browser_01.mjs`에는 각 실행 직전 mkdtemp 프로필 생성·종료 후 정리만 추가했다. Windows에서 기본 프로필을 공유하던 실행의 마지막 모듈 로딩 실패를 계기로 격리를 보강했다. 기존 음성·중단·네트워크 금지·대비·배치 assertion/허용 오차를 변경하지 않았고, 7개 조건 전부 최종 PASS다.
+- 선행 장소 카드 검사기 6개의 동등 강도 변경은 그대로 유지한다. 다음 목록은 c00a4717의 변경 이유 기록이며 이번 후속 작업에서 다시 완화하거나 변경하지 않았다.
 
 ## 기존 검사기 변경 목록과 이유
 
@@ -39,54 +45,55 @@ READY_FOR_DEPLOY=YES
 | `validate_life_medical_auto_search_card_01.mjs` | PC 화살표/옆 카드 숨김을 화살표 없음·앞 카드 노출·중앙 비겹침으로 대체 | 기존 전체 결과 수, 질문·필터·응급 안내·전화·지도·모바일 크기·단일 결과 동작 보존 |
 | `validate_life_direct_chat_card_compaction_01.mjs` | 화살표로 전 결과 순회하던 부분을 점 버튼 선택으로 변경. 가림 검사의 대상을 화살표에서 실제 점 버튼으로 변경 | 모든 카드 사진/무사진·텍스트 잘림·44px 링크·정확한 전화/지도 대상·설정 앱·질문 1회·키보드·뒤로/새로고침·다크 대비 유지. 점 버튼이 글자/전화/지도 아이콘을 가리지 않는지 검사 |
 
-## 새 검사와 Linux 조건
+## 로컬 검증
 
-`scripts/validate_place_card_rotation_01.mjs`를 `.github/workflows/site-review.yml`에 등록했다. 기존 관련 검사 등록은 유지했다.
+Windows 실제 headless Chrome에서 로컬 테스트 응답으로 검사했다. 모바일은 viewport/키보드 에뮬레이션이며 실기기가 아니다.
 
-- 360×780/1280×780 × 라이트/다크 × 0/1/2/5/12개 입력: 20조합. 12개는 기존 계약대로 5개만 표시되는지 검사한다.
-- 정지 화면뿐 아니라 전환 80ms 시점의 입장·퇴장 카드 모두에 실제 3D 변환이 생기는지 검사한다. 중앙 정면·옆 카드 원근 부호·과도한 폭 축소 금지·350~450ms 전환을 검사한다.
-- 빠른 점 선택, 첫/끝 양방향 순환, 방향키·Home·End·점 버튼 Enter 선택, 동작 축소 이후 즉시 선택, 중앙 카드 하나·선택점 하나·순서 일치를 검사한다.
-- 화면 읽기 숨김·선택 링크 포커스 격리·44px 점 버튼·가로 넘침·레일 이동·외부 링크 실행 금지를 검사한다.
-- 빈 결과는 응답 안내가 실제 완료된 뒤 검사한다. 생성 중 빈 DOM을 통과로 취급하지 않는다.
-- 새 gate와 수정한 관련 브라우저 검사에서 프로필은 Chrome 실행 직전 `fs.mkdtempSync(...)`로 실제 생성된다. 없던 문자열 경로를 `--user-data-dir`로 넘기지 않는다. Linux에서도 동일 경로를 사용한다.
-- Linux 실행은 `NOT_TESTED`: 이 PC의 WSL에 사용 가능한 배포판이 없고 Ncloud Git SSH는 Git 전용이며, 연결된 원격 개발 장치도 오프라인이다. 다른 호스팅/새 GitHub PR로 우회하지 않았다. Claude의 trusted Linux gate가 배포 전 필수다.
+| 검사 | 결과 |
+|---|---|
+| 새 대화 화면 검사, 4조합 / 시나리오 ②③④ | PASS |
+| 장소 회전 검사, 360/1280·라이트/다크·0/1/2/5/12 입력 20조합 | PASS; 12 입력은 기존 계약대로 5개 |
+| 기존 긴 답변 스크롤 앵커, 375/390/1280·스트리밍·완료·키보드 | PASS |
+| 기존 읽어주기 390/320/375/1280·로컬/인터넷/없음/미지원 음성 | PASS |
+| 기존 모바일 입력창 키보드 배치, 3가지 키보드·접힘 화면·PC | PASS |
+| 기존 대화 메시지 긴 글/코드/접기 검사 | PASS |
+| 기존 sidebar·관리·Markdown·composer·공유·첨부 계약 검사 | PASS |
+| consumer theme sync / theme token / theme bootstrap | PASS |
+| asset cache `--write` 후 `--check` | PASS, `aset-1315062223f4`, 169 targets / 206 refs |
+| Site 정적 검사·build env 계약 5개·문법·diff check | PASS |
+| 전체 JS/색 토큰/메뉴/기존 CSS 보존·캐시 전용 파일 검증 | PASS |
 
-## 로컬 검증 결과
+선행 T56 장소 카드 기존 6개 검사는 c00a4717에서 PASS였으며 이번에는 검사 내용이 그대로다. 이번 전체 스타일 상태에서 새 회전 20조합과 대화 사이 카드 복원/세로 제스처를 다시 PASS했다.
 
-아래 검증은 Windows의 실제 headless Chrome에서 로컬 가짜 Core 응답으로 수행했다. viewport/사용자 에이전트 에뮬레이션이며 실기기 검사와 구분한다.
+## 시나리오 ②③④
 
-- 새 회전 검사: 최종 20조합 PASS. 빈 안내 완료 대기와 실제 다크 설정 보강분까지 확인했다.
-- 위 기존 장소 카드 브라우저 검사 6개: PASS. 점 가림 검사 최종 보강분까지 PASS.
-- `validate_naver_maps_navigation_01`, `validate_place_card_cross_platform_01`, `validate_place_card_map_deeplinks_01`, `validate_rich_product_cards_01`: PASS.
-- `asset_cache_version.mjs --write` 후 `--check`: PASS, `aset-4b669d37c80e`.
-- `validate_consumer_theme_sync_01`, `sync_theme_bootstrap --check`, `validate_theme_token_value_01`: PASS. 공통 토큰 자체는 수정하지 않았다.
-- `validate_site.py`: UTF-8 출력으로 PASS. 기본 Windows 출력에서는 성공 메시지의 긴 대시를 인코딩하지 못했으며 `python -X utf8`로 재실행해 확인했다.
-- `validate_build_env_contract_01.py`: 5개 검사 PASS.
-- 문법 검사, `git diff --check`, 메뉴·색 토큰·캐시만 갱신된 부수 파일 검증: PASS. LF 유지.
-- Ncloud 구현 코드 push/readback: `389cce3082af3555e24680c5fbf0cc54528f1d9b` 일치 확인. 이 문서 커밋까지의 최종 제출 SHA는 외부 READY 사본에 추가한다.
+각 4개 화면 조합에서 다음을 끝까지 수행했다. 모두 테스트 데이터만 사용했고 막힌 지점은 없다.
 
-## 사용자 시나리오와 증거
+| 시나리오·시작 상태 | 행동·조작 수 | 예상 및 실제 결과·증거 |
+|---|---|---|
+| ② 테스트 대화 두 개, 긴 답변 대화 선택 | 관리 메뉴 열기/닫기 각 1회, 기록 선택 Enter 2회, 모바일 메뉴 열기 2회, 이후 장소 점 선택 1회·기록 이동 2회 | 선택 하나·실제 제목·현재 대비, 짧은/긴 답변 정확한 복원. 다른 대화에 카드 없음, 장소 대화 재진입 시 인덱스 0. 기록/짧은 답변 전후 PNG·검사 JSON |
+| ③ 긴 답변과 빈 입력 | 답변 끝 스크롤, 복사 1회, 후속 입력 1회, Shift+Enter 1회·Enter 1회; 모바일 카드 위 세로 터치 1회 | 목록 3개·표 1개·코드 1개·출처 링크 렌더링, 가로 넘침 없음. 복사 원문은 해당 긴 답변 전체. 줄바꿈은 전송하지 않고 Enter는 1회 전송하며 다시 빈 입력 비활성. 세로 읽기는 85px 이동하고 카드 인덱스 유지. long-start/end·input PNG 및 JSON |
+| ④ 기록/도구의 키보드 포커스 | 기록 Enter 선택 2회 이상·도구 Tab 1회·테마 전환 왕복 | 이름 있는 조작, 접근성 트리에 복사 도구 노출, 테마 전환해도 대화 선택 유지. 별도 회전 검사에서 모든 점·방향키/Home/End/Enter·reduced motion 선택 PASS. 새 JSON + 회전 로그 |
 
-| 시작 상태·행동 | 조작 수 | 실제 결과·막힌 곳 |
-|---|---:|---|
-| 실제 대화 진입점에 가짜 장소 응답 → 양방향 넘김·첫/끝 순환 | 5개 결과 전부 순환 + 역방향 2회 이상 | 인덱스·현재 순서 일치, 레일 이동 0, 중앙 위치 오차 1px 이하, 드래그로 링크 실행 없음. 막힌 곳 없음 |
-| 사진·무사진·중복 기관 결과 → 모든 결과 선택 → 전화/지도 대상 확인 | 각 결과 점 선택 1회 + 전화/지도 각각 1회 | 한 기관 한 장, 사진 증거 보존, 중앙 링크/설정 지도앱 대상 일치. 전화는 실행을 차단한 링크 계약 검사로 실제 발신 없음 |
-| 생활정보의 질문 기능 → 대화 카드 → 사진 없는 결과·다크 모드 | 질문 1회, 각 결과 점 선택 1회 | 기존 질문 1회·키보드 미호출·뒤로/새로고침 재전송 방지 보존. 글자·동작 버튼 잘림 없음, 대비 검사 PASS |
-| 점 버튼 포커스 → 방향키·Home·End·Enter → 동작 축소 | 키 입력 5회 + 점 선택 1회 | 전 결과 선택, 양방향 순환, 현재점/순서 일치, 비선택 링크 포커스 제외. 동작 축소 선택 유지 |
+화면 읽기 프로그램의 실제 음성 안내와 Android/iPhone 실기기 검사를 위 접근성 트리 검사로 대체했다고 주장하지 않는다.
 
-- 외부 결과물 폴더의 `회전검사-결과.txt`, `생활정보-카드검사-결과.txt`, `변경범위-검증.json`에 자동화 결과를 보존한다.
-- `evidence/360x780-light-5→5.png`, `360x780-dark-5→5.png`, `1280x780-light-5→5.png`, `1280x780-dark-5→5.png`: 최종 모의 응답 화면. 운영 데이터가 아니다.
-- 회전 동작의 근거는 정지 캡처가 아니라 자동화의 전환 중 변환과 양방향 입력·순환 검증이다.
-- 이번 요청 범위는 검사기·장소 카드 전환이며 전체 대화 재설계의 전후 증거/전체 화면 완료 보고는 아니다.
+## 전후 화면과 동작 증거
 
-## 인계 조건과 미검증
+외부 결과물 루트: `C:/Users/jshnc/Documents/Codex/2026-10-11/1-t56-1-ready-github-workflows/outputs/`.
 
-- push 직전 최신 main을 fetch하고 작업 브랜치에 `git merge --no-edit origin/main`을 실행했다. `Already up to date.`; main 미포함 커밋 0, 충돌 0. 기준 main `b09f6e4d21096a4f897d5ba82b958fc5dc384d35`의 공통 파일을 모두 보존했다. 문서 push 직전에도 다시 확인한다.
-- `MERGED=NO`, `DEPLOYED=NO`, `ACTUAL_PRODUCTION_E2E=NOT_TESTED`.
-- 배포 ID·운영 served revision: `NOT_VERIFIED`.
-- Desktop Web: 로컬 Chrome PASS. 실제 운영 사용자는 `NOT_TESTED`.
-- Mobile Web: Chrome viewport 에뮬레이션 PASS. 실제 Android Chrome·Samsung Internet·iPhone Safari는 각각 `NOT_TESTED`.
-- Android Native·iOS Native: 이번 범위 밖, `NOT_TESTED`.
-- Linux 전체 Site gate·운영 배포·실제 전화/지도 앱 실행·전체 대화 화면 재설계: `NOT_TESTED` 또는 이번 범위 밖.
-- DB·Secret·LIVE MONEY·유료 인프라·소셜 공개·운영 사용자 데이터 변경 없음. 추가 사용자 승인 요구 없음.
-- Claude 배포총괄은 배포 직전 최신 main을 다시 정상 merge하며 T57a/T57b/가족 지킴이와 공통 대화 파일 변경을 보존하고, 캐시를 다시 생성하고 관련 Linux gate를 통과시킨 뒤 병합·배포·운영 확인을 판단한다.
+- `대화-전후비교.html`: 24쌍 비교. 360×780·1280×780 × light/dark × short/history/long-start/long-end/input/place.
+- 각 경로: `conversation-before/{360|1280}x780-{light|dark}-{short|history|long-start|long-end|input|place}.png`와 같은 이름의 `conversation-after/` PNG.
+- 대화 변경 전은 c00a4717의 CSS를 Git에서 복원한 별도 로컬 fixture로 캡처했다. index와 런타임은 캐시 토큰 외에 동일하며, 전후 메시지·조작도 동일하다. 운영 화면이 아니다.
+- 장소 변경 전은 c00a4717의 `evidence/*-5→5.png`, 변경 후는 이번 `place-after/*-5→5.png`를 비교 폴더에 복사했다. 장소 구현은 동일하고 대화 주변 표현만 바뀌었다.
+- `대화-변경전-검사.json`, `대화-변경후-검사.json`, `대화-변경범위-검증.json`, `장소-보존-회전검사.txt`, `긴답변-스크롤-검사.txt`, `읽어주기-검사.txt`, `입력창-키보드-검사.txt`, `대화-회귀검사.txt`.
+- 회전 동작은 정지 PNG가 아니라 전환 중 3D 변환·양방향·첫/끝 순환·빠른 선택·전화/지도 대상·오클릭 금지 자동화 결과로 입증한다.
+
+## 동시 작업·push·다음 단계
+
+- 코드 push 직전 Ncloud main을 fetch하고 이 작업 브랜치에 정상 `git merge --no-edit origin/main`을 수행했다. `Already up to date.`; 미포함 main 커밋 0, 충돌 0. 공통 대화 파일은 캐시 토큰 외에 변경하지 않았다.
+- 코드 SHA `c522c84d7b681a48e9a3afbf2f2bbfcb81cac6f7`를 push하고 동일 원격 SHA를 readback했다. 문서 커밋 push 직전에도 최신 main을 확인한다.
+- MERGED=NO / DEPLOYED=NO / ACTUAL_PRODUCTION_E2E=NOT_TESTED. 본 후속 작업의 배포 ID·served revision은 NOT_VERIFIED.
+- Linux 전체 gate: NOT_TESTED. 이 PC에는 실행 가능한 WSL 배포판이 없고 Ncloud Git SSH는 Git 전용이다. Linux용 프로필 조건과 workflow 등록은 구현했으며 Claude의 trusted Linux gate에서 실행해야 한다.
+- 실제 Android Chrome·Samsung Internet·iPhone Safari·화면 읽기 프로그램·운영 API·실제 전화/지도 앱 실행: NOT_TESTED. Android/iOS Native는 범위 밖.
+- DB·Secret·LIVE MONEY·유료 인프라·운영 사용자 데이터·소셜 공개 변경 없음. 추가 사용자 승인 필요 없음.
+- Claude는 최신 main 정상 merge로 가족 지킴이/T57a/T57b의 공통 변경을 보존하고, 필요한 캐시 재생성·trusted Linux gate·Ncloud main 병합·배포·운영/실기기 연결 검증을 수행한다.
