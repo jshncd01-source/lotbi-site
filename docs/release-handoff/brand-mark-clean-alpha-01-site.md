@@ -32,6 +32,7 @@ tools/build-brand-assets.py가 흰 배경 원본에서 배경을 지울 때 「�
 운영 기준 tree(68b3161e) + 이 변경, 하나씩, 작업 자리표: 15개 모두 PASS
   validate_site.py(흰 헤더 로고 160w 봉인 바이트) · brand_official_logo_01(크기 160×70·아이콘 연결) · dark_wordmark_counters_01 · brand_logo_theme_aware_01 · consumer_design_shell_01 · composer_desktop_width_02 · mobile_entry.js(/favicon.ico) · product_photo_compare_01(icon-192 사용) · about.py · hardening.py · home_chat.py · document_cache_policy_01.py · site_avatar_integration(fallback 그림 mark-512) · bare_white_home_render_01 · avatar_refresh_flash_01
   asset_cache_version --check PASS
+  NEW_MAIN_RETEST(b09f6e4d 위 이 branch): 위 15개 다시 15/15 PASS, asset check PASS
   재생성: build-brand-assets.py → 다크 로고·마크가 이 branch 파일과 바이트 동일, build_site_favicons.py → 아이콘 6개 바이트 동일(두 번 생성 일치)
 
 ## 전후 (USER_FIRST 11)
