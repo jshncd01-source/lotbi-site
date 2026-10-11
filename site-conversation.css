@@ -3953,12 +3953,80 @@ body[data-site-theme="dark"] .lotbi-regional-action { border-color: rgba(198, 20
 /* 전북 맛집·음식 entry form: a short label above each chip row. */
 .consumer-life-chip-label { margin: 4px 0 -4px; color: var(--lotbi-text-secondary, #4d535d); font-size: 13px; font-weight: 600; }
 
+/* NEARBY-LOCATION-ALLOW-PROMPT-01 — the shared 위치 허용 row
+   (site-location-allow.js): [위치 허용하고 찾기] [지역 고르기] side by side at
+   the same weight (48px, USER_FIRST_STANDARD 6), the saved region when there
+   is one, and one line saying what happened (blocked → 자물쇠, Windows 위치,
+   PC 위치 오차). Used under a "where?" answer and on the 지역정보 screens. */
+.lotbi-location-allow {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.lotbi-location-allow-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+}
+.lotbi-location-allow-chip {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 92%, transparent);
+  border-radius: 999px;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #202632);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.lotbi-location-allow-chip:hover {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+.lotbi-location-allow-chip:focus-visible {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 2px;
+}
+.lotbi-location-allow-chip[aria-busy="true"] {
+  cursor: progress;
+}
+.lotbi-location-allow-note {
+  max-width: 36em;
+  margin: 0;
+  color: var(--lotbi-text-primary, #202632);
+  font-size: 13.5px;
+  line-height: 1.5;
+  text-align: center;
+  word-break: keep-all;
+}
+.lotbi-location-allow-note[hidden] {
+  display: none;
+}
+body[data-site-theme="dark"] .lotbi-location-allow-chip {
+  border-color: #515b69;
+  background: rgba(23, 28, 37, .94);
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+body[data-site-theme="dark"] .lotbi-location-allow-chip:hover {
+  background: #262d38;
+}
+body[data-site-theme="dark"] .lotbi-location-allow-note {
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+.lotbi-location-request-row > .lotbi-location-allow {
+  flex: 1 1 100%;
+}
+
 /* CONVERSATION-ANSWER-UX-01 (QA #7): [현재 위치 사용] [지역 선택] under an
    "어느 지역에서 찾을까요?" answer, and the region picker it opens. */
 .lotbi-location-request-row .lotbi-place-filter-chip {
-  min-height: 44px;
-  padding: 0 16px;
-  font-size: 13.5px;
+  min-height: 48px;
+  padding: 0 18px;
+  font-size: 14.5px;
 }
 .lotbi-region-picker {
   display: grid;
@@ -3979,21 +4047,52 @@ body[data-site-theme="dark"] .lotbi-regional-action { border-color: rgba(198, 20
   color: var(--lotbi-text-secondary, #212121);
 }
 .lotbi-region-picker-status:empty { display: none; }
-.lotbi-region-picker-field {
-  display: grid;
-  gap: 6px;
+/* NEARBY-LOCATION-ALLOW-PROMPT-01: 시·도 / 시·군 as chips (one tap each), the
+   same as 지역뉴스 (REGIONAL-NEWS-CITY-SELECT-01). */
+.lotbi-region-picker-step {
+  margin: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--lotbi-text-secondary, #212121);
 }
-.lotbi-region-picker-field select {
-  min-height: 44px;
-  padding: 0 12px;
+.lotbi-region-picker-step:empty { display: none; }
+.lotbi-region-picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lotbi-region-picker-chips[hidden] { display: none; }
+.lotbi-region-picker-chip {
+  min-height: 48px;
+  min-width: 56px;
+  padding: 0 16px;
   border: 1px solid var(--lotbi-border-default, #e5e5e5);
-  border-radius: 12px;
+  border-radius: 999px;
   background: var(--lotbi-surface-elevated, #fff);
   color: var(--lotbi-text-primary, #212121);
   font: inherit;
   font-size: 15px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.lotbi-region-picker-chip:hover { background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5); }
+.lotbi-region-picker-chip:focus-visible { outline: 3px solid rgba(64, 116, 255, .35); outline-offset: 2px; }
+.lotbi-region-picker-chip.is-back { border-style: dashed; }
+.lotbi-region-picker-saved .lotbi-region-picker-chip {
+  border-color: transparent;
+  background: var(--lotbi-text-primary, #212121);
+  color: var(--lotbi-surface-elevated, #fff);
+  font-weight: 700;
+}
+body[data-site-theme="dark"] .lotbi-region-picker-chip {
+  border-color: #515b69;
+  background: rgba(23, 28, 37, .94);
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+body[data-site-theme="dark"] .lotbi-region-picker-saved .lotbi-region-picker-chip {
+  border-color: transparent;
+  background: var(--lotbi-text-primary, #e8ecf2);
+  color: #171c25;
 }
 .lotbi-region-picker-actions {
   display: flex;
@@ -4001,24 +4100,14 @@ body[data-site-theme="dark"] .lotbi-regional-action { border-color: rgba(198, 20
   justify-content: flex-end;
   gap: 8px;
 }
-.lotbi-region-picker-submit,
 .lotbi-region-picker-secondary {
-  min-height: 44px;
+  min-height: 48px;
   padding: 0 18px;
   border-radius: 999px;
   font: inherit;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-}
-.lotbi-region-picker-submit {
-  border: 0;
-  background: var(--lotbi-text-primary, #212121);
-  color: var(--lotbi-surface-elevated, #fff);
-}
-.lotbi-region-picker-submit:disabled {
-  opacity: .45;
-  cursor: default;
 }
 .lotbi-region-picker-secondary {
   border: 1px solid var(--lotbi-border-default, #e5e5e5);

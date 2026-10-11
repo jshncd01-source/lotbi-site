@@ -6,11 +6,15 @@
 //   1) 위치 사용이 켜져 있고 권한이 허용(또는 사용자가 지금 이 요청으로 허용)이면 현재 위치
 //   2) 거부·사용 불가·시간 초과면 사용자가 저장해 둔 지역(캘린더 날씨 지역)
 //   3) 그것도 없으면 아무것도 보내지 않는다 — Core 가 지역을 되묻는다.
+// NEARBY-LOCATION-ALLOW-PROMPT-01: PC(넓은 화면·마우스)에서 사람이 직접 고른
+// 지역(출처 MANUAL)이 있으면 그 지역이 먼저다. PC 의 현재 위치는 대개 네트워크로
+// 짐작한 값이라 몇 km 씩 어긋난다. 방금 [위치 허용하고 찾기]로 받은 현재 위치
+// (공통 계층에 2분 남는 값)만 그보다 앞선다 — 그 탭이 지금 위치를 쓰라는 뜻이다.
 // 좌표는 소수 셋째 자리(약 100m)로 반올림해 이 한 번의 요청에만 싣는다. 이 모듈은
 // 아무것도 저장하지 않는다.
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-4735b34338e2';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-4735b34338e2';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-4735b34338e2';
+import {getBrowserLocationPermissionState, getRecentBrowserCurrentLocation, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-30e3f8b2aa25';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-30e3f8b2aa25';
+import {readCalendarManualWeatherRegion, readCalendarWeatherRegionOrigin} from './site-calendar-weather-region.js?v=aset-30e3f8b2aa25';
 
 // JEONBUK-PILOT-01: "근처 전북 맛집" (전북 맛집·음식) is a life public-data lookup too.
 const LIFE_TARGET_RE = /(?:동물\s*병원|애견\s*병원|약국|병원|의원|응급실|응급\s*의료|소아\s*청소년과|소아과|내과|이비인후과|치과|피부과|정형외과|안과|산부인과|달빛\s*어린이|전북[^.?!\n]{0,24}?(?:맛집|음식점|식당|막걸리집))/u;
@@ -87,6 +91,16 @@ export function savedRegionLabel(label) {
   return words.join(' ').slice(0, 40).trim();
 }
 
+// A PC (wide or mouse-driven) whose person picked their region by hand.
+function pcPrefersPickedRegion({matchMedia = globalThis.matchMedia?.bind(globalThis), readOrigin = readCalendarWeatherRegionOrigin} = {}) {
+  try {
+    if (readOrigin() !== 'MANUAL' || typeof matchMedia !== 'function') return false;
+    return matchMedia('(min-width: 761px)').matches || matchMedia('(hover: hover) and (pointer: fine)').matches;
+  } catch {
+    return false;
+  }
+}
+
 function timeout(ms) {
   return new Promise(resolve => { setTimeout(() => resolve(null), ms); });
 }
@@ -120,12 +134,24 @@ export async function resolveLifeLocationContext(text, {
   locationUsageEnabled = isLocationUsageEnabled,
   timeoutMs = 8_000,
   recentContext = [],
+  prefersPickedRegion = pcPrefersPickedRegion,
+  recentCurrent = getRecentBrowserCurrentLocation,
 } = {}) {
   const lifeLookup = lifeLocationIntent(text, recentContext);
   if (!lifeLookup && !newsLocationIntent(text)) return null;
   let usageEnabled = false;
   try { usageEnabled = locationUsageEnabled() === true; } catch { usageEnabled = false; }
-  if (usageEnabled && (lifeLookup || LIFE_NEARBY_RE.test(text))) {
+  let pickedFirst = false;
+  try { pickedFirst = prefersPickedRegion() === true; } catch { pickedFirst = false; }
+  if (usageEnabled && pickedFirst && (lifeLookup || LIFE_NEARBY_RE.test(text))) {
+    let recent = null;
+    try { recent = recentCurrent(); } catch { recent = null; }
+    const latitude = Number(recent?.latitude);
+    const longitude = Number(recent?.longitude);
+    if (inKorea(latitude, longitude)) {
+      return Object.freeze({latitude: round3(latitude), longitude: round3(longitude), source: LIFE_LOCATION_SOURCE.CURRENT});
+    }
+  } else if (usageEnabled && (lifeLookup || LIFE_NEARBY_RE.test(text))) {
     // The user just asked for something "nearby"/"now": that request is the
     // explicit action that may show the browser's permission prompt — the
     // first time on this page.

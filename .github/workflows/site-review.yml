@@ -485,6 +485,13 @@ jobs:
       - name: Validate conversation answer UX
         run: node scripts/validate_conversation_answer_ux_01.mjs
 
+      # 위치 허용(NEARBY-LOCATION-ALLOW-PROMPT-01): "어느 지역에서 찾을까요?" 답 아래
+      # [위치 허용하고 찾기]·[지역 고르기]. 위치 사용 꺼짐→허용→같은 질문 재전송,
+      # 차단=자물쇠 안내, 거부=지역 목록, PC 위치 못 받음·오차 큼 안내, PC 지역 저장.
+      # 360·390·1280, 라이트·다크, 48px.
+      - name: Validate nearby location allow prompt
+        run: node scripts/validate_nearby_location_allow_prompt_01.mjs
+
       # 장소 카드 캐러셀은 transform 으로만 돌고 스크롤하지 않는다. 상품 카드
       # 레일의 scroll snap 을 물려받아 회전할 때마다 레일이 153~252px 밀리던
       # 결함 — 이전/다음·스와이프·방향키 뒤에도 가운데 카드가 제자리인지 잰다.
