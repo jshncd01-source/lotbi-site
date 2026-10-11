@@ -205,6 +205,11 @@ jobs:
       - name: Validate static pages theme
         run: node scripts/validate_static_pages_theme_01.mjs
 
+      # QA 화면 전수 01 N1: the plan buttons and the 추천 badge were white-on-white (1.09:1)
+      # in Dark on the page where a purchase starts. Measured on the real subscribe.html.
+      - name: Validate subscribe Dark contrast
+        run: node scripts/validate_subscribe_dark_contrast_01.mjs
+
       # The viewport-sized scroll container must not be a tab stop: its focus
       # ring reached the screen as two blue vertical lines.
       - name: Validate container focus ring
