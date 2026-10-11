@@ -49,6 +49,16 @@ READY_FOR_DEPLOY=YES
 - 후속 검사: 같은 검증기의 회사 소개 C6 기대값이 확정 운영명보다 오래된 `진위확인`이라 다음 실패로 확인됐다. 검사 항목을 삭제·완화하지 않고 기대 기능명을 실제 확정명 `사기·피싱 확인`으로만 갱신했다. 운영 화면에 옛 명칭을 다시 넣지 않았다.
 - cache: 공식 생성기로 `aset-f04cc336a932`을 재생성했다.
 
+## Gate 1.0.6 네 번째 반환과 수정
+
+- 반환 release: `0579767e49865fc752a0f7f9042fa4e2d6ec4bb7`
+- 반환 대상 READY: `da54cbf1711fb3d4650b9ad57813638e38cdeb4c`
+- Gate run: `20261011T163551Z-46804-2309624351`
+- 결과: `TEST_FAILED`, 실패 단계 `scripts/validate_consumer_design_shell_01.mjs`. main `9147419f`와 Production은 변경되지 않았다.
+- 원인: COMMON-UI-02의 회사 소개 기능명 계약은 확정명으로 갱신됐지만, 별도 consumer design shell의 desktop/mobile 8개 메뉴 기대 배열에는 이전 명칭 `진위확인`이 남아 있었다.
+- 수정: 8개 메뉴의 개수·순서·목적지 단언은 그대로 유지하고 네 번째 메뉴 기대값만 실제 운영명 `사기·피싱 확인`으로 갱신했다. `validate_home_chat.py`와 sidebar IA 검사는 이름이 아니라 목적지 훅·순서를 검사하며 별도 이전 명칭 계약이 없음을 확인했다.
+- cache: 제품 asset 변경이 없어 `aset-f04cc336a932`을 그대로 유지했다.
+
 ## 확정 C안 보존
 
 - 독립 `#scam` 화면, 제목 `롯비야, 이거 진짜야?`, 문자·이메일/인터넷 주소 탭과 사진·카메라·문서 선택 구조를 유지했다.
@@ -138,6 +148,15 @@ READY_FOR_DEPLOY=YES
 - `validate_site_refresh_route_restore_01.mjs`: PASS — iPhone 375/390 각 170 checks, desktop 1280 168 checks.
 - `validate_accessibility.py`, `validate_hardening.py`, `validate_legal_pages.py`, `validate_social_legal_manifest_01.py`: PASS.
 - `asset_cache_version.mjs --check`: PASS — `aset-f04cc336a932`, targets 169 / refs 206.
+
+### 네 번째 Gate 반환 수정 재검증
+
+- `validate_consumer_design_shell_01.mjs`: PASS — desktop/mobile 각각 동일한 8개 메뉴명·순서·목적지 계약 유지.
+- `validate_home_chat.py`, `validate_sidebar_information_architecture_04.mjs`: PASS — 8개 목적지와 승인 순서 유지.
+- `validate_common_ui_polish_01.mjs`, `validate_common_ui_polish_02.mjs`, `validate_scam_shield_mvp_01.mjs`: PASS.
+- `validate_trouble_helper_01.mjs`, `validate_connected_services_menu_hidden_01.mjs`: PASS — `사기·피싱 확인` 다음 도우미 순서와 `연결 서비스` 숨김 유지.
+- `validate_scam_shield_photo_picker_01.mjs`, `validate_site_refresh_route_restore_01.mjs`: PASS.
+- `validate_accessibility.py`, `validate_hardening.py`, `asset_cache_version.mjs --check`: PASS.
 
 ## 최신 통합 사용자 시나리오
 
