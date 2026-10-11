@@ -44,6 +44,26 @@ assert.match(checkingFn, /recoveryLoginLink\('account-action account-login accou
 assert.match(continuity, /if \(authenticated !== false\) withdrawLoginWhileChecking\(\);/u);
 assert.match(authCss, /\.account-login-while-checking \{[^}]*opacity: 0;[^}]*pointer-events: none;[^}]*animation: lotbi-login-while-checking 0s linear 0\.8s forwards;/su);
 assert.match(authCss, /body\[data-site-authenticated="true"\] \.mobile-header-account \{/u);
+// FIX 04 — Dark from first paint: the home skin is also keyed on html[data-site-theme-bootstrap],
+// only while the body has no data-site-theme of its own yet.
+const bareWhite = read('home-bare-white.css');
+assert.match(bareWhite, /html\[data-site-theme-bootstrap="dark"\] body\.chat-home-page:not\(\[data-site-theme\]\):not\(\.conversation-active\) \{[^}]*--home-skin-bg: #212121;/su);
+assert.match(bareWhite, /@media \(prefers-color-scheme: dark\) \{\s*html\[data-site-theme-bootstrap="system"\] body\.chat-home-page:not\(\[data-site-theme\]\):not\(\.conversation-active\) \{[^}]*--home-skin-bg: #212121;/su);
+assert.match(bareWhite, /html\[data-site-theme-bootstrap="dark"\] body\.chat-home-page:not\(\[data-site-theme\]\) \{[^}]*--home-sidebar-bg: #212121;/su);
+assert.match(bareWhite, /@media \(prefers-color-scheme: dark\) \{\s*html\[data-site-theme-bootstrap="system"\] body\.chat-home-page:not\(\[data-site-theme\]\) \{[^}]*--home-sidebar-bg: #212121;/su);
+// FIX 04 — 48px: the hamburger (both rules), the drawer's close control, and the tap area of 로그인·회원가입.
+const homeChat = read('home-chat.css');
+assert.equal((homeChat.match(/\.mobile-menu-button \{\s*(?:\/\*[^*]*\*\/\s*)?width: 48px;\s*height: 48px;/gu) || []).length, 2, 'hamburger is 48px in the base rule and in the phone rule');
+assert.match(homeChat, /@media \(max-width: 760px\) \{[\s\S]*?\.mobile-menu-button \{\s*width: 48px;\s*height: 48px;\s*\}/u, 'hamburger phone rule is 48px');
+assert.match(homeChat, /\.mobile-drawer-close \{\s*width: 48px;\s*height: 48px;/u, 'drawer close is 48px');
+assert.doesNotMatch(homeChat, /\.mobile-menu-button \{[^}]*(?:width|height): 44px/u, 'no 44px hamburger left');
+assert.match(authCss, /\.account-actions \.account-action:not\(\.account-login-while-checking\)::after \{[^}]*inset-block: -7px;/su);
+// FIX 03 — the PC sidebar account row and the phone drawer get the same delayed 로그인.
+const sidebarChecking = continuity.slice(continuity.indexOf('function sidebarCheckingNodes'), continuity.indexOf('function sidebarAccountLink'));
+assert.match(sidebarChecking, /recoveryLoginLink\('sidebar-account-recovery-action account-login-while-checking'\)/u);
+assert.match(authCss, /\.sidebar-account-slot\[data-auth-state="checking"\] \.account-login-while-checking \{[^}]*opacity: 0;[^}]*pointer-events: none;[^}]*animation: lotbi-login-while-checking 0s linear 0\.8s forwards;/su);
+assert.match(authCss, /\.account-login-while-checking::after \{[^}]*inset-block: -9px;/su);
+assert.match(authCss, /width: 48px;\s*height: 48px;\s*padding: 0;\s*display: inline-grid;/u);
 assert.match(conversation, /renderHeaderAccountAvatar\(\);\n?\s*\};/u);
 
 // ── Browser part ──────────────────────────────────────────────────────────
@@ -202,17 +222,35 @@ async function openBrowser(executable, profile) {
 
 // Where the delayed 로그인 is, whether it can be seen and pressed.
 const LOGIN_PROBE = `(() => {
-  const link = document.querySelector('.account-login-while-checking');
+  const link = document.querySelector('.account-actions .account-login-while-checking');
   const state = document.querySelector('.account-actions')?.dataset.authState || '';
   if (!link) return {present: false, state};
   const style = getComputedStyle(link);
   const rect = link.getBoundingClientRect();
   const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
   return {present: true, state, opacity: Number(style.opacity), pointer: style.pointerEvents,
-    pressable: hit === link || link.contains(hit), width: Math.round(rect.width), text: link.textContent};
+    pressable: hit === link || link.contains(hit), width: Math.round(rect.width), text: link.textContent,
+    height: Math.round(rect.height * 10) / 10,
+    hitAbove: (() => { const above = document.elementFromPoint(rect.left + rect.width / 2, rect.top - 7); return above === link || link.contains(above); })(),
+    hitBelow: (() => { const below = document.elementFromPoint(rect.left + rect.width / 2, rect.bottom + 7); return below === link || link.contains(below); })()};
 })()`;
 
-async function scenario(executable, origin, workDir, label, {account, statusDelay = 0, width = 390, height = 844, mobile = true}, run) {
+// The same for the sidebar account row (a PC's only account area, and the phone drawer's).
+const SIDEBAR_LOGIN_PROBE = `(() => {
+  const links = [...document.querySelectorAll('.sidebar-account-slot .account-login-while-checking')];
+  const state = document.querySelector('.sidebar-account-slot')?.dataset.authState || '';
+  const link = links.find(node => node.getClientRects().length && node.getBoundingClientRect().width > 0);
+  if (!link) return {present: links.length > 0, shown: false, state, count: links.length};
+  const style = getComputedStyle(link);
+  const rect = link.getBoundingClientRect();
+  const at = (x, y) => { const hit = document.elementFromPoint(x, y); return hit === link || link.contains(hit); };
+  return {present: true, shown: true, state, opacity: Number(style.opacity), pointer: style.pointerEvents, text: link.textContent,
+    pressable: at(rect.left + rect.width / 2, rect.top + rect.height / 2),
+    hitAbove: at(rect.left + rect.width / 2, rect.top - 7), hitBelow: at(rect.left + rect.width / 2, rect.bottom + 7),
+    height: Math.round(rect.height * 10) / 10, width: Math.round(rect.width)};
+})()`;
+
+async function scenario(executable, origin, workDir, label, {account, statusDelay = 0, width = 390, height = 844, mobile = true, theme = '', scheme = ''}, run) {
   const profile = fs.mkdtempSync(path.join(workDir, 'profile-'));
   const cdp = await openBrowser(executable, profile);
   try {
@@ -225,6 +263,7 @@ async function scenario(executable, origin, workDir, label, {account, statusDela
     await page('Runtime.enable');
     await page('Page.addScriptToEvaluateOnNewDocument', {source: MOCK});
     await page('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile});
+    if (scheme) await page('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
     const evaluate = async expression => {
       const result = await page('Runtime.evaluate', {expression, returnByValue: true, awaitPromise: true});
       if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails).slice(0, 400));
@@ -232,7 +271,8 @@ async function scenario(executable, origin, workDir, label, {account, statusDela
     };
     await page('Page.navigate', {url: `${origin}/__qa-seed`});
     await waitFor(() => evaluate('document.readyState === "complete"'), `${label}: seed page`);
-    await evaluate(`(() => { localStorage.clear(); localStorage.setItem('__qaAccount', ${JSON.stringify(account)}); localStorage.setItem('__qaStatusDelay', ${JSON.stringify(String(statusDelay))}); return true; })()`);
+    await evaluate(`(() => { localStorage.clear(); localStorage.setItem('__qaAccount', ${JSON.stringify(account)}); localStorage.setItem('__qaStatusDelay', ${JSON.stringify(String(statusDelay))});
+      ${theme ? `document.cookie = 'lotbi_theme_preference_v1=${theme}; path=/';` : ''} return true; })()`);
     await page('Page.navigate', {url: `${origin}/`});
     await run({evaluate, page});
     console.log(`  PASS ${label}`);
@@ -261,6 +301,7 @@ try {
     assert.equal(shown.pointer, 'auto');
     assert.ok(shown.pressable, `로그인 can be pressed: ${JSON.stringify(shown)}`);
     assert.equal(shown.text, '로그인');
+    assert.ok(shown.hitAbove && shown.hitBelow && shown.height + 16 >= 48, `a 48px tap area around the button: ${JSON.stringify(shown)}`);
     const settled = await waitFor(async () => {
       const value = await evaluate(`({state: document.querySelector('.account-actions')?.dataset.authState, links: [...document.querySelectorAll('.account-actions a')].map(node => node.textContent)})`);
       return value.state === 'unauthenticated' ? value : false;
@@ -274,6 +315,7 @@ try {
     await waitFor(() => evaluate('window.__qa.statusAnsweredAt > 0'), 'Account answered', 6000);
     const after = await evaluate(LOGIN_PROBE);
     assert.equal(after.present, false, `no 로그인 once Account said signed in: ${JSON.stringify(after)}`);
+    assert.equal(await evaluate(`document.querySelectorAll('.account-login-while-checking').length`), 0, 'neither the Header nor the sidebar keeps one');
     await waitFor(() => evaluate(`document.body?.dataset.siteAuthenticated === 'true'`), 'signed in', 8000);
   });
 
@@ -307,7 +349,7 @@ try {
       return value.avatarText ? value : false;
     }, 'avatar with initials', 10000);
     assert.notEqual(header.display, 'none');
-    assert.ok(header.width >= 44 && header.height >= 44, `a 44px touch target: ${JSON.stringify(header)}`);
+    assert.ok(header.width >= 48 && header.height >= 48, `a 48px touch target (USER_FIRST_STANDARD 6): ${JSON.stringify(header)}`);
     assert.ok(header.right < 80 && header.top < 90, `on the right of the Header: ${JSON.stringify(header)}`);
     assert.equal(header.avatarIcon, false, 'initials replace the plain icon');
     assert.match(header.label, /헤더 확인 계정 메뉴 열기/u);
@@ -317,6 +359,137 @@ try {
     await waitFor(() => evaluate(`document.body.classList.contains('nav-drawer-open')`), 'drawer opened', 3000);
     const drawerAccount = await evaluate(`Boolean(document.querySelector('#mobile-nav-drawer [data-sidebar-account] [data-profile-menu-trigger]'))`);
     assert.ok(drawerAccount, 'the drawer holds the one account menu');
+  });
+
+  await scenario(executable, origin, workDir, '#23 PC, slow Account, signed out: the sidebar row shows 로그인 beside 계정 확인 중, and it works', {account: 'signed-out', statusDelay: 3000, width: 1280, height: 900, mobile: false}, async ({evaluate}) => {
+    const early = await waitFor(async () => {
+      const value = await evaluate(SIDEBAR_LOGIN_PROBE);
+      return value.shown ? value : false;
+    }, 'checking sidebar with the delayed 로그인', 2000);
+    assert.equal(early.state, 'checking');
+    assert.equal(early.opacity, 0, 'not shown at once');
+    assert.equal(early.pointer, 'none');
+    await delay(1300);
+    const shown = await evaluate(SIDEBAR_LOGIN_PROBE);
+    assert.equal(shown.state, 'checking', 'Account has still not answered');
+    assert.equal(shown.opacity, 1);
+    assert.equal(shown.pointer, 'auto');
+    assert.ok(shown.pressable, `can be pressed: ${JSON.stringify(shown)}`);
+    assert.equal(shown.text, '로그인');
+    assert.ok(shown.hitAbove && shown.hitBelow && shown.height + 16 >= 48, `a 48px tap area around the button: ${JSON.stringify(shown)}`);
+    const settled = await waitFor(async () => {
+      const value = await evaluate(`({state: document.querySelector('.sidebar-account-slot')?.dataset.authState, left: document.querySelectorAll('.account-login-while-checking').length})`);
+      return value.state === 'unauthenticated' ? value : false;
+    }, 'signed-out sidebar', 8000);
+    assert.equal(settled.left, 0, 'the delayed 로그인 is replaced by the real signed-out row');
+  });
+
+  await scenario(executable, origin, workDir, '#23 PC, slow Account, signed in: the sidebar 로그인 is withdrawn when Account answers', {account: 'signed-in', statusDelay: 2000, width: 1280, height: 900, mobile: false}, async ({evaluate}) => {
+    await waitFor(async () => (await evaluate(SIDEBAR_LOGIN_PROBE)).present, 'checking sidebar', 2000);
+    await waitFor(() => evaluate('window.__qa.statusAnsweredAt > 0'), 'Account answered', 6000);
+    const after = await evaluate(`document.querySelectorAll('.account-login-while-checking').length`);
+    assert.equal(after, 0, 'no 로그인 once Account said signed in');
+    await waitFor(() => evaluate(`document.body?.dataset.siteAuthenticated === 'true'`), 'signed in', 8000);
+  });
+
+  await scenario(executable, origin, workDir, '#23 PC, quick Account, signed in: the sidebar 로그인 never flashes', {account: 'signed-in', statusDelay: 0, width: 1280, height: 900, mobile: false}, async ({evaluate}) => {
+    const started = Date.now();
+    let visibleSamples = 0;
+    while (Date.now() - started < 1800) {
+      const value = await evaluate(`[...document.querySelectorAll('.account-login-while-checking')].filter(node => Number(getComputedStyle(node).opacity) > 0 && node.getClientRects().length).length`);
+      if (value) visibleSamples += 1;
+      await delay(30);
+    }
+    assert.equal(visibleSamples, 0, 'a signed-in person never sees 로그인');
+  });
+
+  // FIX 04 — what the page looks like while Account has not answered, per screen mode.
+  const SHELL_PROBE = `(() => {
+    const shell = document.querySelector('.chat-app-shell');
+    const body = document.body;
+    if (!shell || !body) return null;
+    return {shell: getComputedStyle(shell).backgroundColor, ink: getComputedStyle(body).color, bodyHasTheme: body.hasAttribute('data-site-theme'),
+      state: document.querySelector('.account-actions')?.dataset.authState || '', bootstrap: document.documentElement.dataset.siteThemeBootstrap || ''};
+  })()`;
+  for (const [label, theme, scheme, expected] of [
+    ['Dark', 'dark', '', 'rgb(33, 33, 33)'],
+    ['System + dark OS', 'system', 'dark', 'rgb(33, 33, 33)'],
+    ['Light (unchanged)', 'light', '', 'rgb(255, 255, 255)'],
+    ['System + light OS (unchanged)', 'system', 'light', 'rgb(255, 255, 255)'],
+  ]) {
+    await scenario(executable, origin, workDir, `#theme ${label}, slow Account, signed out: the home has its own colour while 계정 확인 중 (no white page with light ink)`, {account: 'signed-out', statusDelay: 3000, theme, scheme}, async ({evaluate}) => {
+      const early = await waitFor(async () => {
+        const value = await evaluate(SHELL_PROBE);
+        // The first painted frame: the shell has a colour once the stylesheets apply.
+        return value && value.state === 'checking' && value.shell !== 'rgba(0, 0, 0, 0)' ? value : false;
+      }, 'checking state, painted', 4000);
+      assert.equal(early.shell, expected, `first look: ${JSON.stringify(early)}`);
+      await delay(1500);
+      const later = await evaluate(SHELL_PROBE);
+      assert.equal(later.state, 'checking', 'Account has still not answered');
+      assert.equal(later.bodyHasTheme, false, 'the body has no theme of its own yet, so only the bootstrap rule can have coloured the shell');
+      assert.equal(later.shell, expected, `still, while checking: ${JSON.stringify(later)}`);
+      await waitFor(async () => (await evaluate(SHELL_PROBE)).state === 'unauthenticated', 'Account answered', 8000);
+      assert.equal((await evaluate(SHELL_PROBE)).shell, expected, 'and unchanged once it answers');
+    });
+  }
+
+  for (const [label, theme, scheme, expected] of [
+    ['Dark', 'dark', '', 'rgb(33, 33, 33)'],
+    ['System + dark OS', 'system', 'dark', 'rgb(33, 33, 33)'],
+    ['Light (unchanged)', 'light', '', 'rgb(255, 255, 255)'],
+  ]) {
+    await scenario(executable, origin, workDir, `#theme PC ${label}, slow Account, signed out: the sidebar and its account row keep the screen mode while 계정 확인 중`, {account: 'signed-out', statusDelay: 3000, width: 1280, height: 900, mobile: false, theme, scheme}, async ({evaluate}) => {
+      const PC_PROBE = `(() => {
+        const sidebar = document.querySelector('.chat-sidebar-desktop'); const footer = sidebar?.querySelector('.sidebar-account-footer');
+        const slot = document.querySelector('.sidebar-account-slot');
+        if (!sidebar || !footer || !slot) return null;
+        return {sidebar: getComputedStyle(sidebar).backgroundColor, footer: getComputedStyle(footer).backgroundColor, state: slot.dataset.authState || '', bodyHasTheme: document.body.hasAttribute('data-site-theme')};
+      })()`;
+      const early = await waitFor(async () => {
+        const value = await evaluate(PC_PROBE);
+        return value && value.state === 'checking' && value.footer !== 'rgba(0, 0, 0, 0)' ? value : false;
+      }, 'PC sidebar checking, painted', 4000);
+      assert.equal(early.footer, expected, `account row, first look: ${JSON.stringify(early)}`);
+      await delay(1500);
+      const later = await evaluate(PC_PROBE);
+      assert.equal(later.state, 'checking');
+      assert.equal(later.bodyHasTheme, false);
+      assert.equal(later.footer, expected, `account row, still checking: ${JSON.stringify(later)}`);
+      assert.equal(later.sidebar, expected, `sidebar, still checking: ${JSON.stringify(later)}`);
+    });
+  }
+
+  await scenario(executable, origin, workDir, '#theme Dark, quick Account, signed in: dark from the first look, no white flash', {account: 'signed-in', statusDelay: 0, theme: 'dark'}, async ({evaluate}) => {
+    const started = Date.now();
+    let samples = 0;
+    while (Date.now() - started < 1500) {
+      const value = await evaluate(SHELL_PROBE);
+      if (value && value.shell !== 'rgba(0, 0, 0, 0)') {
+        samples += 1;
+        assert.equal(value.shell, 'rgb(33, 33, 33)', `never white in Dark: ${JSON.stringify(value)}`);
+      }
+      await delay(25);
+    }
+    assert.ok(samples > 5, 'sampled');
+  });
+
+  // FIX 04 — 48px touch targets of the controls around the account area.
+  await scenario(executable, origin, workDir, '#touch phone: hamburger 48px; 로그인·회원가입 tap areas reach 48px', {account: 'signed-out', statusDelay: 0}, async ({evaluate}) => {
+    await waitFor(() => evaluate(`document.querySelector('.account-actions')?.dataset.authState === 'unauthenticated'`), 'signed-out header', 8000);
+    const sizes = await evaluate(`(() => {
+      const box = selector => { const node = document.querySelector(selector); const rect = node.getBoundingClientRect(); return {w: rect.width, h: rect.height}; };
+      const reach = selector => {
+        const link = document.querySelector(selector); const rect = link.getBoundingClientRect();
+        const at = (x, y) => { const hit = document.elementFromPoint(x, y); return hit === link || link.contains(hit); };
+        return {h: rect.height, above: at(rect.left + rect.width / 2, rect.top - 5), below: at(rect.left + rect.width / 2, rect.bottom + 5)};
+      };
+      return {menu: box('[data-mobile-nav-open]'), login: reach('.account-actions .account-login'), signup: reach('.account-actions .account-signup')};
+    })()`);
+    assert.ok(sizes.menu.w >= 48 && sizes.menu.h >= 48, `hamburger: ${JSON.stringify(sizes.menu)}`);
+    for (const key of ['login', 'signup']) {
+      assert.ok(sizes[key].above && sizes[key].below && sizes[key].h + 12 >= 48, `${key}: ${JSON.stringify(sizes[key])}`);
+    }
   });
 
   await scenario(executable, origin, workDir, '#24 signed-in desktop: no Header account button (the sidebar row is on screen)', {account: 'signed-in', width: 1280, height: 900, mobile: false}, async ({evaluate}) => {

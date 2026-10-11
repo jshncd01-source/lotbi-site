@@ -5,7 +5,7 @@ import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const {buildCalendarTemporal, createCalendarMutationController, normalizeCalendarClockInput} = await import('../site-calendar-manager.js');
+const {buildCalendarTemporal, createCalendarMutationController, normalizeCalendarClockInput, normalizeCalendarEndClock} = await import('../site-calendar-manager.js');
 const {createGuestCalendarRepository} = await import('../site-calendar-guest.js');
 const day = '2026-09-24';
 const zone = 'Asia/Seoul';
@@ -14,7 +14,25 @@ assert.equal(normalizeCalendarClockInput?.('1045'), '10:45', 'mobile numeric key
 assert.equal(normalizeCalendarClockInput?.('10:45'), '10:45');
 assert.equal(normalizeCalendarClockInput?.(''), '');
 assert.equal(normalizeCalendarClockInput?.('2460'), null);
-assert.equal(normalizeCalendarClockInput?.('9:45'), null);
+// CALENDAR-ADD-UX-01: a one-digit hour is fine, 1–6 without 오전/오후 means the
+// afternoon, and the 오전/오후 buttons decide a 12-hour clock.
+assert.equal(normalizeCalendarClockInput?.('9:45'), '09:45');
+assert.equal(normalizeCalendarClockInput?.('945'), '09:45');
+assert.equal(normalizeCalendarClockInput?.('3'), '15:00');
+assert.equal(normalizeCalendarClockInput?.('330'), '15:30');
+assert.equal(normalizeCalendarClockInput?.('3시 반'), '15:30');
+assert.equal(normalizeCalendarClockInput?.('오후 3:30'), '15:30');
+assert.equal(normalizeCalendarClockInput?.('3', {period: 'AM'}), '03:00');
+assert.equal(normalizeCalendarClockInput?.('12', {period: 'AM'}), '00:00');
+assert.equal(normalizeCalendarClockInput?.('12', {period: 'PM'}), '12:00');
+assert.equal(normalizeCalendarClockInput?.('9', {period: 'PM'}), '21:00');
+assert.equal(normalizeCalendarClockInput?.('15:00', {period: 'AM'}), '15:00', 'a 24-hour clock wins over the button');
+assert.equal(normalizeCalendarClockInput?.('09:00', {period: 'PM'}), '09:00', 'a leading zero is written 24-hour on purpose');
+assert.equal(normalizeCalendarClockInput?.('0930'), '09:30');
+assert.equal(normalizeCalendarClockInput?.('01:00'), '01:00');
+assert.equal(normalizeCalendarEndClock?.('5', '15:00'), '17:00', 'an end time is the first moment at or after the start');
+assert.equal(normalizeCalendarEndClock?.('11', '09:00'), '11:00');
+assert.equal(normalizeCalendarEndClock?.('09:00', '12:00'), '09:00', 'a written 24-hour end is never moved to the evening');
 
 // A removed or regressed branch must break each assertion: the exact Core
 // TIME_WINDOW/LOCAL_DATE_TIME shapes and the persisted Guest end are observable.
@@ -164,8 +182,8 @@ try{
     locationProvider:null,locationPermissions:null,fetchImpl:()=>j({items:[]})});
   await wait(()=>root.querySelector('[data-calendar-date-trigger="2026-09-24"]'));
   root.querySelector('[data-calendar-date-trigger="2026-09-24"]').click();
-  await wait(()=>root.querySelector('[data-calendar-add]'));
-  const opener=root.querySelector('[data-calendar-add]');opener.focus();opener.click();
+  await wait(()=>root.querySelector('.calendar-day-panel [data-calendar-add]'));
+  const opener=root.querySelector('.calendar-day-panel [data-calendar-add]');opener.focus();opener.click();
   await wait(()=>root.querySelector('.calendar-editor-dialog'));
   const dialog=root.querySelector('.calendar-editor-dialog');
   const get=name=>dialog.querySelector('.calendar-editor-'+name);
@@ -176,24 +194,31 @@ try{
   // LIFE UX 01: one question, the date as a chip, everything else behind chips.
   const first={date:get('date').value,dateFieldHidden:get('date-field').hidden,dateChip:get('date-chip').textContent,
     required:[...dialog.querySelectorAll('[required]')].map(n=>n.className),timeType:get('time').type,
-    sectionsHidden:['time','end','amount','place','memo','more'].every(key=>section(key).hidden),
+    sectionsHidden:['end','place','memo','more'].every(key=>section(key).hidden),
+    openFromStart:['time','amount'].filter(key=>!section(key).hidden),
+    periodButtons:[...dialog.querySelectorAll('.calendar-editor-time-period [data-time-period]')].map(n=>n.textContent+':'+n.getAttribute('aria-pressed')),
     chips:[...dialog.querySelectorAll('[data-editor-chip]')].map(n=>n.dataset.editorChip),
     allDayControl:Boolean(dialog.querySelector('.calendar-editor-all-day')),focusTitle:document.activeElement===get('title')};
   chip('time').click();
+  const timeClosesOnChip=section('time').hidden;
+  chip('time').click();
   const timeOpen={hidden:section('time').hidden,expanded:chip('time').getAttribute('aria-expanded'),focus:document.activeElement===get('time'),
-    choices:[...section('time').querySelectorAll('[data-quick-time]')].map(n=>n.dataset.quickTime),endDisabled:get('end-time').disabled};
+    choices:[...section('time').querySelectorAll('[data-quick-time]')].map(n=>n.dataset.quickTime),endDisabled:get('end-time').disabled,closesOnChip:timeClosesOnChip};
   section('time').querySelector('[data-quick-time="09:00"]').click();
-  const quick={value:get('time').value,chip:chip('time').textContent,filled:chip('time').dataset.filled};
+  const quick={value:get('time').value,chip:chip('time').textContent,filled:chip('time').dataset.filled,
+    period:section('time').querySelector('[data-time-period][aria-pressed="true"]')?.dataset.timePeriod||''};
   get('title').value='회의';typed(get('time'),'25:71');dialog.querySelector('form').requestSubmit();
-  await wait(()=>/HH:mm/.test(get('error').textContent),'invalid clock rejected');
+  await wait(()=>/15:30처럼/.test(get('error').textContent),'invalid clock rejected');
   const invalid={error:get('time').getAttribute('aria-invalid'),open:Boolean(root.querySelector('.calendar-editor-dialog'))};
   typed(get('time'),'1045');get('time').dispatchEvent(new FocusEvent('blur'));
   const numericClock={value:get('time').value};
   section('time').querySelector('.calendar-editor-time-clear').click();
   const cleared={value:get('time').value,chip:chip('time').textContent,endDisabled:get('end-time').disabled};
   chip('amount').click();
+  const amountClosesOnChip=section('amount').hidden;
+  chip('amount').click();
   const amountOpen={hidden:section('amount').hidden,focus:document.activeElement===get('amount'),type:get('amount').type,inputMode:get('amount').inputMode,
-    options:[...section('amount').querySelectorAll('[data-category]')].map(n=>n.dataset.category)};
+    options:[...section('amount').querySelectorAll('[data-category]')].map(n=>n.dataset.category),closesOnChip:amountClosesOnChip};
   typed(get('amount'),'12000');
   section('amount').querySelector('[data-category="FOOD"]').click();
   const category={value:get('category').value,pressed:section('amount').querySelector('[data-category="FOOD"]').getAttribute('aria-pressed'),
@@ -204,7 +229,7 @@ try{
   await wait(()=>/종료/.test(get('error').textContent),'end before start rejected');
   const endRejected=/종료/.test(get('error').textContent)&&Boolean(root.querySelector('.calendar-editor-dialog'));
   typed(get('end-time'),'18:00');
-  const endAccepted=get('end-time').value==='18:00'&&chip('end').textContent.includes('18:00');
+  const endAccepted=get('end-time').value==='18:00'&&chip('end').textContent.includes('오후 6:00');
   // Tab wraps inside the dialog in both directions.
   const focusables=[...dialog.querySelectorAll('button, input, select, textarea')]
     .filter(n=>!n.disabled&&!n.hidden&&n.getClientRects().length&&n.tabIndex!==-1);
@@ -222,7 +247,7 @@ try{
   const afterSaveFocus={connected:document.activeElement.isConnected,selectedDate:root.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-24'&&document.activeElement===root.querySelector('.calendar-day-close'),oldOpenerGone:!opener.isConnected,staleFocusDuringSave};
   const stored=JSON.parse(localStorage.getItem('lotbi.guest.calendar.v1')||'{}').events?.[0]||{};
   const savedRecord={title:stored.title,start:stored.local_datetime,end:stored.local_end_datetime,amount:stored.entry?.amount_minor,category:stored.entry?.expense_category};
-  const cancelOpener=root.querySelector('[data-calendar-add]');cancelOpener.focus();cancelOpener.click();
+  const cancelOpener=root.querySelector('.calendar-day-panel [data-calendar-add]');cancelOpener.focus();cancelOpener.click();
   await wait(()=>root.querySelector('.calendar-editor-dialog'));
   let staleFocusDuringCancel=false;
   const onFocusCancel=event=>{if(event.target===cancelOpener)staleFocusDuringCancel=true};
@@ -231,7 +256,7 @@ try{
   await wait(()=>!root.querySelector('.calendar-editor-dialog')&&ownsDateFocus(root,'2026-09-24'));
   root.removeEventListener('focusin',onFocusCancel);
   const afterCancelFocus={connected:document.activeElement.isConnected,selectedDate:ownsDateFocus(root,'2026-09-24'),staleFocusDuringCancel};
-  root.querySelector('[data-calendar-add]').click();
+  root.querySelector('.calendar-day-panel [data-calendar-add]').click();
   await wait(()=>root.querySelector('.calendar-editor-dialog'));
   root.querySelector('.calendar-editor-title').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
   await wait(()=>!root.querySelector('.calendar-editor-dialog')&&ownsDateFocus(root,'2026-09-24'));
@@ -350,16 +375,18 @@ try {
   assert.match(v.first.dateChip, /^9월 24일 목요일/);
   assert.deepEqual(v.first.required, ['calendar-editor-title'], 'title alone is required');
   assert.equal(v.first.timeType, 'text', 'never open native clock');
-  assert.equal(v.first.sectionsHidden, true, 'nothing behind a chip is shown until asked for');
+  assert.equal(v.first.sectionsHidden, true, 'end, place, memo and more stay behind their chips');
+  assert.deepEqual(v.first.openFromStart, ['time', 'amount'], 'CALENDAR-ADD-UX-01: time and amount are open from the start');
+  assert.deepEqual(v.first.periodButtons, ['오전:false', '오후:false'], 'the 오전/오후 buttons start unpressed on a blank record');
   assert.deepEqual(v.first.chips, ['time', 'amount', 'place', 'memo', 'end', 'more']);
   assert.equal(v.first.allDayControl, false, 'no all-day checkbox leads the form');
   assert.equal(v.first.focusTitle, true, 'the editor opens on its one question');
-  assert.deepEqual(v.timeOpen, {hidden: false, expanded: 'true', focus: true, choices: ['09:00', '12:00', '18:00'], endDisabled: true});
-  assert.deepEqual(v.quick, {value: '09:00', chip: '시간 09:00', filled: 'true'});
-  assert.deepEqual(v.invalid, {error: 'true', open: true}, 'invalid typed HH:mm cannot commit');
+  assert.deepEqual(v.timeOpen, {hidden: false, expanded: 'true', focus: true, choices: ['09:00', '12:00', '18:00'], endDisabled: true, closesOnChip: true});
+  assert.deepEqual(v.quick, {value: '9:00', chip: '오전 9:00', filled: 'true', period: 'AM'});
+  assert.deepEqual(v.invalid, {error: 'true', open: true}, 'an impossible clock cannot commit');
   assert.deepEqual(v.numericClock, {value: '10:45'});
   assert.deepEqual(v.cleared, {value: '', chip: '시간', endDisabled: true});
-  assert.deepEqual(v.amountOpen, {hidden: false, focus: true, type: 'text', inputMode: 'numeric', options: ['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'OTHER', '']});
+  assert.deepEqual(v.amountOpen, {hidden: false, focus: true, type: 'text', inputMode: 'numeric', options: ['FOOD', 'TRAVEL', 'SHOPPING', 'LIVING', 'OTHER', ''], closesOnChip: true});
   assert.deepEqual(v.category, {value: 'FOOD', pressed: 'true', amount: '12,000', chip: '12,000원 · 음식'});
   assert.equal(v.endRejected, true);
   assert.equal(v.endAccepted, true);

@@ -205,6 +205,20 @@ jobs:
       - name: Validate static pages theme
         run: node scripts/validate_static_pages_theme_01.mjs
 
+      # QA 화면 전수 01 N1: the plan buttons and the 추천 badge were white-on-white (1.09:1)
+      # in Dark on the page where a purchase starts. Measured on the real subscribe.html.
+      - name: Validate subscribe Dark contrast
+        run: node scripts/validate_subscribe_dark_contrast_01.mjs
+
+      # QA 화면 전수 01 N4: a mistyped address reached nginx's own English page.
+      - name: Validate LOTBI 404 page
+        run: node scripts/validate_not_found_page_01.mjs
+
+      # 소유자 결정 2026-10-11: 연결 서비스's partners are all still being prepared, so the
+      # entries to them stay hidden behind one constant until one is really open.
+      - name: Validate 연결 서비스 menu switch
+        run: node scripts/validate_connected_services_menu_hidden_01.mjs
+
       # The viewport-sized scroll container must not be a tab stop: its focus
       # ring reached the screen as two blue vertical lines.
       - name: Validate container focus ring
@@ -470,6 +484,13 @@ jobs:
       # 320·360·390·412·1280, 라이트·다크.
       - name: Validate conversation answer UX
         run: node scripts/validate_conversation_answer_ux_01.mjs
+
+      # 위치 허용(NEARBY-LOCATION-ALLOW-PROMPT-01): "어느 지역에서 찾을까요?" 답 아래
+      # [위치 허용하고 찾기]·[지역 고르기]. 위치 사용 꺼짐→허용→같은 질문 재전송,
+      # 차단=자물쇠 안내, 거부=지역 목록, PC 위치 못 받음·오차 큼 안내, PC 지역 저장.
+      # 360·390·1280, 라이트·다크, 48px.
+      - name: Validate nearby location allow prompt
+        run: node scripts/validate_nearby_location_allow_prompt_01.mjs
 
       # 장소 카드 캐러셀은 transform 으로만 돌고 스크롤하지 않는다. 상품 카드
       # 레일의 scroll snap 을 물려받아 회전할 때마다 레일이 153~252px 밀리던
@@ -997,7 +1018,7 @@ jobs:
             exit 1
           fi
 
-          for path in / /about /subscribe /refund /exchange /dispute /account-deletion /contact /terms /privacy /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-kakao-share.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /site-life-wallet.css /site-life-wallet.js /kakao-navi.html /site-kakao-navi-handoff.js /site-attachments.js /site-media-upload.js /site-media-upload-mock-core.js /site-media-upload-ui.js /site-media-upload.css /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /site-festival.css /site-festival-client.js /site-festival-ui.js /site-current-location.js /site-bottom-sheet.js /auth-callback.js /auth/callback/ /auth/start/; do
+          for path in / /about /subscribe /refund /exchange /dispute /account-deletion /contact /terms /privacy /404.html /robots.txt /sitemap.xml /.well-known/apple-app-site-association /home-chat.css /home-bare-white.css /site-theme-tokens.css /site-hardening.css /site-avatar.css /site-avatar.js /assets/models/lotbi-faithful-v2-rigged.glb /assets/models/lotbi-logo-character-v4-rigged.glb /assets/animations/lotbi-clips.v1.json /avatar-runtime/contracts/avatar-rig-controls.v2.json /avatar-runtime/runtime/controller.mjs /avatar-runtime/runtime/faithful-binding.mjs /avatar-runtime/vendor/three/three.module.js /avatar-runtime/vendor/three/addons/loaders/GLTFLoader.js /home-shell.js /mobile-entry.css /mobile-entry.js /about.css /site-conversation.css /site-conversation.js /site-kakao-share.js /site-chat-thinking.js /site-message-body.js /site-conversation-timeline.js /site-navigation.js /site-life-wallet.css /site-life-wallet.js /kakao-navi.html /site-kakao-navi-handoff.js /site-attachments.js /site-media-upload.js /site-media-upload-mock-core.js /site-media-upload-ui.js /site-media-upload.css /site-deterministic.js /site-continuity.js /site-auth.js /site-core.js /site-calendar.css /site-calendar-expense.css /site-calendar.js /site-calendar-expense.js /site-calendar-weather.js /site-calendar-actions.js /site-calendar-ui.js /site-calendar-manager.js /site-calendar-model.js /site-calendar-guest.js /site-pet.js /site-pet-ui.js /site-pet-guides.js /site-pet.css /site-festival.css /site-festival-client.js /site-festival-ui.js /site-current-location.js /site-bottom-sheet.js /auth-callback.js /auth/callback/ /auth/start/; do
             curl --fail --silent --show-error "http://127.0.0.1:4173${path}" >/dev/null
           done
 
@@ -1033,6 +1054,12 @@ jobs:
           done
           unknown_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' 'http://127.0.0.1:4173/not-a-real-static-path')"
           [[ "$unknown_status" == '404' ]] || { echo "unrelated static path must remain 404, got $unknown_status" >&2; exit 1; }
+          # SITE-404-LOTBI-01 — the 404 is the LOTBI page (logo, one line, a way home), not nginx's English default.
+          not_found_body="$(curl --silent --show-error 'http://127.0.0.1:4173/not-a-real-static-path/deeper')"
+          [[ "$not_found_body" == *'찾으시는 페이지를 찾을 수 없어요'* ]] || { echo "a missing path must answer with the LOTBI 404 page" >&2; exit 1; }
+          [[ "$not_found_body" != *'nginx'* ]] || { echo "the stock nginx 404 page must not reach a visitor" >&2; exit 1; }
+          direct_404_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' 'http://127.0.0.1:4173/404.html')"
+          [[ "$direct_404_status" == '404' ]] || { echo "/404.html must itself answer 404 (internal), got $direct_404_status" >&2; exit 1; }
 
           callback_url="$(curl --silent --show-error --location --output /dev/null --write-out '%{url_effective}' 'http://127.0.0.1:4173/auth/callback?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss')"
           [[ "$callback_url" == *'/auth/callback/?code='*'&state='* ]] || { echo "callback redirect did not preserve code/state query: $callback_url" >&2; exit 1; }

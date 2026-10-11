@@ -1,16 +1,15 @@
-// LIFE-MEDICAL-CATEGORY-ENTRY-01 — 생활정보에 병원·의원 / 약국 진입 카드.
-// LIFE-MEDICAL-AUTO-SEARCH-01 — the entry cards have no form any more: 병원·의원,
-// 약국 and 응급실 send one fixed "근처" question at once (Core's medical route
-// reads it; the life-location contract adds the current location or saved
-// region). Nothing is left in the composer to send again, and the composer is
-// not focused (no phone keyboard). 지역생활정보 keeps its form, which also
-// sends at once.
+// LIFE-MEDICAL-CATEGORY-ENTRY-01 — 생활정보 카드 목록과 병원·응급실·약국 진입 카드.
+// LIFE-MEDICAL-MERGE-01 (owner decision 2026-10-11) — 병원·응급실·약국 is ONE card
+// and it opens its own screen (site-life-medical-list.js, checked in depth by
+// validate_life_medical_list_01.mjs); it asks the conversation nothing, so the
+// fixed-question steps this validator had for 병원·의원 / 약국 / 응급실 are gone.
+// 지역생활정보 keeps its form, which sends at once.
 //
 // LIFE-UTILITY-BILL-MENU-REMOVE-01: 공과금 확인 stays hidden. The life home is a
 // category picker only: no free-question bar and no saved-items/help row. It
-// has ten cards (병원·응급실, 지역뉴스, 온누리상품권, 내 아이 학교·유치원 included; no
-// 전북 맛집·음식 — REGIONAL-CARDS-BUNDLE-01, owner decision 2026-10-10): five full
-// rows of two; an odd last card would take its whole row, so there is no empty grid cell.
+// has nine cards (병원·응급실·약국, 지역뉴스, 온누리상품권, 내 아이 학교·유치원 included;
+// no 전북 맛집·음식 — REGIONAL-CARDS-BUNDLE-01, owner decision 2026-10-10): four rows
+// of two and the odd last card on its own full row, so there is no empty grid cell.
 // LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk too, so
 // any draft handoff (onDraft) in the life cards fails.
 //
@@ -22,41 +21,34 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {LIFE_MEDICAL_QUESTIONS, LIFE_SHORTCUTS} from '../site-consumer-sections.js';
-import {lifeLocationIntent} from '../site-life-location.js';
+import {LIFE_SHORTCUTS} from '../site-consumer-sections.js';
+import {LIFE_LOCAL_CARD_ENABLED as LOCAL_ON} from '../site-feature-flags.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ── Shortcut list ───────────────────────────────────────────────────────
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실', '약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', '지역생활정보', '내 아이 학교·유치원']);
-// REGIONAL-INFO-APPROVED-UX-RESTORE-P0: 약국 asks at once; 병원·응급실 is one card
-// whose 병원·의원 찾기 / 응급실 찾기 ask the hospital / emergency questions.
-assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => [item.id, item.ask]), [['pharmacy', '근처 약국 찾아줘']]);
-assert.deepEqual(LIFE_SHORTCUTS.find(item => item.id === 'medical').choices.map(choice => [choice.id, LIFE_MEDICAL_QUESTIONS[choice.id]]), [
-  ['hospital', '근처 병원 찾아줘'], ['emergency', '근처 응급실 찾아줘'],
-]);
-for (const id of ['festivals', 'news', 'local', 'onnuri', 'ev-chargers', 'my-child']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실·약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', ...(LOCAL_ON ? ['지역생활정보'] : []), '내 아이 학교·유치원']);
+// LIFE-MEDICAL-MERGE-01: no card asks a fixed question any more; 병원·응급실·약국
+// opens its own screen.
+assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => item.id), []);
+const medicalCard = LIFE_SHORTCUTS.find(item => item.id === 'medical');
+assert.equal(medicalCard.choices, undefined);
+assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'pharmacy'), false, '약국 is not a card of its own');
+for (const id of ['festivals', 'news', ...(LOCAL_ON ? ['local'] : []), 'onnuri', 'ev-chargers', 'my-child']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
 // REGIONAL-INFO-BACK-NAVIGATION-01 (owner decision 2026-10-10): 내 아이 학교·유치원
 // opens the saved schools screen at once — no 내 아이 정보 / 유치원·학교 찾기 choice.
 assert.equal(LIFE_SHORTCUTS.find(item => item.id === 'my-child').children, undefined, '내 아이 학교·유치원 opens its screen at once');
 assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills' || /공과금/u.test(item.label)), false, '공과금 확인 stays hidden');
-assert.ok(Object.isFrozen(LIFE_SHORTCUTS) && Object.isFrozen(LIFE_MEDICAL_QUESTIONS));
-// Each question carries "근처", so Core takes it to the 국립중앙의료원 lookup
-// (not the NAVER place search) and the location contract may attach a location.
-for (const question of Object.values(LIFE_MEDICAL_QUESTIONS)) {
-  assert.match(question, /^근처 (?:병원|약국|응급실) 찾아줘$/u);
-  assert.equal(lifeLocationIntent(question), true, question);
-  assert.doesNotMatch(question, /보장|진료 가능|수용 가능/u);
-}
+assert.ok(Object.isFrozen(LIFE_SHORTCUTS));
 
 // ── Source contract ─────────────────────────────────────────────────────
 const source = read('site-consumer-sections.js');
-assert.match(source, /if \(item\.ask\) onAsk\(item\.ask\);/u, 'a medical card asks at once');
+assert.match(source, /else if \(item\.id === 'medical'\) openMedical\(item\);/u, 'the medical card opens its own screen');
 // Owner decision 2026-10-10: signed out, 내 아이 학교·유치원 links the public lookup again.
 assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/u, '유치원·학교 asks through onAsk');
 assert.match(source, /mountMyChild\(host, \{onAsk\}\)/u, '내 아이 학교·유치원 asks through the same onAsk');
-assert.doesNotMatch(source, /openMedicalDetail|data-medical-field|질문 준비하기|onDraft/u, 'no region/condition form, no draft handoff');
+assert.doesNotMatch(source, /openMedicalDetail|data-medical-field|data-medical-choice|LIFE_MEDICAL_QUESTIONS|질문 준비하기|onDraft/u, 'no region/condition form, no draft handoff');
 assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|geolocation|getCurrentPosition/u, 'no own search engine, storage or location request');
 const conversation = read('site-conversation.js');
 assert.match(conversation, /onAsk: text => \{[\s\S]{0,400}?surfaceRestoreFocus = undefined;\s*closeSurface\(\);\s*askWithoutKeyboard\(text\);/u,
@@ -321,7 +313,7 @@ async function runCase(browser, origin, dir, testCase) {
     };
     const openLife = async () => {
       await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
-      await waitFor(async () => (await probe()).shortcuts.length === 10, `${testCase.label}: life shortcuts`);
+      await waitFor(async () => (await probe()).shortcuts.length === LIFE_SHORTCUTS.length, `${testCase.label}: life shortcuts`);
       await sleep(250);
     };
     const tapShortcut = async id => {
@@ -332,14 +324,14 @@ async function runCase(browser, origin, dir, testCase) {
       await tap(center);
     };
 
-    // 1. Life main: ten cards (병원·응급실 one card, 약국 separate, 전기차 충전소 after
-    // 약국 — EV-CHARGER-NEARBY-LIST-P0 —, no 전북 맛집·음식,
+    // 1. Life main: nine cards (병원·응급실·약국 one card — LIFE-MEDICAL-MERGE-01 —,
+    // 전기차 충전소 after it — EV-CHARGER-NEARBY-LIST-P0 —, no 전북 맛집·음식,
     // 유치원·학교 inside 내 아이 학교·유치원; 공과금 확인 hidden), full rows, no empty
     // cell — an odd last card would take its whole row.
     await openLife();
     const main = await probe();
     assert.equal(main.title, '지역정보');
-    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·응급실', '약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', '지역생활정보', '내 아이 학교·유치원']);
+    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·응급실·약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', ...(LOCAL_ON ? ['지역생활정보'] : []), '내 아이 학교·유치원']);
     assert.equal(main.billsVisible, false, `${testCase.label}: 공과금 확인 is not shown anywhere on the life surface`);
     // ONNURI-MERCHANT-01 / KINDERGARTEN-OFFICIAL-INFO-01: with an odd number of cards the
     // last one spans the row (site-life-onnuri.css, site-life-education.css), so a
@@ -353,12 +345,14 @@ async function runCase(browser, origin, dir, testCase) {
     const rows = new Map();
     for (const card of main.shortcuts) { const top = Math.round(card.box.y); rows.set(top, (rows.get(top) || 0) + (card.spansRow ? main.gridColumns : 1)); }
     assert.deepEqual([...rows.values()], Array(cells / main.gridColumns).fill(main.gridColumns), `${testCase.label}: every row is full ${JSON.stringify([...rows])}`);
-    // REGIONAL-CARDS-BUNDLE-01: ten cards, an even count — five rows of two, no
-    // card spans a row, and the last row is 지역생활정보 | 내 아이 학교·유치원.
-    assert.equal(main.shortcuts.filter(card => card.spansRow).length, 0, `${testCase.label}: no card spans a row with ten cards`);
-    assert.deepEqual([...rows.values()], [2, 2, 2, 2, 2], `${testCase.label}: five rows of two ${JSON.stringify([...rows])}`);
+    // LIFE-MEDICAL-MERGE-01 + QA_화면전수_01 H3: eight cards (지역생활정보 hidden) — four full
+    // rows of two, no card spans. With the switch on there are nine: the last card
+    // (내 아이 학교·유치원) spans its own full row.
+    const odd = main.shortcuts.length % 2 === 1;
+    assert.deepEqual(main.shortcuts.filter(card => card.spansRow).map(card => card.label), odd ? ['내 아이 학교·유치원'] : [], `${testCase.label}: only an odd last card spans its row`);
+    assert.deepEqual([...rows.values()], Array(Math.ceil(main.shortcuts.length / 2)).fill(2), `${testCase.label}: every row full ${JSON.stringify([...rows])}`);
     const lastRowTop = Math.round(main.shortcuts.at(-1).box.y);
-    assert.deepEqual(main.shortcuts.filter(card => Math.round(card.box.y) === lastRowTop).map(card => card.label), ['지역생활정보', '내 아이 학교·유치원'], `${testCase.label}: last row`);
+    assert.deepEqual(main.shortcuts.filter(card => Math.round(card.box.y) === lastRowTop).map(card => card.label), odd ? ['내 아이 학교·유치원'] : ['부동산 실거래가', '내 아이 학교·유치원'], `${testCase.label}: last row`);
     assert.equal(new Set(main.shortcuts.filter(item => !item.spansRow || main.gridColumns === 1).map(item => Math.round(item.box.w))).size, 1, `${testCase.label}: all cards share one width`);
     // Category list right under the description; nothing above or below it.
     assert.equal(main.search, false, `${testCase.label}: no free-question bar on the life home`);
@@ -402,48 +396,38 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(new Set(heights).size, 1, `${testCase.label}: all cards share one height ${heights}`);
     await shot('01-life-main');
 
-    // 2. 약국: one tap sends the fixed question at once. 병원·응급실: the card asks
-    // nothing by itself; 병원·의원 찾기 / 응급실 찾기 sends the question at once —
-    // 지역정보 closes, nothing waits in the composer, the composer is not focused.
-    const asked = {hospital: '근처 병원 찾아줘', pharmacy: '근처 약국 찾아줘', emergency: '근처 응급실 찾아줘'};
+    // 2. 병원·응급실·약국 (LIFE-MEDICAL-MERGE-01): the card opens its own screen with the
+    // three choices and sends nothing — no question, nothing in the composer, no
+    // keyboard (the list itself is checked by validate_life_medical_list_01.mjs).
     let state;
     let sent = [];
-    for (const id of Object.keys(asked)) {
-      if (id !== 'hospital') await openLife();
-      if (id === 'pharmacy') await tapShortcut(id);
-      else {
-        await tapShortcut('medical');
-        const choiceState = await waitFor(async () => { const value = await probe(); return value.open && await evaluate(`Boolean(document.querySelector('[data-medical-choice="${id}"]'))`) ? value : null; }, `${testCase.label}: 병원·응급실 choices`);
-        assert.equal(await evaluate('globalThis.__sent.length'), sent.length, `${testCase.label}: 병원·응급실 alone sends nothing`);
-        assert.equal(choiceState.open, true);
-        await tap(await reveal(`[data-medical-choice="${id}"]`));
-      }
-      state = await waitFor(async () => { const value = await probe(); return !value.open ? value : null; }, `${testCase.label}: ${id} closes 생활정보`);
-      sent = await waitFor(() => evaluate(`globalThis.__sent.length === ${sent.length + 1} ? globalThis.__sent.slice() : null`), `${testCase.label}: ${id} sent at once`);
-      assert.equal(sent.at(-1).text, asked[id], `${testCase.label}: ${id} asks ${JSON.stringify(sent.at(-1))}`);
-      assert.equal(state.composer, '', `${testCase.label}: ${id}: nothing left in the composer to send again`);
-      assert.equal(await evaluate("document.activeElement === document.getElementById('lotbi-prompt')"), false, `${testCase.label}: ${id}: composer not focused`);
-      assert.equal(sent.at(-1).client_context?.location, undefined, `${testCase.label}: ${id}: location denied, no saved region → nothing sent (Core asks)`);
-      await waitFor(() => evaluate("!document.querySelector('.send-button[aria-label=\"전송 중\"]')"), `${testCase.label}: ${id} answered`);
-      if (id === 'hospital') await shot('02-hospital-sent');
-    }
+    await tapShortcut('medical');
+    state = await waitFor(async () => { const value = await probe(); return value.open && await evaluate("document.querySelectorAll('.medical-surface [data-medical-kind]').length === 3") ? value : null; }, `${testCase.label}: 병원·응급실·약국 screen`);
+    assert.deepEqual(await evaluate("[...document.querySelectorAll('.medical-surface [data-medical-kind]')].map(node => node.textContent)"), ['병원·의원', '응급실', '약국'], `${testCase.label}: the three choices`);
+    assert.equal(await evaluate('globalThis.__sent.length'), 0, `${testCase.label}: 병원·응급실·약국 sends nothing`);
+    assert.equal(state.composer, '', `${testCase.label}: nothing in the composer`);
+    assert.equal(await evaluate("document.activeElement === document.getElementById('lotbi-prompt')"), false, `${testCase.label}: composer not focused`);
+    await shot('02-medical-screen');
 
-    // 5. Existing shortcuts unchanged.
-    await openLife();
-    await tapShortcut('local');
-    state = await waitFor(async () => { const value = await probe(); return value.detail ? value : null; }, `${testCase.label}: local detail`);
-    assert.equal(state.detail.title, '지역생활정보');
-    assert.deepEqual(state.detail.fields.map(field => [field.label, field.required]), [['지역 또는 장소', true], ['궁금한 생활정보', true]]);
-    assert.deepEqual(state.detail.chips, []);
-    await typeInto('.consumer-life-detail input', '전주시 덕진구');
-    await typeInto('.consumer-life-detail .consumer-life-field:nth-of-type(2) input', '쓰레기 배출일');
-    assert.equal(state.detail.submit ? (await evaluate("document.querySelector('.consumer-life-detail form button[type=submit]').textContent")) : '', '롯비에게 물어보기');
-    await tap(await reveal('.consumer-life-detail form button[type=submit]'));
-    state = await waitFor(async () => { const value = await probe(); return !value.open ? value : null; }, `${testCase.label}: local submit`);
-    sent = await waitFor(() => evaluate(`globalThis.__sent.length === ${sent.length + 1} ? globalThis.__sent.slice() : null`), `${testCase.label}: local sent at once`);
-    assert.equal(sent.at(-1).text, '우리 지역 생활정보를 알려 줘\n지역 또는 장소: 전주시 덕진구\n궁금한 생활정보: 쓰레기 배출일');
-    assert.equal(state.composer, '', `${testCase.label}: local: nothing left in the composer`);
-    assert.equal(state.composerFocused, false, `${testCase.label}: local: composer not focused`);
+    // 5. Existing shortcuts unchanged. 지역생활정보 (hidden while LIFE_LOCAL_CARD_ENABLED is off,
+    // QA_화면전수_01 H3) keeps its form, which sends at once, whenever it is shown.
+    if (LOCAL_ON) {
+      await openLife();
+      await tapShortcut('local');
+      state = await waitFor(async () => { const value = await probe(); return value.detail ? value : null; }, `${testCase.label}: local detail`);
+      assert.equal(state.detail.title, '지역생활정보');
+      assert.deepEqual(state.detail.fields.map(field => [field.label, field.required]), [['지역 또는 장소', true], ['궁금한 생활정보', true]]);
+      assert.deepEqual(state.detail.chips, []);
+      await typeInto('.consumer-life-detail input', '전주시 덕진구');
+      await typeInto('.consumer-life-detail .consumer-life-field:nth-of-type(2) input', '쓰레기 배출일');
+      assert.equal(state.detail.submit ? (await evaluate("document.querySelector('.consumer-life-detail form button[type=submit]').textContent")) : '', '롯비에게 물어보기');
+      await tap(await reveal('.consumer-life-detail form button[type=submit]'));
+      state = await waitFor(async () => { const value = await probe(); return !value.open ? value : null; }, `${testCase.label}: local submit`);
+      sent = await waitFor(() => evaluate(`globalThis.__sent.length === ${sent.length + 1} ? globalThis.__sent.slice() : null`), `${testCase.label}: local sent at once`);
+      assert.equal(sent.at(-1).text, '우리 지역 생활정보를 알려 줘\n지역 또는 장소: 전주시 덕진구\n궁금한 생활정보: 쓰레기 배출일');
+      assert.equal(state.composer, '', `${testCase.label}: local: nothing left in the composer`);
+      assert.equal(state.composerFocused, false, `${testCase.label}: local: composer not focused`);
+    }
     await openLife();
     await tapShortcut('festivals');
     state = await waitFor(async () => { const value = await probe(); return value.festival ? value : null; }, `${testCase.label}: festival surface`);
@@ -471,4 +455,4 @@ try {
   }
 }
 
-console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·의원/약국/응급실 send one nearby question at once (no form, nothing left in the composer, composer not focused); 공과금 확인 hidden, ten life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');
+console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·응급실·약국 is one card that opens its own screen and sends nothing (no form, nothing in the composer, composer not focused); 공과금 확인 hidden, nine life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');

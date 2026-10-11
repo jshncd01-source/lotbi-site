@@ -2,6 +2,14 @@
 // 819ead3a 2026-10-09) — every 생활정보 question asks LOTBI in one tap without
 // opening the keyboard, and a place card without a photo has no photo box.
 //
+// LIFE-MEDICAL-MERGE-01 (owner decision 2026-10-11): the 병원·응급실·약국 card no
+// longer asks the conversation anything — it lists the nearest places in its own
+// screen (validate_life_medical_list_01.mjs). The place-card answer this validator
+// measures (photo / no-photo / broken-photo cards, phone and map actions, dark) is
+// still what a typed "근처 병원 / 약국 / 응급실 찾아줘" gets, so those questions are
+// typed into the composer here; the one-tap, no-keyboard contract (B, C, F) is
+// measured on the cards that still ask — 지역생활정보 and 유치원·학교.
+//
 // Production (06270582), phone web: 생활정보 → 병원·의원 / 약국 / 지역생활정보 /
 // 유치원·학교 → "질문 준비하기" put the question in the composer (and focused
 // it, opening the keyboard); the person had to press send again. main now
@@ -30,7 +38,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {LIFE_MEDICAL_QUESTIONS, LIFE_SHORTCUTS} from '../site-consumer-sections.js';
+import {LIFE_SHORTCUTS} from '../site-consumer-sections.js';
 import {buildSchoolPrompt} from '../site-life-education.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -65,13 +73,20 @@ const unguarded = requestBody.replace(GUARDED_RETURN, '').replace(FOCUS_HELPER, 
 assert.ok(!/\bfocusComposerInPlace\(|\bprompt\.focus\(|\breturnComposerFocusAfterTurn\(/u.test(unguarded), 'no composer focus in requestAssistant outside the keepComposerClosed guard');
 assert.ok(!conversation.includes('preserveEmptyMedia') && !conversation.includes("rail.classList.add('has-place-banner')"), 'no empty photo box contract left');
 
+const {LIFE_LOCAL_CARD_ENABLED: LOCAL_ON} = await import('../site-feature-flags.js');
+// 지역생활정보 is hidden until its result shows inside the screen (QA_화면전수_01 H3); while it is,
+// the one-tap / history / reload contract (B, C, F) is measured on 유치원·학교 → 학교 instead.
 const LOCAL = LIFE_SHORTCUTS.find(item => item.id === 'local');
-assert.ok(LOCAL?.prompt, '지역생활정보 keeps its prompt');
+assert.equal(Boolean(LOCAL), LOCAL_ON, '지역생활정보 card follows its switch');
+if (LOCAL_ON) assert.ok(LOCAL?.prompt, '지역생활정보 keeps its prompt');
+const ASKING_ITEMS = LOCAL_ON ? ['local', 'school'] : ['school'];
+const HISTORY_ITEM = ASKING_ITEMS[0];
+assert.equal(LIFE_SHORTCUTS.some(item => item.ask), false, 'no card asks a fixed medical question any more');
 const EXPECTED = {
-  hospital: LIFE_MEDICAL_QUESTIONS.hospital,
-  pharmacy: LIFE_MEDICAL_QUESTIONS.pharmacy,
-  emergency: LIFE_MEDICAL_QUESTIONS.emergency,
-  local: `${LOCAL.prompt}\n지역 또는 장소: 전주시 덕진구\n궁금한 생활정보: 쓰레기 배출일`,
+  hospital: '근처 병원 찾아줘',
+  pharmacy: '근처 약국 찾아줘',
+  emergency: '근처 응급실 찾아줘',
+  ...(LOCAL_ON ? {local: `${LOCAL.prompt}\n지역 또는 장소: 전주시 덕진구\n궁금한 생활정보: 쓰레기 배출일`} : {}),
   school: buildSchoolPrompt('meal_week', '전주서원초'),
 };
 assert.equal(EXPECTED.school, '전주서원초 이번 주 급식 알려줘');
@@ -241,41 +256,41 @@ try {
   const result = {ok: true, phase: PHASE, item: ITEM};
 
   if (PHASE === 'ask') {
-    document.querySelector('[data-consumer-section="life"]').click();
-    // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: 병원·의원 / 응급실 sit behind the one
-    // 병원·응급실 card, 유치원·학교 behind 내 아이 학교·유치원.
-    const shortcutId = ITEM === 'school' ? 'my-child' : ['hospital', 'emergency'].includes(ITEM) ? 'medical' : ITEM;
-    const shortcut = await wait(() => document.querySelector('[data-life-shortcut="' + shortcutId + '"]'), 'life shortcut ' + shortcutId);
-    result.theme = document.body.dataset.siteTheme || '';
+    const TYPED = {hospital: '근처 병원 찾아줘', pharmacy: '근처 약국 찾아줘', emergency: '근처 응급실 찾아줘'}[ITEM];
     let button;
-    if (ITEM === 'local') {
-      shortcut.click();
-      const form = await wait(() => document.querySelector('.consumer-life-form'), 'local form');
-      const [where, what] = form.querySelectorAll('input');
-      typeInto(where, '전주시 덕진구'); typeInto(what, '쓰레기 배출일');
-      button = form.querySelector('button[type="submit"]');
-      result.formContrast = {button: contrast(button), note: contrast(form.closest('.consumer-life-detail')?.querySelector('.consumer-feature-note'))};
-    } else if (ITEM === 'school') {
-      shortcut.click();
-      // Signed out, 내 아이 학교·유치원 links the public lookup (owner decision 2026-10-10).
-      (await wait(() => document.querySelector('[data-life-education-entry]'), '로그인 없이 학교·유치원 찾기')).click();
-      const tab = await wait(() => document.querySelector('[data-edu-tab="school"]'), 'school tab');
-      tab.click();
-      const name = await wait(() => document.querySelector('[data-edu-school-name]'), 'school form');
-      typeInto(name, '전주서원초');
-      document.querySelector('[data-school-action="meal_week"]').click();
-      const form = name.closest('form');
-      button = form.querySelector('button[type="submit"]');
-      result.formContrast = {button: contrast(button), note: contrast(form.parentElement.querySelector('.consumer-feature-note'))};
-    } else if (shortcutId === 'medical') {
-      // 병원·응급실 asks nothing by itself; the 병원·의원 찾기 / 응급실 찾기 pick asks.
-      shortcut.click();
-      button = await wait(() => document.querySelector('[data-medical-choice="' + ITEM + '"]'), 'medical choice ' + ITEM);
-      result.medicalChoices = [...document.querySelectorAll('[data-medical-choice]')].map(n => n.dataset.medicalChoice + ':' + n.textContent.trim());
-      result.requestsBeforePick = mine().length;
+    if (TYPED) {
+      // LIFE-MEDICAL-MERGE-01: no 지역정보 card asks this; the person types and sends it.
+      result.theme = document.body.dataset.siteTheme || '';
+      typeInto(prompt, TYPED);
+      button = document.querySelector('.send-button');
     } else {
-      // 약국 has no form: the card itself asks.
-      button = shortcut;
+      document.querySelector('[data-consumer-section="life"]').click();
+      // 유치원·학교 sits behind 내 아이 학교·유치원 (REGIONAL-INFO-APPROVED-UX-RESTORE-P0).
+      const shortcutId = ITEM === 'school' ? 'my-child' : ITEM;
+      const shortcut = await wait(() => document.querySelector('[data-life-shortcut="' + shortcutId + '"]'), 'life shortcut ' + shortcutId);
+      result.theme = document.body.dataset.siteTheme || '';
+      if (ITEM === 'local') {
+        shortcut.click();
+        const form = await wait(() => document.querySelector('.consumer-life-form'), 'local form');
+        const [where, what] = form.querySelectorAll('input');
+        typeInto(where, '전주시 덕진구'); typeInto(what, '쓰레기 배출일');
+        button = form.querySelector('button[type="submit"]');
+        result.formContrast = {button: contrast(button), note: contrast(form.closest('.consumer-life-detail')?.querySelector('.consumer-feature-note'))};
+      } else if (ITEM === 'school') {
+        shortcut.click();
+        // Signed out, 내 아이 학교·유치원 links the public lookup (owner decision 2026-10-10).
+        (await wait(() => document.querySelector('[data-life-education-entry]'), '로그인 없이 학교·유치원 찾기')).click();
+        const tab = await wait(() => document.querySelector('[data-edu-tab="school"]'), 'school tab');
+        tab.click();
+        const name = await wait(() => document.querySelector('[data-edu-school-name]'), 'school form');
+        typeInto(name, '전주서원초');
+        document.querySelector('[data-school-action="meal_week"]').click();
+        const form = name.closest('form');
+        button = form.querySelector('button[type="submit"]');
+        result.formContrast = {button: contrast(button), note: contrast(form.parentElement.querySelector('.consumer-feature-note'))};
+      } else {
+        throw new Error('unknown item ' + ITEM);
+      }
     }
     result.buttonLabel = button.textContent.trim();
     // B: a fast double tap.
@@ -463,6 +478,16 @@ function assertOneDirectAsk(run, label, expectedText) {
   assert.equal(run.surfaceOpen, false, `${label}: 생활정보 closed, the conversation is shown`);
 }
 
+// A typed question: one message, the composer emptied by the send. (Focus is the
+// typist's own business, so the no-keyboard contract is measured on the cards above.)
+function assertOneTypedAsk(run, label, expectedText) {
+  assert.equal(run.composerAfterTap, '', `${label}: the question left the composer`);
+  assert.deepEqual(run.requests.map(item => item.text), [expectedText], `${label}: a fast double tap sends exactly one message`);
+  assert.deepEqual(run.users, [expectedText], `${label}: one user message`);
+  assert.equal(run.promptValue, '', `${label}: composer empty after sending`);
+  assert.equal(run.surfaceOpen, false, `${label}: no 생활정보 surface over the conversation`);
+}
+
 function assertNearby(run, label) {
   const location = run.requests[0]?.location;
   assert.ok(location && Math.abs(location.latitude - 35.812) < 0.01, `${label}: the current location goes along ${JSON.stringify(location)}`);
@@ -531,12 +556,10 @@ try {
       await devtools.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-reduced-motion', value: 'reduce'}]});
       const page = query => `${origin}/${innerRel}?${query}`;
 
-      // A, B, C, D, E: 병원·의원 with photo, no-photo and broken-photo cards.
-      const hospital = await runPhase(devtools, page(`phase=ask&item=hospital&history=1${label === '390' ? '&tap=1' : ''}`), `${label}/hospital`);
+      // A, D, E: a typed 병원·의원 question with photo, no-photo and broken-photo cards.
+      const hospital = await runPhase(devtools, page('phase=ask&item=hospital'), `${label}/hospital`);
       console.log(`LIFE_DIRECT_CHAT ${label} hospital`, JSON.stringify(hospital));
-      assert.deepEqual(hospital.medicalChoices, ['hospital:병원·의원 찾기', 'emergency:응급실 찾기'], `${label}: 병원·응급실 opens its two choices`);
-      assert.equal(hospital.requestsBeforePick, 0, `${label}: 병원·응급실 asks nothing until 병원·의원 or 응급실 is picked`);
-      assertOneDirectAsk(hospital, `${label}/hospital`, EXPECTED.hospital);
+      assertOneTypedAsk(hospital, `${label}/hospital`, EXPECTED.hospital);
       assertNearby(hospital, `${label}/hospital`);
       assertCards(hospital, `${label}/hospital`, testCase, {photo: true});
       assertReadable(hospital, `${label}/hospital`, {cards: true});
@@ -545,22 +568,28 @@ try {
       assert.equal(noPhotoCard.hasMedia, false, `${label}: no image_url, no media box`);
       assert.equal(brokenCard.hasMedia, false, `${label}: a photo that fails removes its media box`);
       assert.ok(noPhotoCard.card.h <= photoCard.card.h - 90, `${label}: a card without a photo is short (${noPhotoCard.card.h} vs ${photoCard.card.h})`);
-      assert.equal(hospital.forwardSurface, true, `${label}: forward reopens 생활정보`);
-      assert.equal(hospital.forwardActiveIsTextEntry, false, `${label}: reopening focuses no text field`);
-      assert.equal(hospital.backSurface, false, `${label}: back closes it`);
-      assert.equal(hospital.historyRequests, 0, `${label}: back/forward sends nothing again`);
-      assert.equal(hospital.historyFocusCount, 0, `${label}: back/forward focuses no composer`);
-      assert.deepEqual(hospital.historyUsers, hospital.users, `${label}: no new message after back/forward`);
+
+      // B, C, F: 지역생활정보 asks in one tap; back/forward and a reload send nothing
+      // again and focus nothing; only a tap on the composer focuses it.
+      const asked = await runPhase(devtools, page(`phase=ask&item=${HISTORY_ITEM}&history=1${label === '390' ? '&tap=1' : ''}`), `${label}/${HISTORY_ITEM}-history`);
+      assert.equal(asked.buttonLabel, '롯비에게 물어보기', `${label}: the button says it asks`);
+      assertOneDirectAsk(asked, `${label}/${HISTORY_ITEM}-history`, EXPECTED[HISTORY_ITEM]);
+      assert.equal(asked.forwardSurface, true, `${label}: forward reopens 생활정보`);
+      assert.equal(asked.forwardActiveIsTextEntry, false, `${label}: reopening focuses no text field`);
+      assert.equal(asked.backSurface, false, `${label}: back closes it`);
+      assert.equal(asked.historyRequests, 0, `${label}: back/forward sends nothing again`);
+      assert.equal(asked.historyFocusCount, 0, `${label}: back/forward focuses no composer`);
+      assert.deepEqual(asked.historyUsers, asked.users, `${label}: no new message after back/forward`);
       if (label === '390') {
-        assert.ok(hospital.tapFocusEvents >= 1 && hospital.tapFocusCalls === 1, `${label}: tapping the composer focuses it (${hospital.tapFocusEvents} events, ${hospital.tapFocusCalls} calls)`);
-        assert.equal(hospital.tapActiveIsPrompt, true, `${label}: composer focused after the tap`);
+        assert.ok(asked.tapFocusEvents >= 1 && asked.tapFocusCalls === 1, `${label}: tapping the composer focuses it (${asked.tapFocusEvents} events, ${asked.tapFocusCalls} calls)`);
+        assert.equal(asked.tapActiveIsPrompt, true, `${label}: composer focused after the tap`);
       }
 
       // C: a reload sends nothing and focuses nothing.
       const reloaded = await runPhase(devtools, page('phase=reload'), `${label}/reload`);
       console.log(`LIFE_DIRECT_CHAT ${label} reload`, JSON.stringify(reloaded));
       assert.deepEqual(reloaded.requests, [], `${label}: reload sends nothing`);
-      assert.deepEqual(reloaded.users, [EXPECTED.hospital], `${label}: the stored conversation, once`);
+      assert.deepEqual(reloaded.users, [EXPECTED[HISTORY_ITEM]], `${label}: the stored conversation, once`);
       assert.equal(reloaded.promptValue, '', `${label}: reload leaves the composer empty`);
       assert.equal(reloaded.focusCount, 0, `${label}: reload focuses no composer`);
 
@@ -570,7 +599,7 @@ try {
       for (const map of maps) {
         const noPhoto = await runPhase(devtools, page(`phase=ask&item=hospital&places=nophoto${map ? `&map=${map}` : ''}`), `${label}/nophoto/${map || 'default'}`);
         console.log(`LIFE_DIRECT_CHAT ${label} nophoto ${map || 'default'}`, JSON.stringify({rail: noPhoto.rail, cards: noPhoto.cards.map(c => ({h: c.card.h, media: c.hasMedia, provider: c.actions.find(a => a.provider)?.provider}))}));
-        assertOneDirectAsk(noPhoto, `${label}/nophoto`, EXPECTED.hospital);
+        assertOneTypedAsk(noPhoto, `${label}/nophoto`, EXPECTED.hospital);
         assertCards(noPhoto, `${label}/nophoto/${map || 'default'}`, testCase, {photo: false});
         assert.equal(noPhoto.mapProvider, map || 'NAVER_MAP', `${label}: map provider ${map || 'default'} read from settings`);
         assert.ok(noPhoto.cards.every(card => !card.hasMedia), `${label}: no media box on any card`);
@@ -585,7 +614,7 @@ try {
 
       // A: 지역생활정보 and 유치원·학교 → 학교 send their built question at once.
       const light = {};
-      for (const item of ['local', 'school']) {
+      for (const item of ASKING_ITEMS) {
         const run = await runPhase(devtools, page(`phase=ask&item=${item}`), `${label}/${item}`);
         console.log(`LIFE_DIRECT_CHAT ${label} ${item}`, JSON.stringify({button: run.buttonLabel, requests: run.requests, focus: run.focusDetail, contrast: run.formContrast}));
         assert.equal(run.buttonLabel, '롯비에게 물어보기', `${label}/${item}: the button says it asks`);
@@ -599,11 +628,11 @@ try {
       // the cards without a photo stay readable.
       const darkCards = await runPhase(devtools, page('phase=ask&item=hospital&places=nophoto&dark=1'), `${label}/dark/hospital`);
       assert.equal(darkCards.theme, 'dark', `${label}: dark theme applied`);
-      assertOneDirectAsk(darkCards, `${label}/dark/hospital`, EXPECTED.hospital);
+      assertOneTypedAsk(darkCards, `${label}/dark/hospital`, EXPECTED.hospital);
       assertCards(darkCards, `${label}/dark/hospital`, testCase, {photo: false});
       assertReadable(darkCards, `${label}/dark/hospital`, {cards: true});
       const dark = {};
-      for (const item of ['local', 'school']) {
+      for (const item of ASKING_ITEMS) {
         const run = await runPhase(devtools, page(`phase=ask&item=${item}&dark=1`), `${label}/dark/${item}`);
         assert.equal(run.theme, 'dark', `${label}/${item}: dark theme applied`);
         assertOneDirectAsk(run, `${label}/dark/${item}`, EXPECTED[item]);
@@ -613,10 +642,10 @@ try {
       console.log(`LIFE_DIRECT_CHAT ${label} contrast`, JSON.stringify({light, dark, darkCards: darkCards.cards.map(card => card.contrast)}));
 
       if (label === '390') {
-        // A: 약국 and 응급실 ask the same way.
+        // A: a typed 약국 and 응급실 question are answered the same way.
         for (const item of ['pharmacy', 'emergency']) {
           const run = await runPhase(devtools, page(`phase=ask&item=${item}`), `${label}/${item}`);
-          assertOneDirectAsk(run, `${label}/${item}`, EXPECTED[item]);
+          assertOneTypedAsk(run, `${label}/${item}`, EXPECTED[item]);
           assertNearby(run, `${label}/${item}`);
         }
       }
@@ -632,4 +661,4 @@ try {
 }
 
 for (const line of summary) console.log(`LIFE_DIRECT_CHAT compact ${line}`);
-console.log('SITE-LIFE-DIRECT-CHAT-CARD-COMPACTION-01 OK — every 생활정보 question (병원·약국·응급실, 지역생활정보, 유치원·학교) asks in one tap without the keyboard; cards without a photo have no photo box; phone and the chosen map app unchanged (viewport emulation, not a device run)');
+console.log('SITE-LIFE-DIRECT-CHAT-CARD-COMPACTION-01 OK — every 생활정보 card that still asks (지역생활정보, 유치원·학교) asks in one tap without the keyboard, and a typed 병원·약국·응급실 question gets the compact place cards; cards without a photo have no photo box; phone and the chosen map app unchanged (viewport emulation, not a device run)');
