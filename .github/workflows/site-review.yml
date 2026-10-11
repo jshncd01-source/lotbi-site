@@ -210,6 +210,10 @@ jobs:
       - name: Validate subscribe Dark contrast
         run: node scripts/validate_subscribe_dark_contrast_01.mjs
 
+      # QA 화면 전수 01 N4: a mistyped address reached nginx's own English page.
+      - name: Validate LOTBI 404 page
+        run: node scripts/validate_not_found_page_01.mjs
+
       # The viewport-sized scroll container must not be a tab stop: its focus
       # ring reached the screen as two blue vertical lines.
       - name: Validate container focus ring
@@ -1014,6 +1018,12 @@ jobs:
           done
           unknown_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' 'http://127.0.0.1:4173/not-a-real-static-path')"
           [[ "$unknown_status" == '404' ]] || { echo "unrelated static path must remain 404, got $unknown_status" >&2; exit 1; }
+          # SITE-404-LOTBI-01 — the 404 is the LOTBI page (logo, one line, a way home), not nginx's English default.
+          not_found_body="$(curl --silent --show-error 'http://127.0.0.1:4173/not-a-real-static-path/deeper')"
+          [[ "$not_found_body" == *'찾으시는 페이지를 찾을 수 없어요'* ]] || { echo "a missing path must answer with the LOTBI 404 page" >&2; exit 1; }
+          [[ "$not_found_body" != *'nginx'* ]] || { echo "the stock nginx 404 page must not reach a visitor" >&2; exit 1; }
+          direct_404_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' 'http://127.0.0.1:4173/404.html')"
+          [[ "$direct_404_status" == '404' ]] || { echo "/404.html must itself answer 404 (internal), got $direct_404_status" >&2; exit 1; }
 
           callback_url="$(curl --silent --show-error --location --output /dev/null --write-out '%{url_effective}' 'http://127.0.0.1:4173/auth/callback?code=ccccccccccccccccccccccccccccccccccccccccccc&state=sssssssssssssssssssssssssssssssssssssssssss')"
           [[ "$callback_url" == *'/auth/callback/?code='*'&state='* ]] || { echo "callback redirect did not preserve code/state query: $callback_url" >&2; exit 1; }
