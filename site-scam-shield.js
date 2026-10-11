@@ -28,6 +28,7 @@ const allowedFileExtensions = new Set(['jpg', 'jpeg', 'png', 'webp', 'pdf', 'txt
 const maxFileBytes = 10 * 1024 * 1024;
 const reopenStorageKey = 'lotbi.scam-shield.reopen.v1';
 const reopenTtlMs = 15 * 60 * 1000;
+const resultContexts = new WeakMap();
 
 const escapeText = value => String(value ?? '');
 
@@ -265,7 +266,9 @@ function policeStatisticsDetails(stats) {
   return details;
 }
 
-function render(payload, context = {}) {
+function render(payload) {
+  const context = resultContexts.get(payload) || {};
+  resultContexts.delete(payload);
   result.replaceChildren();
   result.hidden = false;
   result.dataset.riskLevel = payload.riskLevel;
@@ -529,7 +532,8 @@ async function submitAnalysis(event) {
   try {
     const payload = await requestAnalysis(data);
     if (activeRequest !== requestId || analysisSequence !== requestId) return;
-    render(payload, {target, checkedAt: payload.checkedAt});
+    resultContexts.set(payload, {target, checkedAt: payload.checkedAt});
+    render(payload);
     revealResult();
     status.textContent = payload.riskLevel === 'UNVERIFIED'
       ? '진짜라고 확인되지 않았어요. 아래 내용을 꼭 확인해 주세요.'

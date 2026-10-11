@@ -14,7 +14,7 @@ READY_FOR_DEPLOY=YES
 - Gate 반환 수정·재검증 SHA: `99434a4de5008920d4e98855924d5d0da963fc28`
 - 이전 READY checkpoint: `a50b29b01be40105f94522f9dfef687a93d372b0`
 - 최종 push HEAD: 이 문서를 포함한 READY 커밋 SHA를 최종 보고에서 별도 기재한다.
-- asset cache: `aset-c6baa4c56658` (`targets=169`, `refs=206`)
+- asset cache: `aset-f04cc336a932` (`targets=169`, `refs=206`)
 
 ## Gate 1.0.6 반환과 수정
 
@@ -37,6 +37,17 @@ READY_FOR_DEPLOY=YES
 - 닫기 안정성: `finishDialogClose()`가 body 상태·메뉴 `aria-current`·초점·라우팅 알림을 멱등 처리한다. route owner가 즉시 닫은 뒤 네이티브 `close` 이벤트가 늦게 와도 중복 알림이나 중복 초점 이동이 발생하지 않는다. Escape의 네이티브 `cancel` 이벤트도 기존 dismiss/history 흐름으로 연결했다.
 - 검증 보존: `validate_common_ui_polish_01.mjs`의 drawer-before-`showModal()` 단언은 변경하지 않았다. MVP와 route restore 검증은 네이티브 `<dialog>`·`showModal()`·`close()` 및 멱등 닫기를 더 강하게 확인하도록 갱신했다.
 - cache: 변경된 HTML/CSS/JS를 반영해 공식 생성기로 `aset-c6baa4c56658`을 재생성했다.
+
+## Gate 1.0.6 세 번째 반환과 수정
+
+- 반환 release: 격리 release `665b6a60c57abb3fa52c14b64eeeb6db63fb8c95`
+- 반환 대상 READY: `af368681fe2ee5c140cdfb2865094b3ce61b95f6`
+- Gate run: `20261011T152517Z-4131170-3221211358`
+- 결과: `TEST_FAILED`, 실패 단계 `scripts/validate_common_ui_polish_02.mjs:32`. main `9147419f`와 Production은 변경되지 않았다.
+- 원인: 승인 C안에서 검사 대상·검사 시각을 결과에 추가하면서 `render(payload, {target, checkedAt: payload.checkedAt}); revealResult();`로 호출해, 기존 D4 계약인 연속 `render(payload); revealResult();`와 달라졌다.
+- 수정: Core 응답 객체는 변형하지 않고 `WeakMap`에 해당 결과의 표시 문맥만 보관한다. `render(payload)`가 문맥을 한 번 읽고 제거하므로 검사 대상·검사 시각은 그대로 표시하면서 D4 호출 계약도 복원했다.
+- 후속 검사: 같은 검증기의 회사 소개 C6 기대값이 확정 운영명보다 오래된 `진위확인`이라 다음 실패로 확인됐다. 검사 항목을 삭제·완화하지 않고 기대 기능명을 실제 확정명 `사기·피싱 확인`으로만 갱신했다. 운영 화면에 옛 명칭을 다시 넣지 않았다.
+- cache: 공식 생성기로 `aset-f04cc336a932`을 재생성했다.
 
 ## 확정 C안 보존
 
@@ -118,6 +129,15 @@ READY_FOR_DEPLOY=YES
 - `validate_hardening.py`, `validate_legal_pages.py`, `validate_social_legal_manifest_01.py`: PASS. 검증 파일의 단언 완화 없음.
 - `asset_cache_version.mjs --check`: PASS — `aset-c6baa4c56658`, targets 169 / refs 206.
 - desktop 1280 light/dark 및 mobile 360 시작 화면 렌더 직접 확인: 기존 C안 구성, desktop sidebar 보존, mobile 전체 화면, 가로 넘침 없음.
+
+### 세 번째 Gate 반환 수정 재검증
+
+- `validate_common_ui_polish_02.mjs`: PASS — 10 checks. D4의 `render(payload); revealResult();`와 C6 기능명 단언을 모두 유지했다.
+- `validate_common_ui_polish_01.mjs`, `validate_scam_shield_mvp_01.mjs`, `validate_scam_shield_connection_01.mjs`: PASS.
+- `validate_scam_shield_photo_picker_01.mjs`: PASS — 360 light/dark, 390 KakaoTalk UA, 412 Android UA, 1280 desktop light/dark. 검사 대상·검사 시각 표시와 늦은 응답 차단 포함.
+- `validate_site_refresh_route_restore_01.mjs`: PASS — iPhone 375/390 각 170 checks, desktop 1280 168 checks.
+- `validate_accessibility.py`, `validate_hardening.py`, `validate_legal_pages.py`, `validate_social_legal_manifest_01.py`: PASS.
+- `asset_cache_version.mjs --check`: PASS — `aset-f04cc336a932`, targets 169 / refs 206.
 
 ## 최신 통합 사용자 시나리오
 
