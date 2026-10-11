@@ -11,9 +11,8 @@
 //    the rail (PLACE-CARD-RAIL-ALL-RESULTS-01: no "다른 병원 보기" — it only
 //    held back places already sent); the same institution listed twice is one
 //    card;
-//  - wider screens keep the arrows and the keys, show one card with the arrows
-//    right beside it, and nothing half shown behind it (the side cards there
-//    made several cards look merged into one);
+//  - every screen uses result dots and keys with perspective side cards;
+//    back cards are fully hidden after the rotation finishes;
 //  - the map button still follows the map app chosen in 설정
 //    (lotbi_default_map_provider_v1) and the card body still opens a NAVER
 //    search.
@@ -526,6 +525,14 @@ async function runScenario(page, origin, innerRel, testCase, scenarioKey) {
     const before = await evaluate(PROBE);
     await action(before);
     await sleep(450);
+    // A loaded browser can still report the last transition frame here.
+    // Wait for actual completion; keep the exact opacity/geometry assertions.
+    await waitFor(() => evaluate(`(() => {
+      const cards = [...document.querySelectorAll('.lotbi-place-orbit-card')];
+      return cards.length > 0 && cards.every(card => card.getAnimations().every(
+        animation => animation.playState === 'finished' || animation.playState === 'idle'
+      ));
+    })()`), `${testCase.label}/${scenarioKey} ${name}: rotation finished`, 2000);
     p = await evaluate(PROBE);
     log.push(`${name}:${before.position.text || '-'}→${p.position.text || '-'}`);
     const where = `${testCase.label}/${scenarioKey} ${name} (${log.join(' ')})`;
@@ -551,7 +558,7 @@ async function runScenario(page, origin, innerRel, testCase, scenarioKey) {
       await step('swipe-left', b => swipe(b.center.cx + 70, b.center.cx - 70, b.parts.title.box.cy), 1);
       if (p.shown === 2) assert.ok(p.sides[0].slot.startsWith('LEFT'), `${testCase.label}/${scenarioKey}: after a swipe left the other card waits on the left`);
     } else {
-      // Round every card with ›, past the last one back to the first.
+      // Drag through every card, past the last one back to the first.
       for (let i = 1; i <= p.shown; i += 1) await step(`next#${i}`, b => swipe(b.center.cx + 70, b.center.cx - 70, b.parts.title.box.cy), 1);
       await step('next', b => swipe(b.center.cx + 70, b.center.cx - 70, b.parts.title.box.cy), 1);
       await step('prev', b => swipe(b.center.cx - 70, b.center.cx + 70, b.parts.title.box.cy), -1);

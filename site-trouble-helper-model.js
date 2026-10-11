@@ -15,7 +15,7 @@
 //   instead of being shown as a fact;
 // * a filed form is not 접수 until there is a 접수번호: 'SUBMITTED' can be
 //   chosen only once the situation's receipt_field_id holds one.
-import {CORE_ORIGIN} from './site-core.js?v=aset-1315062223f4';
+import {CORE_ORIGIN} from './site-core.js?v=aset-2422a7f21207';
 
 export const TROUBLE_HELPER_PATH = '/v2/trouble-helper/guides';
 export const TROUBLE_HELPER_STORAGE_KEY = 'lotbi.site.ux.v1.trouble-helper';
@@ -25,6 +25,12 @@ export const SHARE_SAFETY_LINE = '인증번호·비밀번호는 가족에게도 
 export const SHARE_TITLE = '막막할 때 롯비';
 export const SHARE_URL = 'https://lotbiai.com/';
 export const FIELD_MAX_CHARS = 2000;
+// The result screen's tabs, in this order, with these names (App the same).
+export const RESULT_VIEWS = Object.freeze(['steps', 'help', 'summary']);
+export const RESULT_TAB_LABELS = Object.freeze({steps: '할 일', help: '증거·창구', summary: '정리표'});
+export const NARROW_TITLE = '내 상황에 맞게 좁히기';
+export const NARROW_HINT = '답을 고르면 내 상황에 맞지 않는 할 일이 빠져요.';
+export const PORTAL_SENTENCE_HINT = '내 상황에 맞게 좁히기에서 답하면 포털에 붙여 넣을 문장을 만들어 드려요';
 // The only sentences not taken from Core: what to do when Core cannot be read.
 export const FALLBACK_MESSAGE = '안내를 불러오지 못했어요. 급하면 112·119, 법률 고민은 132에 전화해 주세요.';
 export const FALLBACK_CALLS = Object.freeze([
@@ -66,9 +72,11 @@ export function telHref(phone) {
   return PHONE_RE.test(String(phone || '')) ? `tel:${String(phone).replace(/-/gu, '')}` : '';
 }
 
-// {questionId: [answerId…]} — shown only when every named question was
-// answered with one of the listed answers. Absent = always shown; a rule that
-// cannot be read is never satisfied.
+// {questionId: [answerId…]} — TROUBLE-HELPER-URGENT-FIRST-01: only the
+// questions already answered count. A question not answered yet never hides
+// anything (not known = shown); one answered with an answer outside the list
+// hides it. Absent = always shown; a rule that cannot be read is never
+// satisfied.
 function normalizeShowIf(raw) {
   if (raw === undefined || raw === null) return null;
   const rule = plain(raw);
@@ -85,7 +93,11 @@ function normalizeShowIf(raw) {
 
 export function isShown(showIf, answers = {}) {
   if (!showIf) return true;
-  return Object.entries(showIf).every(([qid, options]) => options.includes(answers[qid]));
+  return Object.entries(showIf).every(([qid, options]) => {
+    if (!qid) return false;
+    const given = Object.hasOwn(answers || {}, qid) ? answers[qid] : undefined;
+    return given === undefined || options.includes(given);
+  });
 }
 
 function normalizeChannel(raw) {
@@ -263,15 +275,48 @@ export function findSituation(guides, id) {
   return guides?.situations.find(item => item.id === id) || null;
 }
 
-// Answers kept only for questions still on screen and options that exist.
+// Answers kept only for options that exist and questions still on screen. An
+// answer that hides another question drops that question's answer, which may
+// bring back what it hid, so this repeats until nothing changes.
 export function cleanAnswers(situation, answers = {}) {
   const clean = {};
   for (const question of situation.questions) {
-    if (!isShown(question.showIf, clean)) continue;
-    const value = answers?.[question.id];
+    const value = Object.hasOwn(answers || {}, question.id) ? answers[question.id] : undefined;
     if (question.options.some(option => option.id === value)) clean[question.id] = value;
   }
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const question of situation.questions) {
+      if (Object.hasOwn(clean, question.id) && !isShown(question.showIf, clean)) {
+        delete clean[question.id];
+        changed = true;
+      }
+    }
+  }
   return clean;
+}
+
+// The "답한 질문 n/m" count inside 내 상황에 맞게 좁히기.
+export function answeredCount(situation, answers = {}) {
+  const clean = cleanAnswers(situation, answers);
+  const questions = visibleQuestions(situation, clean);
+  return {answered: questions.filter(question => Object.hasOwn(clean, question.id)).length, total: questions.length};
+}
+
+// The '바로 전화' row: 112 and 119 among the steps on screen, in step order.
+export const QUICK_CALL_PHONES = Object.freeze(['112', '119']);
+export function quickCalls(guides, situation, answers = {}) {
+  const seen = new Set();
+  const out = [];
+  for (const step of visibleSteps(situation, answers)) {
+    for (const id of step.channelIds) {
+      const channel = guides?.channels?.get(id);
+      if (!channel || !QUICK_CALL_PHONES.includes(channel.phone) || seen.has(channel.phone)) continue;
+      seen.add(channel.phone);
+      out.push(channel);
+    }
+  }
+  return out;
 }
 
 export function visibleQuestions(situation, answers = {}) {
@@ -404,15 +449,15 @@ export function normalizeRecord(situation, raw, today = localDay()) {
     .map(([key, value]) => [key, value.slice(0, FIELD_MAX_CHARS)]));
   let status = STATUS_IDS.includes(item.status) ? item.status : 'PREPARE';
   if (!canChooseStatus(situation, fields, status)) status = 'PREPARE';
-  const views = ['question', 'steps', 'help', 'summary'];
+  // The three tabs. There is no question screen any more: a record saved on
+  // one ('question', before TROUBLE-HELPER-URGENT-FIRST-01) opens on 할 일.
   return {
     answers,
     done: flags(item.done, stepIds),
     evidence: flags(item.evidence, evidenceIds),
     fields,
     status,
-    view: views.includes(item.view) ? item.view : 'question',
-    question: Number.isInteger(item.question) && item.question >= 0 ? item.question : 0,
+    view: RESULT_VIEWS.includes(item.view) ? item.view : 'steps',
     createdOn: DAY_RE.test(item.createdOn || '') ? item.createdOn : today,
   };
 }
