@@ -346,7 +346,7 @@ function stepCard(situation, record, step, number) {
   });
   const actions = el('div', {className: 'trouble-step-actions'},
     stepRoutes(step.channelIds.map(id => guides.channels.get(id)).filter(Boolean)));
-  if (step.linkScamShield) actions.append(button('진위확인으로 확인하기', openScamShield, {className: 'trouble-button trouble-button-secondary', data: {troubleScamShield: ''}}));
+  if (step.linkScamShield) actions.append(button('사기·피싱 확인으로 살펴보기', openScamShield, {className: 'trouble-button trouble-button-secondary', data: {troubleScamShield: ''}}));
   const target = step.gotoSituation ? findSituation(guides, step.gotoSituation) : null;
   if (target) {
     actions.append(button(`‘${target.title}’ 안내 보기`, () => { store.current = target.id; currentRecord(); render(); },

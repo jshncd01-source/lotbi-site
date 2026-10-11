@@ -19,6 +19,9 @@ let loginStatus;
 let previewUrl = '';
 let activeKind = '';
 let openSequence = 0;
+let analysisSequence = 0;
+let activeRequest = 0;
+let analyzing = false;
 
 const allowedFileTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'text/plain', 'text/html', 'application/xhtml+xml', 'application/pdf']);
 const allowedFileExtensions = new Set(['jpg', 'jpeg', 'png', 'webp', 'pdf', 'txt', 'html', 'htm']);
@@ -74,28 +77,55 @@ function updateFilePreview() {
   filePreview.hidden = false;
 }
 
+function hasValidInput() {
+  if (!form) return false;
+  const active = selectedInput();
+  if (active === 'text') return Boolean(form.elements.scamText?.value.trim());
+  if (active === 'voice') return Boolean(form.elements.scamVoiceText?.value.trim());
+  if (active === 'url') {
+    const value = form.elements.scamUrl?.value.trim();
+    if (!value) return false;
+    try { return ['http:', 'https:'].includes(new URL(value).protocol); } catch { return false; }
+  }
+  if (['camera', 'photo', 'document'].includes(active)) {
+    const file = activeFileInput()?.files?.[0];
+    return Boolean(file && fileIsSupported(file) && file.size > 0 && file.size <= maxFileBytes);
+  }
+  return false;
+}
+
+function updateSubmitState() {
+  const submit = form?.querySelector('[type="submit"]');
+  if (!submit) return;
+  submit.disabled = analyzing || !hasValidInput();
+  submit.setAttribute('aria-busy', String(analyzing));
+}
+
+function invalidateResult(message = '내용이 바뀌어 다시 확인해야 해요.') {
+  analysisSequence += 1;
+  activeRequest = 0;
+  analyzing = false;
+  if (result) {
+    result.hidden = true;
+    result.replaceChildren();
+    delete result.dataset.riskLevel;
+  }
+  if (status && message) status.textContent = message;
+  updateSubmitState();
+}
+
 function updateInputPanels() {
   if (!form) return;
   const active = selectedInput();
-  const hasSelection = Boolean(active);
-  if (methodChooser) methodChooser.hidden = hasSelection;
-  if (checkStep) checkStep.hidden = !hasSelection;
-  if (methodDescription) methodDescription.hidden = hasSelection;
+  if (methodChooser) methodChooser.hidden = false;
+  if (checkStep) checkStep.hidden = false;
+  if (methodDescription) methodDescription.hidden = false;
   form.querySelectorAll('[data-scam-input-panel]').forEach(panel => {
     const visible = panel.dataset.scamInputPanel === active;
     panel.hidden = !visible;
     panel.querySelectorAll('input, textarea').forEach(input => { input.disabled = !visible; });
   });
-  const submit = form.querySelector('[type="submit"]');
-  const labels = {
-    camera: '이 사진 확인하기',
-    photo: '이 사진 확인하기',
-    document: '이 문서 확인하기',
-    text: '문자 내용 확인하기',
-    url: '인터넷 주소 확인하기',
-    voice: '이 내용 확인하기',
-  };
-  if (submit) submit.textContent = labels[active] || '확인하기';
+  updateSubmitState();
 }
 
 function list(title, values) {
@@ -167,7 +197,7 @@ function doubleCheckSection(check) {
       .map(item => item.label);
     row('위험 신호', confirmed.length ? `다시 확인함 — ${[...new Set(confirmed)].slice(0, 4).join(', ')}` : '다시 확인한 위험 신호는 없어요.');
     if (check.officialMessage) row('공식 근거', check.officialMessage);
-    row('확인 안 된 것', check.unverifiedCount ? `${check.unverifiedCount}가지 — 아래 ‘아직 확인되지 않은 내용’을 봐 주세요.` : '따로 남은 항목은 없어요.');
+    row('확인 안 된 것', check.unverifiedCount ? `${check.unverifiedCount}가지 — 아래 ‘아직 확인되지 않은 내용’을 봐 주세요.` : '이번 검사에서 추가로 남은 기술 항목은 없어요. 발신자·사건 진위까지 확인했다는 뜻은 아니에요.');
   }
   section.append(rows);
   return section;
@@ -235,7 +265,7 @@ function policeStatisticsDetails(stats) {
   return details;
 }
 
-function render(payload) {
+function render(payload, context = {}) {
   result.replaceChildren();
   result.hidden = false;
   result.dataset.riskLevel = payload.riskLevel;
@@ -246,6 +276,16 @@ function render(payload) {
   badge.className = 'scam-result-headline';
   badge.textContent = resultHeadline(payload);
   conclusion.append(heading, badge);
+  const meta = document.createElement('p');
+  meta.className = 'scam-result-meta';
+  const checked = context.checkedAt || payload.checkedAt;
+  let checkedLabel = '';
+  if (checked) {
+    const parsed = new Date(checked);
+    if (!Number.isNaN(parsed.getTime())) checkedLabel = new Intl.DateTimeFormat('ko-KR', {dateStyle: 'medium', timeStyle: 'short'}).format(parsed);
+  }
+  meta.textContent = [`검사 대상: ${context.target || '입력한 자료'}`, checkedLabel ? `검사 시각: ${checkedLabel}` : ''].filter(Boolean).join(' · ');
+  conclusion.append(meta);
   if (payload.summary) {
     const summary = document.createElement('p');
     summary.className = 'scam-result-summary';
@@ -334,13 +374,14 @@ function showLoginGate() {
 function showWorkspace() {
   if (loginGate) loginGate.hidden = true;
   if (workspace) workspace.hidden = false;
-  if (status) status.textContent = '확인 방법을 하나 선택해 주세요.';
-  methodChooser?.querySelector('input, button')?.focus();
+  if (status) status.textContent = '확인할 내용을 입력해 주세요.';
+  form?.querySelector('[data-scam-input-panel="text"] textarea')?.focus();
 }
 
 async function openDialog(event) {
   if (!dialog) return;
   const sequence = ++openSequence;
+  try { window.dispatchEvent(new CustomEvent('lotbi:scam-shield-will-open')); } catch {}
   dialogTrigger = event?.currentTarget instanceof HTMLElement ? event.currentTarget : document.activeElement;
   // COMMON-UI-POLISH-01 (QA #4) — every other drawer item closes the mobile menu
   // before its surface opens; 진위확인 left it open under the login prompt, and
@@ -352,12 +393,11 @@ async function openDialog(event) {
   if (loginGate) loginGate.hidden = true;
   if (workspace) workspace.hidden = true;
   if (status) status.textContent = '로그인 상태를 확인하고 있어요.';
-  if (typeof dialog.showModal === 'function') dialog.showModal();
-  else {
-    dialog.setAttribute('open', '');
-    dialog.setAttribute('role', 'dialog');
-    dialog.setAttribute('aria-modal', 'true');
-  }
+  dialog.hidden = false;
+  dialog.open = true;
+  dialog.setAttribute('open', '');
+  document.body.classList.add('scam-page-open');
+  document.querySelectorAll('[data-scam-open]').forEach(entry => entry.setAttribute('aria-current', 'page'));
   notifyScamShieldVisibility();
   const authenticated = await requestSessionAvailability();
   if (sequence !== openSequence || !dialog.hasAttribute('open')) return;
@@ -368,10 +408,14 @@ async function openDialog(event) {
 function resetScamFlow() {
   form?.reset();
   activeKind = '';
+  analysisSequence += 1;
+  activeRequest = 0;
+  analyzing = false;
   if (incident) incident.hidden = true;
   clearFilePreview();
   updateVoiceState(false);
   updateInputPanels();
+  if (result) { result.hidden = true; result.replaceChildren(); }
 }
 
 function restoreDialogFocus() {
@@ -390,15 +434,11 @@ function closeDialog() {
   if (!dialog) return;
   openSequence += 1;
   stopVoiceRecognition();
-  if (typeof dialog.close === 'function') {
-    dialog.close();
-    // Chrome can hold the 'close' event until a frame is rendered, and a hidden
-    // tab renders none; the URL follows the dialog now, not when it is shown.
-    notifyScamShieldVisibility();
-    return;
-  }
   dialog.removeAttribute('open');
-  dialog.removeAttribute('aria-modal');
+  dialog.open = false;
+  dialog.hidden = true;
+  document.body.classList.remove('scam-page-open');
+  document.querySelectorAll('[data-scam-open]').forEach(entry => entry.removeAttribute('aria-current'));
   restoreDialogFocus();
   notifyScamShieldVisibility();
 }
@@ -441,6 +481,12 @@ document.addEventListener('keydown', event => {
   }
 });
 
+document.addEventListener('click', event => {
+  if (!dialog?.hasAttribute('open') || !(event.target instanceof Element)) return;
+  const leavingControl = event.target.closest('[data-new-conversation], [data-calendar-view], [data-consumer-section], [data-trouble-open]');
+  if (leavingControl && !leavingControl.hasAttribute('data-scam-open')) closeDialog();
+}, true);
+
 async function submitAnalysis(event) {
   event.preventDefault();
   const data = new FormData();
@@ -468,18 +514,23 @@ async function submitAnalysis(event) {
     data.set('incident_level', form.elements.incidentLevel.value);
     data.set('device', form.elements.device.value);
   }
-  const submit = form.querySelector('[type="submit"]');
-  submit.disabled = true;
+  const requestId = ++analysisSequence;
+  activeRequest = requestId;
+  analyzing = true;
+  const target = analysisTargetLabel(kind);
+  updateSubmitState();
   status.textContent = '파일을 실행하지 않고 안전하게 확인하고 있어요.';
   result.hidden = true;
   try {
     const payload = await requestAnalysis(data);
-    render(payload);
+    if (activeRequest !== requestId || analysisSequence !== requestId) return;
+    render(payload, {target, checkedAt: payload.checkedAt});
     revealResult();
     status.textContent = payload.riskLevel === 'UNVERIFIED'
       ? '진짜라고 확인되지 않았어요. 아래 내용을 꼭 확인해 주세요.'
       : '분석 결과가 나왔습니다.';
   } catch (error) {
+    if (activeRequest !== requestId || analysisSequence !== requestId) return;
     if (error?.code === 'PLAN_USAGE_LIMIT_REACHED' && error?.basicProtection?.available === true) {
       renderUsageLimit(error);
       revealResult();
@@ -487,21 +538,37 @@ async function submitAnalysis(event) {
     } else if (error?.code === 'SCAM_SHIELD_SESSION_REQUIRED' || error?.status === 401 || error?.status === 403) {
       showLoginGate();
     } else {
-      status.textContent = error instanceof Error ? error.message : '진위확인을 완료하지 못했습니다.';
+      status.textContent = error instanceof Error ? error.message : '사기·피싱 확인을 완료하지 못했습니다.';
     }
   } finally {
-    submit.disabled = false;
+    if (activeRequest === requestId) {
+      activeRequest = 0;
+      analyzing = false;
+      updateSubmitState();
+    }
   }
+}
+
+function analysisTargetLabel(kind) {
+  if (kind === 'url') {
+    const value = form?.elements?.scamUrl?.value.trim() || '';
+    try { return new URL(value).hostname; } catch { return value.slice(0, 80) || '인터넷 주소'; }
+  }
+  if (kind === 'text' || kind === 'voice') {
+    const value = (kind === 'text' ? form?.elements?.scamText?.value : form?.elements?.scamVoiceText?.value)?.trim() || '';
+    return value.length > 48 ? `${value.slice(0, 48)}…` : value || '문자·이메일';
+  }
+  return activeFileInput()?.files?.[0]?.name || (kind === 'document' ? '문서·PDF' : '사진');
 }
 
 function returnToMethods() {
   stopVoiceRecognition();
-  activeKind = '';
-  form?.querySelectorAll('input[name="scam-input-kind"]').forEach(input => { input.checked = false; });
+  activeKind = 'text';
+  form?.querySelectorAll('input[name="scam-input-kind"]').forEach(input => { input.checked = input.value === 'text'; });
   clearFilePreview();
   updateInputPanels();
-  status.textContent = '확인 방법을 하나 선택해 주세요.';
-  methodChooser?.querySelector('input, button')?.focus();
+  invalidateResult('확인할 내용을 입력해 주세요.');
+  form?.elements?.scamText?.focus();
 }
 
 function updateVoiceState(listening) {
@@ -582,8 +649,46 @@ function shouldReopenAfterLogin() {
   }
 }
 
+function isMobileDevice() {
+  return globalThis.matchMedia?.('(pointer: coarse)')?.matches === true
+    || /Android|iPhone|iPad|iPod|Mobile/i.test(globalThis.navigator?.userAgent || '');
+}
+
+async function updateCameraActionVisibility() {
+  const actions = document.querySelectorAll('[data-scam-camera-action]');
+  if (!actions.length) return;
+  if (isMobileDevice()) {
+    actions.forEach(action => { action.hidden = false; });
+    return;
+  }
+  let hasCamera = false;
+  try {
+    const devices = await globalThis.navigator?.mediaDevices?.enumerateDevices?.();
+    hasCamera = Array.isArray(devices) && devices.some(device => device?.kind === 'videoinput');
+  } catch {
+    hasCamera = false;
+  }
+  actions.forEach(action => { action.hidden = !hasCamera; });
+}
+
+async function pasteFromClipboard() {
+  const input = form?.elements?.scamText;
+  if (!(input instanceof HTMLTextAreaElement)) return;
+  try {
+    const value = await globalThis.navigator?.clipboard?.readText?.();
+    if (typeof value !== 'string') throw new Error('CLIPBOARD_UNAVAILABLE');
+    input.value = value.slice(0, Number(input.maxLength) || 20000);
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+    input.focus();
+  } catch {
+    status.textContent = '브라우저에서 붙여넣기를 허용하지 않았어요. 입력란을 길게 눌러 붙여넣어 주세요.';
+    input.focus();
+  }
+}
+
 function bindScamShield() {
   dialog = document.querySelector('[data-scam-dialog]');
+  if (dialog && typeof dialog.open !== 'boolean') dialog.open = dialog.hasAttribute('open');
   form = document.querySelector('[data-scam-form]');
   result = document.querySelector('[data-scam-result]');
   status = document.querySelector('[data-scam-status]');
@@ -602,13 +707,6 @@ function bindScamShield() {
   loginStatus = document.querySelector('[data-scam-login-status]');
   if (dialog && dialog.dataset.scamOutsideBound !== 'true') {
     dialog.dataset.scamOutsideBound = 'true';
-    dialog.addEventListener('click', event => {
-      if (event.target !== dialog) return;
-      const bounds = dialog.getBoundingClientRect();
-      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dismissDialog();
-    });
-    dialog.addEventListener('close', restoreDialogFocus);
-    dialog.addEventListener('close', notifyScamShieldVisibility);
   }
 
   document.querySelectorAll('[data-scam-open]').forEach(button => {
@@ -632,17 +730,50 @@ function bindScamShield() {
     input.addEventListener('change', () => {
       activeKind = input.value;
       clearFilePreview();
+      invalidateResult('확인할 내용을 입력해 주세요.');
       updateInputPanels();
       const panel = form.querySelector(`[data-scam-input-panel="${input.value}"]`);
       panel?.querySelector('input, textarea')?.focus();
-      status.textContent = '확인할 내용을 넣은 뒤 아래 확인하기 버튼을 눌러 주세요.';
     });
   });
   form?.querySelectorAll('input[type="file"]').forEach(input => {
     if (input.dataset.scamFileBound === 'true') return;
     input.dataset.scamFileBound = 'true';
-    input.addEventListener('change', updateFilePreview);
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      let message = file ? '새 파일을 선택했어요. 의심 신호 확인하기를 눌러 주세요.' : '파일을 선택해 주세요.';
+      if (file && !fileIsSupported(file)) message = '현재는 사진, PDF, TXT, HTML 파일만 확인할 수 있어요.';
+      else if (file && (file.size <= 0 || file.size > maxFileBytes)) message = '파일은 10MB 이하만 확인할 수 있어요.';
+      invalidateResult(message);
+      updateFilePreview();
+      updateSubmitState();
+    });
   });
+  form?.querySelectorAll('textarea, input[type="url"], select').forEach(input => {
+    if (input.dataset.scamValueBound === 'true') return;
+    input.dataset.scamValueBound = 'true';
+    input.addEventListener(input instanceof HTMLSelectElement ? 'change' : 'input', () => {
+      invalidateResult('내용이 바뀌어 다시 확인해야 해요.');
+    });
+  });
+  form?.querySelectorAll('[data-scam-method-select]').forEach(button => {
+    if (button.dataset.scamBound === 'true') return;
+    button.dataset.scamBound = 'true';
+    button.addEventListener('click', () => {
+      const kind = button.dataset.scamMethodSelect || '';
+      activeKind = kind;
+      form.querySelectorAll('input[name="scam-input-kind"]').forEach(input => { input.checked = false; });
+      clearFilePreview();
+      invalidateResult('파일을 선택해 주세요.');
+      updateInputPanels();
+      activeFileInput()?.click();
+    });
+  });
+  const pasteButton = form?.querySelector('[data-scam-paste]');
+  if (pasteButton && pasteButton.dataset.scamBound !== 'true') {
+    pasteButton.dataset.scamBound = 'true';
+    pasteButton.addEventListener('click', pasteFromClipboard);
+  }
   const backButton = form?.querySelector('[data-scam-method-back]');
   if (backButton && backButton.dataset.scamBound !== 'true') {
     backButton.dataset.scamBound = 'true';
@@ -664,13 +795,17 @@ function bindScamShield() {
   }
   if (clicked && clicked.dataset.scamBound !== 'true') {
     clicked.dataset.scamBound = 'true';
-    clicked.addEventListener('change', () => { incident.hidden = !clicked.checked; });
+    clicked.addEventListener('change', () => {
+      incident.hidden = !clicked.checked;
+      invalidateResult('피해 여부가 바뀌어 다시 확인해야 해요.');
+    });
   }
   if (form && form.dataset.scamBound !== 'true') {
     form.dataset.scamBound = 'true';
     form.addEventListener('submit', submitAnalysis);
   }
   updateInputPanels();
+  void updateCameraActionVisibility();
 }
 
 bindScamShield();

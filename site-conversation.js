@@ -956,7 +956,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const resolve = typeof detail.resolve === 'function' ? detail.resolve : () => {};
     const reject = typeof detail.reject === 'function' ? detail.reject : () => {};
     try {
-      if (!sessionToken) throw new SiteCoreError('진위확인은 개인정보 보호를 위해 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
+      if (!sessionToken) throw new SiteCoreError('사기·피싱 확인은 개인정보 보호를 위해 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
       resolve(await analyzeScamShield(sessionToken, detail.formData));
     } catch (error) {
       if (error instanceof SiteCoreError && isSessionError(error)) dropSessionToken();
@@ -4039,6 +4039,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     surfaceRestoreFocus = undefined;
     queueSiteRouteSync();
   };
+  window.addEventListener('lotbi:scam-shield-will-open', () => {
+    if (openSurface) closeSurface();
+  });
   // backRoute: the screen onBack opens (← of 축제·행사 / 롯비함 → 생활정보).
   const installSurfaceBehavior = (surface, panel, {modal = false, workspace = '', route = '', dismissOnBackdrop = true, trigger, onClose, onBack, backRoute = '', backLabel = '대화로 돌아가기'} = {}) => {
     const initiatingFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;

@@ -75,7 +75,7 @@ const scam = read('site-scam-shield.js');
 assert.match(scam, /window\.addEventListener\('lotbi:scam-shield-open-request', \(\) => \{\s*if \(dialog && !dialog\.hasAttribute\('open'\)\) void openDialog\(\);/u);
 assert.match(scam, /window\.addEventListener\('lotbi:scam-shield-close-request', \(\) => \{\s*if \(dialog\?\.hasAttribute\('open'\)\) closeDialog\(\);/u);
 assert.doesNotMatch(scam, /^\s*(export|import)\s/mu, 'site-scam-shield.js stays a plain script (validate_scam_shield_mvp_01 runs it in a vm)');
-assert.match(scam, /dialog\.close\(\);\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*notifyScamShieldVisibility\(\);/u, 'closing 진위확인 updates the URL without waiting for a frame');
+assert.match(scam, /dialog\.removeAttribute\('open'\);\s*dialog\.open = false;\s*dialog\.hidden = true;[\s\S]*?notifyScamShieldVisibility\(\);/u, 'closing the independent scam page updates the URL without waiting for a frame');
 
 // ── Login return target: a closed set on / ──────────────────────────────
 const {
