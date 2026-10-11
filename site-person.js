@@ -1,5 +1,5 @@
 // Owner-only Person + SOS Core client. No public person search or contact data.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-6ef9a88b1caf';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-577fd151dea9';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
@@ -20,8 +20,25 @@ async function request(path, sessionToken, {method = 'GET', body, requestKey = '
   }
   return payload;
 }
-function person(row) { return Object.freeze({personId: row.person_id, displayName: row.display_name, nickname: row.nickname || '', relationship: row.relationship, birthYear: row.birth_year == null ? null : Number(row.birth_year), birthMonth: row.birthday_month == null ? null : Number(row.birthday_month), revision: row.revision, hasPhoto: row.has_photo === true, identityPhotoCount: Number(row.identity_photo_count || 0), identityPhotoRequired: Number(row.identity_photo_required || 10), identityPhotoState: row.identity_photo_state || 'INCOMPLETE', identityPhotoExpiresAt: row.identity_photo_expires_at || null, identityPhotoDaysRemaining: row.identity_photo_days_remaining ?? null, identityPhotoRenewalReminderDays: row.identity_photo_renewal_reminder_days ?? null, identityPhotoValidityDays: row.identity_photo_validity_days ?? null, identityPhotoRenewalPolicy: row.identity_photo_renewal_policy || null}); }
-function identityPhoto(row) { return Object.freeze({slotIndex: Number(row.slot_index), slotCode: row.slot_code || row.angle_code, revision: Number(row.revision), width: Number(row.width), height: Number(row.height), updatedAt: row.updated_at}); }
+function person(row) { return Object.freeze({personId: row.person_id, displayName: row.display_name, nickname: row.nickname || '', relationship: row.relationship, birthYear: row.birth_year == null ? null : Number(row.birth_year), birthMonth: row.birthday_month == null ? null : Number(row.birthday_month), revision: row.revision, hasPhoto: row.has_photo === true, identityPhotoCount: Number(row.identity_photo_count || 0), identityPhotoRequired: Number(row.identity_photo_required || 10), ...identityPhotoSet(row), identityPhotoState: row.identity_photo_state || 'INCOMPLETE', identityPhotoExpiresAt: row.identity_photo_expires_at || null, identityPhotoDaysRemaining: row.identity_photo_days_remaining ?? null, identityPhotoRenewalReminderDays: row.identity_photo_renewal_reminder_days ?? null, identityPhotoValidityDays: row.identity_photo_validity_days ?? null, identityPhotoRenewalPolicy: row.identity_photo_renewal_policy || null}); }
+function identityPhoto(row) { return Object.freeze({slotIndex: Number(row.slot_index), slotCode: row.slot_code || row.angle_code, category: row.category === 'BODY' || row.category === 'FACE' ? row.category : (/BODY/.test(row.slot_code || '') ? 'BODY' : 'FACE'), revision: Number(row.revision), width: Number(row.width), height: Number(row.height), updatedAt: row.updated_at}); }
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): three face photos and two body
+// photos (five) complete a registration and allow an SOS; ten are recommended.
+// An older Core sends no counts: then only the full ten count as complete.
+export const PERSON_IDENTITY_FACE_MINIMUM = 3;
+export const PERSON_IDENTITY_BODY_MINIMUM = 2;
+export const PERSON_IDENTITY_PHOTO_MAX = 10;
+function identityPhotoSet(row) {
+  const count = Number(row.identity_photo_count || 0);
+  const known = typeof row.identity_photo_complete === 'boolean';
+  return {
+    identityPhotoComplete: known ? row.identity_photo_complete : count >= PERSON_IDENTITY_PHOTO_MAX,
+    identityPhotoFaceCount: Number.isInteger(row.identity_photo_face_count) ? row.identity_photo_face_count : null,
+    identityPhotoBodyCount: Number.isInteger(row.identity_photo_body_count) ? row.identity_photo_body_count : null,
+    identityPhotoFaceMinimum: Number(row.identity_photo_face_minimum || PERSON_IDENTITY_FACE_MINIMUM),
+    identityPhotoBodyMinimum: Number(row.identity_photo_body_minimum || PERSON_IDENTITY_BODY_MINIMUM),
+  };
+}
 function sighting(row) { if (row.automatic_identity_decision !== false || row.contact_details_exposed !== false) throw new SiteCoreError('사람 제보 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({reportId: row.report_id, observedAt: row.observed_at, locationSummary: row.location_summary, description: row.description || '', reviewState: row.review_state, photoCount: Number(row.photo_count), minimumPhotoCount: Number(row.minimum_photo_count), maximumPhotoCount: Number(row.maximum_photo_count), canSubmit: row.can_submit === true, message: row.message}); }
 function sos(row) { if (row.matching_scope !== 'ACTIVE_SOS_ONLY' || row.automatic_identity_decision !== false) throw new SiteCoreError('SOS 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({sosId: row.sos_id, personId: row.person_id, displayName: row.display_name, status: row.status, lastSeenAt: row.last_seen_at, lastSeenSummary: row.last_seen_summary, description: row.description || '', intake: sosIntake(row.intake)}); }
 // SAFECARE-SOS-ADMIN-INTAKE (contract B1): Core records every SOS in the
@@ -88,11 +105,29 @@ export async function createPerson(sessionToken, input, fetchImpl) {
   }
 }
 export async function updatePerson(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}`, sessionToken, {method: 'PATCH', body: {expected_revision: input.revision, display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), nickname: input.nickname || null}}, fetchImpl); return person(payload.person); }
-// registrationCancel: Core deletes only an unfinished registration (fewer than ten
-// identity photos, no missing-person case ever) — SAFECARE-PERSON-DARK-CANCEL-01.
+// registrationCancel: Core deletes only an unfinished registration (identity photo
+// set not complete, no missing-person case ever) — SAFECARE-PERSON-DARK-CANCEL-01.
 export async function deletePerson(sessionToken, value, fetchImpl, {registrationCancel = false} = {}) { await request(`/v2/person-profiles/${encodeURIComponent(value.personId)}?expected_revision=${value.revision}${registrationCancel ? '&registration_cancel=1' : ''}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
 export async function putPersonPhoto(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}/photo`, sessionToken, {method: 'PUT', requestKey: input.requestKey || personRequestKey('photo'), body: {expected_revision: input.revision, photo_data_uri: input.dataUri}}, fetchImpl); return person(payload.person); }
 export async function listPersonIdentityPhotos(sessionToken, personId, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos`, sessionToken, {}, fetchImpl); return Object.freeze((payload.photos || []).map(identityPhoto)); }
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): one everyday photo, no slot. Core
+// decides FACE or BODY, refuses only wrong or useless photos and places it in
+// a free card. "identityCheck" is SAME or UNVERIFIED (never a stronger claim).
+export async function addPersonIdentityPhoto(sessionToken, personId, dataUri, fetchImpl) {
+  const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos`, sessionToken, {method: 'POST', body: {photo_data_uri: dataUri}}, fetchImpl);
+  const validity = payload.validity || {};
+  return Object.freeze({
+    photo: identityPhoto(payload.photo),
+    category: payload.category === 'BODY' ? 'BODY' : 'FACE',
+    identityCheck: payload.identity_check === 'SAME' ? 'SAME' : 'UNVERIFIED',
+    replayed: payload.idempotent_replay === true,
+    complete: validity.complete === true,
+    faceCount: Number(validity.face_count || 0),
+    bodyCount: Number(validity.body_count || 0),
+    photoCount: Number(validity.photo_count || 0),
+  });
+}
+export async function deletePersonIdentityPhoto(sessionToken, personId, slotIndex, fetchImpl) { await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos/${slotIndex}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
 export async function putPersonIdentityPhoto(sessionToken, personId, slotIndex, dataUri, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos/${slotIndex}`, sessionToken, {method: 'PUT', body: {photo_data_uri: dataUri}}, fetchImpl); return identityPhoto(payload.photo); }
 
 // SAFECARE-PHOTO-BULK-UPLOAD-01 (contract A): Core's identity slot table
@@ -151,14 +186,15 @@ export async function deleteHumanSightingPhoto(sessionToken, reportId, slotIndex
 const PERSON_ERROR_MESSAGES = Object.freeze({
   SESSION_REQUIRED: '로그인 후 사용할 수 있습니다.',
   PERSON_NETWORK_ERROR: '안심케어 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.',
-  PERSON_IDENTITY_PHOTO_DUPLICATE: '같은 사진은 여러 각도에 사용할 수 없습니다. 다른 방향에서 찍은 사진을 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_DUPLICATE: '이미 올린 사진이에요. 다른 사진을 골라 주세요.',
+  PERSON_IDENTITY_PHOTOS_FULL: '사진은 10장까지 등록할 수 있어요. 새 사진을 넣으려면 사진 갱신·관리에서 기존 사진을 먼저 빼 주세요.',
   HUMAN_SIGHTING_PHOTO_DUPLICATE: '같은 사진은 여러 장으로 사용할 수 없습니다. 다른 방향에서 찍은 사진을 선택해 주세요.',
   PERSON_IDENTITY_PHOTO_TOO_LARGE: '사진 용량이 너무 큽니다. 더 작은 사진을 선택해 주세요.',
   PERSON_IDENTITY_PHOTO_UNSUPPORTED: 'JPG, PNG, WEBP 사진만 등록할 수 있습니다.',
   PERSON_IDENTITY_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.',
   // Identity-photo intake gate (Core decides; nothing is stored on refusal).
   PERSON_IDENTITY_PHOTO_NON_IDENTITY_IMAGE: '사람 식별 사진이 아닙니다. 문서·사물·화면 사진은 등록할 수 없습니다.',
-  PERSON_IDENTITY_PHOTO_NO_PERSON: '사람을 확인할 수 없습니다. 안내 그림처럼 등록할 사람이 크게 나온 사진을 다시 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_NO_PERSON: '사람이 보이지 않는 사진이에요. 동물·물건·풍경 사진은 등록할 수 없어요.',
   PERSON_IDENTITY_PHOTO_NO_FACE: '사람 얼굴을 확인할 수 없습니다. 얼굴이 화면에 충분히 보이게 조금 뒤에서 촬영해 주세요.',
   PERSON_IDENTITY_PHOTO_MULTIPLE_FACES: '여러 사람이 함께 나온 사진은 등록할 수 없습니다. 등록할 사람 한 명만 나온 사진을 선택해 주세요.',
   PERSON_IDENTITY_PHOTO_WRONG_POSE: '촬영 방향이 맞지 않습니다. 안내 그림과 같은 방향으로 얼굴을 돌려 다시 촬영해 주세요.',
@@ -173,9 +209,9 @@ const PERSON_ERROR_MESSAGES = Object.freeze({
   PERSON_REID_PHOTO_QUALITY_INSUFFICIENT: '얼굴이나 모습이 선명하게 보이지 않습니다. 밝은 곳에서 다시 찍은 사진을 선택해 주세요.',
   PERSON_BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',
   BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',
-  PERSON_IDENTITY_PHOTOS_INCOMPLETE: '식별 사진 10장을 모두 등록해야 실종 상태로 전환할 수 있습니다.',
+  PERSON_IDENTITY_PHOTOS_INCOMPLETE: '얼굴 사진 3장과 몸(상반신·전신) 사진 2장을 등록해야 실종 상태로 전환할 수 있습니다.',
   PERSON_REGISTRATION_CANCEL_NOT_ALLOWED: '등록이 끝났거나 실종 기록이 있는 사람은 여기서 삭제할 수 없습니다. 목록에서 정보를 확인해 주세요.',
-  PERSON_PHOTO_REQUIRED: '식별 사진 10장을 모두 등록해야 실종 상태로 전환할 수 있습니다.',
+  PERSON_PHOTO_REQUIRED: '얼굴 사진 3장과 몸(상반신·전신) 사진 2장을 등록해야 실종 상태로 전환할 수 있습니다.',
   PERSON_IDENTITY_PHOTOS_EXPIRED: '식별 사진 유효기간이 지나 실종 상태로 전환할 수 없습니다. 사진을 먼저 갱신해 주세요.',
   PERSON_REID_CONSENT_REQUIRED: '실종 기간 동안 사진을 후보 검색에 사용하는 데 동의해 주세요.',
   PERSON_SOS_LOCATION_INVALID: '마지막으로 본 장소를 확인해 주세요.',
