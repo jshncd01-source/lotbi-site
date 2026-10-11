@@ -7,6 +7,9 @@
 //  1. A refusal must arrive with a way forward. "등록할 수 없습니다" on its own
 //     is the dead end this feature exists to replace, so the screen has to show
 //     the next step as something clickable.
+//     SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): photos go in through '사진 여러
+//     장 선택' (one slot-free POST each); a refused photo's result row carries
+//     that next step, and it replaces only that photo.
 //  2. The screen's own quick look must stay slacker than Core's. It exists for
 //     speed, not authority; if it ever refuses a photo Core would have taken,
 //     the owner is blocked by the wrong half of the system.
@@ -114,7 +117,10 @@ assert.equal(Number(petClient.match(/PET_PHOTO_MIN_EDGE = (\d+)/)?.[1]), 256, 'm
 
 assert.match(petUi, /inspectPetPhotoLocally/, 'the uploader must take the local quick look');
 assert.match(petUi, /pet-slot-retry-action/, 'the refusal needs a clickable next step');
-assert.match(petUi, /UPLOAD_FACE_OR_BODY_FIRST/, 'the anchor refusal must lead somewhere');
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the refused row's button reads its
+// label from Core's next_action (petPhotoNextActionLabel) and replaces that photo.
+assert.match(petClient, /UPLOAD_FACE_OR_BODY_FIRST/, 'the anchor refusal must lead somewhere');
+assert.match(petUi, /petPhotoNextActionLabel\(result\.nextAction\)/, 'the batch row labels its next step from Core');
 assert.match(petCss, /\.pet-slot-retry-action \{/, 'retry action has no style');
 
 // A browser that already holds the old modules must be made to fetch these.
@@ -192,25 +198,37 @@ function innerFixtureHtml() {
   // Keep the browser's own fetch before Core is stood in for, so the answer can
   // be posted back on a path the stub never sees.
   globalThis.__report = globalThis.fetch.bind(globalThis);
-  // Stand in for Core, refusing the way the species gate refuses.
-  globalThis.__puts = [];
+  // Never let a real OS file dialog open under headless Chrome: record which
+  // input a click landed on instead.
+  globalThis.__clicked = [];
+  const nativeClick = HTMLInputElement.prototype.click;
+  HTMLInputElement.prototype.click = function patchedClick() {
+    if (this.type === 'file') { globalThis.__clicked.push(this.dataset.petBulkReplaceInput ? 'replace:' + this.dataset.petBulkReplaceInput : this.dataset.petPhotoSourceInput || ''); return; }
+    return nativeClick.call(this);
+  };
+  // Stand in for Core's slot-free POST, refusing the way the species gate
+  // refuses: the answers come in the order the photos are sent.
+  globalThis.__posts = [];
+  const REFUSALS = [
+    {code: 'PET_PHOTO_NOT_DOG_OR_CAT', message: 'Pet photo does not show a dog or a cat', retryable: true, next_action: 'RETAKE_WITH_THE_PET_IN_FRAME'},
+    {code: 'PET_PHOTO_ANCHOR_REQUIRED', message: 'A whole-animal photo is required before a close-up', retryable: true, next_action: 'UPLOAD_FACE_OR_BODY_FIRST'},
+    {code: 'PET_PHOTO_TOO_BLURRY', message: 'Pet photo is too blurry to judge', retryable: true, next_action: 'RETAKE_IN_FOCUS'},
+  ];
+  let filled = [];
   globalThis.fetch = async (url, init) => {
     const target = String(url);
     const method = (init && init.method) || 'GET';
     const json = (body, status) => new Response(JSON.stringify(body), {status: status || 200, headers: {'Content-Type': 'application/json'}});
-    if (method === 'PUT' && /\\/photos\\/FACE_FRONT$/.test(target)) {
-      globalThis.__puts.push('FACE_FRONT');
-      return json({detail: {code: 'PET_PHOTO_NOT_DOG_OR_CAT', message: 'Pet photo does not show a dog or a cat', retryable: true, next_action: 'RETAKE_WITH_THE_PET_IN_FRAME'}}, 422);
+    const manifest = () => ({slot_count: filled.length, state: 'UPLOAD_INCOMPLETE', manifest_version: 1});
+    if (method === 'POST' && /\\/v2\\/pets\\/[^/]+\\/photos$/.test(target)) {
+      const refusal = REFUSALS[globalThis.__posts.length];
+      globalThis.__posts.push(refusal ? refusal.code : 'STORED');
+      if (refusal) return json({detail: refusal}, 422);
+      filled = [...filled, 'FACE_FRONT'];
+      return json({photo: {slot_code: 'FACE_FRONT'}, category: 'FACE', manifest: manifest(), idempotent_replay: false}, 201);
     }
-    if (method === 'PUT' && /\\/photos\\/NOSE_FRONT$/.test(target)) {
-      globalThis.__puts.push('NOSE_FRONT');
-      return json({detail: {code: 'PET_PHOTO_ANCHOR_REQUIRED', message: 'A whole-animal photo is required before a close-up', retryable: true, next_action: 'UPLOAD_FACE_OR_BODY_FIRST'}}, 422);
-    }
-    if (method === 'PUT' && /\\/photos\\/BODY_LEFT$/.test(target)) {
-      globalThis.__puts.push('BODY_LEFT');
-      return json({detail: {code: 'PET_PHOTO_TOO_BLURRY', message: 'Pet photo is too blurry to judge', retryable: true, next_action: 'RETAKE_IN_FOCUS'}}, 422);
-    }
-    if (/\\/v2\\/pets\\/[^/]+\\/photos$/.test(target)) return json({photos: [], manifest: {slot_count: 0, state: 'UPLOAD_INCOMPLETE', manifest_version: 1}});
+    if (method === 'PUT') { globalThis.__posts.push('PUT'); return json({}, 405); }
+    if (/\\/v2\\/pets\\/[^/]+\\/photos$/.test(target)) return json({photos: filled.map(slot_code => ({slot_code})), manifest: manifest()});
     if (/\\/v2\\/pets\\/sos$/.test(target)) return json({cases: []});
     if (/\\/v2\\/pets\\/found$/.test(target)) return json({cases: []});
     if (/\\/v2\\/pets$/.test(target)) return json({pets: [{pet_id: '${PET_ID}', name: '보리', species: 'DOG', sex: 'FEMALE', photo_completion_state: 'UPLOAD_INCOMPLETE', matching_consent_state: 'NOT_GRANTED'}]});
@@ -251,55 +269,59 @@ function noiseFile(size, blurPx) {
   return new Promise(resolve => canvas.toBlob(blob => resolve(new File([blob], 'x.jpg', {type: 'image/jpeg'})), 'image/jpeg', 0.92));
 }
 
-async function putIntoSlot(tile, file) {
-  const input = tile.querySelector('input[type="file"]');
+// Hand files to an input the way the browser does after the owner picks them,
+// then wait for the batch summary.
+async function deliver(input, files) {
   const transfer = new DataTransfer();
-  transfer.items.add(file);
+  for (const file of files) transfer.items.add(file);
   input.files = transfer.files;
   input.dispatchEvent(new Event('change'));
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    const error = tile.querySelector('.pet-slot-error');
-    if (error && !error.hidden && error.textContent.trim()) break;
+  await wait(50);
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const status = document.querySelector('[data-pet-bulk-status]')?.textContent || '';
+    if (status.startsWith('등록 성공')) break;
     await wait(100);
   }
-  const error = tile.querySelector('.pet-slot-error');
-  const retry = tile.querySelector('.pet-slot-retry');
-  const action = tile.querySelector('.pet-slot-retry-action');
+  await wait(150);
+}
+const rows = () => [...document.querySelectorAll('[data-pet-bulk-item]')].map(row => {
+  const action = row.querySelector('.pet-slot-retry-action');
   return {
-    message: error && !error.hidden ? error.textContent.trim() : '',
-    code: error ? error.dataset.petErrorCode || '' : '',
-    retryShown: Boolean(retry) && !retry.hidden,
+    state: row.dataset.petBulkItem,
+    message: row.querySelector('.person-bulk-item-message')?.textContent.trim() || '',
+    code: row.dataset.petErrorCode || '',
+    retryShown: Boolean(action),
     retryLabel: action ? action.textContent.trim() : '',
     nextAction: action ? action.dataset.petSlotNextAction || '' : '',
   };
-}
+});
 
 const result = {};
 try {
   await mountPetFamilyManager({sessionToken: 'fixture-token', root: document.getElementById('host')});
   document.querySelector('[data-pet-open="${PET_ID}"]').click();
   await wait(500);
-  const grid = document.querySelector('[data-pet-slot-grid]');
-  const tileFor = code => grid.querySelector('[data-pet-slot="' + code + '"]');
-
-  result.notADogOrCat = await putIntoSlot(tileFor('FACE_FRONT'), await noiseFile(640, 0));
-  result.anchorFirst = await putIntoSlot(tileFor('NOSE_FRONT'), await noiseFile(640, 0));
-  result.serverBlur = await putIntoSlot(tileFor('BODY_LEFT'), await noiseFile(640, 0));
-
-  // The anchor refusal's button must take the owner to a whole-animal slot,
-  // not back to the same picker that just failed.
-  const nose = tileFor('NOSE_FRONT');
-  nose.querySelector('.pet-slot-retry-action').click();
-  await wait(300);
-  result.focusedAfterAnchorRetry = document.activeElement?.closest('[data-pet-slot]')?.dataset.petSlot || '';
-
+  result.tilePickers = document.querySelectorAll('[data-pet-slot-grid] input[type="file"]').length;
+  // Three sharp frames in one batch: Core refuses each for its own reason.
+  await deliver(document.querySelector('[data-pet-bulk-input]'), [await noiseFile(640, 0), await noiseFile(640, 0), await noiseFile(640, 0)]);
+  [result.notADogOrCat, result.anchorFirst, result.serverBlur] = rows();
+  result.postsAfterBatch = globalThis.__posts.slice();
+  // The anchor refusal's button replaces only that photo: it opens the
+  // picker for one photo (Desktop: the file dialog), and the new photo is sent.
+  globalThis.__clicked.length = 0;
+  document.querySelectorAll('[data-pet-bulk-item]')[1].querySelector('.pet-slot-retry-action').click();
+  await wait(100);
+  result.clickedAfterAnchorRetry = globalThis.__clicked.slice();
+  await deliver(document.querySelector('[data-pet-bulk-replace-input="gallery"]'), [await noiseFile(640, 0)]);
+  result.afterReplace = rows();
+  result.statusAfterReplace = document.querySelector('[data-pet-bulk-status]')?.textContent || '';
   // The quick look: a blurred frame and a tiny frame must fail on the screen,
   // with no request leaving the browser at all.
-  const before = globalThis.__puts.length;
-  result.localBlur = await putIntoSlot(tileFor('FACE_LEFT'), await noiseFile(640, 9));
-  result.localTiny = await putIntoSlot(tileFor('FACE_RIGHT'), await noiseFile(200, 0));
-  result.requestsDuringLocalChecks = globalThis.__puts.length - before;
-  result.puts = globalThis.__puts.slice();
+  const before = globalThis.__posts.length;
+  await deliver(document.querySelector('[data-pet-bulk-input]'), [await noiseFile(640, 9), await noiseFile(200, 0)]);
+  [result.localBlur, result.localTiny] = rows();
+  result.requestsDuringLocalChecks = globalThis.__posts.length - before;
+  result.posts = globalThis.__posts.slice();
 
   const client = await import('/site-pet.js');
   result.anchorSlots = [...client.PET_PHOTO_ANCHOR_SLOT_CODES];
@@ -354,18 +376,17 @@ assert.ok(seen.notADogOrCat.message.includes('강아지'), seen.notADogOrCat.mes
 assert.ok(seen.notADogOrCat.message.includes('고양이'), seen.notADogOrCat.message);
 assert.equal(seen.notADogOrCat.retryShown, true, 'the refusal showed no next step');
 assert.equal(seen.notADogOrCat.retryLabel, '다시 찍기');
-
+assert.equal(seen.tilePickers, 0, 'the ten tiles are examples without a picker; the batch is the way in');
 // A close-up is held until the pet has a whole-animal photo, and the button
-// says so rather than offering the same picker again.
+// says so.
 assert.equal(seen.anchorFirst.code, 'PET_PHOTO_ANCHOR_REQUIRED');
 assert.equal(seen.anchorFirst.nextAction, 'UPLOAD_FACE_OR_BODY_FIRST');
 assert.equal(seen.anchorFirst.retryLabel, '얼굴 사진부터 올리기');
-assert.equal(
-  seen.focusedAfterAnchorRetry,
-  'FACE_FRONT',
-  'the anchor refusal must move the owner to a whole-animal slot',
-);
-
+assert.deepEqual(seen.clickedAfterAnchorRetry, ['replace:gallery'], 'the next step opens the picker for that one photo (Desktop: the file dialog)');
+assert.deepEqual(seen.afterReplace.map(row => row.state), ['FAILED', 'STORED', 'FAILED'], 'the replacement takes the refused row\'s place; the other rows stay');
+assert.equal(seen.afterReplace[1].retryShown, false, 'a stored photo offers no retry');
+assert.equal(seen.statusAfterReplace, '등록 성공 1장 · 실패 2장');
+assert.deepEqual(seen.postsAfterBatch, ['PET_PHOTO_NOT_DOG_OR_CAT', 'PET_PHOTO_ANCHOR_REQUIRED', 'PET_PHOTO_TOO_BLURRY'], 'one POST per photo, in order');
 assert.equal(seen.serverBlur.code, 'PET_PHOTO_TOO_BLURRY');
 assert.equal(seen.serverBlur.retryShown, true);
 
@@ -384,7 +405,7 @@ assert.equal(
 );
 
 // Sharp, full-size frames did reach Core: the quick look is a hint, not a gate.
-assert.deepEqual(seen.puts, ['FACE_FRONT', 'NOSE_FRONT', 'BODY_LEFT']);
+assert.deepEqual(seen.posts, ['PET_PHOTO_NOT_DOG_OR_CAT', 'PET_PHOTO_ANCHOR_REQUIRED', 'PET_PHOTO_TOO_BLURRY', 'STORED']);
 
 // Read back as the browser actually computed them, not as the source reads.
 assert.deepEqual(seen.anchorSlots, CORE_ANCHOR_SLOTS, 'anchor slots must match Core');

@@ -108,3 +108,13 @@
   .lotbi-mychild-allergen-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lotbi-mychild-fact { grid-template-columns: 80px minmax(0, 1fr); }
 }
+/* MY-CHILD-MEAL-LINK-PDF-01: 학교·유치원 공개 급식표 (link / PDF / image, shown as published). */
+.lotbi-mychild-mealplan-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.lotbi-mychild-mealplan {
+  display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--lotbi-border-default); border-radius: 12px;
+  background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); min-width: 0;
+}
+.lotbi-mychild-mealplan-name { font-size: 15px; overflow-wrap: anywhere; }
+.lotbi-mychild-mealplan-meta { color: var(--lotbi-text-secondary); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.lotbi-mychild-mealplan .consumer-action { justify-self: start; min-height: 44px; }
+.lotbi-mychild-mealplan-image { display: block; max-width: 100%; height: auto; border: 1px solid var(--lotbi-border-default); border-radius: 8px; }

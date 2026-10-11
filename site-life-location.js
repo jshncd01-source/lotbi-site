@@ -8,9 +8,9 @@
 //   3) 그것도 없으면 아무것도 보내지 않는다 — Core 가 지역을 되묻는다.
 // 좌표는 소수 셋째 자리(약 100m)로 반올림해 이 한 번의 요청에만 싣는다. 이 모듈은
 // 아무것도 저장하지 않는다.
-import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-02f4ae0dc7df';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-02f4ae0dc7df';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-02f4ae0dc7df';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-5f9e0f7820b6';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-5f9e0f7820b6';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-5f9e0f7820b6';
 
 // JEONBUK-PILOT-01: "근처 전북 맛집" (전북 맛집·음식) is a life public-data lookup too.
 const LIFE_TARGET_RE = /(?:동물\s*병원|애견\s*병원|약국|병원|의원|응급실|응급\s*의료|소아\s*청소년과|소아과|내과|이비인후과|치과|피부과|정형외과|안과|산부인과|달빛\s*어린이|전북[^.?!\n]{0,24}?(?:맛집|음식점|식당|막걸리집))/u;
@@ -97,6 +97,18 @@ function timeout(ms) {
 // a pharmacy filter — use what is already allowed, else the saved region,
 // without asking again. A permission already granted is still used.
 let permissionAskedWithoutLocation = false;
+
+// CONVERSATION-ANSWER-UX-01: [현재 위치 사용] under a "where?" answer asks the
+// browser again only when it still can. A permission the browser has blocked
+// (or no location API at all) gets words instead of a silent second question.
+export async function lifeCurrentLocationBlocked({permissionState = getBrowserLocationPermissionState} = {}) {
+  try {
+    const state = await permissionState();
+    return state === LOCATION_PERMISSION.DENIED || state === LOCATION_PERMISSION.UNAVAILABLE;
+  } catch {
+    return false;
+  }
+}
 
 export function resetLifeLocationPromptMemory() {
   permissionAskedWithoutLocation = false;

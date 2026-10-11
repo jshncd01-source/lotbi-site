@@ -451,6 +451,22 @@ function innerFixtureHtml() {
       draftPhotos = [...draftPhotos.filter(item => item.slot_code !== slotCode), photo];
       return new Response(JSON.stringify({photo}), {status: 200, headers: {'Content-Type': 'application/json'}});
     }
+    // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): one slot-free POST per photo;
+    // Core places the first three as face photos and the next two as
+    // whole-body photos (accepted, species matched).
+    if (/\\/v2\\/pet-registration-drafts\\/pdraft_eeeeeeeeeeeeeeeeeeee\\/photos$/.test(target) && options.method === 'POST') {
+      const order = [['FACE_FRONT', 'FACE'], ['FACE_LEFT', 'FACE'], ['FACE_RIGHT', 'FACE'], ['BODY_LEFT', 'BODY'], ['BODY_RIGHT', 'BODY'], ['BACK_REAR', 'BODY']];
+      const [slotCode, category] = order.find(([code]) => !draftPhotos.some(item => item.slot_code === code));
+      const photo = {slot_code: slotCode, slot_index: 0, revision: 1, inspection_state: 'ACCEPTED', detected_species: draftSpecies};
+      draftPhotos = [...draftPhotos, photo];
+      globalThis.__draftPosts = (globalThis.__draftPosts || 0) + 1;
+      return new Response(JSON.stringify({photo, category, idempotent_replay: false, draft: {
+        draft_id: 'pdraft_eeeeeeeeeeeeeeeeeeee', status: 'ACTIVE', current_step: 'PHOTOS', revision: 3,
+        species: draftSpecies || 'DOG', name: draftFields.name || null, sex: draftFields.sex || null,
+        breed_code: draftFields.breed_code || null, breed: draftFields.breed || null,
+        matching_consent_state: 'NOT_GRANTED', photos: draftPhotos,
+      }}), {status: 201, headers: {'Content-Type': 'application/json'}});
+    }
     if (draftPhotoMatch && options.method === 'DELETE') {
       draftPhotos = draftPhotos.filter(item => item.slot_code !== draftPhotoMatch[1]);
       return new Response(JSON.stringify({}), {status: 200, headers: {'Content-Type': 'application/json'}});
@@ -545,8 +561,13 @@ function innerFixtureHtml() {
     artworkSrc: tile.querySelector('.pet-slot-guide-image')?.getAttribute('src') || '',
     previewSrc: tile.querySelector('.pet-slot-photo')?.getAttribute('src')?.slice(0, 5) || '',
     stuckLoading: Boolean(tile.querySelector('.pet-slot-loading')),
-    accept: tile.querySelector('input[type="file"]').getAttribute('accept'),
+    inputs: tile.querySelectorAll('input').length,
   }));
+  const bulkInputs = [...detail.querySelectorAll('[data-pet-bulk] input[type="file"]')].map(input => ({
+    source: input.dataset.petPhotoSourceInput || '', bulk: input.hasAttribute('data-pet-bulk-input'), replace: input.hasAttribute('data-pet-bulk-replace-input'),
+    accept: input.getAttribute('accept') || '', multiple: input.multiple, capture: input.getAttribute('capture') || '',
+  }));
+  const bulkPick = detail.querySelector('[data-pet-bulk-pick]')?.textContent || '';
   const photoCount = detail.querySelector('.pet-photo-count').textContent;
   const progressNote = detail.querySelector('.pet-photo-progress-note').textContent;
 
@@ -635,31 +656,28 @@ function innerFixtureHtml() {
   const draftSlots = [...document.querySelectorAll('[data-pet-draft-slot]')].map(tile => tile.dataset.petDraftSlot);
   const photoGuide = document.querySelector('[data-safecare-guide]')?.dataset.safecareGuide || '';
 
-  // PET-PHOTO-UX-03: FACE_FRONT is the one photo the owner must confirm
-  // before anything else in the registration screen unlocks.
-  // PET-PHOTO-SEQUENTIAL-01: after that the slots open one at a time in the
-  // order shown — 2번 once 1번 is confirmed, 3번 once 2번 holds a photo.
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): no tile is locked and no tile
+  // has a picker; photos go in through '사진 여러 장 선택' (one slot-free POST
+  // each) and three face + two whole-body photos open the next step. This
+  // replaces the PET-PHOTO-UX-03 / PET-PHOTO-SEQUENTIAL-01 slot gate.
   const draftGate = () => ({
     banner: document.querySelector('.pet-draft-gate-banner')?.textContent || '',
+    counter: document.querySelector('[data-pet-draft-slot-grid]')?.closest('section, div')?.querySelector('[data-safecare-photo-count]')?.textContent || document.querySelector('[data-safecare-photo-count]')?.textContent || '',
+    complete: document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoComplete || '',
+    note: document.querySelector('[data-pet-draft-photo-note]')?.textContent || '',
+    nextDisabled: document.querySelector('[data-pet-draft-next="REVIEW"]')?.disabled ?? null,
+    rows: [...document.querySelectorAll('[data-pet-bulk-item]')].map(row => row.dataset.petBulkItem),
     tiles: [...document.querySelectorAll('[data-pet-draft-slot]')].map(tile => ({
       code: tile.dataset.petDraftSlot,
       locked: tile.dataset.petDraftSlotLocked,
-      chooseDisabled: tile.querySelector('.pet-slot-actions button')?.disabled ?? null,
-      lockHint: tile.querySelector('.pet-draft-photo-locked-hint')?.textContent || '',
+      controls: tile.querySelectorAll('input, .pet-slot-actions button:not([data-pet-draft-slot-delete])').length,
       stateText: tile.querySelector('.pet-draft-photo-state')?.textContent || '',
       filled: tile.dataset.petSlotFilled,
     })),
   });
-  const setDraftFile = slotCode => {
-    const tile = [...document.querySelectorAll('[data-pet-draft-slot]')]
-      .find(item => item.dataset.petDraftSlot === slotCode);
-    const input = tile.querySelector('input[type="file"]');
-    const file = new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], slotCode + '.png', {type: 'image/png'});
-    const transfer = new DataTransfer();
-    transfer.items.add(file);
-    input.files = transfer.files;
-    input.dispatchEvent(new Event('change', {bubbles: true}));
-  };
+  // The batch itself (prepare → POST, five photos open the next step) needs
+  // real time for image decoding, which this --virtual-time-budget render does
+  // not give: validate_safecare_pet_photo_easy_upload_01.mjs runs it.
   // Each upload still crosses the mocked fetch's own promise chain, so wait
   // for the actual outcome rather than a fixed sleep — bounded so a genuine
   // failure still surfaces quickly instead of hanging.
@@ -674,12 +692,8 @@ function innerFixtureHtml() {
   };
 
   const gateBeforeFaceFront = draftGate();
-  setDraftFile('FACE_FRONT');
-  await waitFor(() => draftGate().tiles.find(tile => tile.code === 'FACE_FRONT').stateText === '사진 확인됨');
-  const gateAfterFaceFront = draftGate();
-  setDraftFile('FACE_LEFT');
-  await waitFor(() => draftGate().tiles.find(tile => tile.code === 'FACE_LEFT').filled === 'true');
-  const gateAfterSecond = draftGate();
+  gateBeforeFaceFront.bulkPick = document.querySelector('[data-pet-bulk-pick]')?.textContent || '';
+  gateBeforeFaceFront.examples = document.querySelector('[data-pet-slot-examples]')?.textContent || '';
 
   const registrationProgress = document.querySelector('[data-pet-draft-progress]')?.textContent || '';
   const registrationSteps = [...document.querySelectorAll('[data-pet-draft-step]')].map(item => ({
@@ -710,6 +724,8 @@ function innerFixtureHtml() {
     revealedRegistration,
     standingConsentControlPresent,
     slots,
+    bulkInputs,
+    bulkPick,
     cases,
     photoCount,
     progressNote,
@@ -725,8 +741,6 @@ function innerFixtureHtml() {
     petRenewalNotice,
     photoGuide,
     gateBeforeFaceFront,
-    gateAfterFaceFront,
-    gateAfterSecond,
     speciesChoices,
     registrationProgress,
     registrationSteps,
@@ -821,7 +835,8 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.deepEqual(result.cards.map(card => card.name), ['보리', '나비'], `${label}: pet names did not render`);
   assert.equal(result.cards[0].species, '강아지', `${label}: DOG must read 강아지`);
   assert.equal(result.cards[1].species, '고양이', `${label}: CAT must read 고양이`);
-  assert.equal(result.cards[0].progress, '사진 3/10', `${label}: photo completion must show filled/total`);
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the card counts photos; ten is not a target.
+  assert.equal(result.cards[0].progress, '사진 3장', `${label}: photo completion must show how many photos are stored`);
   assert.equal(result.cards[0].consent, '매칭 동의 안 함', `${label}: NOT_GRANTED must read as not consented`);
   assert.equal(result.cards[1].consent, '매칭 동의함', `${label}: GRANTED must read as consented`);
 
@@ -848,7 +863,7 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   );
   for (const slot of result.slots) {
     assert.ok(slot.hint.length > 0, `${label}: slot ${slot.code} has no shooting hint`);
-    assert.equal(slot.accept, 'image/jpeg,image/png', `${label}: slot ${slot.code} accepts the wrong types`);
+    assert.equal(slot.inputs, 0, `${label}: slot ${slot.code} is an example without its own picker (2nd round)`);
     assert.ok(!slot.stuckLoading, `${label}: slot ${slot.code} is stuck on a loading label`);
     if (slot.filled === 'true') {
       assert.equal(slot.previewSrc, 'blob:', `${label}: filled slot ${slot.code} must preview from a blob, not a URL`);
@@ -860,8 +875,13 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
       );
     }
   }
-  assert.equal(result.photoCount, '등록 완료 3 / 10 · 남은 사진 7장', `${label}: photo progress must count filled slots and name what is left`);
-  assert.match(result.progressNote, /^7장 남았습니다/, `${label}: progress note must name what is left`);
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): face 3 + whole body 2 is the set.
+  assert.equal(result.photoCount, '얼굴 1/3 · 몸 0/2 · 지금 3장', `${label}: photo progress must count face and body photos`);
+  assert.equal(result.progressNote, '얼굴 사진 2장과 몸 전체가 보이는 사진 2장이 더 있으면 실종 상태로 전환할 수 있어요.', `${label}: progress note must name what is left`);
+  assert.equal(result.bulkPick, '사진 여러 장 선택', `${label}: 사진 갱신·관리 adds photos through the batch`);
+  const bulkGallery = result.bulkInputs.find(input => input.bulk);
+  assert.deepEqual(bulkGallery, {source: 'gallery', bulk: true, replace: false, accept: 'image/*', multiple: true, capture: ''}, `${label}: the batch's gallery input takes several photos and never the narrow list`);
+  assert.deepEqual(result.bulkInputs.filter(input => !input.replace).map(input => [input.source, input.multiple, input.capture]), [['camera', false, 'environment'], ['gallery', true, ''], ['file', true, '']], `${label}: Camera / Gallery / File stay (SITE-PET-PHOTO-SOURCE-01)`);
 
   assert.equal(result.cases.sos.length, 1, `${label}: the ACTIVE SOS must render on its pet's card`);
   assert.ok(result.cases.sos[0].text.includes('망원한강공원'), `${label}: SOS last-seen place must render`);
@@ -910,49 +930,24 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.ok(result.petRenewalNotice.includes('나이와 관계없이 · 6개월(180일)마다'), `${label}: pet photo step must confirm the six-month renewal policy`);
   assert.equal(result.photoGuide, 'dog', `${label}: the dog photo guide must show above the ten slots`);
 
-  // PET-PHOTO-UX-03: only FACE_FRONT is open at first; the other nine are
-  // locked with a stated, disabled reason until it is accepted, then all
-  // nine open at once in any order.
-  const faceFrontBefore = result.gateBeforeFaceFront.tiles.find(tile => tile.code === 'FACE_FRONT');
-  assert.equal(faceFrontBefore.locked, 'false', `${label}: FACE_FRONT must be open before anything is confirmed`);
-  assert.equal(faceFrontBefore.chooseDisabled, false, `${label}: FACE_FRONT's upload action must not be disabled`);
-  for (const tile of result.gateBeforeFaceFront.tiles.filter(item => item.code !== 'FACE_FRONT')) {
-    assert.equal(tile.locked, 'true', `${label}: ${tile.code} must be locked before FACE_FRONT is confirmed`);
-    assert.equal(tile.chooseDisabled, true, `${label}: ${tile.code}'s upload action must be disabled while locked`);
-    assert.ok(tile.lockHint.length > 0, `${label}: ${tile.code} must state why it is locked`);
-    assert.ok(!/^[A-Z_]+$/.test(tile.lockHint), `${label}: ${tile.code}'s lock reason must not be a bare internal code`);
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round, owner decision 2026-10-10): no
+  // slot is locked or has its own picker; photos go in through the batch and
+  // three face + two whole-body photos open the next step (the person rule).
+  for (const tile of result.gateBeforeFaceFront.tiles) {
+    assert.equal(tile.locked, undefined, `${label}: ${tile.code} must not be locked`);
+    assert.equal(tile.controls, 0, `${label}: ${tile.code} is an example without a picker`);
   }
-  assert.match(result.gateBeforeFaceFront.banner, /먼저 얼굴 정면/,
-    `${label}: the banner must say to confirm the face-front photo first`);
-
-  assert.equal(
-    result.gateAfterFaceFront.tiles.find(tile => tile.code === 'FACE_FRONT').stateText,
-    '사진 확인됨',
-    `${label}: an accepted FACE_FRONT photo must say so`,
-  );
-  const afterFront = Object.fromEntries(result.gateAfterFaceFront.tiles.map(tile => [tile.code, tile]));
-  assert.equal(afterFront.FACE_LEFT.locked, 'false', `${label}: 2번 must open once FACE_FRONT is confirmed`);
-  assert.equal(afterFront.FACE_LEFT.chooseDisabled, false, `${label}: 2번's upload action must re-enable once open`);
-  for (const tile of result.gateAfterFaceFront.tiles.slice(2)) {
-    assert.equal(tile.locked, 'true', `${label}: ${tile.code} must stay locked until the slot before it holds a photo`);
-    assert.equal(tile.chooseDisabled, true, `${label}: ${tile.code}'s upload action must stay disabled while locked`);
-  }
-  assert.equal(afterFront.FACE_RIGHT.lockHint, '2번 얼굴 왼쪽 사진을 올리면 열려요.',
-    `${label}: a locked slot must name the photo that opens it`);
-  assert.match(result.gateAfterFaceFront.banner, /2번 얼굴 왼쪽/,
-    `${label}: the banner must name the next slot to fill`);
-  const afterSecond = Object.fromEntries(result.gateAfterSecond.tiles.map(tile => [tile.code, tile]));
-  assert.equal(afterSecond.FACE_LEFT.filled, 'true', `${label}: 2번 must take the upload`);
-  assert.ok(afterSecond.FACE_LEFT.stateText.length > 0, `${label}: 2번 must show a saved/inspection state`);
-  assert.equal(afterSecond.FACE_RIGHT.locked, 'false', `${label}: 3번 must open once 2번 holds a photo`);
-  assert.equal(afterSecond.BODY_LEFT.locked, 'true', `${label}: 4번 must wait for 3번`);
-  assert.equal(afterSecond.NOSE_RIGHT.locked, 'true', `${label}: 9번 must not open out of order`);
-  assert.match(result.gateAfterSecond.banner, /3번 얼굴 오른쪽/,
-    `${label}: the banner must move on to the next slot`);
+  assert.equal(result.gateBeforeFaceFront.banner, '', `${label}: no 'face front first' banner any more`);
+  assert.equal(result.gateBeforeFaceFront.counter, '얼굴 0/3 · 몸 0/2 · 지금 0장 (10장까지)', label);
+  assert.equal(result.gateBeforeFaceFront.nextDisabled, true, `${label}: nothing yet, no next step`);
+  assert.equal(result.gateBeforeFaceFront.complete, 'false', label);
+  assert.equal(result.gateBeforeFaceFront.note, '얼굴 사진 3장과 몸 전체가 보이는 사진 2장이 더 있으면 다음 단계로 넘어갈 수 있어요.', label);
+  assert.equal(result.gateBeforeFaceFront.bulkPick, '사진 여러 장 선택', `${label}: the batch is the way in`);
+  assert.equal(result.gateBeforeFaceFront.examples, '아래 10칸은 어떤 사진이 있으면 좋은지 보여 주는 예시예요. 칸을 다 채우지 않아도 돼요.', label);
   assert.deepEqual(result.speciesChoices, ['DOG', 'CAT'], `${label}: the first step must offer dog or cat before photos`);
-  assert.equal(result.registrationProgress, '반려동물 등록 2단계 / 4단계 · 사진 10장',
+  assert.equal(result.registrationProgress, '반려동물 등록 2단계 / 4단계 · 사진',
     `${label}: registration must identify the current numbered step`);
-  assert.deepEqual(result.registrationSteps.map(step => step.name), ['기본정보', '사진 10장', '최종 확인', '등록 완료'],
+  assert.deepEqual(result.registrationSteps.map(step => step.name), ['기본정보', '사진', '최종 확인', '등록 완료'],
     `${label}: registration must show the four steps in order`);
   assert.deepEqual(result.registrationSteps.map(step => step.number), ['✓', '2', '3', '4'],
     `${label}: registration steps must be numbered, with the finished step checked`);
