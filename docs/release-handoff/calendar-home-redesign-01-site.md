@@ -1,14 +1,14 @@
 READY_FOR_DEPLOY=YES
-STATUS=구현 및 검증 완료 / READY 브랜치 준비 / Claude 배포 대기
+STATUS=구현 및 검증 완료 / READY 커밋 준비 / Claude 배포 대기
 REPO=lotbi-site
 OWNER=jshncd01-source
 FEATURE_BRANCH=feature/calendar-home-redesign-01-site
 PR=없음 (Ncloud Git 브랜치 인계)
-READY_CODE_SHA=69268b559c49fec7abf64679eca953ddc36ac27d
+READY_CODE_SHA=0e5da39c1b8f50476c2b215d516eb377532076a4
 BASE_MAIN_SHA=300859c4829b414fb333558a2df545e5c40933ce
 INITIAL_MAIN_SHA=7c4f09445676287f242271cbdfb32d91ec33891e (SITE-T54, 작업 시작 기준)
 REMOTE=ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git
-ASSET_VERSION=aset-d7ec850630cb
+ASSET_VERSION=aset-b3fb2b84997d
 MIGRATION=NO
 ENV_CHANGE_REQUIRED=NO
 SECRET_CHANGE_REQUIRED=NO
@@ -60,6 +60,17 @@ DEPLOYED=NO
 - 최종 자산 버전: `aset-d7ec850630cb`; `asset_cache_version --write` 후 `--check` PASS (`targets=169`, `refs=206`).
 - 최종 스크린샷: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\reready-main-300859c4\`.
 
+## 2026-10-12 Gate 1.0.6 Linux 1024px 반환 수정
+
+- 반환 후보: `cce57e45e1478c57e7cbbcbc4962685c9265515c`, Gate `run_id=20261011T184114Z-172254-1979112342`.
+- 실패 문구: `1024-auth: 2026-10-10 calendar-weather-temperature-min overlaps the date`.
+- Windows Chrome 검사기에 Linux와 동등한 `DejaVu Sans` 우선 글꼴과 1.2 기본 line box 조건을 추가했다. 수정 전 새 `1024-auth-linux`가 반환 문구와 동일하게 실패하는 것을 확인했다.
+- 수정: 승인된 글자 크기·위치·날씨·일정 배치는 유지하고, 601px 이상 월 달력 날짜 숫자의 line-height만 `1`로 고정했다. 600px 이하 휴대폰의 기존 line-height는 바꾸지 않았다.
+- 경계 회귀: `1023/1024/1025/1100/1101/1280-auth-linux`를 추가했다. 기존 단언·허용 오차·표시 기대값은 삭제·완화·skip하지 않았다.
+- 코드 커밋: `0e5da39c1b8f50476c2b215d516eb377532076a4`.
+- 자산 버전: `aset-b3fb2b84997d`; `asset_cache_version --write` 후 `--check` PASS (`targets=169`, `refs=206`).
+- 증거: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\gate-return-linux-1024-temperature\`.
+
 ## 구현 범위
 
 1. 상단: 제목/설명, `+ 일정 추가`, 설정, 닫기. 추가 버튼은 현재 선택 날짜로 실제 편집기를 연다.
@@ -79,10 +90,10 @@ DEPLOYED=NO
 
 ## 변경 파일
 
-`BASE_MAIN_SHA..READY_CODE_SHA` 기준 118개다. 정확한 목록은 다음 명령으로 재현한다.
+`BASE_MAIN_SHA..READY_CODE_SHA` 기준 정확한 목록은 다음 명령으로 재현한다.
 
 ```text
-git diff --name-status 300859c4829b414fb333558a2df545e5c40933ce..69268b559c49fec7abf64679eca953ddc36ac27d
+git diff --name-status 300859c4829b414fb333558a2df545e5c40933ce..0e5da39c1b8f50476c2b215d516eb377532076a4
 ```
 
 직접 기능 변경:
@@ -124,12 +135,16 @@ git diff --name-status 300859c4829b414fb333558a2df545e5c40933ce..69268b559c49fec
 
 자산 캐시 생성 결과:
 
-- `site-asset-version.json`과 HTML/JS의 자산 query 참조가 `aset-d7ec850630cb`로 함께 갱신됐다.
+- `site-asset-version.json`과 HTML/JS의 자산 query 참조가 `aset-b3fb2b84997d`로 함께 갱신됐다.
 - 새 CSS 파일은 추가하지 않았다. `index.html`, `auth/callback/index.html`, 기타 정적 진입점의 기존 CSS 순서를 바꾸지 않았다.
 
 ## 검사 결과
 
 - 최신 main `300859c4` 최종 통합본: 캘린더 `validate_calendar*.mjs` 50개 전체 PASS (`50/50`, 실패 0).
+- Linux 1024px 반환 수정 후 캘린더 `validate_calendar*.mjs` 50개 전체 재실행 PASS (`50/50`, 실패 0).
+- `validate_calendar_month_temperature_01.mjs`: 47개 조합 PASS. Linux 동등 글꼴 조건의 `1023/1024/1025/1100/1101/1280px`가 모두 날짜·최저/최고 온도 비겹침을 통과했다.
+- 자산 갱신 후 인접 핵심 검사 11개 PASS: month temperature, holiday surface/settings icon, modal runtime, month geometry, cross-platform UX, responsive, toolbar polish, system dark, quiet location, touch monthnav/day detail, conversation design.
+- `git diff --check` 및 `git diff --cached --check`: PASS. 커밋 blob은 LF다.
 - 기존 2개 실패 해소: `validate_calendar_quiet_location_01.mjs`, `validate_calendar_touch_monthnav_daysheet_01.mjs` PASS. 연동 메타 검사 `validate_calendar_secondary_surfaces_01.mjs`도 PASS.
 - 새 main 영향 검사: `validate_conversation_design_01.mjs` PASS, `validate_place_card_carousel_no_drift_01.mjs` PASS. 캘린더와 대화 UI의 가로 넘침·카드 중심 이동 없음·라이트/다크를 확인했다.
 - 최종 증거 재캡처: PC 1280 및 모바일 360, 빈 상태/6개 상태, 라이트/다크, 상세/월 합계와 610px 기본·넓은 글꼴을 `reready-main-300859c4`에 저장하고 육안 확인했다.
@@ -192,6 +207,7 @@ git diff --name-status 300859c4829b414fb333558a2df545e5c40933ce..69268b559c49fec
 - 최신 main 재READY 후 재캡처: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\reready-main-9147419f\`
 - Gate 1.0.6 610px 반환 수정 후: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\gate-return-610-temperature\`
 - 최신 main `300859c4` 통합 후: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\reready-main-300859c4\`
+- Gate 1.0.6 Linux 1024px 반환 수정 후: `C:\Users\jshnc\Documents\Codex\2026-10-11\lotbi-master-claude-2-lotbi-1\outputs\calendar-final-design\gate-return-linux-1024-temperature\`
 
 시안 1 대응 빈 상태:
 
@@ -218,6 +234,7 @@ git diff --name-status 300859c4829b414fb333558a2df545e5c40933ce..69268b559c49fec
 ## NOT TESTED
 
 - 실제 iPhone Safari, Android Chrome, Samsung Internet, 카카오톡 내장 브라우저 실기기.
+- 실제 Linux trusted gate 재실행. 로컬에서는 Windows Chrome에 Linux 동등 `DejaVu Sans` 우선 글꼴과 1.2 기본 line box를 적용해 반환 실패를 재현하고 인접 1023~1280px를 검증했다.
 - Production 배포 및 Production 사용자 계정의 실제 일정·지출 저장/재조회.
 - Production 날씨/음력 공급자의 실시간 응답과 장애 전환. 로컬은 API 계약 fixture/실패 fixture 기반.
 - Linux 전체 merge gate. 반환된 단일 검사기는 Linux gate 조건과 같은 `mkdtemp` 격리 프로필로 직접 PASS했지만, 이 Windows 작업 호스트에는 WSL 배포판이 없어 전체 Linux gate 자체는 실행하지 않았다.
