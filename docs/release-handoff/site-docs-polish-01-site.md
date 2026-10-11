@@ -1,7 +1,7 @@
 READY_FOR_DEPLOY=YES
 MIGRATION=NO
 DEPLOY_ORDER=SITE 단독. CSS 한 파일(`site-consumer-documents.css`)과 캐시 토큰 갱신뿐이라 다른 조각과 순서 의존이 없다.
-USER_DECISION_NEEDED=NONE. 소유자 확인 1건(아래 '문구 확인').
+USER_DECISION_NEEDED=NONE. (refund.html 한 문장은 소유자 승인으로 고침 — 아래 '문구 1건 수정'.)
 
 # SITE-DOCS-POLISH-01 — 안내 문서 페이지군 정리 (QA 화면전수 01 TOP5-②)
 
@@ -46,9 +46,14 @@ BASE_MAIN=f2e391adb (SITE-T56 병합본, 이 branch에 병합함; push 직전 �
 2. 이전·이후 사진은 로컬 정적 서버 + headless Chrome 캡처다. 실기기·큰 글씨는 NOT TESTED.
 3. **기존 실패(이 변경과 무관)**: `validate_mobile_footer_legal_sheet_01`(홈 푸터 시트)은 이 PC(Windows)에서 `761px: mobile disclosure leaked into desktop 'block' !== 'none'`로 실패한다. **아무것도 안 바꾼 깨끗한 main(68b3161e)에서도 같은 줄에서 같게 실패**함을 확인했다(Linux gate에서는 통과했을 가능성). 이 조각은 홈·푸터 CSS를 건드리지 않았다.
 
-## 문구 확인 (소유자 1건, 이번에 안 건드림)
+## 문구 1건 수정 (소유자 승인 2026-10-11, 배포총괄방 중계)
 
-- `refund.html` 맨 끝 문단에 **"기존 호환 주소인 서비스 장애·하자 처리"**라는 개발자 말투가 남아 있다. 청약철회 기준 문서라 법적 문구로 보고 제가 고치지 않았다. "기존 호환 주소인"을 빼고 "…은 서비스 장애·하자 처리에서 확인할 수 있습니다"로 줄여도 뜻은 같다. 승인하시면 다음 조각에서 한 줄만 고친다.
+`refund.html` 맨 끝 문단의 개발자 말투를 사람이 읽는 말로 고쳤다. **법적 내용(환불 조건·기간·금액·연결 대상)은 바꾸지 않았다.** 링크 대상(`/dispute`, `/exchange`)도 그대로다.
+
+- **전**: "…서비스 장애·콘텐츠 하자·미제공에 대한 보상과 환불 기준은 **기존 호환 주소인** <서비스 장애·하자 처리>에서 확인할 수 있습니다."
+- **후**: "…서비스 장애·콘텐츠 하자·미제공에 대한 보상과 환불 기준은 <서비스 장애·하자 처리>에서 확인할 수 있습니다."
+- 지운 것은 "기존 호환 주소인"(공백 빼고 일곱 글자) 뿐이다(독자에게는 의미 없는 내부 사정). 권장 예시 문장("예전 주소로 들어와도 …")은 환불 기준이 어디 있는지 알려 주는 정보를 잃어서 쓰지 않았다.
+- `refund.html`은 약관 해시 잠금 대상이 아니다. 그래도 `validate_legal_pages`·`validate_hardening`·`validate_social_legal_manifest_01`·`validate_document_cache_policy_01`(파이썬 4개)과 `validate_consumer_documents_01`을 다시 돌려 통과했다 — 해시 갱신은 필요 없었다.
 
 ## 소유자 할 일
 
