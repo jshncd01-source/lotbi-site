@@ -76,19 +76,17 @@
   word-break: keep-all;
 }
 .trouble-dialog .trouble-dialog-status:empty { display: none; }
-.trouble-dialog .trouble-progress { margin: 0 0 8px; font-weight: 800; }
 
 .trouble-dialog .trouble-notice {
-  margin: 0 0 16px;
-  padding: 12px 14px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
   border: 1px solid var(--lotbi-border-strong);
   border-radius: 12px;
   background: var(--lotbi-surface-subtle);
   font-weight: 600;
   word-break: keep-all;
 }
-.trouble-dialog .trouble-kicker { margin: 0 0 8px; font-weight: 700; word-break: keep-all; }
-.trouble-dialog .trouble-heading { margin: 4px 0 16px; font-size: 26px; font-weight: 800; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
+.trouble-dialog .trouble-heading { margin: 0 0 12px; font-size: 26px; font-weight: 800; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
 .trouble-dialog :is(h4, h5) { margin: 0 0 10px; font-size: 22px; font-weight: 800; line-height: 1.4; word-break: keep-all; }
 .trouble-dialog p { overflow-wrap: anywhere; }
 
@@ -98,6 +96,9 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* Never under 48px wide either, whatever the font (a narrower Linux font
+     must not shrink a short label like "119 전화" below a finger). */
+  min-width: 48px;
   min-height: 56px;
   margin: 0;
   padding: 10px 18px;
@@ -152,10 +153,17 @@
 .trouble-dialog .trouble-situation .trouble-resume { font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
 @media (min-width: 720px) { .trouble-dialog .trouble-situations { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-/* ② 질문 */
-.trouble-dialog .trouble-options { display: grid; gap: 12px; margin: 0 0 8px; }
+/* 내 상황에 맞게 좁히기: every question at once, answers as large buttons. */
+.trouble-dialog .trouble-narrow { display: grid; gap: 12px; margin: 28px 0 0; padding: 16px 0 0; border-top: 1px solid var(--lotbi-border-default); }
+.trouble-dialog .trouble-narrow .trouble-narrow-title { margin: 0; font-size: 24px; line-height: 1.35; }
+.trouble-dialog .trouble-narrow p { margin: 0; word-break: keep-all; }
+.trouble-dialog .trouble-narrow-count { font-weight: 800; }
+.trouble-dialog .trouble-question { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--lotbi-border-default); }
+.trouble-dialog .trouble-question h5 { margin: 0; }
+.trouble-dialog .trouble-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; margin: 0; }
 .trouble-dialog .trouble-option {
   width: 100%;
+  min-width: 48px;
   min-height: 64px;
   padding: 12px 18px;
   border: 2px solid var(--lotbi-border-strong);
@@ -171,6 +179,8 @@
   cursor: pointer;
 }
 .trouble-dialog .trouble-option[aria-pressed="true"] { border-color: var(--lotbi-text-primary); background: var(--lotbi-selected-bg); color: var(--lotbi-selected-text); }
+/* Pressed is said by a mark too, not by the color alone. */
+.trouble-dialog .trouble-option[aria-pressed="true"]::before { content: "✓ "; }
 
 .trouble-dialog .trouble-nav { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 0; }
 .trouble-dialog .trouble-nav > * { flex: 1 1 220px; }
@@ -178,9 +188,9 @@
 .trouble-dialog .trouble-footer > * { flex: 1 1 200px; }
 
 /* ③ ④ ⑤ 단계 표시 */
-.trouble-dialog .trouble-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0 0 16px; }
+.trouble-dialog .trouble-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0; }
 .trouble-dialog .trouble-tab {
-  min-width: 0;
+  min-width: 48px;
   min-height: 56px;
   padding: 6px 4px;
   border: 2px solid var(--lotbi-border-strong);
@@ -197,15 +207,23 @@
 }
 .trouble-dialog .trouble-tab[aria-current="step"] { border-color: var(--lotbi-brand-solid-bg); background: var(--lotbi-brand-solid-bg); color: var(--lotbi-brand-solid-text); }
 
-/* ③ 할 일 */
-.trouble-dialog .trouble-situation-notice {
-  margin: 0 0 16px;
-  padding: 12px 14px;
-  border-left: 6px solid var(--lotbi-text-primary);
-  border-radius: 6px;
-  background: var(--lotbi-surface-subtle);
-  font-weight: 700;
-  word-break: keep-all;
+/* The result screen's top: tabs, the situation, its own 참고용 line. */
+.trouble-dialog .trouble-tabs + .trouble-result-title { margin: 14px 0 2px; }
+.trouble-dialog .trouble-result-notice { margin: 0 0 14px; color: var(--lotbi-text-secondary); font-weight: 700; word-break: keep-all; }
+
+/* ③ 할 일 — '바로 전화' first: 112 · 119, the danger color, the largest buttons. */
+.trouble-dialog .trouble-quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 0 0 14px; }
+.trouble-dialog .trouble-quick-call {
+  min-width: 48px;
+  min-height: 64px;
+  border-color: var(--lotbi-error-text);
+  background: var(--lotbi-error-text);
+  color: var(--lotbi-surface-primary);
+  font-size: 24px;
+  font-weight: 900;
+}
+@media (hover: hover) {
+  .trouble-dialog .trouble-quick-call:hover { border-color: var(--lotbi-text-primary); background: var(--lotbi-error-text); }
 }
 .trouble-dialog .trouble-steps { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
 .trouble-dialog .trouble-step { padding: 16px; border: 1px solid var(--lotbi-border-strong); border-radius: 16px; background: var(--lotbi-surface-primary); }
