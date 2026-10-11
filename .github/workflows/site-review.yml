@@ -808,6 +808,12 @@ jobs:
       # 320·360·375·390·412·1280 실제 터치/마우스.
       - name: Validate life medical auto search and turning cards
         run: node scripts/validate_life_medical_auto_search_card_01.mjs
+      # LIFE-MEDICAL-MERGE-01: 지역정보 「병원·응급실·약국」 카드 하나 → 같은 화면의
+      # 가까운 곳 목록(대화로 보내지 않음). 칩 [병원·의원][응급실][약국]·기억, 5곳+더 보기,
+      # 응급실 119 항상 위, 위치 5상태·지역 고르기 기억, 문제 12종 다음 버튼, 48px·다크 대비.
+      # 360·375·390·412·1280 실제 터치/마우스.
+      - name: Validate life medical one-screen list
+        run: node scripts/validate_life_medical_list_01.mjs
       # KINDERGARTEN-OFFICIAL-INFO-01: 생활정보 → 유치원·학교 → 유치원. 유치원알리미
       # 시도·시군구 → 목록 → 설립유형·주소·연락처·운영시간·학급·정원·원아·홈페이지·
       # 공시 기준 + 상세 공시 8개, 내 유치원(학교 저장값과 분리), Core 꺼짐 안내,

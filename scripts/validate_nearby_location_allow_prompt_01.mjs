@@ -3,7 +3,7 @@
 // against the real index.html with a fake Core, at 360/390 (phone) and 1280
 // (a Windows PC), light and dark.
 //
-// The owner's case: LOTBI 위치 사용 is off, 생활정보 → 약국 → Core asks
+// The owner's case: LOTBI 위치 사용 is off, "근처 약국 찾아줘" → Core asks
 // "어느 지역에서 찾을까요?" (follow_up.reason LOCATION_REQUIRED). The answer
 // offers [위치 허용하고 찾기] [지역 고르기]:
 //   - allow: the tap turns LOTBI 위치 사용 on, the browser asks once, and the
@@ -253,19 +253,23 @@ try {
     await tap(sheet.querySelector('[data-region-city="전북특별자치도 전주시"]'));
   };
 
-  if (PHASE === 'typed') {
-    prompt.value = params.get('text'); prompt.dispatchEvent(new Event('input', {bubbles: true}));
-    await wait(() => !document.querySelector('.send-button').disabled, 'composer ready');
-    document.querySelector('.send-button').click();
-    result.taps += 1;
-  } else {
-    // 생활정보 → 약국: two taps, as a person would.
-    await tap(document.querySelector('[data-consumer-section="life"]'));
-    await tap(await wait(() => document.querySelector('[data-life-shortcut="pharmacy"]'), 'pharmacy shortcut'));
-  }
+  // LIFE-MEDICAL-MERGE-01 (SITE-T56): 생활정보's 병원·응급실·약국 card opens its own
+  // list screen and sends nothing, so the question is typed — "근처 약국 찾아줘"
+  // unless the phase names another. A PC puts the cursor back in the composer
+  // when a typed turn ends (CHAT-MOBILE-KEYBOARD-DISMISS-01); that is recorded
+  // apart, and "the composer was never focused" counts from the "where?" answer
+  // on — what the 위치 허용 row does.
+  prompt.value = PHASE === 'typed' ? params.get('text') : '근처 약국 찾아줘';
+  prompt.dispatchEvent(new Event('input', {bubbles: true}));
+  await wait(() => !document.querySelector('.send-button').disabled, 'composer ready');
+  document.querySelector('.send-button').click();
+  result.taps += 1;
   await settle(1);
   const answer = assistants().pop();
   await wait(() => rowOf(answer)?.querySelector('button'), 'location row');
+  result.typedEntry = {promptValue: prompt.value, activeIsPrompt: document.activeElement === prompt};
+  if (document.activeElement === prompt) prompt.blur();
+  focusEvents = 0;
   result.first = snapshot();
   result.row = readRow(answer);
   await shot('where');
@@ -450,8 +454,9 @@ try {
       const page = query => `${origin}/${innerRel}?${query}`;
 
       // 1. The owner's case: 위치 사용 off → allow → the same question with the position.
-      const allow = await runPhase(devtools, page('phase=menu&usage=off&perm=prompt&geo=allow&action=current&expect=send'), `${label}/allow`);
+      const allow = await runPhase(devtools, page('phase=ask&usage=off&perm=prompt&geo=allow&action=current&expect=send'), `${label}/allow`);
       assert.deepEqual(allow.first.sent, [{text: PHARMACY, location: null}], `${label}: 위치 사용 off sends no position`);
+      assert.equal(allow.typedEntry.promptValue, '', `${label}: the typed question leaves the composer`);
       assert.equal(allow.first.geoAsks, 0, `${label}: the browser is not asked before the tap`);
       assert.match(allow.first.lastAnswer, /^어느 지역에서 찾을까요\?/u);
       assertButtons(allow, `${label}/allow`, testCase, [['current', '위치 허용하고 찾기'], ['region', '지역 고르기']]);
@@ -467,7 +472,7 @@ try {
       scenarios.push({label, name: '위치 꺼짐 → 허용하고 찾기', taps: allow.taps + 1, result: allow.final.lastAnswer});
 
       // 2. A browser that blocked location: where to unblock it, nothing sent.
-      const blocked = await runPhase(devtools, page('phase=menu&usage=off&perm=denied&action=current'), `${label}/blocked`);
+      const blocked = await runPhase(devtools, page('phase=ask&usage=off&perm=denied&action=current'), `${label}/blocked`);
       assert.match(blocked.afterRow.note, /자물쇠 아이콘 → 위치 → 허용/u, `${label}: blocked → 자물쇠 (${blocked.afterRow.note})`);
       assert.equal(blocked.final.geoAsks, 0, `${label}: a blocked browser is not asked`);
       assert.deepEqual(blocked.final.sent.map(item => item.text), [PHARMACY], `${label}: nothing more is sent`);
@@ -475,7 +480,7 @@ try {
       assertQuiet(blocked.final, `${label}/blocked`);
 
       // 3. "No" at the prompt: one line, and the region list opens at once.
-      const denied = await runPhase(devtools, page('phase=menu&usage=off&perm=prompt&geo=deny&action=current&expect=picker'), `${label}/denied`);
+      const denied = await runPhase(devtools, page('phase=ask&usage=off&perm=prompt&geo=deny&action=current&expect=picker'), `${label}/denied`);
       assert.match(denied.noteBeforePick, /^위치를 허용하지 않았어요\. 지역을 골라 주세요\./u, `${label}: denied (${denied.noteBeforePick})`);
       assert.deepEqual(denied.final.sent.map(item => item.text), [PHARMACY, `전북특별자치도 전주시 ${PHARMACY}`], `${label}: the picked region asks once`);
       assert.equal(denied.final.pickerOpen, false, `${label}: the list closes after the pick`);
@@ -483,7 +488,7 @@ try {
       scenarios.push({label, name: '위치 거부 → 지역 고르기', taps: denied.taps + 1, result: denied.final.lastAnswer});
 
       // 4. Allowed but no position: a PC with its location service off.
-      const unavailable = await runPhase(devtools, page('phase=menu&perm=granted&geo=unavailable&action=current'), `${label}/unavailable`);
+      const unavailable = await runPhase(devtools, page('phase=ask&perm=granted&geo=unavailable&action=current'), `${label}/unavailable`);
       assert.deepEqual(unavailable.first.sent, [{text: PHARMACY, location: null}], `${label}: no position, nothing invented`);
       assertButtons(unavailable, `${label}/unavailable`, testCase, [['current', '현재 위치로 찾기'], ['region', '지역 고르기']]);
       if (pc) assert.match(unavailable.afterRow.note, /Windows 설정 → 개인 정보 및 보안 → 위치/u, `${label}: Windows 위치 (${unavailable.afterRow.note})`);
@@ -491,7 +496,7 @@ try {
       assert.deepEqual(unavailable.final.sent.map(item => item.text), [PHARMACY], `${label}: nothing more is sent`);
 
       // 5. A rough position (5 km): a PC says so and waits for the choice; a phone uses it.
-      const coarse = await runPhase(devtools, page(`phase=menu&usage=off&perm=prompt&geo=allow&acc=5000&action=current&expect=${pc ? 'confirm' : 'send'}`), `${label}/coarse`);
+      const coarse = await runPhase(devtools, page(`phase=ask&usage=off&perm=prompt&geo=allow&acc=5000&action=current&expect=${pc ? 'confirm' : 'send'}`), `${label}/coarse`);
       if (pc) {
         assert.equal(coarse.waiting.sent, 1, `${label}: a rough PC position is not used before the choice`);
         assert.equal(coarse.waiting.row.note, 'PC 위치는 정확하지 않을 수 있어요(오차 약 5km). 이 위치로 찾거나 지역을 골라 주세요.', `${label}: PC accuracy line`);
@@ -505,7 +510,7 @@ try {
       assert.equal(coarse.afterRow.note, '', `${label}: the line goes once the choice is made`);
 
       // 6. 지역 고르기: a PC keeps the region and uses it next time without asking the browser.
-      const picked = await runPhase(devtools, page(`phase=menu&perm=granted&geo=unavailable&action=region&expect=picker&then=${encodeURIComponent('근처 병원 찾아줘')}`), `${label}/picked`);
+      const picked = await runPhase(devtools, page(`phase=ask&perm=granted&geo=unavailable&action=region&expect=picker&then=${encodeURIComponent('근처 병원 찾아줘')}`), `${label}/picked`);
       assert.deepEqual(picked.final.sent.slice(0, 2).map(item => item.text), [PHARMACY, `전북특별자치도 전주시 ${PHARMACY}`]);
       assert.ok(picked.pickerSizes.every(height => height >= 48), `${label}: region list controls ${picked.pickerSizes}`);
       assert.equal(picked.pickerSelects, 0, `${label}: chips, no dropdown`);
@@ -530,7 +535,7 @@ try {
       scenarios.push({label, name: '저장 지역 칩 → 바로 찾기', taps: chip.taps, result: chip.final.lastAnswer});
 
       // Dark: the row and its line stay readable.
-      const dark = await runPhase(devtools, page('phase=menu&usage=off&perm=denied&action=current&dark=1'), `${label}/dark`);
+      const dark = await runPhase(devtools, page('phase=ask&usage=off&perm=denied&action=current&dark=1'), `${label}/dark`);
       assert.equal(dark.theme, 'dark');
       for (const button of dark.afterRow.buttons) assert.ok(button.contrast >= 4.5, `${label}: dark ${button.text} contrast ${button.contrast}`);
       assert.ok(dark.afterRow.noteContrast >= 4.5, `${label}: dark note contrast ${dark.afterRow.noteContrast}`);
