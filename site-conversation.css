@@ -3596,6 +3596,102 @@ body[data-site-theme="dark"] .lotbi-place-filter-chip:hover {
   }
 }
 
+/* SITE-CONVERSATION-ROTATION-01 — all screens: front-facing center,
+   outward perspective neighbours, explicit result buttons, no arrows. */
+.lotbi-place-orbit,
+.lotbi-place-orbit.has-place-photo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto;
+  align-items: center;
+  justify-items: center;
+  width: min(100%, 660px);
+  height: auto;
+  padding: 4px 0;
+  --lotbi-place-gap: 8px;
+}
+.lotbi-place-orbit.has-orbit-footer {
+  --lotbi-place-orbit-footer: 52px;
+  grid-template-rows: auto auto;
+}
+.lotbi-place-orbit-card {
+  grid-area: 1 / 1;
+  position: relative;
+  top: auto;
+  left: auto;
+  width: min(calc(100% - 56px), 280px);
+  min-width: 0;
+  transform-origin: center center;
+  transition: transform 400ms cubic-bezier(.2, .78, .2, 1), opacity 400ms ease;
+}
+.lotbi-place-orbit-card[data-orbit-slot="CENTER"] {
+  transform: translateX(var(--lotbi-orbit-drag-x)) rotateY(0deg);
+}
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) {
+  opacity: .5;
+  pointer-events: auto;
+}
+.lotbi-place-orbit-card[data-orbit-slot^="LEFT"] {
+  transform-origin: right center;
+  transform: translateX(calc(-100% - 8px + var(--lotbi-orbit-drag-x))) perspective(900px) rotateY(-12deg) scale(.92);
+}
+.lotbi-place-orbit-card[data-orbit-slot^="RIGHT"] {
+  transform-origin: left center;
+  transform: translateX(calc(100% + 8px + var(--lotbi-orbit-drag-x))) perspective(900px) rotateY(12deg) scale(.92);
+}
+.lotbi-place-orbit-card[data-orbit-slot$="_BACK"] {
+  opacity: 0;
+  pointer-events: none;
+}
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions,
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-search-link {
+  visibility: hidden;
+}
+.lotbi-place-orbit-footer {
+  grid-area: 2 / 1;
+  position: static;
+  width: 100%;
+  height: auto;
+  min-height: 52px;
+  gap: 4px;
+}
+.lotbi-place-orbit-dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: calc(100% - 44px);
+  pointer-events: auto;
+}
+.lotbi-place-orbit-dot {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--lotbi-text-secondary, #4d535d);
+  cursor: pointer;
+}
+.lotbi-place-orbit-dot::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.lotbi-place-orbit-dot[aria-current="true"] { color: var(--lotbi-accent, #2454b8); }
+.lotbi-place-orbit-dot[aria-current="true"]::before { width: 10px; height: 10px; }
+.lotbi-place-orbit-dot:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; border-radius: 8px; }
+.lotbi-place-orbit-card.is-orbit-repositioning { transition: none; }
+@media (max-width: 760px) {
+  .lotbi-place-orbit-card { width: min(calc(100% - 56px), 380px); }
+  .lotbi-place-orbit[data-card-count="1"] .lotbi-place-orbit-card { width: min(calc(100% - 16px), 380px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-place-orbit-card { transition: none; }
+}
+
 /* LOTBI reusable text output card — completed text meant to be copied, shared,
    edited or reused. Ordinary assistant replies never use this surface. */
 .reusable-output-card {
