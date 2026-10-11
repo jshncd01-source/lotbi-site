@@ -13,11 +13,12 @@ READY_FOR_DEPLOY=YES
 - 통합·검증 SHA: `4192b875263aa8a16dab1b1ceb5a92312ff99540`
 - Gate 반환 수정·재검증 SHA: `99434a4de5008920d4e98855924d5d0da963fc28`
 - 다섯 번째 Gate 반환 수정·재검증 SHA: `8ce0d00cda2bb809b084978b1f1ebdaf8ebb11fa`
+- 여섯 번째 Gate 반환 수정·재검증 SHA: `5fd4b0f6ecd1261c64de672d48c7da5c53e33e2f`
 - 최신 main 정상 merge SHA: `404b33f031d8e2803cb54b765eb14f99d1fd4586`
 - STALE READY checkpoint: `93c9fec3047e9494110e94e31de569dd8bf3d21c`
 - 최초 READY checkpoint: `a50b29b01be40105f94522f9dfef687a93d372b0`
 - 최종 push HEAD: 이 문서를 포함한 READY 커밋 SHA를 최종 보고에서 별도 기재한다.
-- asset cache: `aset-ccefbf0a4bed` (`targets=169`, `refs=206`)
+- asset cache: `aset-53857c15acb0` (`targets=169`, `refs=206`)
 
 ## Gate 1.0.6 반환과 수정
 
@@ -74,6 +75,18 @@ READY_FOR_DEPLOY=YES
 - fallback: `showModal()`/`close()`를 지원하지 않는 환경에서는 `open`·`aria-modal`을 명시적으로 정리하고 `restoreDialogFocus()`를 한 번 호출한다. 네이티브 경로와 fallback 경로가 동시에 초점을 옮기지 않는다.
 - 실제 Chrome 회귀에 진입점 `focus` 횟수 검사를 추가했다. 중복 ×·취소·Escape가 겹치는 닫기에서도 iPhone 375/390과 desktop 1280 모두 정확히 1회 복원됐다.
 - cache: 공식 생성기로 `aset-6c2448ed185b`을 재생성했다.
+
+## Gate 1.0.6 여섯 번째 반환과 수정
+
+- 반환 release: `6c3678cf2369e8cd30e378f185c0ad3bca0bbfbe`
+- 반환 대상 READY: `bedd4bd434b26afb8d4ba513856020e491dcac7b`
+- Gate run: `20261011T205531Z-308086-250593324`
+- 결과: `TEST_FAILED`, 실패 단계 `scripts/validate_verification_dialog_design_01.mjs`, 단언 `dismiss remains outside scroll body`. main `f2f56e364e0c0913f1cb961ab355ea66f442b96e`와 Production은 변경되지 않았다.
+- 원인: 승인 C안의 전체 화면 구조에서 닫기 navigation과 입력 본문이 같은 dialog 내부에 있었지만, Gate가 보호하는 정확한 스크롤 본문 경계인 `.scam-dialog-inner`가 없었다. 이로 인해 dismiss가 단일 스크롤 본문 밖에 있다는 구조 계약을 증명하지 못했다.
+- 수정: 네이티브 `<dialog class="scam-dialog">`와 그 바로 아래의 비스크롤 navigation을 유지하고, 실제 입력·결과 본문만 정확한 `.scam-dialog-inner`로 감쌌다. C안의 전체 화면 표시는 `data-scam-page` 속성과 호환 스타일로 보존했다.
+- 상태 계약: 초기 검사 단계는 `hidden`으로 두고, 선택 여부에 따라 `methodChooser.hidden = hasSelection`, `checkStep.hidden = !hasSelection` 계약을 복원했다. 문자·이메일과 인터넷 주소의 직접 입력 탭은 C안대로 즉시 입력 가능하도록 같은 함수 안에서 명시적으로 예외 처리했다.
+- 검증 보존: `validate_verification_dialog_design_01.mjs`는 변경하지 않았다. MVP 검증은 새 구조의 네이티브 dialog class와 C안 marker를 함께 요구하도록 갱신했으며 검사 삭제·skip·완화는 없다.
+- cache: 공식 생성기로 `aset-53857c15acb0`을 재생성했다.
 
 ## 확정 C안 보존
 
@@ -229,6 +242,20 @@ READY_FOR_DEPLOY=YES
 - 인접 기능: `validate_trouble_helper_01.mjs` PASS — 52 checks.
 - 접근성·잠금: `validate_accessibility.py`, `validate_hardening.py`, `validate_legal_pages.py`, `validate_social_legal_manifest_01.py`: PASS.
 - `asset_cache_version.mjs --check`: PASS — `aset-ccefbf0a4bed`, targets 169 / refs 206.
+
+### 여섯 번째 Gate 반환 수정 재검증
+
+- fresh 확인: `origin/main=f2f56e364e0c0913f1cb961ab355ea66f442b96e`, 원격 feature는 수정 전 HEAD `bedd4bd434b26afb8d4ba513856020e491dcac7b`와 일치했다. 추가 main merge는 필요하지 않았다.
+- 반환 검사 `validate_verification_dialog_design_01.mjs`: PASS. 닫기 navigation은 `.scam-dialog-inner` 밖, 입력·결과는 단일 스크롤 본문 안에 유지된다.
+- `validate_consumer_sections_02.mjs`, `validate_common_ui_polish_01.mjs`, `validate_common_ui_polish_02.mjs`, `validate_consumer_design_shell_01.mjs`: PASS.
+- `validate_scam_shield_mvp_01.mjs`, `validate_scam_shield_connection_01.mjs`, `validate_connected_services_menu_hidden_01.mjs`, `validate_photo_input_no_camcorder_01.mjs`: PASS.
+- 실제 Chrome 사진 선택: `validate_scam_shield_photo_picker_01.mjs` PASS — 360 light/dark, 390 KakaoTalk UA, 412 Android UA, 1280 desktop light/dark.
+- 결과·대조·로그인 대비: `validate_scam_shield_double_check_p0.mjs` 16 renders PASS, `validate_scam_shield_result_banner_contrast_01.mjs`와 `validate_scam_shield_login_gate_contrast_01.mjs` 각 30 renders PASS, WCAG AA.
+- 라우팅·초점: `validate_site_refresh_route_restore_01.mjs` PASS — iPhone 375/390 각 171 checks, desktop 1280 169 checks. 네이티브 close 초점 복원은 각 환경에서 정확히 1회다.
+- 캘린더: `validate_calendar*.mjs` 50개 전체 PASS (`50/50`, 실패 0). 처음에는 Windows Chrome 자동 탐색 실패가 있었고, 제품이나 검사를 바꾸지 않고 `CHROME_BIN=C:/Program Files/Google/Chrome/Application/chrome.exe`를 명시해 동일 묶음을 재실행했다.
+- 대화·장소·인접 기능: `validate_conversation_design_01.mjs`, `validate_place_card_rotation_01.mjs`, `validate_place_card_carousel_no_drift_01.mjs`, `validate_trouble_helper_01.mjs`: PASS.
+- 접근성·잠금: `validate_accessibility.py`, `validate_hardening.py`, `validate_legal_pages.py`, `validate_social_legal_manifest_01.py`: PASS.
+- `asset_cache_version.mjs --check`: PASS — `aset-53857c15acb0`, targets 169 / refs 206.
 
 ## 최신 통합 사용자 시나리오
 
