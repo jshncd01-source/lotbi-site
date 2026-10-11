@@ -11,7 +11,7 @@ FEATURE_BRANCH=feature/calendar-guest-recurring-login-01-site
 FEATURE_SHA=this document's commit (branch HEAD; confirm with `git ls-remote origin refs/heads/feature/calendar-guest-recurring-login-01-site`)
 REMOTE_FEATURE_SHA=same as FEATURE_SHA after push (checked with git ls-remote at push time)
 AUTHORITATIVE_MAIN_AT_DEVELOPMENT=68b3161e695d926a4c2fc7e53d315fcb958756ac (SITE-T55 운영, push 직전 ls-remote 확인). 실제 변경 site-conversation.js · site-conversation.css · site-conversation-sync.js · scripts/validate_calendar_command_recognition_p0_01.mjs (+이 문서), 나머지는 asset 토큰.
-CODE_SHA=__CODE_SHA__
+CODE_SHA=1a7d6466
 ASSET_VERSION=aset-d1b6de155d92 (`node scripts/asset_cache_version.mjs --check` PASS, targets 166, refs 202)
 OVERLAP=calendar-add-ux-01-site(5cce2efb)와 겹치는 파일 없음(그쪽은 site-calendar*·검사기). 대화 UX방이 site-conversation.js를 고치는 중이면 충돌은 배포방이 열차에서 해결(배포방 안내).
 CONTRACT_CHANGE=NO
@@ -25,7 +25,7 @@ DEPLOYED=NO
 2026-10-11 T55 운영 확인 S3:
 - lotbiai.com 비로그인 휴대폰에서 "매주 월요일 오전 9시 운동 일정 추가해줘"를 보냄.
 - 답은 "반복 일정은 로그인한 뒤 등록할 수 있어요. …" 글뿐이고, 로그인할 버튼이 없음(기준 ③ 막다른 화면).
-- 스크린샷: `release-control\user-scenarios\calendar-command-recognition-p0-01-site\prod-20261011\S3-phone-signed-out-weekly-recurring-login-text.jpg`
+- 스크린샷: `C:\Users\jshnc\LOTBI-NCLOUD\release-control\user-scenarios\calendar-command-recognition-p0-01-site\prod-20261011\S3-phone-signed-out-weekly-recurring-login-text.jpg`
 
 ## 바뀐 것
 
@@ -41,7 +41,11 @@ DEPLOYED=NO
 
 | # | 상태 | 수정 전(운영 T55) | 수정 후 | 막힌 곳 | 스크린샷 |
 |---|---|---|---|---|---|
-__SCENARIOS__
+| S1 | 휴대폰 390 라이트 | 입력칸·전송 2번 → 글만 나옴, **더 갈 곳 없음** | 3번: 입력칸 → 전송 → **[로그인하고 등록](132×48)** → 계정 로그인 화면(시험용) | 없음 | before `before\prod-T55-phone-signed-out-no-login-button.jpg`(운영 실측), after `after\repeat-login-phone-light-0{1,2,3}-*.png` |
+| S2 | 휴대폰 390 다크 | (같음) | 3번, 같은 결과(버튼 밝은 바탕·어두운 글자) | 없음 | after `after\repeat-login-phone-dark-0{1,2,3}-*.png` |
+| S3 | PC 1280 라이트 | (같음) | 3번, 같은 결과 | 없음 | after `after\repeat-login-pc-light-0{1,2,3}-*.png` |
+
+스크린샷 경로 앞부분: `C:\Users\jshnc\LOTBI-NCLOUD\release-control\user-scenarios\calendar-guest-recurring-login-01-site\`
 
 - 로그인 뒤 자동 재전송·반복 일정 저장: 로컬 Core가 없어 화면으로 따라 하지 못함. 기존 auth-callback autoSend 경로(문장 1000자까지 보관)를 그대로 씀.
 
@@ -60,7 +64,7 @@ __SCENARIOS__
   - 기록에 남음.
   - 누름 처리·로그인 연결 함수 호출 소스.
   - DEVICE_ONLY_META에 loginAction.
-REGRESSION=__REGRESSION__
-NEW_FAILURES=__NEW_FAILURES__
+REGRESSION=1a7d6466에서 site-conversation·site-conversation-sync·calendar_command를 읽는 검사기 149개 중 — 브라우저 없는 검사기 61개 전부 PASS, 브라우저 검사기는 바꾼 곳(답변 아래 버튼·챗 일정 명령·동기화·답변 도구) 관련 8개를 자리표 잡고 실행 → 8 PASS(calendar_command_recognition_p0_01은 내 저장 확인 단정을 고친 뒤 재실행 PASS). 나머지 브라우저 검사기 80개는 PC 2자리 규칙 때문에 이번에 안 돌림 — gate에서 확인 부탁.
+NEW_FAILURES=0 (돌린 69개 기준)
 LINUX_GATE=NOT RUN locally
 REAL_DEVICE=NOT VERIFIED
