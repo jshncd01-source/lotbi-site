@@ -14,7 +14,9 @@
 // the person's current place (no coordinate leaves the page for it) or picks a 내 아이 school, turns
 // arrival/departure/days-off on and off, deletes it; typing survives the 3-second redraws; the
 // person sees every place set for them; the alert settings gain 장소 도착·출발.
-// Layout at 360 px, light and dark. All data is synthetic.
+// FAMILY-LOCATION-DESIGN-01: one screen, one job — 초대하기, 초대 코드 입력, 알림 설정 and 장소 알림 open
+// from the home tiles or the person's card and come back with ← 가족 위치; a failed load has a
+// [다시 시도]. Layout at 360 px, light and dark, controls 48 px and up. All data is synthetic.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -38,7 +40,9 @@ for (const source of [client, ui]) {
   assert.doesNotMatch(source, /navigator\s*\.\s*geolocation|getCurrentPosition|watchPosition/u, 'the position only through site-current-location.js');
 }
 assert.match(ui, /resolveSharedBrowserCurrentLocation\(\{allowPrompt: true\}\)/u, 'the web sends a position only after a press');
-assert.match(client, /LOTBI 직원이 가족 위치를 볼 수 있는 화면은 없어요\. 위치는 암호화해 보관하고 광고·판매·AI 학습에 쓰지 않아요\./u);
+assert.match(client, /FAMILY_PRIVACY_NOTICE = '내 위치는 연결된 가족만 봐요\. 광고·AI 학습에 쓰지 않아요\.';/u, 'the owner-approved notice (2026-10-11)');
+assert.match(client, /FAMILY_MISSING_REPORT_NOTICE = '실종 신고를 하면 보호자가 적은 \\'마지막으로 본 장소\\'만 담당자가 확인해요\.';/u);
+assert.doesNotMatch(client + ui, /내가 허락한 가족/u, 'a second guardian joins with the owner approval only, so no such claim');
 assert.doesNotMatch(client + ui, /직원도 가족 위치를 볼 수 없/u, 'no overstated privacy claim');
 assert.match(route, /FAMILY_INVITE_INTENT_RE = \/\^#family-invite=\(\[A-Za-z0-9_-\]\{24,64\}\)\$\/u/u);
 assert.match(route, /historyRef\.replaceState\(historyRef\.state, '', `\$\{locationRef\.pathname\}\$\{locationRef\.search\}\$\{siteRouteHash\('care'\)\}`\)/u, 'the token leaves the address');
@@ -102,7 +106,14 @@ try {
   // 1. a switched-off Core
   routes = {'GET /overview': () => [404, {detail: {code: 'FAMILY_LOCATION_NOT_ENABLED'}}]};
   let mounted = await uiModule.mountFamilyLocation({sessionToken: 'synthetic-session', root: host});
-  results.notEnabled = text().includes('가족 위치는 준비 중이에요.');
+  results.notEnabled = text().includes('가족 위치는 준비 중이에요') && !!q('[data-family-action="retry"]');
+  mounted.dispose?.();
+  routes = {'GET /overview': () => [503, {detail: {code: 'UPSTREAM'}}]};
+  const failAt = calls.length;
+  mounted = await uiModule.mountFamilyLocation({sessionToken: 'synthetic-session', root: host});
+  q('[data-family-action="retry"]').click();
+  await wait(() => calls.slice(failAt).filter(call => call.key === 'GET /overview').length >= 2, 'retry reloads');
+  results.failedHasRetry = text().includes('가족 위치를 불러오지 못했어요') && !!q('[data-family-action="retry"]');
   mounted.dispose?.();
 
   // 2. the owner's family
@@ -136,7 +147,7 @@ try {
   };
   mounted = await uiModule.mountFamilyLocation({sessionToken: 'synthetic-session', root: host, onMissingReport: prefill => prefills.push(prefill)});
   const card = await wait(() => q('[data-family-member="flm_0123456789abcdef0123"]'), 'child card');
-  results.privacy = q('.family-loc-privacy').textContent.includes('볼 수 있는 화면은 없어요');
+  results.privacy = q('.family-loc-privacy').textContent === '내 위치는 연결된 가족만 봐요. 광고·AI 학습에 쓰지 않아요.';
   results.lastTimeAndBattery = card.querySelector('.family-loc-presence').textContent === '3분 전' && card.querySelector('.family-loc-battery').textContent === '배터리 64%'
     && card.querySelector('.family-loc-name').nextElementSibling === card.querySelector('.family-loc-presence');
   results.place = card.querySelector('.family-loc-place').textContent.startsWith('전주시 완산구 효자동1가 근처 · 약 12m 범위');
@@ -163,13 +174,16 @@ try {
   await wait(() => calls.slice(approveAt).some(call => call.key === 'GET /overview'), 'reload after approve');
   results.approve = calls.find(call => call.key === 'POST /members/flm_3333333333abcdef0123/approve').body.approve === true;
   await wait(() => q('[data-family-sos] [data-family-action="sos-missing"]'), 'sos card');
-  results.sosCard = q('[data-family-sos]').textContent.includes('배터리 9%') && !!q('[data-family-sos] a[href="tel:112"]');
+  results.sosCard = q('[data-family-sos]').textContent.includes('배터리 9%') && !!q('[data-family-sos] a[href="tel:112"]')
+    && q('[data-family-sos] [data-family-missing-note]')?.textContent === "실종 신고를 하면 보호자가 적은 '마지막으로 본 장소'만 담당자가 확인해요.";
   q('[data-family-sos] [data-family-action="sos-missing"]').click();
   await wait(() => prefills.length, 'missing report');
   results.missingPrefill = prefills[0].lastSeenSummary.startsWith('전주시 완산구 효자동1가 근처');
 
-  // the invitation form: a child under 14 needs the legal-guardian consent
-  const form = q('[data-family-invite-form]');
+  // the invitation form (its own screen): a child under 14 needs the legal-guardian consent
+  q('[data-family-nav="invite"]').click();
+  const form = await wait(() => q('[data-family-invite-form]'), 'invite screen');
+  results.inviteScreenAlone = !q('[data-family-member]') && !!q('[data-family-nav="home"]');
   const [role, label] = [form.querySelector('select'), form.querySelector('input:not([type])')];
   role.value = 'CHILD'; role.dispatchEvent(new Event('change'));
   label.value = '은율';
@@ -209,15 +223,19 @@ try {
     'DELETE /places/flp_0123456789abcdef0123': () => { placeList = {...placeList, places: placeList.places.filter(item => item.id !== placeRow.id), used: placeList.used - 1}; return [200, {deleted: true}]; },
   };
   mounted = await uiModule.mountFamilyLocation({sessionToken: 'synthetic-session', root: host});
-  (await wait(() => q('[data-family-member="flm_0123456789abcdef0123"] [data-family-action="places"]'), 'places button')).click();
-  const panel = await wait(() => q('[data-family-places="flm_0123456789abcdef0123"] [data-family-place="flp_0123456789abcdef0123"]'), 'places panel');
+  const nowAt = calls.length;
+  (await wait(() => q('[data-family-member="flm_0123456789abcdef0123"] [data-family-action="now"]'), 'now button')).click();
+  await wait(() => calls.slice(nowAt).some(call => call.key === 'POST /members/flm_0123456789abcdef0123/requests'), 'now asked');
+  q('[data-family-member="flm_0123456789abcdef0123"] [data-family-action="places"]').click();
+  const panel = await wait(() => q('[data-family-places="flm_0123456789abcdef0123"] [data-family-place="flp_0123456789abcdef0123"]'), 'places screen');
   results.placesListed = panel.textContent.includes('학원 (학원) · 반경 150m · 김엄마 님이 등록') && text().includes('장소 1/5곳')
-    && text().includes('3분 넘게 머물러야 알려요') && !q('[data-family-place="flp_0123456789abcdef0123"] [data-family-place-field="holiday_off"]');
-  // What a guardian types survives the 3-second redraws of a pending 지금 위치 request.
+    && text().includes('3분 넘게 머물러야 알려요') && !q('[data-family-place="flp_0123456789abcdef0123"] [data-family-place-field="holiday_off"]')
+    && !q('[data-family-member]');
+  // What a guardian types survives the redraws while a 지금 위치 request is answered and the overview reloads.
   const placeName = () => q('[data-family-place-form] input:not([type])');
   const typed = placeName(); typed.value = '학원A';
-  q('[data-family-member="flm_0123456789abcdef0123"] [data-family-action="now"]').click();
-  await wait(() => q('[data-family-member="flm_0123456789abcdef0123"] [data-family-request-status="ANSWERED"]'), 'answered with places open');
+  await wait(() => polls >= 2 && calls.slice(nowAt).some(call => call.key === 'GET /overview'), 'answered with places open');
+  await sleep(50);
   results.placeTypingKept = placeName() === typed && typed.value === '학원A';
   const placeForm = q('[data-family-place-form]');
   const [suggestionSelect, kindSelect] = placeForm.querySelectorAll('select');
@@ -238,7 +256,9 @@ try {
   (await wait(() => q('[data-family-place="flp_0123456789abcdef0123"] [data-family-action="place-delete"]'), 'delete button')).click();
   await wait(() => !q('[data-family-place="flp_0123456789abcdef0123"]') && calls.some(call => call.key === 'DELETE /places/flp_0123456789abcdef0123'), 'place deleted');
   results.placeDeleted = true;
-  const settingsForm = q('[data-family-settings]');
+  q('[data-family-nav="home"]').click();
+  (await wait(() => q('[data-family-nav="settings"]'), 'settings tile')).click();
+  const settingsForm = await wait(() => q('[data-family-settings]'), 'settings screen');
   results.placeAlertSetting = settingsForm.textContent.includes('장소 도착·출발') && settingsForm.textContent.includes('장소 도착·출발 알림은 보내지 않아요')
     && text().includes('이동 경로는 남기지 않아요');
   results.placesNoCoordinates = calls.filter(call => call.key.includes('/places')).every(call => !JSON.stringify(call.body || {}).match(/latitude|longitude/u));
@@ -309,8 +329,8 @@ try {
 
 const result = await runFixturePage({root: ROOT, fixturePath: '/__family_location_01.html', fixtureHtml: flow, resultExpression: 'window.__result || ""', viewport: {width: 390, height: 844, mobile: true, deviceScaleFactor: 1}, timeoutMs: 180_000});
 assert.equal(result.ok, true, result.error);
-for (const key of ['modulesLoad', 'notEnabled', 'privacy', 'lastTimeAndBattery', 'place', 'mapLinks', 'stopReason', 'guardianListed', 'placesHiddenOnOldCore', 'nowAnswered', 'statusCheck', 'approve',
-  'sosCard', 'missingPrefill', 'consentShownOnlyForUnder14', 'noInviteWithoutConsent', 'invite', 'bearerOnly',
+for (const key of ['modulesLoad', 'notEnabled', 'failedHasRetry', 'privacy', 'lastTimeAndBattery', 'place', 'mapLinks', 'stopReason', 'guardianListed', 'placesHiddenOnOldCore', 'nowAnswered', 'statusCheck', 'approve',
+  'sosCard', 'missingPrefill', 'inviteScreenAlone', 'consentShownOnlyForUnder14', 'noInviteWithoutConsent', 'invite', 'bearerOnly',
   'placesListed', 'placeTypingKept', 'suggestionFills', 'placeCreated', 'placePatched', 'placeDeleted', 'placeAlertSetting', 'placesNoCoordinates',
   'sharingView', 'placesForMe', 'childPauseOnlyHour', 'pause',
   'report', 'sosButton', 'preview', 'accept', 'tabHiddenWhenOff', 'tabShownWhenOn', 'noOtherNetwork']) {
@@ -330,7 +350,8 @@ try {
   const overflow = document.documentElement.scrollWidth > document.documentElement.clientWidth + 1;
   const fg = getComputedStyle(card.querySelector('.family-loc-presence')).color; const bg = getComputedStyle(card).backgroundColor;
   const button = card.querySelector('[data-family-action="now"]').getBoundingClientRect();
-  window.__result = JSON.stringify({ok: true, overflow, distinct: fg !== bg, tall: button.height >= 44, basic: card.textContent.includes('지금 위치 요청 (오늘 3회)') && card.textContent.includes('Plus 요금제부터')});
+  const tools = [...card.querySelectorAll('.family-loc-tool, .family-loc-button')].every(node => node.getBoundingClientRect().height >= 48);
+  window.__result = JSON.stringify({ok: true, overflow, distinct: fg !== bg, tall: button.height >= 48 && tools, basic: card.textContent.includes('지금 위치 요청 (오늘 3회)') && text().includes('Plus 요금제부터')});
 } catch (error) { window.__result = JSON.stringify({ok: false, error: String(error?.stack || error)}); }
 </script></body></html>`;
 
@@ -339,7 +360,7 @@ for (const theme of ['light', 'dark']) {
   assert.equal(view.ok, true, view.error);
   assert.equal(view.overflow, false, `${theme}: the family view scrolls sideways at 360 px`);
   assert.equal(view.distinct, true, `${theme}: the last time and its card share one colour`);
-  assert.equal(view.tall, true, `${theme}: buttons are at least 44 px tall`);
+  assert.equal(view.tall, true, `${theme}: buttons and tools are at least 48 px tall`);
   assert.equal(view.basic, true, `${theme}: Basic shows the requests left and why the live map is hidden`);
 }
 
