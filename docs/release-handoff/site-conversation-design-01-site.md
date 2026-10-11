@@ -1,5 +1,55 @@
 READY_FOR_DEPLOY=YES
 
+# SITE-CONVERSATION-DESIGN-01 — Gate 반환 회전 검사 보강 READY
+
+- 작성 시각(KST): 2026-10-12T01:43:14+09:00
+- 저장소: lotbi-site / Ncloud ssh://lotbi-ncloud-git/srv/git/repositories/lotbi-site.git
+- 기존 대표 브랜치: `feature/site-conversation-design-01-site`
+- 기준 최신 Ncloud main: `9147419fb079e6452ff26d82c52a1b8f1dca36e4`
+- 검증 코드 commit: `9780c6477d95b90815d1c12bb9c8e6a09a714142`
+- 이전 READY: `d7b8221dd1a786f8f32046e9e1ae29bfac7c744f`
+- 최종 문서 포함 exact HEAD·push/readback은 외부 `outputs/READY-Gate반환-회전검사.md`에 기록한다.
+- 인계: 배포 총괄 관리방 확인 후 운영 반영방 담당. 이 방은 main/Production을 변경하지 않았다.
+
+## 반환 실패·재현·최소 변경
+
+배포방 보고: release `1d8fa77a198de0edf98e09a02b4dbd9b1dfff3c9`, Gate `20261011T154641Z-4175551-204954694`에서 `360x780-light-2→2: both cards rotate during transition` 실패. 앞선 calendar footer WebSocket 오류는 같은 release의 통제 재검증에서 통과했다는 배포방 보고이며 이 방의 직접 Linux 결과와 구분한다.
+
+원래 검사는 클릭 뒤 Node에서 80ms 기다리고 별도 CDP 요청으로 CSS 행렬을 읽었다. Windows 일반 원본 실행은 20조합 PASS였고, CPU 20배 제한 단일 2장 조건에서 **동일 assertion 실패**를 재현했다. 측정 당시 outgoing rotation=0, incoming=-0.191279, 두 transform CSS 전환은 running이지만 currentTime=0/startTime=null로 실제 프레임 시작 전이었다. 실행기 대기와 브라우저 전환 시계가 어긋나는 측정 경쟁을 확인했다. Linux 원 실행의 상세 timeline은 미수집이므로 동일 세부 원인 확정으로 확대하지 않는다.
+
+변경은 `scripts/validate_place_card_rotation_01.mjs`의 중간 측정뿐이다. 두 카드의 실제 transform CSS 전환이 존재하고, 브라우저 내부에서 ready 후 **자연 진행한 양수 시간**에 도달하는 것을 2초 이내 확인한다. 두 실제 전환을 80ms 시점에 잠시 고정하여 같은 시간의 CSS 행렬을 읽고 즉시 재개한다. 누락·시작 정지·조기 종료·timeout은 실패한다. 실제 effect duration 350–450ms를 양쪽에 추가 검증한다.
+
+- 기존 `both cards rotate` 회전 임계값 `.005`, CSS 350–450ms 검사와 모든 최종 배치·회전·점·키보드·순환·동작 축소 assertion/허용 오차 **그대로 유지**.
+- skip·조건 제외·threshold 완화 없음. 실제 전환 존재·자연 진행·양쪽 effect duration 검증을 추가했다.
+- **제품 site-conversation.js/CSS·메뉴·캐시·공식 이미지·공통 기능 변경 0**. 확정 디자인을 수정하지 않았다.
+- 같은 CPU20 조건 수정 후 PASS: 실제 80ms 회전 outgoing=0.132935, incoming=-0.0666303. 브라우저 전환 400ms. 원본 실패와 수정 후 진단 로그를 모두 보존했다.
+
+## 관련 재검증 결과
+
+| 검사 | 결과·증거 |
+|---|---|
+| 회전 20조합, 양쪽 실전환·점·키보드·순환·동작 축소 | PASS / Gate반환-회전-수정후.txt |
+| CPU20 동일 360 라이트 2장 실패 조건 | PASS / Gate반환-전환진단-CPU20-수정후.txt |
+| 기존 장소 6개 전체 | PASS / Gate반환-장소검사-A/B/C.txt |
+| 교차 플랫폼·지도 deep link 계약 | PASS / Gate반환-교차플랫폼검사.txt, Gate반환-지도계약검사.txt |
+| 대화 ②③④, 360/1280 라이트/다크 | PASS / Gate반환-대화검사.txt |
+| 약관 잠금·보안 경계 | PASS / Gate반환-하드닝검사.txt |
+| 캐시·JS 문법·diff check·제품/확정 디자인/main 보존 | PASS |
+
+캐시 `aset-2422a7f21207` 유지. 회전 workflow 등록·실행 직전 mkdtemp 프로필 유지. 새 화면은 gate-fix-place-after/와 gate-fix-conversation/에 보존한다. 기존 확정 원본·전후 24쌍·이전 READY는 보존한다.
+
+## 미검증·배포 경계
+
+새 exact HEAD의 trusted Linux gate는 **NOT_TESTED**이며 배포방에서 재실행해야 한다. 실제 Android Chrome·Samsung Internet·iPhone Safari·화면 읽기 음성·운영 API/지도/전화·Production SHA/digest는 UNVERIFIED. 후속 대화 디자인에 대한 사용자 별도 브라우저 최종 승인 기록도 UNVERIFIED로 유지한다. READY는 feature 후보 제출이며 main 병합/Production 성공을 뜻하지 않는다.
+
+다른 후보가 먼저 main에 반영되면 fresh main 정상 merge와 영향 검사를 거쳐야 한다. Production DB·Secret·DNS·환경변수·LIVE MONEY·소셜 공개·유료 인프라 변경 없음.
+
+## 이전 제출 기록 — 당시 기준 보존
+
+아래의 HEAD/main/담당·테스트·배포 값은 과거 기록이며 현행 값은 위 Gate 반환 READY를 따른다.
+
+READY_FOR_DEPLOY=YES
+
 # SITE-CONVERSATION-DESIGN-01 — 최신 main 통합 재READY
 
 - 작성 시각(KST): 2026-10-12T00:03:36+09:00
