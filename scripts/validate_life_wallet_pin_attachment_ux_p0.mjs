@@ -237,7 +237,7 @@ try {
   click('잠그기');
   const unlock = await wait(() => root.querySelector('.wallet-unlock-form'), 'unlock form');
   for (const digit of '2580') [...unlock.querySelectorAll('.wallet-keypad button')].find(button => button.textContent === digit).click();
-  [...unlock.querySelectorAll('.wallet-keypad button')].find(button => button.textContent === '확인').click();
+  [...unlock.querySelectorAll('.wallet-keypad button')].find(button => button.textContent === '열기').click();
   const card = await wait(() => root.querySelector('.wallet-deck-card[data-depth="0"]'), 'deck');
   card.click();
   const image = await wait(() => root.querySelector('.wallet-detail-images img'), 'detail image');
