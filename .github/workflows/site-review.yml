@@ -263,6 +263,9 @@ jobs:
       - name: Validate long answer scroll anchor
         run: node scripts/validate_chat_long_answer_scroll_anchor_01.mjs
 
+      - name: 대화 화면 선택·입력·가독성 연결 검사
+        run: node scripts/validate_conversation_design_01.mjs
+
       # 실사용 (Samsung 계열 모바일): with the keyboard open the composer rose to
       # just under the header, and the first characters typed sat behind the +
       # button. Measured as bounding rects (glyphs, caret, +, send, composer)
@@ -469,7 +472,7 @@ jobs:
         run: node scripts/validate_place_card_cross_platform_01.mjs
 
       # 카드 본문은 네이버 검색(메뉴·사진·리뷰), 지도 버튼만 지도 handoff.
-      # 전화·지도·캐러셀 화살표가 검색을 부르지 않는지 실제 탭/클릭으로 확인한다.
+      # 전화·지도·회전 조작이 검색을 부르지 않는지 실제 탭/클릭으로 확인한다.
       - name: Validate Place Card body opens NAVER search
         run: node scripts/validate_place_card_naver_search_click_01.mjs
 
@@ -494,7 +497,7 @@ jobs:
 
       # 장소 카드 캐러셀은 transform 으로만 돌고 스크롤하지 않는다. 상품 카드
       # 레일의 scroll snap 을 물려받아 회전할 때마다 레일이 153~252px 밀리던
-      # 결함 — 이전/다음·스와이프·방향키 뒤에도 가운데 카드가 제자리인지 잰다.
+      # 결함 — 양방향 드래그·스와이프·방향키 뒤에도 가운데 카드가 제자리인지 잰다.
       - name: Validate Place Card carousel never drifts
         run: node scripts/validate_place_card_carousel_no_drift_01.mjs
 
@@ -502,6 +505,11 @@ jobs:
       # 온전히 보이며 양옆 카드 끝이 보인다(LIFE-MEDICAL-AUTO-SEARCH-CARD-01). 사진이 없으면 사진 칸이 없고, 1/3 위치와 세 곳 다음의
       # "다른 병원 보기", 같은 기관 한 장, 설정 지도앱·네이버 검색 유지를 실제
       # 터치/마우스로 잰다(버튼 바로 위 본문 탭이 전화로 넘어가지 않는지 포함).
+      # 회전 중 실제 3D 변환, 0/1/2/5/다량 결과, 점·순서·선택 일치,
+      # 키보드·순환·동작 축소·포커스 격리. Chrome 프로필은 실행 직전 mkdtemp.
+      - name: 장소 카드 회전·점 버튼·키보드 선택 검증
+        run: node scripts/validate_place_card_rotation_01.mjs
+
       - name: Validate Place / medical card final UX
         run: node scripts/validate_place_medical_card_ux_final_01.mjs
 

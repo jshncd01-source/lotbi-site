@@ -1,14 +1,14 @@
-// Locks touch month navigation and the selected-day in-flow detail.
+// Locks touch month navigation and the persistent selected-day detail.
 //
 // Covered contracts:
 //   - horizontal swipe changes month (left -> next, right -> previous)
 //   - vertical drag never changes month and never suppresses native scrolling
 //   - a tap-sized movement stays a tap, so date cells and event chips still work
 //   - a burst of swipes advances exactly one month (no skipping)
-//   - the touch selected-day surface stays below the Month with no overlay
-//   - LIFE UX 01: the day detail is part of the page (no close control); its
-//     two actions are pinned to the bottom of a touch screen and name the day
-//     a new record lands on; tapping another date retargets it
+//   - desktop keeps the approved selected-day rail beside the Month
+//   - touch keeps the selected-day surface below the Month with no overlay
+//   - the day detail is part of the page (no close control) and tapping another
+//     date retargets the same persistent detail
 //   - Escape inside the detail steps back to the selected date and leaves the
 //     Calendar modal open (Site #129/#130)
 //   - desktop keeps the sticky side detail and gains no swipe behaviour
@@ -157,12 +157,17 @@ try{
   await new Promise(r=>setTimeout(r,50));
   await wait(()=>modal.querySelector('.calendar-month')?.getBoundingClientRect().width>0,'month geometry');
 
-  // Month opens by itself. A selected day is added only after a date tap.
+  // The approved Month opens with one persistent selected-day detail: beside
+  // the grid on desktop and directly after it in touch document flow.
   const layoutNode=()=>modal.querySelector('.calendar-month-layout');
   const childOrderOk=()=>{
     const layout=layoutNode();
     if(!layout)return false;
-    return layout.children.length===1&&layout.children[0]?.classList.contains('calendar-month');
+    return layout.children.length===2
+      &&layout.children[0]?.classList.contains('calendar-month')
+      &&layout.children[1]?.classList.contains('calendar-day-panel')
+      &&!layout.children[1]?.hidden
+      &&!layout.querySelector('[data-calendar-day-detail-backdrop]');
   };
   const titleOf=()=>modal.querySelector('.calendar-title-button')?.textContent||'';
   const monthNode=()=>modal.querySelector('.calendar-month');
@@ -189,7 +194,7 @@ try{
   result.verticalScrollSafe=titleOf()===baseTitle&&!verticalPrevented;
 
   if(desktop){
-    // Desktop keeps the sticky side detail and must gain no swipe behaviour.
+    // Desktop keeps the inline side detail and must gain no swipe behaviour.
     const swiped=drag(monthNode(),rightX,midY,leftX,midY);
     await new Promise(r=>setTimeout(r,30));
     result.desktopSwipeInert=titleOf()===baseTitle&&!swiped;
@@ -201,6 +206,7 @@ try{
     result.desktopPresentation=panel.dataset.presentation;
     result.desktopPosition=getComputedStyle(panel).position;
     result.desktopBackdrop=Boolean(modal.querySelector('[data-calendar-day-detail-backdrop]'));
+    result.desktopClose=Boolean(panel.querySelector('.calendar-day-close'));
     result.desktopActionsInPanel=panel.querySelectorAll('.calendar-add-actions button').length;
   }else{
     // --- swipe left -> next month ---------------------------------------
@@ -238,7 +244,7 @@ try{
     await idle('previous button idle');
     result.buttonsPreserved=true;
 
-    // --- date tap moves the in-flow detail below the Month ---------------
+    // --- date tap retargets the persistent in-flow detail below the Month -
     const cell=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(n=>n.dataset.selected!=='true'&&n.dataset.today!=='true');
     const cellDate=cell.dataset.calendarDate;
     click(cell);
@@ -276,7 +282,7 @@ try{
       backdrop:Boolean(modal.querySelector('[data-calendar-day-detail-backdrop]')),
       reducedMotion:sheet.dataset.reducedMotion||'',
       heading:Boolean(sheet.querySelector('.calendar-day-heading')?.textContent?.trim()),
-      listOrEmpty:Boolean(sheet.querySelector('.calendar-day-event')||sheet.querySelector('.life-calendar-empty')),
+      listOrEmpty:Boolean(sheet.querySelector('.calendar-day-event')||sheet.querySelector('.calendar-day-empty')||sheet.querySelector('.life-calendar-empty')),
       close:Boolean(sheet.querySelector('.calendar-day-close')),
       actionsInPanel:sheet.querySelectorAll('.calendar-add-actions button').length,
     };
@@ -367,7 +373,7 @@ try {
     const label = `${value.viewport.width}x${value.viewport.height}`;
     if (!value.tapPreserved) throw new Error(`${label}: tap-sized movement must not navigate months`);
     if (!value.verticalScrollSafe) throw new Error(`${label}: vertical drag must not navigate or block scrolling`);
-    if (!value.childOrder) throw new Error(`${label}: Month must open with only the calendar and no automatic detail`);
+    if (!value.childOrder) throw new Error(`${label}: Month must open with the calendar followed by one persistent selected-day detail`);
   }
 
   const desktops = results.filter(value => value.desktop);
@@ -377,10 +383,11 @@ try {
   for (const value of desktops) {
     const label = `${value.viewport.width}x${value.viewport.height}`;
     if (!value.desktopSwipeInert) throw new Error(`${label}: desktop must not gain swipe month navigation`);
-    if (value.desktopPresentation !== 'MODAL') throw new Error(`${label}: desktop must open a centered modal`);
-    if (value.desktopPosition !== 'relative') throw new Error(`${label}: desktop detail must be positioned inside its overlay`);
-    if (!value.desktopBackdrop) throw new Error(`${label}: desktop must render a dismiss backdrop`);
-    if (value.desktopActionsInPanel !== 2) throw new Error(`${label}: desktop popup keeps its two actions inside (got ${value.desktopActionsInPanel})`);
+    if (value.desktopPresentation !== 'SIDE') throw new Error(`${label}: desktop must keep the selected-day side rail`);
+    if (value.desktopPosition !== 'relative' && value.desktopPosition !== 'sticky') throw new Error(`${label}: desktop detail must stay in the Month layout`);
+    if (value.desktopBackdrop) throw new Error(`${label}: desktop side detail must not render a dismiss backdrop`);
+    if (value.desktopClose) throw new Error(`${label}: persistent desktop detail must not render a close control`);
+    if (value.desktopActionsInPanel !== 2) throw new Error(`${label}: desktop side detail keeps its two record actions in the DOM (got ${value.desktopActionsInPanel})`);
   }
 
   for (const value of mobiles) {
@@ -391,20 +398,18 @@ try {
     if (!value.buttonsPreserved) throw new Error(`${label}: 이전/다음 buttons must keep working`);
 
     const sheet = value.sheet || {};
-    if (sheet.presentation !== 'SHEET') throw new Error(`${label}: touch day detail must be a bottom sheet (got ${sheet.presentation})`);
-    if (sheet.position !== 'fixed') throw new Error(`${label}: the day sheet must be fixed to the viewport`);
-    if (!sheet.backdrop) throw new Error(`${label}: the bottom sheet must have a dismiss backdrop`);
-    if (Math.abs(sheet.bottom-value.viewport.height)>2) throw new Error(`${label}: the day sheet must rest on the viewport bottom`);
+    if (sheet.presentation !== 'FLOW') throw new Error(`${label}: touch day detail must stay in document flow (got ${sheet.presentation})`);
+    if (sheet.position === 'fixed' || sheet.position === 'absolute') throw new Error(`${label}: the touch detail must not detach from document flow`);
+    if (sheet.backdrop) throw new Error(`${label}: the touch detail must not have a dismiss backdrop`);
+    if (sheet.top < sheet.gridBottom - 2) throw new Error(`${label}: the touch detail must follow the month grid`);
     if (sheet.left < -1 || sheet.right > value.viewport.width + 1) throw new Error(`${label}: day panel horizontal overflow`);
     if (!sheet.heading) throw new Error(`${label}: the day panel must show the date heading`);
     if (!sheet.listOrEmpty) throw new Error(`${label}: the day panel must show the entry list or the empty message`);
-    if (!sheet.close) throw new Error(`${label}: the bottom sheet must carry a close control`);
-    // On a touch screen the two actions are pinned to the bottom of the
-    // Calendar, not repeated inside the detail, and they name the day a new
-    // record lands on (the picked day is never today here).
+    if (sheet.close) throw new Error(`${label}: persistent touch detail must not carry a close control`);
+    // The approved persistent panel owns the two record actions in the DOM;
+    // the Month must not duplicate them in a separate pinned action bar.
     const actions = value.actions || {};
-    const [, month, day] = String(value.cellDate).split('-').map(Number);
-    if (sheet.actionsInPanel !== 2) throw new Error(`${label}: the bottom sheet must keep both record actions inside`);
+    if (sheet.actionsInPanel !== 2) throw new Error(`${label}: the touch detail must keep both record actions inside`);
     if (actions.pinned) throw new Error(`${label}: Month must not duplicate actions in a pinned bar`);
 
     // Another date is reachable while the detail is shown, and taking it
@@ -416,7 +421,7 @@ try {
     if (!value.escapeKeepsCalendar) throw new Error(`${label}: Escape must leave the Calendar modal open`);
     if (!value.escapeBackdropCleared) throw new Error(`${label}: Escape must leave no dismiss layer behind`);
     if (!value.escapeFocusRestore) throw new Error(`${label}: Escape must restore focus to the selected date`);
-    if (value.escapeDetailStays) throw new Error(`${label}: Escape must close the day sheet`);
+    if (!value.escapeDetailStays) throw new Error(`${label}: Escape must preserve the persistent day detail`);
   }
 
   for (const value of results) {
@@ -425,8 +430,8 @@ try {
   }
   if (animated.reducedMotion) throw new Error('motion-enabled case unexpectedly reported reduced motion');
   if (animated.sheet.reducedMotion !== 'false') throw new Error('motion-enabled sheet must record prefers-reduced-motion=false');
-  if (animated.sheet.presentation !== 'SHEET' || animated.sheet.position !== 'fixed' || !animated.sheet.backdrop) {
-    throw new Error('motion-enabled day panel must still render as a dismissible bottom sheet');
+  if (animated.sheet.presentation !== 'FLOW' || animated.sheet.position === 'fixed' || animated.sheet.backdrop) {
+    throw new Error('motion-enabled day panel must still render as persistent in-flow detail');
   }
   if (!animated.swipeNext || !animated.swipePrevious || !animated.burstNoSkip) {
     throw new Error('motion-enabled swipe navigation regressed');

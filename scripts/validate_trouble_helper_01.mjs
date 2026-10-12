@@ -2,7 +2,7 @@
 //
 // Contract checked here:
 // * both menus (desktop sidebar, mobile drawer) carry 분쟁·사고 도우미
-//   (data-trouble-open) right after 진위확인; it opens <dialog
+//   (data-trouble-open) right after 사기·피싱 확인; it opens <dialog
 //   data-trouble-dialog> headed "LOTBI 분쟁·사고 도우미" / “막막할 때 롯비”
 //   without any login, from Core's public GET /v2/trouble-helper/guides
 //   (credentials omit, no headers)
@@ -16,7 +16,7 @@
 //   ONLY answered questions: unanswered = shown; an answer that does not match
 //   hides. On 375×812 the 바로 전화 row and the whole first card are on the
 //   first screen with no scroll (320×640: the row; 1280×900: row + card).
-//   ③ numbered step cards (urgent band, 했어요, 읽어주기, tel buttons, 진위확인
+//   ③ numbered step cards (urgent band, 했어요, 읽어주기, tel buttons, 사기·피싱 확인
 //   link, goto); ④ evidence, references, official channels with the fee line
 //   rules, hours, "확인일 · 근거 보기", "인증이 안 돼요" putting phone/visit first;
 //   ⑤ 상황 정리표 with 'SUBMITTED' locked until the receipt_field_id field holds
@@ -57,12 +57,12 @@ const ui = read('site-trouble-helper.js');
 const modelSource = read('site-trouble-helper-model.js');
 const css = read('site-trouble-helper.css');
 
-await check('menus: 분쟁·사고 도우미 sits right after 진위확인 in the desktop and mobile menus', () => {
+await check('menus: 분쟁·사고 도우미 sits right after 사기·피싱 확인 in the desktop and mobile menus', () => {
   const navs = [...index.matchAll(/<div class="consumer-primary-nav"[^>]*>([\s\S]*?)<\/div>/gu)].map(match => match[1]);
   assert.equal(navs.length, 2);
   for (const nav of navs) {
     const labels = [...nav.matchAll(/<button\b[^>]*aria-label="([^"]+)"/gu)].map(match => match[1]);
-    assert.equal(labels[labels.indexOf('진위확인') + 1], '분쟁·사고 도우미', JSON.stringify(labels));
+    assert.equal(labels[labels.indexOf('사기·피싱 확인') + 1], '분쟁·사고 도우미', JSON.stringify(labels));
     assert.match(nav, /<button class="nav-item nav-link" type="button" data-trouble-open aria-label="분쟁·사고 도우미">\s*<svg class="nav-icon"[^>]*><use href="#lotbi-icon-lifebuoy"><\/use><\/svg>\s*<span class="nav-item-label">분쟁·사고 도우미<\/span>/u);
   }
   assert.equal((index.match(/id="lotbi-icon-lifebuoy"/gu) || []).length, 1);
@@ -809,7 +809,7 @@ async function runFlow(browser, origin, dir, testCase) {
     })()`);
 
     // 중고거래 사기: opens on 할 일 with [112]; 좁히기 '아직 안 보냈어요' leaves
-    // the 조회 step (진위확인 link) and no 바로 전화 row; '계좌로' brings 112 back.
+    // the 조회 step (사기·피싱 확인 link) and no 바로 전화 row; '계좌로' brings 112 back.
     r.fraud = await evaluate(`(async () => {
       __th.click('[data-trouble-pick]');
       await __th.wait(() => __th.view().dataset.troubleView === 'pick', 'pick again');
@@ -892,7 +892,7 @@ async function runFlow(browser, origin, dir, testCase) {
     await shoot('wage-help');
 
     // 처음부터 다시 takes two presses; a saved situation opens on 할 일 with its
-    // answers kept; then 진위확인 link closes this dialog.
+    // answers kept; then 사기·피싱 확인 link closes this dialog.
     r.reset = await evaluate(`(async () => {
       const first = __th.click('[data-trouble-reset]');
       const armed = first.textContent;
@@ -1054,7 +1054,7 @@ try {
     const label = testCase.label;
     const r = await runFlow(browser, origin, dir, testCase);
     await check(`${label}: both menus open it without a login; Core read is public (credentials omit, no headers)`, () => {
-      assert.deepEqual(r.menus.map(m => [m.inDrawer, m.prev, m.label]), [[false, '진위확인', '분쟁·사고 도우미'], [true, '진위확인', '분쟁·사고 도우미']]);
+      assert.deepEqual(r.menus.map(m => [m.inDrawer, m.prev, m.label]), [[false, '사기·피싱 확인', '분쟁·사고 도우미'], [true, '사기·피싱 확인', '분쟁·사고 도우미']]);
       assert.equal(r.bootLoaded, false, 'site-trouble-helper.js is not fetched at boot (SITE-T55 gate)');
       assert.equal(r.open.eyebrow, 'LOTBI 분쟁·사고 도우미');
       assert.equal(r.open.title, '“막막할 때 롯비”');
@@ -1219,7 +1219,7 @@ try {
       assert.equal(r.reload.status, 'SUBMITTED');
       assert.ok(r.reload.evidence.includes(FIXTURE.situations[0].evidence[0].label), 'checked evidence kept');
     });
-    await check(`${label}: 중고거래 — opens on 할 일 with [112]; 좁히기 아직 → no 112 row, 진위확인 link; 계좌로 → 112; "인증이 안 돼요"`, () => {
+    await check(`${label}: 중고거래 — opens on 할 일 with [112]; 좁히기 아직 → no 112 row, 사기·피싱 확인 link; 계좌로 → 112; "인증이 안 돼요"`, () => {
       assert.match(r.fraud.resume, /이어서 보기/u);
       assert.equal(r.fraud.viewRightAfterTap, 'steps');
       assert.deepEqual(r.fraud.layout, RESULT_LAYOUT.filter(part => part !== 'portal'));
@@ -1265,7 +1265,7 @@ try {
       assert.equal(r.other.moelFees, '통화료 별도 · 신청 수수료 없음');
       assertElderly(r.other.measure, `${label} wage help`, testCase.width);
     });
-    await check(`${label}: 처음부터 다시 takes two presses; 진위확인 link hands over; × closes for good`, () => {
+    await check(`${label}: 처음부터 다시 takes two presses; 사기·피싱 확인 link hands over; × closes for good`, () => {
       assert.equal(r.reset.armed, '한 번 더 누르면 지우고 처음부터 해요');
       assert.equal(r.reset.stillHere, 'help');
       assert.equal(r.reset.wageGone, true);

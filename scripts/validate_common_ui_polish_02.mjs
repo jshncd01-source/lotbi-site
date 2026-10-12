@@ -60,7 +60,7 @@ check('C6 the company page says what LOTBI does today, after the philosophy', ()
   const today = html.indexOf('id="about-today-title"');
   const principles = html.indexOf('class="about-principles" aria-label="LOTBI 핵심 방향"');
   assert.ok(core > 0 && today > core && principles > today, 'order: philosophy, today, direction');
-  for (const feature of ['캘린더', '지역정보', '가족 지킴이', 'Life Wallet', '진위확인']) assert.ok(html.slice(today, principles).includes(feature), feature);
+  for (const feature of ['캘린더', '지역정보', '가족 지킴이', 'Life Wallet', '사기·피싱 확인']) assert.ok(html.slice(today, principles).includes(feature), feature);
   assert.doesNotMatch(html.slice(today, principles), /구매할 수 있|자동으로 완료|결제/, 'no commerce overclaim');
 });
 

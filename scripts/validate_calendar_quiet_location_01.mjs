@@ -99,7 +99,13 @@ try {
     && typeof root.dataset.locationResolution === 'string';
 
   // 3. The control exists — in Settings, which is the only place it lives now.
-  click(root.querySelector('.calendar-settings-button'));
+  // The approved Calendar header owns 설정 beside + 일정 추가. The manager
+  // itself still owns Settings when mounted without the surrounding modal, so
+  // cover both placements without weakening any of the location assertions.
+  const settingsButton = root.closest('.site-calendar-modal')?.querySelector('.calendar-settings-button')
+    || root.querySelector('.calendar-settings-button');
+  if (!settingsButton) throw new Error('calendar settings button missing');
+  click(settingsButton);
   await wait(() => root.querySelector('.calendar-settings-dialog'), 'settings dialog');
   const dialog = root.querySelector('.calendar-settings-dialog');
   const locationRow = dialog.querySelector('[data-calendar-location-row]');

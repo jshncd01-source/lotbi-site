@@ -6,8 +6,8 @@ const js = read('site-conversation.js');
 const subscribe = read('subscribe.html');
 // CONNECTED-SERVICES-NAME-01 — 대표 결정(2026-10-10 "연결서비스로 통합"): the last item
 // always opened Account's 연결 서비스 page; it now carries that page's name.
-// TROUBLE-HELPER-01: 분쟁·사고 도우미 joins right after 진위확인 (eight menus).
-const expected = ['새 대화', '캘린더', 'Life Wallet', '진위확인', '분쟁·사고 도우미', '가족 지킴이', '지역정보', '연결 서비스'];
+// TROUBLE-HELPER-01: 분쟁·사고 도우미 joins right after 사기·피싱 확인 (eight menus).
+const expected = ['새 대화', '캘린더', 'Life Wallet', '사기·피싱 확인', '분쟁·사고 도우미', '가족 지킴이', '지역정보', '연결 서비스'];
 const navs = [...html.matchAll(/<div class="consumer-primary-nav"[^>]*>([\s\S]*?)<\/div>/g)];
 assert.equal(navs.length, 2, 'desktop and mobile use the same navigation');
 for (const [,nav] of navs) {

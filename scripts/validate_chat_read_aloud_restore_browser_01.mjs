@@ -21,6 +21,7 @@
 //     horizontal scroll, readable label contrast
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
@@ -383,8 +384,14 @@ function run(browser, w, h, voices, userAgent = '') {
   fs.writeFileSync(WRAPPER, wrapperMarkup(w, h, voices), 'utf8');
   const args = ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--window-size=1600,1000', '--force-device-scale-factor=1', '--force-prefers-reduced-motion=reduce', '--virtual-time-budget=70000'];
   if (userAgent) args.push(`--user-agent=${userAgent}`);
-  args.push('--dump-dom', ORIGIN + '/' + WRAPPER_REL);
-  const r = spawnSync(browser, args, {encoding: 'utf8', timeout: 150000, maxBuffer: 16 * 1024 * 1024});
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'lotbi-read-aloud-'));
+  args.push(`--user-data-dir=${profile}`, '--dump-dom', ORIGIN + '/' + WRAPPER_REL);
+  let r;
+  try {
+    r = spawnSync(browser, args, {encoding: 'utf8', timeout: 150000, maxBuffer: 16 * 1024 * 1024});
+  } finally {
+    fs.rmSync(profile, {recursive: true, force: true, maxRetries: 10, retryDelay: 100});
+  }
   if (r.error) throw r.error;
   if (r.status !== 0) throw new Error('browser ' + r.status + ' ' + r.stderr);
   const a = '<pre id="result">', b = '</pre>';

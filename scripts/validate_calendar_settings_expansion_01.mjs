@@ -78,8 +78,8 @@ const {readCalendarDisplaySettings} = await import('../site-calendar-manager.js'
   const store = new Map();
   const storage = {getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, v)};
   const defaults = readCalendarDisplaySettings(storage);
-  assert.deepEqual({...defaults}, {showKoreaHolidays: true, showGridLines: true, showLunarDates: false, showPrecipitation: true, weekStart: 0},
-    'an empty store must render exactly the Calendar that shipped');
+  assert.deepEqual({...defaults}, {showKoreaHolidays: true, showGridLines: true, showLunarDates: true, showPrecipitation: true, weekStart: 0},
+    'an empty store must render the approved calendar with lunar dates visible');
   // Anything unreadable falls all the way back rather than rendering a guess.
   for (const broken of ['{', '[]', 'null', '"nope"', '{"weekStart":9}', '{"weekStart":"1"}']) {
     const bad = {getItem: () => broken, setItem: () => {}};
@@ -87,7 +87,7 @@ const {readCalendarDisplaySettings} = await import('../site-calendar-manager.js'
     assert.equal(read.weekStart, 0, `a week start of ${broken} must fall back to Sunday`);
     assert.equal(read.showGridLines, true, `${broken} must not silently hide the grid lines`);
   }
-  assert.deepEqual({...readCalendarDisplaySettings(null)}, {showKoreaHolidays: true, showGridLines: true, showLunarDates: false, showPrecipitation: true, weekStart: 0},
+  assert.deepEqual({...readCalendarDisplaySettings(null)}, {showKoreaHolidays: true, showGridLines: true, showLunarDates: true, showPrecipitation: true, weekStart: 0},
     'no storage at all must not stop the Calendar');
 }
 
@@ -165,7 +165,7 @@ try {
 
   const openSettings = async () => {
     root.querySelector('.calendar-settings-backdrop')?.remove();
-    root.querySelector('.calendar-settings-button').click();
+    document.querySelector('.calendar-settings-button').click();
     await wait(() => root.querySelector('.calendar-settings-dialog'), 'settings dialog');
   };
 

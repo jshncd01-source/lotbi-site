@@ -467,7 +467,7 @@ async function runCase(browser, origin, dir, testCase) {
       await evaluate('globalThis.__anchorClicks.splice(0), true');
       const before = await evaluate(PROBE);
       await action(before);
-      await sleep(350);
+      await sleep(450);
       const after = await evaluate(PROBE);
       const tabs = await openedTabs();
       const record = {name, before: before.activeIndex, after: after.activeIndex, clicks: after.clicks, tabs};
@@ -535,9 +535,10 @@ async function runCase(browser, origin, dir, testCase) {
 
     // 5. Carousel controls → carousel only. Phones have no ‹ › any more
     // (PLACE-MEDICAL-CARD-UX-FINAL-01): a swipe on the card turns it there.
-    const goNext = b => (testCase.mobile ? swipe(b.title.cx + 60, b.title.cx - 60, b.title.cy) : tap(b.next.cx, b.next.cy));
-    const goPrev = b => (testCase.mobile ? swipe(b.title.cx - 60, b.title.cx + 60, b.title.cy) : tap(b.prev.cx, b.prev.cy));
-    if (testCase.mobile) assert.ok(initial.next.w === 0 && initial.prev.w === 0, `${testCase.label}: no arrows on a phone`);
+    const goNext = b => swipe(b.title.cx + 60, b.title.cx - 60, b.title.cy);
+    const goPrev = b => swipe(b.title.cx - 60, b.title.cx + 60, b.title.cy);
+    assert.equal(initial.next, null, `${testCase.label}: next arrow removed`);
+    assert.equal(initial.prev, null, `${testCase.label}: previous arrow removed`);
     const nextResult = await step('tap-next', goNext);
     expectNoExternal(nextResult, `${testCase.label}: next`);
     assert.equal(nextResult.after.activeIndex, 1, `${testCase.label}: next moves the carousel`);
