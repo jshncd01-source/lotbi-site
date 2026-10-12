@@ -87,7 +87,7 @@ try {
   // open the day panel and the settings dialog: both were failing on the real site
   root.querySelector('.calendar-date-cell[data-current-month="true"]')?.click();
   await sleep(500);
-  root.querySelector('.calendar-settings-button')?.click();
+  document.querySelector('.calendar-settings-button')?.click();
   await wait(() => root.querySelector('.calendar-settings-dialog'), 'settings');
   await sleep(300);
 

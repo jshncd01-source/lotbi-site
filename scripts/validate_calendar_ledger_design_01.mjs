@@ -15,7 +15,7 @@ import {
 //
 // A month's recorded amounts have one total line under the grid followed by a
 // compact category overview; the count/currency breakdown remains behind the
-// total button. The words are "입력 금액": an amount on a record
+// total button. The approved surface names it "생활비 합계": an amount on a record
 // can be a booking's price as easily as money already spent, and the contract
 // does not yet say which. A record without an amount is an ordinary record, so
 // nothing ever says it was "left out".
@@ -60,23 +60,25 @@ try {
 
   // ── the one line ──
   const line = amountSummaryLinePresentation(summary, {month: 9});
-  assert.deepEqual(line, {label: '9월 입력 금액 합계', amounts: ['84,200원', '12 USD']});
+  assert.deepEqual(line, {label: '9월 생활비 합계', amounts: ['84,200원', '12 USD']});
   // Owner decision 2026-10-10: a month with no amount keeps its line at 0원
   // (the 10-06 redesign had hidden it, read as "가계부 표시가 사라졌다").
   assert.deepEqual(amountSummaryLinePresentation({currencies: [], entriesWithoutAmount: 3}, {month: 9}),
-    {label: '9월 입력 금액 합계', amounts: ['0원']}, 'a month with no amount reads 0원, never vanishes');
+    {label: '9월 생활비 합계', amounts: ['0원']}, 'a month with no amount reads 0원, never vanishes');
   let opened = null;
   const lineNode = calendarAmountSummaryLine({state: 'ready', summary, month: 9, onOpen: opener => { opened = opener; }});
   assert.equal(lineNode.tagName, 'button');
   assert.equal(lineNode.dataset.calendarAmountSummary, 'ready');
-  assert.equal(find(lineNode, 'calendar-amount-line-label').textContent, '9월 입력 금액 합계');
+  assert.equal(find(lineNode, 'calendar-amount-line-label').textContent, '9월 생활비 합계');
   assert.equal(find(lineNode, 'calendar-amount-line-amount').textContent, '84,200원 · 12 USD');
-  assert.equal(lineNode.attributes['aria-label'], '9월 입력 금액 합계 84,200원, 12 USD, 자세히 보기');
+  assert.equal(lineNode.attributes['aria-label'], '9월 생활비 합계 84,200원, 12 USD, 자세히 보기');
   lineNode.listeners.click();
   assert.equal(opened, lineNode, 'the line opens the detail and hands it back its opener for focus');
-  for (const state of ['loading', 'guest']) {
-    assert.equal(calendarAmountSummaryLine({state, summary}), null, `${state} must not claim any total`);
-  }
+  const loadingLine = calendarAmountSummaryLine({state: 'loading', summary});
+  assert.equal(loadingLine.attributes.role, 'status');
+  assert.match(loadingLine.textContent, /불러오는 중/);
+  assert.ok(!loadingLine.textContent.includes('0원'), 'loading must never masquerade as a 0원 total');
+  assert.equal(calendarAmountSummaryLine({state: 'guest', summary}), null, 'an unknown state must not claim any total');
   const emptyLine = calendarAmountSummaryLine({state: 'ready', summary: {currencies: [], entriesWithoutAmount: 2}, month: 9});
   assert.equal(emptyLine.dataset.calendarAmountSummary, 'ready');
   assert.equal(find(emptyLine, 'calendar-amount-line-amount').textContent, '0원');
@@ -84,9 +86,9 @@ try {
   assert.deepEqual(findAll(emptyBlock, 'calendar-amount-category').map(node => [node.dataset.expenseCategory, text(node.children[1])]),
     [['FOOD', '0원'], ['TRAVEL', '0원'], ['SHOPPING', '0원'], ['LIVING', '0원'], ['OTHER', '0원']],
     'an empty month keeps the five fixed 0원 slots');
-  const failed = calendarAmountSummaryLine({state: 'error', errorMessage: '입력 금액 합계를 불러오지 못했어요.'});
+  const failed = calendarAmountSummaryLine({state: 'error', errorMessage: '생활비 합계를 불러오지 못했어요.'});
   assert.equal(failed.attributes.role, 'status');
-  assert.equal(failed.textContent, '입력 금액 합계를 불러오지 못했어요.');
+  assert.equal(failed.textContent, '생활비 합계를 불러오지 못했어요.');
   assert.equal(find(failed, 'calendar-amount-line-amount'), undefined, 'a failed read shows no number');
 
   const block = calendarAmountSummaryBlock({state: 'ready', summary, month: 9, onOpen: () => {}});
@@ -154,4 +156,4 @@ for (const [name, source] of [['site-calendar-manager.js', manager], ['site-cale
 assert.match(calendarCss, /\.calendar-amount-line \{[^}]*min-height: 44px;/);
 assert.match(calendarCss, /\.calendar-amount-line-amount \{[^}]*font-variant-numeric: tabular-nums;/);
 assert.match(calendarCss, /\.calendar-amount-detail-row \{/);
-console.log('CALENDAR_LEDGER_DESIGN_01 PASS — total + visible categories + detail on request, 입력 금액 wording, money/currency rules; not API E2E');
+console.log('CALENDAR_LEDGER_DESIGN_01 PASS — total + visible categories + detail on request, 생활비 합계 wording, money/currency rules; not API E2E');

@@ -76,7 +76,8 @@ const scam = read('site-scam-shield.js');
 assert.match(scam, /window\.addEventListener\('lotbi:scam-shield-open-request', \(\) => \{\s*if \(dialog && !dialog\.hasAttribute\('open'\)\) void openDialog\(\);/u);
 assert.match(scam, /window\.addEventListener\('lotbi:scam-shield-close-request', \(\) => \{\s*if \(dialog\?\.hasAttribute\('open'\)\) closeDialog\(\);/u);
 assert.doesNotMatch(scam, /^\s*(export|import)\s/mu, 'site-scam-shield.js stays a plain script (validate_scam_shield_mvp_01 runs it in a vm)');
-assert.match(scam, /dialog\.close\(\);\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*notifyScamShieldVisibility\(\);/u, 'closing 진위확인 updates the URL without waiting for a frame');
+assert.match(scam, /if \(dialog\.open\) dialog\.close\(\);\s*finishDialogClose\(\);/u, 'native dialog close updates the route without waiting for its close event');
+assert.match(scam, /function finishDialogClose\(\) \{[\s\S]*?if \(!wasVisible\) return;[\s\S]*?notifyScamShieldVisibility\(\);/u, 'native close event cleanup is idempotent');
 
 // ── Login return target: a closed set on / ──────────────────────────────
 const {
@@ -652,6 +653,15 @@ async function runCase(browser, origin, workDir, testCase) {
     // 진위확인: ×, 취소 and Escape before the step lands → one step back home.
     await openFromMenu('scam');
     await settled('scam', 'L scam');
+    const scamFocusTarget = testCase.mobile
+      ? '[data-mobile-nav-open]'
+      : `.chat-sidebar-desktop ${NAV_SELECTOR.scam}`;
+    await evaluate(`(() => {
+      window.__scamFocusRestores = 0;
+      const target = document.querySelector(${JSON.stringify(scamFocusTarget)});
+      target?.addEventListener('focus', () => { window.__scamFocusRestores += 1; });
+      return Boolean(target);
+    })()`);
     indexBefore = await historyIndex();
     popsBefore = await popCount();
     await evaluate(`(() => {
@@ -667,7 +677,9 @@ async function runCase(browser, origin, workDir, testCase) {
     state = await settled('', 'L scam × × 취소 Escape, 1.8 s later');
     indexAfter = await historyIndex();
     pops = await popCount() - popsBefore;
+    const focusRestores = await evaluate('window.__scamFocusRestores');
     check('L 진위확인 ×, ×, 취소 and Escape before the step lands → one step back home', state.url === '/' && !state.scam && indexAfter === indexBefore - 1 && pops === 1 && state.docId === doc, {state, indexBefore, indexAfter, pops});
+    check('L 네이티브 close 이벤트가 보이는 진입점으로 초점을 한 번만 복원', focusRestores === 1, {focusRestores, scamFocusTarget});
 
     // Escape with the focus outside the screen (the document's own Escape).
     await openFromMenu('life');

@@ -1,7 +1,7 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-af22a4b74bd7';
-import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-af22a4b74bd7';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-af22a4b74bd7';
-import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-af22a4b74bd7';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-bc15a2082e1c';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-bc15a2082e1c';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-bc15a2082e1c';
+import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-bc15a2082e1c';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -1318,7 +1318,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-af22a4b74bd7') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-bc15a2082e1c') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;

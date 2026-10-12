@@ -249,7 +249,7 @@ const PROBE = `(() => {
       moreBox: box(rail.querySelector('.lotbi-place-orbit-more')),
       arrowsShown: [...rail.querySelectorAll('.lotbi-place-orbit-control')].some(node => getComputedStyle(node).display !== 'none'),
       arrows: [...rail.querySelectorAll('.lotbi-place-orbit-control')].map(box),
-      footerButtons: rail.querySelectorAll('.lotbi-place-orbit-footer button').length} : null,
+      footerButtons: rail.querySelectorAll('.lotbi-place-orbit-footer button:not([data-orbit-dot])').length} : null,
     cards: cards.map(card => ({slot: card.dataset.orbitSlot, box: box(card), opacity: Number(getComputedStyle(card).opacity), pointer: getComputedStyle(card).pointerEvents,
       name: card.querySelector('.lotbi-rich-card-title')?.textContent || '',
       lines: [...card.querySelectorAll('.lotbi-place-medical-line')].map(line => line.textContent),
@@ -486,15 +486,12 @@ async function runCase(browser, origin, dir, testCase) {
           assert.ok(center.box.w >= Math.min(rail.box.w - 16, 380) - 1, `${label}: ${step}: a single card uses the width`);
         }
       } else {
-        // PLACE-CARD-RAIL-ALL-RESULTS-01: one card on a wide screen, nothing half
-        // shown behind it, and the arrows right beside it.
-        for (const card of state.cards.filter(item => item.slot !== 'CENTER')) {
-          assert.equal(card.opacity, 0, `${label}: ${step}: side card ${card.name} (${card.slot}) hidden on a wide screen`);
-          assert.equal(card.pointer, 'none', `${label}: ${step}: side card ${card.name} not pressable`);
+        assert.equal(rail.arrows.length, 0, `${label}: ${step}: no arrow controls on desktop`);
+        for (const card of state.cards.filter(item => item.slot.endsWith('_FRONT'))) {
+          assert.ok(card.opacity >= .3 && card.opacity <= .6, `${label}: ${step}: neighbour visible`);
+          assert.equal(card.pointer, 'auto', `${label}: ${step}: neighbour selectable`);
+          assert.ok(card.box.right <= center.box.x || card.box.x >= center.box.right, `${label}: ${step}: neighbour never covers center`);
         }
-        const [prevArrow, nextArrow] = rail.arrows;
-        assert.ok(prevArrow.right <= center.box.x + 0.5 && center.box.x - prevArrow.right <= 16, `${label}: ${step}: ‹ beside the card (${prevArrow.right} / ${center.box.x})`);
-        assert.ok(nextArrow.x >= center.box.right - 0.5 && nextArrow.x - center.box.right <= 16, `${label}: ${step}: › beside the card (${nextArrow.x} / ${center.box.right})`);
       }
       assert.deepEqual(state.actions.map(action => action.action), ['phone', 'naver-map'], `${label}: ${step}: phone + map`);
       for (const action of state.actions) {

@@ -81,9 +81,9 @@ const PLACE_RESULT = {
 };
 
 function browserPath() {
-  for (const name of [process.env.CHROME_BIN, '/opt/pw-browsers/chromium', 'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean)) {
-    if (name.includes('/') && fs.existsSync(name)) return name;
-    const found = spawnSync('which', [name], {encoding: 'utf8'});
+  for (const name of [process.env.CHROME_BIN, 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', '/opt/pw-browsers/chromium', 'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean)) {
+    if (fs.existsSync(name)) return name;
+    const found = spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', [name], {encoding: 'utf8'});
     if (found.status === 0 && found.stdout.trim()) return found.stdout.trim();
   }
   throw new Error('Chrome/Chromium is required');
@@ -213,7 +213,9 @@ function wrapperMarkup(testCase) {
 function run(browser, testCase) {
   fs.writeFileSync(WRAPPER, wrapperMarkup(testCase), 'utf8');
   const userAgent=testCase.mobile?MOBILE_UA:DESKTOP_UA;
+  const profile = fs.mkdtempSync(path.join(FIXTURE_DIR, 'profile-'));
   const result=spawnSync(browser,[
+    `--user-data-dir=${profile}`,
     '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--ignore-certificate-errors',
     `--user-agent=${userAgent}`,'--window-size=1500,1000','--force-device-scale-factor=1',
     '--force-prefers-reduced-motion=reduce','--virtual-time-budget=80000','--dump-dom',ORIGIN+'/'+WRAPPER_REL,
@@ -277,13 +279,8 @@ try {
     const maxCardWidth=testCase.mobile?Math.min(reading.rail.w-16,400):286;
     assert.ok(reading.card.w<=maxCardWidth+2,`${testCase.label}: card width ${reading.card.w} (max ${maxCardWidth})`);
     assert.ok(reading.card.x>=reading.rail.x-1&&reading.card.x+reading.card.w<=reading.rail.x+reading.rail.w+1,`${testCase.label}: card cut by the rail`);
-    // Phones show the next card's edge dimmed; a wide screen shows one card and
-    // its arrows, nothing half shown behind it (PLACE-CARD-RAIL-ALL-RESULTS-01).
-    if(testCase.mobile) assert.ok(reading.sideOpacity>=.3&&reading.sideOpacity<=.6,`${testCase.label}: side card shown dimmed (${reading.sideOpacity})`);
-    else {
-      assert.equal(reading.sideOpacity,0,`${testCase.label}: side card hidden on a wide screen (${reading.sideOpacity})`);
-      assert.equal(reading.sidePointer,'none',`${testCase.label}: side card not pressable on a wide screen`);
-    }
+    assert.ok(reading.sideOpacity >= .3 && reading.sideOpacity <= .6, `${testCase.label}: neighbour shown dimmed (${reading.sideOpacity})`);
+    assert.equal(reading.sidePointer, 'auto', `${testCase.label}: neighbour selectable`);
     assert.equal(reading.sideActionsVisible,false,`${testCase.label}: side actions visible`);
     assert.ok(reading.sideActionTabIndexes.every(x=>x===-1),`${testCase.label}: side focusable`);
     assert.equal(reading.noPhoneActions,0,`${testCase.label}: dead phone visible`);

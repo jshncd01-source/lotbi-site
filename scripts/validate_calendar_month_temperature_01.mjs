@@ -29,8 +29,11 @@ import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = process.env.CALENDAR_RENDER_ROOT
+  ? path.resolve(process.env.CALENDAR_RENDER_ROOT)
+  : path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NAME = 'validate_calendar_month_temperature_01';
+const BASELINE_CAPTURE = process.env.CALENDAR_BASELINE_CAPTURE === '1';
 
 function browserPath() {
   const candidates = [process.env.CHROME_BIN, 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -52,20 +55,23 @@ const INNER = `<!doctype html><html lang="ko"><head>
 ${STYLESHEETS.map(href => `<link rel="stylesheet" href="/${href}">`).join('\n')}
 </head><body class="chat-home-page site-overlay-open">
 <div class="site-modal-backdrop"><section class="site-modal site-calendar-modal site-calendar-chat-popup" role="dialog" aria-labelledby="mt">
-<header class="site-modal-header"><h2 id="mt">캘린더</h2></header>
+<header class="site-modal-header"><h2 id="mt">캘린더</h2><button class="site-modal-close" type="button" aria-label="캘린더 닫기">×</button></header>
+<p class="site-modal-description">일정과 생활 기록을 한눈에 관리하세요.</p>
 <div class="site-modal-content" id="cal-root"></div>
 </section></div>
 <pre id="cmt-result" hidden>pending</pre>
 <script type="module">
 const out = document.getElementById('cmt-result');
 const q = new URLSearchParams(location.search);
-const AUTH = q.get('auth') === '1', LUNAR = q.get('lunar') === '1', COLD = q.get('fix') === 'cold';
-const TODAY = COLD ? '2027-01-05' : '2026-10-10';
+const AUTH = q.get('auth') === '1', LUNAR = q.get('lunar') === '1', COLD = q.get('fix') === 'cold', FINAL = q.get('final') || '';
+const TODAY = FINAL ? '2026-10-11' : (COLD ? '2027-01-05' : '2026-10-10');
 document.body.dataset.siteTheme = q.get('theme') || 'light';
 document.body.dataset.siteAuthState = AUTH ? 'authenticated' : 'guest';
-if (q.get('font') === 'wide') {
+if (q.get('font') === 'wide' || q.get('font') === 'linux') {
   const style = document.createElement('style');
-  style.textContent = "body, body * { font-family: 'DejaVu Sans', Verdana, 'Noto Sans CJK KR', 'Noto Sans KR', sans-serif !important; }";
+  style.textContent = q.get('font') === 'linux'
+    ? "body, body * { font-family: 'DejaVu Sans', Verdana, 'Noto Sans CJK KR', 'Noto Sans KR', sans-serif !important; line-height: 1.2; }"
+    : "body, body * { font-family: 'DejaVu Sans', Verdana, 'Noto Sans CJK KR', 'Noto Sans KR', sans-serif !important; }";
   document.head.appendChild(style);
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -79,23 +85,28 @@ const FIX = COLD ? [
   W('2027-01-10', 'CLEAR', '☀️', -10, 2), W('2027-01-11', 'RAIN', '🌧️', 0, 5, 60),
 ] : [
   W('2026-10-05', 'CLEAR', '☀️', 10, 20),
-  W('2026-10-10', 'CLOUDY', '☁️', 18, 27), W('2026-10-11', 'CLEAR', '☀️', 16, 26), W('2026-10-12', 'RAIN', '🌧️', 17, 22, 70),
+  W('2026-10-10', 'CLOUDY', '☁️', 18, 27), W('2026-10-11', 'CLEAR', '☀️', 16, 26, null, 21), W('2026-10-12', 'RAIN', '🌧️', 17, 22, 70),
   W('2026-10-13', 'CLOUDY', '☁️', 15, 23, 30), W('2026-10-14', 'CLEAR', '☀️', 12, 24), W('2026-10-15', 'CLEAR', '☀️', 11, 23),
   W('2026-10-16', 'CLOUDY', '☁️', 13, 21), W('2026-10-17', 'RAIN', '🌧️', 14, 19, 60), W('2026-10-18', 'CLEAR', '☀️', 9, 20),
   W('2026-10-19', 'CLEAR', '☀️', 8, 19), W('2026-10-20', 'CLOUDY', '☁️', null, null, null, 17),
   W('2026-10-30', 'RAIN', '🌧️', 7, 15, 40),
 ];
 const pad = n => String(n).padStart(32, '0');
-const event = (n, date) => ({projection_id: 'p' + n, activity_id: 'activity_' + pad(n), occurrence_id: 'occurrence_' + pad(n), title: '기록 ' + n + ' 점심 약속',
-  activity_revision: 1, occurrence_revision: 1, local_date: date, local_datetime: null, temporal_kind: 'DATE_ONLY', temporal_semantics: 'USER_PLANNED_TIME',
+const event = (n, date, extra = {}) => ({projection_id: 'p' + n, activity_id: 'activity_' + pad(n), occurrence_id: 'occurrence_' + pad(n), title: extra.title || ('기록 ' + n + ' 점심 약속'),
+  activity_revision: 1, occurrence_revision: 1, local_date: date, local_datetime: extra.time ? date + 'T' + extra.time + ':00' : null, temporal_kind: extra.time ? 'DATE_TIME' : 'DATE_ONLY', temporal_semantics: 'USER_PLANNED_TIME',
   busy: 'UNKNOWN', confirmation_level: 'USER_ATTESTED', provider_verified: false, reminder_configured: false, source_kind: 'USER_INPUT', allowed_actions: ['UPDATE', 'REMOVE'],
-  entry: {amount_minor: null, currency: 'KRW', expense_category: null, memo: null, place: null, merchant: null}});
-const RECORD_DATES = COLD ? ['2027-01-07', '2027-01-07', '2027-01-07', '2027-01-10']
-  : ['2026-10-10', '2026-10-10', '2026-10-12', '2026-10-12', '2026-10-12', '2026-10-14', '2026-10-17', '2026-10-17', '2026-10-17'];
-const EVENTS = RECORD_DATES.map((date, i) => event(i + 1, date));
+  entry: {amount_minor: extra.amount ?? null, currency: 'KRW', expense_category: extra.category || null, memo: null, place: null, merchant: null}});
+const FINAL_SEED = [
+  ['09:00', '아침 식사', 'FOOD', 18000], ['11:00', '생활용품 쇼핑', 'SHOPPING', 42000],
+  ['13:00', '가족 점심', 'FOOD', 32000], ['15:00', '카페 약속', 'FOOD', 12000],
+  ['17:00', '마트 장보기', 'LIVING', 56000], ['19:00', '저녁 식사', 'FOOD', 48000],
+];
+const RECORD_DATES = FINAL ? (FINAL === 'populated' ? FINAL_SEED.map(() => TODAY) : []) : (COLD ? ['2027-01-07', '2027-01-07', '2027-01-07', '2027-01-10']
+  : ['2026-10-10', '2026-10-10', '2026-10-12', '2026-10-12', '2026-10-12', '2026-10-14', '2026-10-17', '2026-10-17', '2026-10-17']);
+const EVENTS = RECORD_DATES.map((date, i) => FINAL ? event(i + 1, date, {time: FINAL_SEED[i][0], title: FINAL_SEED[i][1], category: FINAL_SEED[i][2], amount: FINAL_SEED[i][3]}) : event(i + 1, date));
 const attention = (n, date) => ({projection_id: 'a' + n, activity_id: 'activity_' + pad(90 + n), occurrence_id: 'occurrence_' + pad(90 + n), title: '기한', due_date: date,
   state: 'UPCOMING', days_until_due: 2, confirmation_level: 'USER_ATTESTED', provider_verified: false, source_kind: 'USER_INPUT', allowed_actions: ['UPDATE', 'REMOVE']});
-const ATTENTION = COLD ? [attention(1, '2027-01-07')] : [attention(1, '2026-10-12'), attention(2, '2026-10-15')];
+const ATTENTION = FINAL ? [] : (COLD ? [attention(1, '2027-01-07')] : [attention(1, '2026-10-12'), attention(2, '2026-10-15')]);
 const requests = [];
 const j = (body, status = 200) => Promise.resolve(new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}}));
 const fetchImpl = url => {
@@ -108,7 +119,10 @@ const fetchImpl = url => {
     return j({provider_ready: true, items: FIX.filter(i => i.date >= s && i.date <= e), ai_calls: 0});
   }
   const asOf = TODAY + 'T00:00:00+00:00';
-  if (u.pathname === '/v2/life/expense-summary') return j({view: 'EXPENSE_SUMMARY', as_of: asOf, timezone: 'Asia/Seoul', start_date: u.searchParams.get('start'), end_date: u.searchParams.get('end'), coverage: 'RECORDED_CALENDAR_ENTRIES_ONLY', currencies: [], entries_without_amount: 0, ai_calls: 0, provider_api_calls: 0});
+  if (u.pathname === '/v2/life/expense-summary') return j({view: 'EXPENSE_SUMMARY', as_of: asOf, timezone: 'Asia/Seoul', start_date: u.searchParams.get('start'), end_date: u.searchParams.get('end'), coverage: 'RECORDED_CALENDAR_ENTRIES_ONLY', currencies: FINAL === 'populated' ? [{currency: 'KRW', categories: [
+    {expense_category: 'FOOD', amount_minor: 310000, entry_count: 5}, {expense_category: 'TRAVEL', amount_minor: 80000, entry_count: 1},
+    {expense_category: 'SHOPPING', amount_minor: 112000, entry_count: 2}, {expense_category: 'LIVING', amount_minor: 96000, entry_count: 2},
+    {expense_category: 'OTHER', amount_minor: 30000, entry_count: 1}], total_amount_minor: 628000, entry_count: 11}] : [], entries_without_amount: 0, ai_calls: 0, provider_api_calls: 0});
   if (u.pathname === '/v2/life/agenda') return j({view: 'AGENDA', as_of: asOf, timezone: 'Asia/Seoul', coverage: 'PERSONAL_ACTIVITY_ONLY', items: EVENTS, ai_calls: 0, provider_api_calls: 0});
   if (u.pathname === '/v2/life/attention') return j({view: 'ATTENTION', as_of: asOf, timezone: 'Asia/Seoul', coverage: 'PERSONAL_ACTIVITY_ONLY', items: ATTENTION, ai_calls: 0, provider_api_calls: 0});
   if (u.pathname.includes('/holidays')) return j({year: Number(TODAY.slice(0, 4)), country: 'KR', coverage_status: 'VERIFIED', snapshot_version: 'fixture', supported_years: [2026, 2027], items: [], ai_calls: 0, provider_api_calls: 0});
@@ -136,7 +150,7 @@ try {
   const root = document.getElementById('cal-root');
   const {mountLifeCalendarManager} = await import('/site-calendar-manager.js');
   const opts = {root, initialView: 'month', timezone: 'Asia/Seoul', now: () => new Date(TODAY + 'T12:00:00+09:00'), fetchImpl,
-    weatherLocation: {latitude: 35.8242, longitude: 127.148, source: 'MANUAL_REGION'}, locationProvider: null, locationPermissions: null,
+    weatherLocation: {latitude: 37.5665, longitude: 126.978, source: 'MANUAL_REGION', label: '서울'}, locationProvider: null, locationPermissions: null,
     settingsStorage: {getItem: () => JSON.stringify({showKoreaHolidays: false, showLunarDates: LUNAR}), setItem() {}}};
   if (AUTH) opts.sessionToken = 'tok_month_temperature';
   else {
@@ -149,6 +163,8 @@ try {
   await mountLifeCalendarManager(opts);
   const want = FIX.filter(i => i.date >= TODAY).length - (COLD ? 0 : 1);
   for (let i = 0; i < 400 && root.querySelectorAll('.calendar-month-grid .calendar-weather-icon').length < want; i += 1) await sleep(25);
+  for (let i = 0; i < 400 && root.querySelector('[data-calendar-amount-summary]')?.dataset.calendarAmountSummary !== 'ready'; i += 1) await sleep(25);
+  if (FINAL === 'populated') for (let i = 0; i < 400 && root.querySelectorAll('.calendar-day-event.calendar-life-row').length < 6; i += 1) await sleep(25);
   await sleep(300);
   const cells = [...root.querySelectorAll('.calendar-month-grid .calendar-date-cell')].map(cell => {
     const temp = cell.querySelector('.calendar-weather-temperature');
@@ -170,10 +186,56 @@ try {
     state: amountLine?.dataset.calendarAmountSummary || 'absent', shown: shown(amountLine),
     label: amountLine?.querySelector('.calendar-amount-line-label')?.textContent || '',
     total: amountLine?.querySelector('.calendar-amount-line-amount')?.textContent || '',
-    box: shown(amountLine) ? box(amountLine) : null, gridTop: box(root.querySelector('.calendar-month-grid'))?.top ?? 0,
+    box: shown(amountLine) ? box(amountLine) : null, grid: box(root.querySelector('.calendar-month-grid')),
     slots: [...root.querySelectorAll('.calendar-amount-category')].filter(shown).map(n => [n.dataset.expenseCategory, n.querySelector('dd')?.textContent || '', box(n)]),
   };
-  out.textContent = JSON.stringify({ok: true, width: innerWidth, gridWidth, today: TODAY, requests, fixture: FIX, cells, amount});
+  const selectedCell = root.querySelector('[data-calendar-date="' + TODAY + '"]');
+  const panel = root.querySelector('.calendar-day-panel');
+  const finalState = FINAL ? {
+    kind: FINAL,
+    heading: panel?.querySelector('.calendar-day-heading')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+    lunar: panel?.querySelector('.calendar-day-lunar')?.textContent?.trim() || '',
+    weather: panel?.querySelector('.calendar-day-weather-card')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+    empty: panel?.querySelector('.calendar-day-empty')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+    visibleChips: [...(selectedCell?.querySelectorAll('.calendar-event-chip') || [])].filter(shown).length,
+    overflow: selectedCell?.querySelector('.calendar-event-overflow')?.textContent?.trim() || '',
+    cell: box(selectedCell),
+    overflowBox: shown(selectedCell?.querySelector('.calendar-event-overflow')) ? box(selectedCell.querySelector('.calendar-event-overflow')) : null,
+    cellAmount: selectedCell?.querySelector('.calendar-cell-day-amount')?.textContent?.trim() || '',
+    cellAmountBox: shown(selectedCell?.querySelector('.calendar-cell-day-amount')) ? box(selectedCell.querySelector('.calendar-cell-day-amount')) : null,
+    rows: [...(panel?.querySelectorAll('.calendar-day-event.calendar-life-row') || [])].map(row => ({
+      time: row.querySelector('time')?.textContent?.trim() || '', title: row.querySelector('.calendar-life-title')?.textContent?.trim() || '',
+      category: row.querySelector('.calendar-life-category')?.textContent?.trim() || '', amount: row.querySelector('.calendar-life-amount')?.textContent?.trim() || '',
+    })),
+    dailyLabel: panel?.querySelector('.calendar-day-expense-label')?.textContent?.trim() || '',
+    dailyAmount: panel?.querySelector('.calendar-day-expense-value')?.textContent?.trim() || '',
+    categoryAmountsClipped: [...(panel?.querySelectorAll('.calendar-amount-category dd') || [])].some(node => node.scrollWidth > node.clientWidth + 1),
+    panelOverflow: panel ? getComputedStyle(panel.querySelector('.calendar-day-body')).overflowY : '',
+    topAdd: document.querySelector('.calendar-modal-actions .calendar-primary-add-button')?.textContent?.trim() || '',
+    settings: document.querySelector('.calendar-modal-actions .calendar-settings-button')?.getAttribute('aria-label') || '',
+    close: document.querySelector('.site-modal-close')?.getAttribute('aria-label') || '',
+    modes: [...root.querySelectorAll('.calendar-mode-tab')].map(node => node.textContent.trim()),
+    noHorizontalOverflow: document.documentElement.scrollWidth <= innerWidth + 1 && document.body.scrollWidth <= innerWidth + 1,
+  } : null;
+  if (FINAL) {
+    const settingsButton = document.querySelector('.calendar-modal-actions .calendar-settings-button');
+    settingsButton?.click();
+    for (let i = 0; i < 100 && !root.querySelector('.calendar-settings-dialog'); i += 1) await sleep(20);
+    finalState.settingsOpened = Boolean(root.querySelector('.calendar-settings-dialog'));
+    root.querySelector('.calendar-settings-close')?.click();
+    const addButton = document.querySelector('.calendar-modal-actions .calendar-primary-add-button');
+    addButton?.click();
+    for (let i = 0; i < 100 && !root.querySelector('.calendar-editor-dialog'); i += 1) await sleep(20);
+    finalState.addOpened = Boolean(root.querySelector('.calendar-editor-dialog'));
+    root.querySelector('.calendar-editor-cancel')?.click();
+    for (let i = 0; i < 100 && root.querySelector('.calendar-editor-dialog'); i += 1) await sleep(20);
+    for (const mode of ['week', 'agenda', 'month']) {
+      root.querySelector('[data-calendar-mode="' + mode + '"]')?.click();
+      for (let i = 0; i < 200 && root.dataset.calendarManagerView !== mode; i += 1) await sleep(20);
+    }
+    finalState.viewSwitchReturnedToMonth = root.dataset.calendarManagerView === 'month';
+  }
+  out.textContent = JSON.stringify({ok: true, width: innerWidth, gridWidth, today: TODAY, requests, fixture: FIX, cells, amount, finalState});
 } catch (e) { out.textContent = JSON.stringify({ok: false, error: String(e?.stack || e), requests}); }
 </script></body></html>`;
 
@@ -234,7 +296,7 @@ async function openBrowser(browser, profile) {
 
 // [label, width, query]. Phones first (the report), then the tablet widths
 // that also hid the temperature, then desk widths that must not regress.
-const CASES = [
+const ALL_CASES = [
   ['351-auth', 351, 'auth=1'],
   ['360-guest', 360, 'auth=0'],
   ['360-auth-dark', 360, 'auth=1&theme=dark'],
@@ -248,6 +310,7 @@ const CASES = [
   ['412-guest-lunar', 412, 'auth=0&lunar=1'],
   ['600-auth-dark', 600, 'auth=1&theme=dark'],
   ['610-auth', 610, 'auth=1'],
+  ['610-auth-wide', 610, 'auth=1&font=wide'],
   ['610-auth-lunar-dark', 610, 'auth=1&lunar=1&theme=dark'],
   ['610-auth-cold-wide', 610, 'auth=1&fix=cold&font=wide'],
   ['700-auth-lunar', 700, 'auth=1&lunar=1'],
@@ -255,6 +318,12 @@ const CASES = [
   ['768-auth-dark', 768, 'auth=1&theme=dark'],
   ['768-guest-lunar', 768, 'auth=0&lunar=1'],
   ['1024-auth', 1024, 'auth=1'],
+  ['1023-auth-linux', 1023, 'auth=1&font=linux'],
+  ['1024-auth-linux', 1024, 'auth=1&font=linux'],
+  ['1025-auth-linux', 1025, 'auth=1&font=linux'],
+  ['1100-auth-linux', 1100, 'auth=1&font=linux'],
+  ['1101-auth-linux', 1101, 'auth=1&font=linux'],
+  ['1280-auth-linux', 1280, 'auth=1&font=linux'],
   ['1280-auth-lunar-dark', 1280, 'auth=1&lunar=1&theme=dark'],
   // Wide fonts with lunar dates at every width: the gate's Linux fonts made
   // the 610px lunar label reach under the glyph (SITE-T52 return).
@@ -269,16 +338,27 @@ const CASES = [
   ['768-auth-wide', 768, 'auth=1&font=wide'],
   ['1024-auth-lunar-wide', 1024, 'auth=1&lunar=1&font=wide'],
   ['1280-auth-wide', 1280, 'auth=1&font=wide'],
+  ['final-empty-pc-light', 1280, 'auth=1&lunar=1&final=empty', 900],
+  ['final-empty-pc-dark', 1280, 'auth=1&lunar=1&final=empty&theme=dark', 900],
+  ['final-populated-pc-light', 1280, 'auth=1&lunar=1&final=populated', 900],
+  ['final-populated-pc-dark', 1280, 'auth=1&lunar=1&final=populated&theme=dark', 900],
+  ['final-empty-mobile-light', 360, 'auth=1&lunar=1&final=empty', 780],
+  ['final-empty-mobile-dark', 360, 'auth=1&lunar=1&final=empty&theme=dark', 780],
+  ['final-populated-mobile-light', 360, 'auth=1&lunar=1&final=populated', 780],
+  ['final-populated-mobile-dark', 360, 'auth=1&lunar=1&final=populated&theme=dark', 780],
 ];
+const CASES = BASELINE_CAPTURE ? ALL_CASES.filter(([label]) => label.startsWith('final-')) : ALL_CASES;
 
 const addDays = (date, days) => new Date(Date.parse(date + 'T00:00:00Z') + days * 86400000).toISOString().slice(0, 10);
 const hit = (a, b) => a && b && a.width > 0 && b.width > 0 && a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
-const inside = (a, c) => a.left >= c.left - 0.5 && a.right <= c.right + 0.5 && a.top >= c.top - 0.5 && a.bottom <= c.bottom + 0.5;
+const inside = (a, c) => Boolean(a && c && a.left >= c.left - 0.5 && a.right <= c.right + 0.5 && a.top >= c.top - 0.5 && a.bottom <= c.bottom + 0.5);
 
 function check(label, width, query, value) {
   const problems = [];
   const lunar = query.includes('lunar=1');
   const auth = query.includes('auth=1');
+  const final = query.includes('final=');
+  const populated = query.includes('final=populated');
   const horizon = addDays(value.today, 14);
   if (!value.requests.length) problems.push('no weather request was made');
   for (const request of value.requests) {
@@ -321,18 +401,53 @@ function check(label, width, query, value) {
   const rows = new Map();
   for (const cell of value.cells) rows.set(cell.row, [...(rows.get(cell.row) || []), cell.height]);
   for (const [row, heights] of rows) if (Math.max(...heights) - Math.min(...heights) > 0.5) problems.push(`row at ${row}px has uneven heights ${[...new Set(heights.map(h => h.toFixed(1)))].join('/')}`);
-  // The month's 가계부 line stays above the grid beside the forecast (CALENDAR-
-  // MONTH-EXPENSE-RESTORE-01): this fixture's months hold no amount, so it reads 0원.
+  // The month's 생활비 table stays in the selected-date rail/flow and never
+  // overlays the month grid. Final populated cases carry the exact approved
+  // screenshot fixture; every other case is deliberately empty.
   const month = Number(value.today.slice(5, 7));
   const amount = value.amount;
   if (amount.state !== 'ready' || !amount.shown) problems.push(`the month's amount line is ${amount.state}${amount.shown ? '' : ' and hidden'}`);
   else {
-    if (amount.label !== `${month}월 입력 금액 합계` || amount.total !== '0원') problems.push(`amount line reads "${amount.label} ${amount.total}"`);
-    if (amount.box.bottom > amount.gridTop + 0.5) problems.push('the amount line overlaps the month grid');
+    const expectedTotal = populated ? '628,000원' : '0원';
+    if (amount.label !== `${month}월 생활비 합계` || amount.total !== expectedTotal) problems.push(`amount line reads "${amount.label} ${amount.total}"`);
+    if (hit(amount.box, amount.grid)) problems.push('the amount table overlaps the month grid');
     if (amount.box.right > width + 0.5 || amount.box.left < -0.5) problems.push('the amount line leaves the screen');
     const slots = amount.slots.map(([category, text]) => `${category}:${text}`).join(',');
-    if (slots !== 'FOOD:0원,TRAVEL:0원,SHOPPING:0원,LIVING:0원,OTHER:0원') problems.push(`amount slots are ${slots}`);
-    for (const [category, , slot] of amount.slots) if (slot.bottom > amount.gridTop + 0.5 || slot.right > width + 0.5) problems.push(`${category} slot overlaps the grid or leaves the screen`);
+    const expectedSlots = populated
+      ? 'FOOD:310,000원,TRAVEL:80,000원,SHOPPING:112,000원,LIVING:96,000원,OTHER:30,000원'
+      : 'FOOD:0원,TRAVEL:0원,SHOPPING:0원,LIVING:0원,OTHER:0원';
+    if (slots !== expectedSlots) problems.push(`amount slots are ${slots}`);
+    for (const [category, , slot] of amount.slots) if (hit(slot, amount.grid) || slot.right > width + 0.5 || slot.left < -0.5) problems.push(`${category} slot overlaps the grid or leaves the screen`);
+  }
+  if (final) {
+    const state = value.finalState;
+    if (!state) problems.push('missing approved-design state probe');
+    else {
+      if (!state.heading.includes('10월 11일 일요일') || !state.heading.includes('오늘')) problems.push(`selected-day heading is "${state.heading}"`);
+      if (!state.lunar) problems.push('selected-day lunar date is missing');
+      for (const token of ['서울', '21', '16', '26']) if (!state.weather.includes(token)) problems.push(`weather card lacks ${token}: "${state.weather}"`);
+      if (state.topAdd !== '+ 일정 추가' || state.settings !== '캘린더 설정' || state.close !== '캘린더 닫기') problems.push('top actions do not match the approved hierarchy');
+      if (state.modes.join(',') !== '주,월,목록') problems.push(`view controls are ${state.modes.join(',')}`);
+      if (!state.settingsOpened || !state.addOpened || !state.viewSwitchReturnedToMonth) problems.push(`controls did not operate: ${JSON.stringify({settingsOpened: state.settingsOpened, addOpened: state.addOpened, viewSwitchReturnedToMonth: state.viewSwitchReturnedToMonth})}`);
+      if (!state.noHorizontalOverflow) problems.push('final layout has page-level horizontal overflow');
+      if (populated) {
+        if (state.visibleChips !== 3 || state.overflow !== '+3개 더') problems.push(`month cell shows ${state.visibleChips} chips and "${state.overflow}"`);
+        if (!inside(state.overflowBox, state.cell)) problems.push('the +3 overflow line is clipped by its date cell');
+        if (width > 900 && (state.cellAmount !== '208,000원' || !inside(state.cellAmountBox, state.cell))) problems.push(`the day amount is clipped or reads "${state.cellAmount}"`);
+        if (state.rows.length !== 6) problems.push(`detail lists ${state.rows.length} events, not 6`);
+        const times = state.rows.map(row => row.time).join(',');
+        if (times !== '오전 9:00,오전 11:00,오후 1:00,오후 3:00,오후 5:00,오후 7:00') problems.push(`detail order is ${times}`);
+        if (state.rows.some(row => !row.category || !row.amount)) problems.push('detail row lost a category or amount');
+        if (state.dailyLabel !== '오늘 지출' || state.dailyAmount !== '208,000원') problems.push(`daily expense is "${state.dailyLabel} ${state.dailyAmount}"`);
+        if (state.categoryAmountsClipped) problems.push('a monthly category amount is clipped');
+        if (state.empty) problems.push('populated day also renders the empty state');
+        if (width > 900 && state.panelOverflow !== 'auto') problems.push(`desktop detail body scroll is ${state.panelOverflow}`);
+      } else {
+        if (!state.empty.includes('등록된 일정이 없습니다.') || !state.empty.includes('이 날짜에 일정 추가')) problems.push(`empty state is "${state.empty}"`);
+        if (state.rows.length || state.visibleChips || state.overflow) problems.push('empty fixture renders schedule rows or overflow');
+        if (state.dailyLabel !== '오늘 지출' || state.dailyAmount !== '0원') problems.push(`empty daily expense is "${state.dailyLabel} ${state.dailyAmount}"`);
+      }
+    }
   }
   if (!gridHidden && shownCount < 5) problems.push(`only ${shownCount} forecast cells showed a temperature`);
   if (problems.length) throw new Error(`${label}: ${problems.slice(0, 8).join('; ')}`);
@@ -366,8 +481,8 @@ try {
   await page('Emulation.setEmulatedMedia', {features: [{name: 'prefers-reduced-motion', value: 'reduce'}]});
   const shots = process.env.CALENDAR_MONTH_TEMPERATURE_SHOTS || '';
   const summary = [];
-  for (const [label, width, query] of CASES) {
-    await page('Emulation.setDeviceMetricsOverride', {width, height: 900, deviceScaleFactor: 1, mobile: width <= 600});
+  for (const [label, width, query, height = 900] of CASES) {
+    await page('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width <= 600});
     await page('Page.navigate', {url: `${origin}/scripts/${path.basename(dir)}/inner.html?${query}`});
     await sleep(200);
     const text = await waitFor(async () => {
@@ -378,10 +493,26 @@ try {
     if (!value.ok) throw new Error(`${label}: ${value.error}`);
     if (shots) {
       fs.mkdirSync(shots, {recursive: true});
+      if (query.includes('final=') && width <= 600) {
+        await evaluate("window.scrollTo(0,0); const m=document.querySelector('.site-modal-content'); if(m)m.scrollTop=0; true");
+        await sleep(100);
+      }
       const {data} = await page('Page.captureScreenshot', {format: 'png'});
       fs.writeFileSync(path.join(shots, `${label}.png`), Buffer.from(data, 'base64'));
+      if (query.includes('final=') && width <= 600) {
+        await evaluate("document.querySelector('.calendar-day-panel')?.scrollIntoView({block:'start'}); true");
+        await sleep(150);
+        const {data: detailData} = await page('Page.captureScreenshot', {format: 'png'});
+        fs.writeFileSync(path.join(shots, `${label}-detail.png`), Buffer.from(detailData, 'base64'));
+      }
+      if (query.includes('final=')) {
+        await evaluate("document.querySelector('.calendar-day-expense-card')?.scrollIntoView({block:'center'}); const b=document.querySelector('.calendar-day-body'); if(b)b.scrollTop=b.scrollHeight; true");
+        await sleep(150);
+        const {data: totalData} = await page('Page.captureScreenshot', {format: 'png'});
+        fs.writeFileSync(path.join(shots, `${label}-totals.png`), Buffer.from(totalData, 'base64'));
+      }
     }
-    summary.push(`${label}:${check(label, width, query, value)}`);
+    summary.push(`${label}:${BASELINE_CAPTURE ? 'baseline-captured' : check(label, width, query, value)}`);
   }
   console.log(`${NAME}: PASS (${summary.join(', ')})`);
 } finally {

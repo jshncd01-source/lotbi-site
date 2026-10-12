@@ -241,10 +241,10 @@ try{
   const onFocusSave=event=>{if(event.target===opener)staleFocusDuringSave=true};
   root.addEventListener('focusin',onFocusSave);
   dialog.querySelector('form').requestSubmit();
-  await wait(()=>!root.querySelector('.calendar-editor-dialog')&&!root.hasAttribute('aria-busy')&&document.activeElement===root.querySelector('.calendar-day-close'));
+  await wait(()=>!root.querySelector('.calendar-editor-dialog')&&!root.hasAttribute('aria-busy')&&ownsDateFocus(root,'2026-09-24'));
   root.removeEventListener('focusin',onFocusSave);
   const newDate=root.querySelector('[data-calendar-date-trigger="2026-09-24"]');
-  const afterSaveFocus={connected:document.activeElement.isConnected,selectedDate:root.querySelector('.calendar-day-panel')?.dataset.selectedDate==='2026-09-24'&&document.activeElement===root.querySelector('.calendar-day-close'),oldOpenerGone:!opener.isConnected,staleFocusDuringSave};
+  const afterSaveFocus={connected:document.activeElement.isConnected,selectedDate:ownsDateFocus(root,'2026-09-24'),oldOpenerGone:!opener.isConnected,staleFocusDuringSave};
   const stored=JSON.parse(localStorage.getItem('lotbi.guest.calendar.v1')||'{}').events?.[0]||{};
   const savedRecord={title:stored.title,start:stored.local_datetime,end:stored.local_end_datetime,amount:stored.entry?.amount_minor,category:stored.entry?.expense_category};
   const cancelOpener=root.querySelector('.calendar-day-panel [data-calendar-add]');cancelOpener.focus();cancelOpener.click();

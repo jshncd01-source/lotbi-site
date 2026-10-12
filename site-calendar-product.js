@@ -1,12 +1,11 @@
 // Pure Calendar presentation decisions shared by Week, Month, and Schedule.
 // These labels are derived at read time; no inferred kind or state is stored.
-import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-af22a4b74bd7';
-import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-af22a4b74bd7';
-import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-af22a4b74bd7';
+import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-bc15a2082e1c';
+import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-bc15a2082e1c';
+import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-bc15a2082e1c';
 
-// "15:00" -> "오후 3:00": the clock the record editor shows, so every place the
-// Calendar names a time says it the same way (CALENDAR-ADD-UX-01). '' for
-// anything that is not an "HH:mm".
+// The approved add UX uses the same Korean 12-hour clock in the editor and
+// every calendar read surface. Stored values remain 24-hour local datetimes.
 export function koreanClockLabel(clock) {
   const match = /^(\d{2}):(\d{2})$/u.exec(clock || '');
   if (!match) return '';
@@ -14,7 +13,6 @@ export function koreanClockLabel(clock) {
   return `${hour < 12 ? '오전' : '오후'} ${hour % 12 === 0 ? 12 : hour % 12}:${match[2]}`;
 }
 
-// The clock of a "YYYY-MM-DDTHH:mm…" local datetime in that label, '' without one.
 export function datetimeClockLabel(datetime) {
   return typeof datetime === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d/u.test(datetime)
     ? koreanClockLabel(datetime.slice(11, 16)) : '';
@@ -390,7 +388,6 @@ export function lifeRowPresentation(item, {date = item?.local_date, today = ''} 
   } else if (group === LIFE_TIMELINE_GROUP.TIMED) {
     timeLabel = datetimeClockLabel(item.local_datetime) || item.local_datetime.slice(11, 16);
     const endClock = datetimeClockLabel(item?.local_end_datetime);
-    // "오전 9:00 ~10:00": an end in the same half of the day drops its 오전/오후.
     const samePeriod = endClock && endClock.slice(0, 3) === timeLabel.slice(0, 3);
     if (endClock && !spans) timeDetail = `~${samePeriod ? endClock.slice(3) : endClock}`;
   } else if (!validCivilDate(start)) {
@@ -413,7 +410,6 @@ export function lifeRowPresentation(item, {date = item?.local_date, today = ''} 
     spanText,
     place,
     merchant && merchant !== title && merchant !== place ? merchant : '',
-    categoryLabel,
     memoExcerpt(entry.memo),
     item?.provider_verified === true && item?.confirmation_level === 'PROVIDER_VERIFIED' ? '외부 확인됨' : '',
   ].filter(Boolean);
