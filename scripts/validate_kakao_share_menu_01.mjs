@@ -15,7 +15,7 @@ for (const label of ['카카오톡으로 공유', '다른 앱으로 공유', '�
 assert.match(conversation, /shareMenu\.setAttribute\('role', 'menu'\)/u);
 assert.match(conversation, /kakaoShare\.addEventListener\('click'/u);
 assert.match(conversation, /shareToKakao\(value\)[\s\S]*?shareMessageText\(value\)/u);
-assert.match(conversation, /writeMessageTextToClipboard\(MESSAGE_ACTION_SHARE_URL\)/u);
+assert.match(conversation, /writeMessageTextToClipboard\(SAFE_SHARE_URL\)/u);
 assert.match(css, /\.chat-message-share-choice \{[\s\S]*?min-height: 44px/u);
 
 const sent = [];

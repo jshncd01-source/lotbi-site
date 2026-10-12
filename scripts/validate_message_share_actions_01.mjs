@@ -101,8 +101,8 @@ assert.match(conversation, /if \(typeof navigator\.share === 'function'\) \{[\s\
 assert.match(conversation, /share\.addEventListener\('click', \(\) => \{[\s\S]*?shareMenu\.hidden/);
 // A cancelled sheet is not a failure and must not fall back to copying.
 assert.match(conversation, /if \(error && error\.name === 'AbortError'\) return 'cancelled';/);
-assert.match(conversation, /await writeMessageTextToClipboard\(includeUrl \? `\$\{value\}\\n\\n\$\{MESSAGE_ACTION_SHARE_URL\}` : value\)/);
-assert.match(conversation, /const MESSAGE_ACTION_SHARE_URL = SAFE_SHARE_URL;/);
+assert.match(conversation, /await writeMessageTextToClipboard\(includeUrl \? `\$\{value\}\\n\\n\$\{SAFE_SHARE_URL\}` : value\)/);
+assert.match(conversation, /import \{SAFE_SHARE_URL, safeShareSummary, shareToKakao\}/u);
 
 // No Kakao SDK, app key or third-party origin rides in with this row.
 assert.match(conversation, /shareToKakao\(value\)/);
