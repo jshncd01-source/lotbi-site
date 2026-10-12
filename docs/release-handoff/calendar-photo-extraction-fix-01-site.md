@@ -7,6 +7,8 @@ TESTED_CODE_SHA=f3c49c2756c68f59c04dc1acc3d395d711e7dedb
 CURRENT_BRANCH=feature/calendar-photo-extraction-fix-01-site
 CURRENT_STATUS=IMPLEMENTED / LOCAL_RECHECK_PASS / READY_NO
 
+재개 시 추가 변경 파일: `scripts/validate_calendar_photo_extraction_fix_01.mjs`(의존성 없는 Chrome 실행기), `scripts/calendar_photo_extraction_fix_01_checks.js`(기존 단언 보존), 이 인계 문서. 최신 main 정상 통합 후 자산 캐시 참조도 재생성했다. 기존 사진 기능 변경은 `site-core.js`, `site-calendar-manager.js`에 유지하며 홈 CSS는 main과 동일하다.
+
 ## 2026-10-12 재개 검증 — 현재 인계 상태
 
 - 담당은 기존 사진 추출 오류로 한정한다. 월·년 신규 디자인은 별도 담당이며 이 방에서 추가 구현하지 않았다.
