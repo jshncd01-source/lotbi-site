@@ -64,7 +64,7 @@ assert.doesNotMatch(ui, /출생 연·월로 갱신 주기를 계산합니다\. �
 assert.match(renewalNotice, /출생 연·월을 기준으로 식별 사진의 갱신 주기를 계산/);
 assert.match(renewalNotice, /만 12세 이하 · 180일마다/);
 assert.match(renewalNotice, /만 13세 이상 · 365일마다/);
-assert.match(ui, /활성 SOS 기간 동안만/);
+assert.match(ui, /활성 신고 기간 동안 비공개 후보 검색과 관리자 검토에만 사용해요\./);
 assert.match(ui, /등록된 사람/);
 assert.match(ui, /사진 갱신/);
 assert.match(ui, /실종 상태로 전환/);
