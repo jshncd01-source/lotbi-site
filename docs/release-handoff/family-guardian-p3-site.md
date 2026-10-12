@@ -2,6 +2,17 @@ READY_FOR_DEPLOY=YES
 
 # 가족 지킴이 ③ 실종 신고·관리자 열람 — Site 화면 확인용 후보
 
+## 2026-10-13 최신 Site main 재통합 재READY — 현행
+
+- `READY_FOR_DEPLOY=YES`, `FULL_FUNCTIONAL_COMPLETE=NO`, `PRODUCTION_VERIFIED=NO`.
+- 저장소/브랜치: `lotbi-site` / `feature/family-guardian-p3-01-site`. Ncloud `main` `dadd05173089242d4dc56f795ad1dadd59b967f0`을 rebase 없이 정상 merge했다. 최종 exact HEAD와 원격 readback은 Work가 배포총괄에 직접 전달하며 이 문서에서 자기 commit SHA를 추정하지 않는다.
+- 최신 main의 캘린더 사진 추출 수정과 가족 지킴이 승인 UI를 함께 보존했다. 충돌 88개 중 83개는 캐시 토큰만 달랐고, 의미 충돌 5개는 `index.html`·`auth/callback/index.html`의 가족 CSS 순서, 사람·반려동물 `safecareSosSubmitReady`, 캘린더 `calendarDraftLogicalRequestId`를 모두 유지해 해소했다. 충돌 표식 잔여0, `git diff --check` PASS.
+- 자산 캐시는 `aset-610b86b6b59d`로 write/check PASS(`targets=172`, `refs=211`). `site-safecare.css` → `site-family-guardian.css` → `site-festival.css` 순서를 index와 auth callback에 동일하게 유지했다.
+- 가족 지킴이 검증: 사람·반려동물 기본 신고 제어와 실제 접수번호 계약 PASS, 등록번호·2000년1월·부분 수정·무변경·실패 보존 계약 PASS, 실제 사용자 사람 등록 계약 PASS, 기존 사람 개인정보 문구 검사 PASS. Chrome 360/1280의 light/dark/system/bootstrap 18조합 PASS.
+- 최신 main 회귀: 캘린더 사진 추출 UI/storage의 360/1280×light/dark 4조합 PASS. 영수증·날짜 없음·매출 요약 가상 fixture 검증이며 운영 이미지 정확도나 Production E2E를 뜻하지 않는다.
+- 사용자 확정 기준인 필수 5장, 선택 최대 10장은 참고 범위, 가상 예시 사진은 등록 전 안내에만 사용하고 등록 후 실제 사용자 사진으로 교체, 가족 라이트 배경 `#F6F7F9`, 기존 다크·의미색 보존을 변경하지 않았다. 기존 승인 원본과 450 PNG 증거도 덮어쓰지 않았다.
+- 이번 재통합으로 Core·DB·migration·Admin·App·Account 변경을 만들지 않았다. main 병합·Production 배포·운영 화면 검증·Native 실기기 검증은 수행하지 않았다. 운영 E2E: 배포 후 배포방:
+
 ## 2026-10-12 사용자 최종 시안·필수 5장 반영 재READY — 현행
 
 - `READY_FOR_DEPLOY=YES`, `FULL_FUNCTIONAL_COMPLETE=NO`, `PRODUCTION_VERIFIED=NO`.

@@ -15,11 +15,11 @@
 // LOTBI does not issue, sell or take payment for any voucher and is not the
 // issuer's partner. The list is the official/staff-checked data, not real-time
 // payment availability.
-import {CORE_ORIGIN} from './site-core.js?v=aset-c0f96a544033';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-c0f96a544033';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-c0f96a544033';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-c0f96a544033';
-import {mountOnnuriMerchants, readMapPreference, mapPreferenceNote, mapIconName, MAP_ICON_VERSION} from './site-life-onnuri.js?v=aset-c0f96a544033';
+import {CORE_ORIGIN} from './site-core.js?v=aset-610b86b6b59d';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-610b86b6b59d';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-610b86b6b59d';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-610b86b6b59d';
+import {mountOnnuriMerchants, readMapPreference, mapPreferenceNote, mapIconName, MAP_ICON_VERSION} from './site-life-onnuri.js?v=aset-610b86b6b59d';
 
 export const VOUCHER_HUB_TITLE = '온누리상품권·지역화폐';
 export const VOUCHER_TABS = Object.freeze([['onnuri', '온누리상품권'], ['local', '지역화폐']]);
