@@ -129,7 +129,7 @@ const result = await runFixturePage({
 assert.equal(result.ok, true, result.error);
 {
   const groups = new Map();
-  const allowedDiagnostics = new Set(['working', 'surface', 'legacy', 'source', 'floodThreshold', 'calmGradient', 'foregroundRegions', 'surfaceCandidates', 'rejected', 'nested', 'bounds', 'areaRatio', 'fill', 'outside', 'coverage', 'straightness', 'contrast', 'minimumContrast', 'contrastToSurface', 'edgeSupport', 'shapeScore', 'rectangularity', 'cornerRadius', 'angles', 'floodMode', 'occluder', 'holder', 'nested', 'holderContent', 'innerLighter', 'page', 'textLines',
+  const allowedDiagnostics = new Set(['working', 'surface', 'legacy', 'source', 'floodThreshold', 'calmGradient', 'foregroundRegions', 'surfaceCandidates', 'rejected', 'nested', 'bounds', 'areaRatio', 'fill', 'outside', 'coverage', 'straightness', 'contrast', 'minimumContrast', 'contrastToSurface', 'edgeSupport', 'shapeScore', 'rectangularity', 'cornerRadius', 'angles', 'floodMode', 'occluder', 'holder', 'nested', 'holderContent', 'innerLighter', 'page', 'textLines', 'frameEdge', 'printLines',
     // LIFE-WALLET-UPRIGHT-PRINT-01: band counts across/down on the squared-up item ("33/1").
     'print']);
   for (const row of result.results) {

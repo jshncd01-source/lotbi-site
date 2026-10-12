@@ -21,8 +21,8 @@
 //      "where?" answer, a place answer or a plain answer.
 //   #9 a place card shows NAVER's category as its last step ("여행,명소>동물원"
 //      → "동물원", "카페,디저트" → "카페·디저트").
-//   #6 a home example asks at once (one question, composer empty, no focus);
-//      의심되는 문자 확인 opens a screen and shows a chevron.
+//   #6 the initial home favorite asks at once (one question, empty composer,
+//      no focus); existing desktop/mobile scam menu entries stay available.
 //   #11 Korean words wrap whole (word-break: keep-all) on the page and in the
 //      chat; the safety line under the composer is centred in a conversation.
 //   Dark (다크 in settings): buttons and the region list keep ≥4.5 contrast.
@@ -344,7 +344,9 @@ try {
     probe.remove();
   } else if (PHASE === 'home') {
     await shot('home');
-    const examples = [...document.querySelectorAll('.home-example-prompts button')];
+    const examples = [...document.querySelectorAll('.home-favorites-grid [data-home-prompt]')];
+    result.favoriteCount = document.querySelector('[data-favorites-count]')?.textContent;
+    result.scamMenuEntries = document.querySelectorAll('[data-scam-open]').length;
     result.examples = examples.map(b => ({text: b.textContent.trim(), prompt: b.dataset.homePrompt || '', opens: b.hasAttribute('data-scam-open'), after: getComputedStyle(b, '::after').content}));
     examples.find(b => b.dataset.homePrompt).click();
     await wait(() => mine().length >= 1, 'example asked');
@@ -561,15 +563,16 @@ try {
           NO_TOOLS_CALENDAR(typed.tools);
         }
 
-        // #6 home examples ask at once; the screen-opening one shows a chevron.
+        // #6 the approved single home favorite asks at once, without a keyboard.
         const home = await runPhase(devtools, page('phase=home'), `${label}/home`);
         console.log(`CAU ${label} home`, JSON.stringify(home.examples));
         const ask = home.examples.filter(example => example.prompt);
-        assert.equal(ask.length, 2);
+        assert.equal(ask.length, 1, `${label}: one initial favorite`);
+        assert.equal(ask[0].text, '이번 주 일정');
+        assert.equal(home.favoriteCount, '1/8');
         assert.deepEqual(home.final.requests.map(item => item.text), [ask[0].prompt], `${label}: an example asks once, at once`);
         assertQuiet(home.final, `${label}/home`);
-        const opener = home.examples.find(example => example.opens);
-        assert.ok(opener && /\u203A/u.test(opener.after), `${label}: 의심되는 문자 확인 shows it opens a screen (${opener?.after})`);
+        assert.ok(home.scamMenuEntries >= 2, `${label}: desktop/mobile scam entries stay in the existing menu`);
         assert.ok(ask.every(example => !/\u203A/u.test(example.after)), `${label}: the asking examples have no chevron`);
       }
 

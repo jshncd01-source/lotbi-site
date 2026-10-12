@@ -80,10 +80,9 @@
   flex: 0 0 auto;
 }
 
-/* SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the sidebar secondary menu is gone; its
-   four items (연결 서비스 / 프로필 / 설정 / 도움말) live only in the account
-   menu, which also carries 개인 맞춤 설정 and 로그아웃. The focus ring below is
-   kept for the account row, which still needs it. */
+/* SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the account row is the single profile
+   entry point. Its approved compact popup carries 프로필 관리 / 설정 / 로그아웃.
+   The focus ring below remains on the account row. */
 .sidebar-account-entry:focus-visible {
   outline: 2px solid var(--brand-violet, #7b62bb);
   outline-offset: 2px;

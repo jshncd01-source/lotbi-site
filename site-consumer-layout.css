@@ -84,9 +84,10 @@ body.chat-home-page .footer-legal-disclosure[open] + .footer-legal-panels { disp
 body.chat-home-page .footer-legal-sheet .footer-legal-panels { display: block; }
 body.chat-home-page .sidebar-profile-trigger { padding: 8px; min-height: 56px; border-radius: 8px; }
 body.chat-home-page .sidebar-account-name { font-size: 14px; font-weight: 500; }
-body.chat-home-page .profile-popover { width: min(280px, calc(100vw - 24px)); padding: 6px; border-radius: 14px; }
-body.chat-home-page .profile-popover-summary { padding: 12px; margin-bottom: 4px; }
+body.chat-home-page .profile-popover { width: min(276px, calc(100vw - 24px)); min-height: 244px; overflow: visible; padding: 8px; border-radius: 16px; }
+body.chat-home-page .profile-popover-summary { padding: 5px 4px 8px; margin-bottom: 2px; }
 body.chat-home-page .profile-popover [role=menuitem] { min-height: 44px; border-radius: 8px; padding: 10px 12px; }
+body.chat-home-page .profile-popover .profile-popover-close { width: 44px; height: 44px; font-size: 25px; font-weight: 400; }
 body.chat-home-page :is(.consumer-plan-menu > summary, .footer-legal-summary):focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 2px; }
 /* Detail canvases use the same quiet ink and readable type as the main view. */
 body.chat-home-page .consumer-workspace {

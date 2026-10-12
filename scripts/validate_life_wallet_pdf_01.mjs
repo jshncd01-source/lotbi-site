@@ -33,6 +33,10 @@ function buildPdf(pages) {
 const rows = []; for (let row = 0; row < 18; row += 1) for (let glyph = 0, x = 60; glyph < 22 - (row % 4) * 3; glyph += 1) { const wide = [11, 7, 13, 9, 12, 6][(glyph + row) % 6]; rows.push(x + ' ' + (520 - row * 24) + ' ' + wide + ' 12 re'); x += wide + (glyph % 5 === 4 ? 14 : 8); }
 const form = '0 g 150 760 295 26 re f 1 w 60 560 475 160 re S 60 640 m 535 640 l S 60 600 m 535 600 l S ' + rows.join(' ') + ' f 0.8 0.1 0.2 rg 420 90 70 70 re f';
 const block = '0 g 120 300 300 220 re f';
+// A privacy-safe card occupying under 4% of an otherwise blank scanned page. This is the
+// geometry that previously fell through to the whole-PDF-page fallback.
+const cardRows = []; for (let row = 0; row < 7; row += 1) for (let glyph = 0, x = 222; glyph < 11 - (row % 3); glyph += 1) { const wide = [5, 7, 4, 6][(glyph + row) % 4]; cardRows.push(x + ' ' + (428 - row * 11) + ' ' + wide + ' 6 re'); x += wide + (glyph % 4 === 3 ? 7 : 4); }
+const smallCard = '0.86 0.76 0.55 rg 212 365 170 107 re f 0 g 2 w 212 365 170 107 re S ' + cardRows.join(' ') + ' f';
 try {
   const module = await import('/site-life-wallet-scan-ui.js?test=pdf-01');
   const saved = {value: ''};
@@ -56,6 +60,12 @@ try {
   await wait(() => single.element.dataset.scanState === 'review' || single.element.dataset.scanState === 'error', 'single page review');
   const onePage = {state: single.element.dataset.scanState, pageCount: single.element.dataset.scanPdfPages};
   single.destroy();
+  const small = module.createWalletDocumentScanner({file: new File([buildPdf([smallCard])], 'small-card.pdf', {type: 'application/pdf'})});
+  document.getElementById('host').replaceChildren(small.element);
+  await wait(() => small.element.dataset.scanState === 'review' || small.element.dataset.scanState === 'error', 'small card review');
+  const smallPreview = small.element.querySelector('.wallet-scan-result-image'); await smallPreview.decode();
+  const smallCardView = {state: small.element.dataset.scanState, mode: small.element.dataset.scanMode, reason: small.element.dataset.scanReason, aspect: smallPreview.naturalWidth / smallPreview.naturalHeight, pageAspect: Number(small.element.dataset.scanSourceWidth) / Number(small.element.dataset.scanSourceHeight), confirmEnabled: !small.element.querySelector('[data-wallet-scan-confirm]').disabled, diagnostics: small.element.dataset.scanDiagnostics};
+  small.destroy();
   // A PDF with no printed text (here one black block) is not a wallet item either.
   const blank = module.createWalletDocumentScanner({file: new File([buildPdf([block])], 'picture.pdf', {type: 'application/pdf'})});
   document.getElementById('host').replaceChildren(blank.element);
@@ -67,7 +77,7 @@ try {
   await wait(() => broken.element.dataset.scanState === 'error' || broken.element.dataset.scanState === 'review', 'broken pdf outcome');
   const brokenView = {state: broken.element.dataset.scanState, status: broken.element.querySelector('.wallet-scan-status').textContent};
   broken.destroy();
-  window.__result = {ok: true, first, onePage, textless, brokenView};
+  window.__result = {ok: true, first, onePage, smallCardView, textless, brokenView};
 } catch (error) { window.__result = {ok: false, error: String(error?.stack || error)}; }
 </script></body></html>`;
 
@@ -78,7 +88,7 @@ const result = await runFixturePage({
 });
 assert.equal(result.ok, true, result.error);
 {
-  const {first, onePage, textless, brokenView} = result;
+  const {first, onePage, smallCardView, textless, brokenView} = result;
   const detail = JSON.stringify(first);
   assert.equal(first.state, 'review', `the first PDF page must open for review: ${detail}`);
   assert.equal(first.mode, 'automatic', `a PDF page must be cropped automatically: ${detail}`);
@@ -93,6 +103,12 @@ assert.equal(result.ok, true, result.error);
   assert.equal(first.saved, true, 'page 1 must be saved as an image');
   assert.equal(onePage.state, 'review');
   assert.equal(onePage.pageCount, '1');
+  assert.equal(smallCardView.state, 'review', `the small card PDF must open for review: ${JSON.stringify(smallCardView)}`);
+  assert.equal(smallCardView.mode, 'automatic', `the small card must be found automatically: ${JSON.stringify(smallCardView)}`);
+  assert.equal(smallCardView.reason, 'document-quadrilateral', `the card itself, not the PDF page fallback, must be used: ${JSON.stringify(smallCardView)}`);
+  assert.ok(smallCardView.aspect > 1.4 && smallCardView.aspect < 1.85, `the preview must contain the landscape card only: ${JSON.stringify(smallCardView)}`);
+  assert.ok(smallCardView.pageAspect < 1, `the source PDF page remains portrait: ${JSON.stringify(smallCardView)}`);
+  assert.equal(smallCardView.confirmEnabled, true, `the detected card must be confirmable: ${JSON.stringify(smallCardView)}`);
   assert.equal(textless.mode, 'manual', `a PDF without text must not be cropped: ${JSON.stringify(textless)}`);
   assert.equal(textless.reason, 'not-a-document');
   assert.equal(textless.confirmEnabled, false, 'a PDF without text must not be saved');
@@ -100,5 +116,5 @@ assert.equal(result.ok, true, result.error);
   assert.ok(textless.status.includes('등록할 수 있는 자료로 보이지 않습니다'), `textless PDF message: ${textless.status}`);
   assert.equal(brokenView.state, 'error', `a broken PDF must stop with an explanation: ${JSON.stringify(brokenView)}`);
   assert.ok(brokenView.status.includes('PDF를 열지 못했습니다'), `broken PDF message: ${brokenView.status}`);
-  console.log(`LIFE_WALLET_PDF_01 PASS — first_aspect=${first.aspect.toFixed(3)} source=${first.sourceWidth}x${first.sourceHeight} reason=${first.reason}`);
+  console.log(`LIFE_WALLET_PDF_01 PASS — first_aspect=${first.aspect.toFixed(3)} source=${first.sourceWidth}x${first.sourceHeight} reason=${first.reason} small_card_aspect=${smallCardView.aspect.toFixed(3)} small_card_reason=${smallCardView.reason}`);
 }
