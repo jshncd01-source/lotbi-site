@@ -2,6 +2,18 @@ READY_FOR_DEPLOY=YES
 
 # 가족 지킴이 ③ 실종 신고·관리자 열람 — Site 화면 확인용 후보
 
+## 2026-10-12 시스템 다크 수정 재READY — 현행
+
+- READY_FOR_DEPLOY=YES, FULL_FUNCTIONAL_COMPLETE=NO, PRODUCTION_VERIFIED=NO. 기존 e32d6cb7 대신 최신 ①·② 수정 계보를 정상 merge했다. 검증 코드 HEAD 196ae0ee6, 이후 부모 READY 갱신 merge는 문서만 변경했다. 최종 exact HEAD·Ncloud push/readback은 outputs/family-guardian-system-dark-reready-2026-10-12.md에 기록한다.
+- fresh Ncloud main 29cc6b13a7e081dda6a224717f50d0efcfa53e25 포함. cache-only128hunk 외 신고 검증 helper import2hunk가 있었으며 기존 safecareSosSubmitReady를 유지해 해결했다.
+- 실패 이력 보존: 로컬 통합 중 9c8cf62f9에 충돌 마커가 남아 diff 실패 및 브라우저 __mountGuest 미정의 실패가 발생했다. 해당 HEAD는 push/READY 대상이 아니며 정상 후속 커밋196ae0ee6에서 두 import를 바로잡고 구문/캐시/대비/등록/SOS/전체 화면 검사를 다시 통과했다. reset/rebase/force로 이력을 숨기지 않았다.
+- 기존 validate_safecare_person_dark_cancel_01.mjs 변경0, 단독 PASS: light/dark/system-dark 대비 위반0·등록 취소/재개/삭제 보호. 가족 360/1280 18조합 PASS·450PNG, 사람/반려동물 신고 입력·동의 버튼 실제 DOM 검증 포함. 번호/부분수정 등록계약과 새 SOS03 명시 동의/접수번호 계약 PASS.
+- before: outputs/screenshots/site/phase3-system-dark-fix-before-e32d/ 44PNG, after: outputs/screenshots/site/phase3-system-dark-fix-after-20261012/ 450PNG. before는 과거 e32d6cb7 CSS를 유지한 별도 증거 checkout이며 테마 캡처 harness만 갱신했다. 기존 전후/원본 ZIP 보존.
+- common-ui-polish02 10계약, consumer-shell source, cache write/check aset-6f460018dd7c·refs208 및 diff/구문 PASS. 같은 기존 대비 검사/보안·권한·동의 계약을 삭제/skip/완화하지 않았다.
+- Core·DB·다른 저장소 신규 변경 없음. 반려동물 별도 관리자 알림·전체 Site/App→Core/Admin→사용자 종료/직접URL차단 기준14·Native/iOS는 기존 미검증 그대로다.
+- Ncloud feature push/readback까지이며 main/Production/Play 업로드 없음. 배포총괄의 새 exact-head trusted gate·단계 공동 배포 조건 유지. 운영 성공을 선언하지 않는다.
+- 운영 E2E: 배포 후 배포방:
+
 ## 2026-10-12 배포 레일 재READY — 현행 화면 확인용 판정
 
 - READY_FOR_DEPLOY=YES는 확정 화면을 먼저 확인하는 공동 후보의 개발 READY다. FULL_FUNCTIONAL_COMPLETE=NO, PRODUCTION_VERIFIED=NO. 아래 과거 NO/보류 문구는 이전의 전 항목 완료 기준과 당시 SHA 기록이며 이 절이 현행 판정이다.
