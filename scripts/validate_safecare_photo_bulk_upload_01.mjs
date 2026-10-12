@@ -7,8 +7,9 @@
 // refuses only wrong or useless photos, and places it in a free card. Every
 // success is kept when a later photo is refused, and only a refused photo is
 // replaced. Three face photos and two body photos complete the set (owner
-// decision 2026-10-10); ten are recommended, never required. The ten tiles are
-// examples; in 사진 갱신·관리 a stored photo can be taken out (second tap).
+// decision 2026-10-10); ten are optional capacity, never required. Five example
+// tiles stay visible and the other five are collapsed; in 사진 갱신·관리 a
+// stored photo can be taken out (second tap).
 // After a person SOS the guardian reads that the case reached the LOTBI admin
 // inbox (when Core says so) and, always, that this is not a police report.
 //
@@ -29,15 +30,16 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const client = await import(`${pathToFileURL(path.join(ROOT, 'site-person.js')).href}?contract=bulk-01`);
-const {PERSON_IDENTITY_SLOTS} = await import(`${pathToFileURL(path.join(ROOT, 'site-person-guides.js')).href}?contract=bulk-01`);
+const {PERSON_IDENTITY_SLOTS, PERSON_REQUIRED_EXAMPLE_SLOTS, PERSON_OPTIONAL_EXAMPLE_SLOTS} = await import(`${pathToFileURL(path.join(ROOT, 'site-person-guides.js')).href}?contract=bulk-01`);
 const bulk = await import(`${pathToFileURL(path.join(ROOT, 'site-person-bulk-photos.js')).href}?contract=bulk-01`);
 const common = await import(`${pathToFileURL(path.join(ROOT, 'site-safecare-common.js')).href}?contract=bulk-01`);
 
 const WARNING = '정확한 비교를 위해 동일한 사람의 사진만 등록해 주세요. 다른 사람이나 동물·사물 사진이 섞이면 등록이 제한될 수 있습니다.';
-const ANGLES = '휴대폰에 있는 사진 중 얼굴이 잘 보이는 사진 3장과 상반신·전신 사진 2장이면 충분해요. 각도는 대충 맞아도 괜찮아요.';
+const ANGLES = '기본 등록에는 얼굴 3장과 상반신·전신 사진 2장이 필요해요.';
+const OPTIONAL = '다양한 각도와 상황의 사진을 최대 10장까지 등록하면 인식에 도움이 될 수 있어요.';
 const ANCHOR = '처음 저장된 사진이 다른 사람일 수 있어요. 사진 갱신·관리에서 그 사진을 빼고 다시 올려 주세요.';
 const NEEDS_ALL = '얼굴이 잘 보이는 사진 3장과 상반신·전신 사진 2장이 더 있으면 등록을 마칠 수 있어요.';
-const RECOMMEND = '등록할 수 있어요. 사진을 더 올리면(최대 10장) 찾을 확률을 높일 수 있어요.';
+const RECOMMEND = '필수 사진 5장이 준비됐어요. 이대로 등록할 수 있어요.';
 const NOT_POLICE = '이 접수는 경찰 신고가 아닙니다. 긴급한 경우 112에 바로 신고해 주세요.';
 // The bulk screen never claims certainty about who is in the photos...
 const FORBIDDEN = ['100%', '확정', '일치합니다', '찾았습니다', '찾았어요', '동일인입니다', '카메라 촬영'];
@@ -64,6 +66,9 @@ assert.deepEqual([...client.PERSON_IDENTITY_SLOT_CODES], SLOT_CODES, 'the client
 assert.equal(bulk.PERSON_BULK_MAX_FILES, 10);
 assert.equal(bulk.PERSON_BULK_WARNING, WARNING);
 assert.equal(bulk.PERSON_BULK_ANGLE_GUIDE, ANGLES);
+assert.equal(bulk.PERSON_BULK_OPTIONAL_GUIDE, OPTIONAL);
+assert.deepEqual(PERSON_REQUIRED_EXAMPLE_SLOTS.map(slot => slot.slotIndex), [1, 2, 3, 6, 7]);
+assert.deepEqual(PERSON_OPTIONAL_EXAMPLE_SLOTS.map(slot => slot.slotIndex), [4, 5, 8, 9, 10]);
 assert.equal(bulk.PERSON_BULK_ANCHOR_HINT, ANCHOR);
 assert.equal(bulk.personBulkProgress(3, 10), '사진을 확인하고 있어요 (3/10)');
 {
@@ -225,7 +230,7 @@ assert.ok(bulkSource.includes(`'${WARNING}'`), 'the warning sentence is exact');
 assert.ok(!bulkSource.includes('classifyPersonIdentityPhoto') && !bulkSource.includes('putPersonIdentityPhoto'), 'the batch uses the slot-free POST only');
 assert.match(ui, /import \{createPersonBulkPhotos, personPhotoSetMessage\} from '\.\/site-person-bulk-photos\.js\?v=aset-[0-9a-f]{12}';/);
 const photoStep = ui.slice(ui.indexOf('const renderPhotoStep = '), ui.indexOf('const renderReviewStep = '));
-assert.ok(photoStep.indexOf('bulkPhotos.render({storedCount: photos.length})') > 0 && photoStep.indexOf('bulkPhotos.render({storedCount: photos.length})') < photoStep.indexOf("const grid = el('div', 'safecare-slot-grid')"), 'the bulk panel sits above the ten tiles');
+assert.ok(photoStep.indexOf('bulkPhotos.render({storedCount: photos.length})') > 0 && photoStep.indexOf('bulkPhotos.render({storedCount: photos.length})') < photoStep.indexOf("const grid = el('div', 'safecare-slot-grid safecare-slot-grid-required')"), 'the bulk panel sits above the five visible examples');
 assert.ok(photoStep.includes('isBusy: () => busy') && photoStep.includes('setBusy: value => { busy = value; }'), 'the bulk run shares the screen\'s busy flag');
 assert.ok(photoStep.includes('next.disabled = !set.complete;'), 'the next step opens at the minimum set (Core\'s flag)');
 const tile = ui.slice(ui.indexOf('const photoTile = '), ui.indexOf('const renderPhotoStep = '));
@@ -509,7 +514,8 @@ try {
       return {result, where};
     };
 
-    // (i) Before picking: the exact warning, the easy guide, the tiles as examples, nothing that makes ten look required.
+    // (i) Before picking: five visible examples, optional capacity collapsed,
+    // and nothing that makes ten look required.
     {
       const {result: r, where} = await scenario('i-selection', {}, `
         await __openPhotos();
@@ -521,9 +527,10 @@ try {
           pick: panel.querySelector('[data-person-bulk-pick]')?.textContent,
           multiple: input.multiple, accept: input.accept, type: input.type,
           beforeGrid: Boolean(panel.compareDocumentPosition(document.querySelector('[data-person-slot-grid]')) & Node.DOCUMENT_POSITION_FOLLOWING),
-          tiles: document.querySelectorAll('[data-person-slot]').length,
-          artwork: document.querySelectorAll('[data-person-slot] .person-slot-guide-image').length,
-          visible: [...document.querySelectorAll('[data-person-slot] .safecare-slot-visible')].filter(node => node.textContent.startsWith('보여야 하는 부분')).length,
+          tiles: document.querySelectorAll('[data-person-slot-grid] > [data-person-slot]').length,
+          artwork: document.querySelectorAll('[data-person-slot-grid] > [data-person-slot] .person-slot-guide-image').length,
+          optionalOpen: document.querySelector('.person-photo-optional')?.open,
+          optionalTiles: document.querySelectorAll('.safecare-slot-grid-optional > [data-person-slot]').length,
           tileControls: document.querySelectorAll('[data-person-slot] button, [data-person-slot] input').length,
           examples: document.querySelector('[data-person-slot-examples]')?.textContent || '',
           step: document.querySelector('[data-person-care-surface]').innerText,
@@ -533,15 +540,16 @@ try {
       `);
       assert.equal(r.warning, WARNING, `${where}: warning verbatim`);
       assert.equal(r.angles, ANGLES, where);
-      assert.equal(r.pick, '사진 여러 장 선택', where);
+      assert.equal(r.pick, '갤러리에서 여러 장 선택', where);
       assert.equal(r.multiple, true, where);
       assert.equal(r.accept, 'image/*', where);
       assert.equal(r.beforeGrid, true, `${where}: the panel sits above the tiles`);
-      assert.equal(r.tiles, 10, `${where}: the ten example tiles stay`);
-      assert.equal(r.artwork, 10, `${where}: every tile keeps its example picture`);
-      assert.equal(r.visible, 10, `${where}: every tile keeps '보여야 하는 부분'`);
+      assert.equal(r.tiles, 5, `${where}: only five required examples are visible`);
+      assert.equal(r.artwork, 5, `${where}: every visible tile keeps its example picture`);
+      assert.equal(r.optionalOpen, false, `${where}: optional capacity stays collapsed`);
+      assert.equal(r.optionalTiles, 5, `${where}: five optional slots remain available without becoming required`);
       assert.equal(r.tileControls, 0, `${where}: a registration tile has no button or picker`);
-      assert.equal(r.examples, '아래 10칸은 어떤 사진이 있으면 좋은지 보여 주는 예시예요. 사진은 위의 ‘사진 여러 장 선택’으로 한 번에 올려 주세요. 칸을 다 채우지 않아도 돼요.', where);
+      assert.equal(r.examples, '사진을 선택하면 등록할 사람의 사진으로 변경됩니다.', where);
       assert.deepEqual(r.counter, {text: '얼굴 0/3 · 몸 0/2지금 0장 · 10장까지 올릴 수 있어요', complete: 'false', note: NEEDS_ALL, next: true}, where);
       for (const phrase of TEN_REQUIRED) assert.ok(!r.step.includes(phrase), `${where}: nothing makes ten look required ("${phrase}")`);
       assert.equal(r.statusRole, 'status', where);

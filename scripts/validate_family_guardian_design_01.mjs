@@ -37,6 +37,23 @@ for (const name of ['index.html', 'about.html', 'subscribe.html', 'site-person.j
   const source = read(name).split(/\r?\n/).filter(line => !line.trimStart().startsWith('//')).join('\n');
   assert.ok(!source.includes('안심케어'), `${name}: no old displayed label`);
 }
+const personUi = read('site-person-ui.js');
+const personGuides = read('site-person-guides.js');
+const personBulk = read('site-person-bulk-photos.js');
+for (const copy of [
+  '기본 등록에는 얼굴 3장과 상반신·전신 사진 2장이 필요해요.',
+  '다양한 각도와 상황의 사진을 최대 10장까지 등록하면 인식에 도움이 될 수 있어요.',
+]) assert.ok(personBulk.includes(copy), `approved photo copy: ${copy}`);
+for (const copy of [
+  '기본 사진 5장을 등록해 주세요',
+  '참고 이미지 사진입니다.',
+  '사진을 선택하면 등록할 사람의 사진으로 변경됩니다.',
+  '인식을 돕는 사진 더 추가하기 (선택)',
+  '실종 신고 접수',
+]) assert.ok(personUi.includes(copy), `approved screen copy: ${copy}`);
+assert.ok(personGuides.includes('PERSON_REQUIRED_EXAMPLE_SLOTS') && personGuides.includes('PERSON_OPTIONAL_EXAMPLE_SLOTS'),
+  'five required examples and optional capacity stay structurally separate');
+assert.ok(!personUi.includes('아래 10칸은 어떤 사진이 있으면 좋은지'), 'the old ten-card example screen is gone');
 assert.ok(read('.github/workflows/site-review.yml').includes('node scripts/validate_family_guardian_design_01.mjs'), 'new inspector runs in gate');
 assert.ok(read('terms.html').includes('안심케어 프로필'), 'legal copy waits for separate owner approval');
 assert.ok(read('site-safecare-renewal-notice.js').includes('법정대리인만 안심케어 등록과 식별 사진 처리에 동의할 수 있습니다.'), 'consent contract is not automatically renamed');

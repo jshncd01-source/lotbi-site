@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // SAFECARE-PHOTO-EASY-UPLOAD-01 — 사람 안심케어 1차·2차 (owner decisions 2026-10-10).
 //
-// A. photo step: the ten tiles are examples; '사진 여러 장 선택' is the only way
-//    in (2nd round: no tile picker at all — the 1st-round '이 칸 다시 고르기'
+// A. photo step: five required examples stay visible and optional capacity is
+//    collapsed; '갤러리에서 여러 장 선택' is the only way in (2nd round: no
+//    tile picker at all — the 1st-round '이 칸 다시 고르기'
 //    rule personRetrySlots is gone); three face photos and two body photos
 //    complete the set, ten is only recommended; 사진 갱신·관리 can take a stored
 //    photo out (the screen itself is covered in
@@ -32,9 +33,11 @@ assert.equal(bulk.personRetrySlots, undefined, '2nd round: no tile picker rule a
 assert.equal(typeof person.putPersonIdentityPhoto, 'function', 'the per-slot PUT stays for older callers (nothing deleted)');
 // The set: three faces and two bodies; ten only recommended.
 assert.equal(bulk.personPhotoSetMessage({complete: false, faceCount: 2, bodyCount: 2}), '얼굴이 잘 보이는 사진 1장이 더 있으면 등록을 마칠 수 있어요.');
-assert.equal(bulk.personPhotoSetMessage({complete: true, faceCount: 3, bodyCount: 2, photoCount: 5}), '등록할 수 있어요. 사진을 더 올리면(최대 10장) 찾을 확률을 높일 수 있어요.');
+assert.equal(bulk.personPhotoSetMessage({complete: true, faceCount: 3, bodyCount: 2, photoCount: 5}), '필수 사진 5장이 준비됐어요. 이대로 등록할 수 있어요.');
+assert.equal(bulk.PERSON_BULK_ANGLE_GUIDE, '기본 등록에는 얼굴 3장과 상반신·전신 사진 2장이 필요해요.');
+assert.equal(bulk.PERSON_BULK_OPTIONAL_GUIDE, '다양한 각도와 상황의 사진을 최대 10장까지 등록하면 인식에 도움이 될 수 있어요.');
 for (const text of [bulk.PERSON_BULK_ANGLE_GUIDE, bulk.personPhotoSetMessage({complete: true, photoCount: 6})]) {
-  assert.ok(!/10장을 모두|반드시|필수/.test(text), `ten is never required: ${text}`);
+  assert.ok(!/10장을 모두|10장.{0,8}(?:반드시|필수)|(?:반드시|필수).{0,8}10장/.test(text), `ten is never required: ${text}`);
 }
 
 // Copy says what happens today.
