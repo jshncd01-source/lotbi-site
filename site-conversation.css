@@ -198,11 +198,49 @@
    Ghost buttons so the row never competes with the answer, but on the
    composer's 44px touch contract so a thumb hits them on every phone. */
 .chat-message-actions {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   margin: 2px 0 0 -10px;
+}
+
+.chat-message-share-menu {
+  position: absolute;
+  z-index: 30;
+  top: 42px;
+  left: 42px;
+  display: grid;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid var(--lotbi-border-default, #d9dde5);
+  border-radius: 12px;
+  background: var(--lotbi-surface-elevated, #fff);
+  box-shadow: 0 12px 30px rgba(18, 28, 45, .16);
+}
+
+.chat-message-share-menu[hidden] {
+  display: none;
+}
+
+.chat-message-share-choice {
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--lotbi-text-primary, #303642);
+  font: inherit;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-message-share-choice:hover,
+.chat-message-share-choice:focus-visible {
+  background: var(--lotbi-surface-hover, #f0f2f7);
+  outline: none;
 }
 
 .chat-message-action {
@@ -2679,12 +2717,21 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 }
 
 .lotbi-place-card-actions {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  display: flex;
+  width: 100%;
+  justify-content: flex-end;
   gap: 3px;
   min-height: 54px;
   padding: 4px 5px 6px;
   border-color: color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 74%, transparent);
+}
+
+.lotbi-place-card-actions .lotbi-phone-action {
+  margin-right: auto;
+}
+
+.lotbi-place-card-actions .lotbi-naver-map-action {
+  order: 10;
 }
 
 .lotbi-place-card-actions .lotbi-rich-card-action {
