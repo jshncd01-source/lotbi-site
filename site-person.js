@@ -1,4 +1,4 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-adfbcd3370ef';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-3a6682ca77f2';
 
 const BASE = '/v2/person-profiles';
 
