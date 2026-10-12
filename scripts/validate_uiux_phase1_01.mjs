@@ -12,7 +12,12 @@ const about = read('about.html');
 assert.doesNotMatch(index, /한국 생활을 묻고, 찾고, 기록하고, 실행하세요\./u);
 assert.match(index, /<h2>무엇을 도와드릴까요\?<\/h2>/u);
 assert.match(index, /<section class="home-value-proposition" aria-label="LOTBI 활용 안내">/u);
-assert.equal((index.match(/data-home-prompt=/gu) || []).length, 2, 'two short optional examples');
+assert.equal((index.match(/data-home-prompt=/gu) || []).length, 1, 'one approved initial favorite');
+assert.match(index, /data-favorites-count>1\/8<\/span>/u);
+assert.match(index, />이번 주 일정<\/span>/u);
+assert.match(index, /data-favorites-add>\+ 즐겨찾기 추가<\/button>/u);
+assert.match(index, /data-favorites-edit[^>]*>편집<\/button>/u);
+assert.ok((index.match(/data-scam-open/gu) || []).length >= 2, 'existing desktop and mobile scam menu entries preserved');
 // CONVERSATION-ANSWER-UX-01 (QA #6): an example asks at once, like every other
 // one-tap chip - no draft left in the composer, no keyboard.
 const homePromptHandler = read('site-conversation.js').match(/const homePrompt = target\?\.closest\('\[data-home-prompt\]'\);[\s\S]*?\n {6}return;\n {4}\}/u)?.[0] || '';

@@ -64,6 +64,9 @@ jobs:
       - name: Validate UI/UX Phase 1 contracts
         run: node scripts/validate_uiux_phase1_01.mjs
 
+      - name: 홈 즐겨찾기 기본 진입·편집·렌더링 확인
+        run: node scripts/validate_home_favorites_01.mjs
+
       - name: Validate footer business information is identical across pages
         run: python scripts/sync_footer_business_info.py --check
 
