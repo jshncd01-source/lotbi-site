@@ -2,6 +2,38 @@ READY_FOR_DEPLOY=NO
 
 # 캘린더 사진 분석 수정 01 — SITE 인계
 
+CURRENT_BASE_MAIN_SHA=29cc6b13a7e081dda6a224717f50d0efcfa53e25
+TESTED_CODE_SHA=f3c49c2756c68f59c04dc1acc3d395d711e7dedb
+CURRENT_BRANCH=feature/calendar-photo-extraction-fix-01-site
+CURRENT_STATUS=IMPLEMENTED / LOCAL_RECHECK_PASS / READY_NO
+
+## 2026-10-12 재개 검증 — 현재 인계 상태
+
+- 담당은 기존 사진 추출 오류로 한정한다. 월·년 신규 디자인은 별도 담당이며 이 방에서 추가 구현하지 않았다.
+- Site Gate 반환 `20261012T003005Z-500794-323822343`: `Cannot find module 'playwright'`는 신규 검사의 저장소 밖 패키지 의존이었다. 기존 사진 검사와 같은 설치 Chrome/Chromium을 직접 실행하는 방식으로 교체했다. 기존 기능 단언은 별도 브라우저 검사 파일에 유지했다. 매 조합 15개 단언, 로컬 Core 연결 30개 단언을 실제 실행하며 결과 누락·예외·시간 초과·브라우저 없음은 실패한다. 검사 삭제·skip·완화 없음. 원격 Linux trusted Gate 재실행은 아직 NOT_TESTED.
+- Site 최신 main의 홈 개편을 정상 merge했다. 88개 충돌은 세 버전의 캐시 번호만 동일하게 분리한 뒤 정상 내용 병합해 해소했다. `site-calendar.css`·`site-calendar-expense.css`는 최신 main과 동일하다. 사진 기능 2개 파일과 검사만 실질 차이이며, 다른 작업방의 홈·대화·피싱·브랜드 완료분을 보존했다. 캐시 재생성 `aset-bc15a2082e1c`, `--check` PASS, callback 기존 순서 유지. 새 CSS 없음.
+- Core 최신 main 정상 merge 후 사진 evidence/provider/capture 관련 70 PASS. Site 360/1280×라이트/다크 PASS. 로컬 합성 제공자→실제 Core 검증→HTTP router→SQLite 저장 연결 PASS: 최초 카드 1건·240만원, 재업로드 후 1건, 당일/월 합계 각각 240만원, 매출표 추가 0건, 날짜 없음은 빈 날짜·저장 차단 후 날짜 수정으로 저장 가능.
+- 기존 Site 사진 추가 호텔, Life Calendar client, 지출 합계, 대화 자동 제안/중복 정책, secondary surfaces, month geometry 6개 검사 PASS. App 관련 Jest 2 suites/12 tests PASS. App 제품 코드 추가 변경 없음. 10/11 전체 검사 결과는 아래 역사 기록이며 이번에 전체를 다시 실행한 것으로 보고하지 않는다.
+- 재개 시 공개 Core health HTTP 성공·OPENAI enabled/configured·`gpt-5.6-luna`, Site 실서빙 자산 `aset-53857c15acb0` 확인. health의 서비스 버전은 `5.1.0`이며 exact served SHA/digest 증명이 아니다. 현재 두 운영 서버의 Core SHA·이미지 digest는 직접 확인하지 못했다. 아래 `3d7418...`는 10/11 배포방 제공 과거값이다.
+- 이번 실제 유료 이미지 분석 추가 0회. 누적 이 방 운영 원본 분석 2회·운영 저장 0회. 로컬 제공자는 합성이므로 비용 0. 실제 호출별 청구액은 여전히 NOT_VERIFIED.
+- 최신 화면 증거: `outputs/사진분석-재개검증/합성영수증-수정후-{360,1280}-{light,dark}.png`. 합성 상호만 표시하며 원본 민감번호·서명 없음. Native 화면 증거는 NOT_TESTED. 로그는 `work/site-photo-resume-e2e.log`, `work/site-photo-resume-final.log`, `work/core-photo-resume-tests.log`, `work/app-photo-resume-tests.log` 및 각 `*.resume.log`.
+- 기존 대기 사유 중 Site 홈 main 통합·로컬 검사 의존성은 해소했다. 남은 READY=NO 사유는 **새 코드의 실제 두 원본 OPENAI 분석 결과와 앱 Native 전 과정 미검증**이다. 운영에서 현재 코드를 시험해 이를 새 feature 코드 검증으로 대신하지 않는다. 운영 배포·저장·main 직접 변경·DB·Secret 변경 없음. migration `p0_0123` 미사용.
+- 다음 담당은 배포총괄/MASTER다. 원격 trusted Gate 및 허용된 QA 후보에서 새 Core 분석을 확인하고 앱에서 동일 결과를 확인할 경로가 필요하다. Core → Site → App 호환 순서를 유지한다. 실사진에서 정확한 상호·거래일을 얻었다고 확정하지 않는다.
+
+### 재개 시나리오 기록
+
+| 환경/시나리오 | 예상 | 실제 | UI 조작·막힌 지점 |
+|---|---|---|---|
+| 합성 카드/Core+Site | 검토 후 당일·월 1회 240만원 | 1건·각 240만원 | 사진 추가1+저장1, 파일 합성 주입; 실기기 탭 수 미측정 |
+| 합성 매출표/Core+Site | 개인 지출·입금 생성 없음 | 이유 안내·초안 카드0·추가 저장0 | 사진 추가1, 저장0; 의도된 차단 |
+| 합성 날짜 없음/Core+Site | 임의 날짜 없음·수정 후 저장 | 빈칸·저장 비활성→10/12 입력 후 1건 추가 | 사진 추가1+수정1+저장1·날짜 입력1 |
+| 합성 동일 영수증/Core+Site | 기존 중복 정책 1건 유지 | 재업로드 후 총1건·월240만원 | 사진 추가1+저장1 |
+| 기존 합성 호텔/Site | 기존 날짜·금액·검토 흐름 유지 | 기존 사진 추가 검사 PASS | 자동 입력 검사; 실제 예약 사진·실탭 수 NOT_TESTED |
+
+아래는 2026-10-11 구현·검증 당시의 역사 기록이다. 위 재개 상태와 다른 운영/main/owner 값은 현재 값으로 사용하지 않는다.
+
+
+
 - 상태: IMPLEMENTED / LOCAL_TESTS_PASS(아래 예외 구분) / FEATURE_PUSH_VERIFIED / ACTUAL_IMAGE_FIX_NOT_TESTED.
 - 저장소: `lotbi-site` / Ncloud Git.
 - 브랜치: `feature/calendar-photo-extraction-fix-01-site`.
@@ -78,7 +110,7 @@ READY_FOR_DEPLOY=NO
 - PostgreSQL 운영 저장 E2E 및 전체 원격 CI는 NOT_TESTED. 로컬 SQLite/관련 테스트 통과를 그 결과로 확대하지 않는다.
 - Site 홈 개편 `feature/calendar-home-redesign-01-site` `104fe909d6f45bd398f408300038daf38b0272aa`는 현재 main 미병합. 읽기 전용 merge-tree에는 자산 cache token 충돌이 있다. 최신 main이 갱신되면 **정상 merge**, 홈 디자인 보존, 캐시 재생성·사진/홈 화면 재검증 필요. 다른 feature 변경을 이 브랜치로 복사/병합하지 않았다.
 - 앱 월년 owner `LOTBI Work 캘린더 기능 개발`, `feature/app-calendar-layout-01`, 마지막 원격 `c8c59aecc8e1b6446a517fba955df8870be43269`. 홈 디자인 파일 변경 없음. 해당 브랜치와 읽기 전용 merge-tree 무충돌. 이 사실은 실제 통합 검사 통과를 뜻하지 않는다.
-- 사용자에게 Claude QA 버전에서 선검증할지, 실사진·앱 검증을 후속으로 인계할지 질문한 상태다. **응답/검증 없이 READY_FOR_DEPLOY=YES로 승격하지 않는다.** 다음 owner는 Claude 배포총괄. 이 문서는 구현·검증·feature push 증거 인계이며 운영 배포 허가가 아니다.
+- 10/11의 QA 경로 문의는 당시 기록이다. 현재 담당은 사진 오류로 확정했으며 재개 상태·남은 검증은 문서 상단을 따른다. 이 문서는 운영 배포 허가가 아니다.
 
 ## 변경 파일 전체
 
