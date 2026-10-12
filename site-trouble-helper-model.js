@@ -15,7 +15,7 @@
 //   instead of being shown as a fact;
 // * a filed form is not 접수 until there is a 접수번호: 'SUBMITTED' can be
 //   chosen only once the situation's receipt_field_id holds one.
-import {CORE_ORIGIN} from './site-core.js?v=aset-9b94fb3a8eed';
+import {CORE_ORIGIN} from './site-core.js?v=aset-b224e33eef8d';
 
 export const TROUBLE_HELPER_PATH = '/v2/trouble-helper/guides';
 export const TROUBLE_HELPER_STORAGE_KEY = 'lotbi.site.ux.v1.trouble-helper';

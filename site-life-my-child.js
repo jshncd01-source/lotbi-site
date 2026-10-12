@@ -25,8 +25,8 @@ import {
   searchSchools,
   telHref,
   updateMyChild,
-} from './site-my-child-client.js?v=aset-9b94fb3a8eed';
-import {fetchKindergartenRegions, searchKindergartens} from './site-kindergarten-client.js?v=aset-9b94fb3a8eed';
+} from './site-my-child-client.js?v=aset-b224e33eef8d';
+import {fetchKindergartenRegions, searchKindergartens} from './site-kindergarten-client.js?v=aset-b224e33eef8d';
 
 const ORDINALS = Object.freeze(['첫째', '둘째', '셋째', '넷째', '다섯째', '여섯째', '일곱째', '여덟째', '아홉째', '열째']);
 const WEEKDAYS = Object.freeze(['일', '월', '화', '수', '목', '금', '토']);

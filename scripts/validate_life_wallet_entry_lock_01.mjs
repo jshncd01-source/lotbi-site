@@ -183,6 +183,11 @@ assert.match(walletSource, /10분 동안 사용하지 않아 다시 잠겼습니
 assert.match(walletSource, /화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다\. 10분간 사용하지 않으면 다시 잠깁니다\./u);
 assert.doesNotMatch(walletSource, /60초 동안 사용하지 않아|60초 비활동/u);
 assert.match(walletSource, /await vault\.resumeUnlock\(accountId\)/u, 'mount must restore a valid same-tab unlock grant');
+assert.match(walletSource, /PIN을 입력해 주세요/u, 'the PIN lock gate must keep the approved entry title');
+assert.match(walletSource, /\['1','2','3','4','5','6','7','8','9','지움','0','열기'\]/u, 'the keypad must provide one explicit open action');
+assert.doesNotMatch(walletSource, /const submit = button\('PIN으로 열기'\)/u, 'the lock gate must not duplicate the keypad open action');
+assert.match(walletCssSource, /\.wallet-gate \{[^}]*width: min\(100%, 520px\)[^}]*border-radius: 24px/su, 'the lock gate must be a responsive contained card');
+assert.match(walletCssSource, /\.wallet-lock-mark \{[^}]*background: color-mix/su, 'the lock mark must use the approved blue accent treatment');
 assert.match(walletSource, /vault\.lock\(\{preserveSession: true\}\)/u, 'page transitions must preserve the same-tab unlock grant');
 assert.match(walletSource, /window\.addEventListener\('pagehide'/u);
 assert.match(walletSource, /window\.addEventListener\('pageshow'/u);

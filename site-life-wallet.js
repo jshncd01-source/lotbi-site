@@ -1,7 +1,7 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-9b94fb3a8eed';
-import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-9b94fb3a8eed';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-9b94fb3a8eed';
-import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-9b94fb3a8eed';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-b224e33eef8d';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-b224e33eef8d';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-b224e33eef8d';
+import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-b224e33eef8d';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -1318,7 +1318,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-9b94fb3a8eed') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-b224e33eef8d') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;
@@ -1504,8 +1504,8 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   }
 
   function renderUnlock(message = '') {
-    const wrap = element('section', 'wallet-gate');
-    wrap.append(lockMark(), element('h3', '', 'Life Wallet 잠금 해제'), element('p', '', '등록한 자료를 보려면 월렛 전용 4자리 PIN을 입력하세요.'));
+    const wrap = element('section', 'wallet-gate wallet-unlock-gate');
+    wrap.append(lockMark(), element('h3', '', 'PIN을 입력해 주세요'), element('p', '', '등록한 자료를 보려면 월렛 전용 4자리 PIN을 입력하세요.'));
     const form = element('form', 'wallet-pin-form wallet-unlock-form');
     const pin = pinInput('월렛 PIN'); const status = errorRegion(); if (message) status.textContent = message;
     // The PIN is entered on the keypad below, so the phone's on-screen keyboard stays down
@@ -1517,18 +1517,17 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const refreshDots = () => { dots.textContent = '●'.repeat(pin.value.length) + '○'.repeat(4 - pin.value.length); };
     pin.addEventListener('input', refreshDots); refreshDots();
     const keypad = element('div', 'wallet-keypad'); keypad.setAttribute('aria-label', '숫자 키패드');
-    for (const digit of ['1','2','3','4','5','6','7','8','9','지움','0','확인']) {
+    for (const digit of ['1','2','3','4','5','6','7','8','9','지움','0','열기']) {
       const key = button(digit, () => {
         if (/^\d$/u.test(digit) && pin.value.length < 4) pin.value += digit;
         if (digit === '지움') pin.value = pin.value.slice(0, -1);
         pin.dispatchEvent(new Event('input', {bubbles: true}));
-        if (digit === '확인') form.requestSubmit();
+        if (digit === '열기') form.requestSubmit();
       }, digit === '지움');
-      if (digit === '확인') key.classList.add('wallet-key-confirm');
+      if (digit === '열기') key.classList.add('wallet-key-confirm');
       keypad.append(key);
     }
-    const submit = button('PIN으로 열기'); submit.type = 'submit';
-    form.append(pin, dots, keypad, submit, status);
+    form.append(pin, dots, keypad, status);
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
       try {

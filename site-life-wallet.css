@@ -1,18 +1,18 @@
-.wallet-gate { min-height: 440px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.wallet-lock-mark { width: 52px; height: 52px; display: grid; place-items: center; margin-bottom: 18px; border: 1px solid var(--lotbi-border-default); border-radius: 50%; color: var(--consumer-muted); font-size: 12px; }
+.wallet-gate { box-sizing: border-box; width: min(100%, 520px); min-height: 440px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto; padding: clamp(30px, 5vw, 50px); border: 1px solid color-mix(in srgb, var(--lotbi-border-default) 82%, transparent); border-radius: 24px; background: var(--lotbi-surface-primary); box-shadow: 0 14px 42px rgba(32, 53, 82, .08); text-align: center; }
+.wallet-lock-mark { width: 62px; height: 62px; display: grid; place-items: center; margin-bottom: 18px; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--lotbi-brand-solid-bg) 13%, var(--lotbi-surface-primary)); color: var(--lotbi-brand-solid-bg); font-size: 12px; }
 /* COMMON-UI-POLISH-01 (QA #21) — padlock drawn in the ring's ink, both themes. */
 .wallet-lock-mark svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .wallet-gate h3, .wallet-editor h3, .wallet-detail h3 { margin: 0; font-size: 22px; letter-spacing: -.035em; }
-.wallet-gate > p { max-width: 540px; margin: 12px 0 22px; color: var(--consumer-muted); font-size: 14px; line-height: 1.7; }
+.wallet-gate > p { max-width: 360px; margin: 10px 0 22px; color: var(--consumer-muted); font-size: 14px; line-height: 1.7; }
 .wallet-gate > p.wallet-setup-why { margin-top: -12px; font-size: 13px; line-height: 1.65; }
 .wallet-pin-form { width: min(360px, 100%); display: grid; gap: 14px; margin-top: 8px; text-align: left; }
 .wallet-field { display: grid; gap: 8px; font-size: 13px; font-weight: 600; }
 .wallet-field :is(input, select, textarea), .wallet-pin-input { box-sizing: border-box; width: 100%; min-height: 48px; padding: 11px 13px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-primary); color: inherit; font: inherit; font-size: 16px; }
 .wallet-pin-input { text-align: center; font-size: 22px; letter-spacing: .35em; -webkit-text-security: disc; }
-.wallet-pin-dots { min-height: 30px; text-align: center; letter-spacing: .45em; color: var(--lotbi-text-primary); }
+.wallet-pin-dots { min-height: 30px; text-align: center; letter-spacing: .45em; color: var(--lotbi-text-primary); font-size: 18px; }
 .wallet-unlock-form > .wallet-pin-input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
 .wallet-keypad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.wallet-keypad .consumer-action { min-height: 48px; padding: 8px; border-color: var(--lotbi-border-default); background: transparent; color: inherit; }
+.wallet-keypad .consumer-action { min-height: 52px; padding: 8px; border-color: var(--lotbi-border-default); border-radius: 12px; background: transparent; color: inherit; font-size: 16px; }
 .wallet-keypad .wallet-key-confirm { background: var(--lotbi-brand-solid-bg); color: var(--lotbi-brand-solid-text); }
 .wallet-message { min-height: 20px; margin: 0; color: var(--lotbi-error-text, #b42332); font-size: 13px; line-height: 1.6; text-align: center; }
 .wallet-security-note { max-width: 620px; margin: 10px auto 0; color: var(--consumer-muted); font-size: 12px; line-height: 1.65; text-align: center; }
@@ -215,6 +215,8 @@
   .wallet-scan-workspace { grid-template-columns: 1fr; }
 }
 @media (max-width: 430px) {
+  .wallet-gate { min-height: max(440px, calc(100dvh - 180px)); padding: 28px 20px; border-radius: 18px; }
+  .wallet-keypad .consumer-action { min-height: 50px; }
   .wallet-attach-zone { grid-template-columns: 56px minmax(0, 1fr) auto; gap: 10px; padding: 12px; }
   .wallet-photo-mark, .wallet-photo-preview { width: 56px; height: 48px; }
   .wallet-form-actions { flex-direction: column-reverse; }

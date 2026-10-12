@@ -12,7 +12,7 @@
 //   GET    /v2/life/my-children/{id}/meal-plans/{source}/content   a published meal-plan PDF / image
 // Stored per entry: the institution code, the reader's name for it, NEIS
 // allergen numbers. Nothing else about a child is ever sent.
-import {CORE_ORIGIN} from './site-core.js?v=aset-9b94fb3a8eed';
+import {CORE_ORIGIN} from './site-core.js?v=aset-b224e33eef8d';
 
 const BASE_PATH = '/v2/life/my-children';
 const ENTRY_RE = /^mci_[0-9a-f]{20}$/u;
