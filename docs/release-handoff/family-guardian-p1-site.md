@@ -1,6 +1,18 @@
-READY_FOR_DEPLOY=NO
+READY_FOR_DEPLOY=YES
 
 # 가족 지킴이 ① 이름·디자인 — Site 검증 기록
+
+## 2026-10-12 시스템 다크 수정 재READY — 현행
+
+- READY_FOR_DEPLOY=YES, FULL_FUNCTIONAL_COMPLETE=NO, PRODUCTION_VERIFIED=NO. 아래 “재검증 중”은 수정 커밋 작성 당시 기록이며 이 절이 현행이다.
+- 수정 기능 코드 HEAD b54727143. fresh Ncloud main 29cc6b13a7e081dda6a224717f50d0efcfa53e25 포함 확인. 문서만 갱신한 최종 exact HEAD·push/readback은 Work outputs/family-guardian-system-dark-reready-2026-10-12.md에 기록한다.
+- 기존 validate_safecare_person_dark_cancel_01.mjs 원문/기준 변경0, 단독 PASS: 390/1280 light·dark·system-dark 모든 대비 위반0, 등록 취소/계속/재개/삭제 보호3조건 PASS.
+- 가족 검사 PASS: 360/1280에서 light, dark, system-light, system-dark, light/OSdark, dark/OSlight, bootstrap-dark, bootstrap-system-dark, bootstrap-light/OSdark의18조합. 실제 화면모듈·가상 API이며 실기기/운영 성공이 아니다.
+- 전후 보존: outputs/screenshots/site/phase1-system-dark-fix-before-7210/ 44PNG (시스템다크), outputs/screenshots/site/phase1-system-dark-fix-after-20261012/ 432PNG (18조합). 기존 전후96장·원본 ZIP도 보존했다. 대표 목록 before/after를 실제 이미지로 읽어 밝은 배경/흰 글자 문제가 사라졌음을 확인했다.
+- common-ui-polish02 10계약, consumer-shell source, cache write/check aset-1c1a6c9533f2·refs208 PASS. media selector 파서 보완 및 새 테마 assertion은 강화이며 검사 삭제/skip/완화 없음.
+- 관련 법적 문구3곳, Native/iOS·실제 저장/재조회·반려동물 별도 알림·기준14 운영 E2E의 미검증은 종전 그대로다. 기존 화면 확인용 후보의 범위를 확대하지 않는다.
+- Ncloud feature만 push, main merge/Production/DB/Secret/Play 업로드 없음. 배포총괄은 새 exact HEAD의 기존 trusted gate를 재실행해야 하며 Gate PASS/배포는 NOT_VERIFIED다.
+- 운영 E2E: 배포 후 배포방:
 
 ## 2026-10-12 시스템 다크 Gate RED 반환 — 재검증 중
 
