@@ -1022,13 +1022,46 @@ function textRows(working,marks,corners,downward=false,tallest=.05){
     }
   }
   const rows=new Map();
-  glyphs.forEach((glyph,index)=>{const key=root(index);const row=rows.get(key)||{count:0,left:Infinity,right:-Infinity,heights:[],spans:[]};row.count+=1;row.left=Math.min(row.left,glyph.left);row.right=Math.max(row.right,glyph.right);row.heights.push(glyph.tall);row.spans.push([glyph.left,glyph.right]);rows.set(key,row)});
+  glyphs.forEach((glyph,index)=>{const key=root(index);const row=rows.get(key)||{count:0,left:Infinity,right:-Infinity,top:Infinity,bottom:-Infinity,heights:[],spans:[]};row.count+=1;row.left=Math.min(row.left,glyph.left);row.right=Math.max(row.right,glyph.right);row.top=Math.min(row.top,glyph.middle-glyph.tall/2);row.bottom=Math.max(row.bottom,glyph.middle+glyph.tall/2);row.heights.push(glyph.tall);row.spans.push([glyph.left,glyph.right]);rows.set(key,row)});
   const lines=[...rows.values()].filter(row=>{row.heights.sort((first,second)=>first-second);return row.count>=5&&row.right-row.left>=6*row.heights[Math.floor(row.heights.length/2)]&&!madePattern(row.spans)});
-  return {lines:lines.length,starts:lines.map(row=>row.left),ends:lines.map(row=>row.right)};
+  const bounds=lines.length?{left:Math.min(...lines.map(row=>row.left)),right:Math.max(...lines.map(row=>row.right)),top:Math.min(...lines.map(row=>row.top)),bottom:Math.max(...lines.map(row=>row.bottom))}:null;
+  return {lines:lines.length,starts:lines.map(row=>row.left),ends:lines.map(row=>row.right),bounds};
 }
 
 function textLines(working,marks,corners){
   return textRows(working,marks,corners).lines;
+}
+
+// A certificate photographed in an open folder can fill one half of the image and run out at
+// the top, bottom and outer frame, leaving only its inner edge visible. Four-corner surface
+// detection correctly refuses that geometry. When several real print rows occupy one side and
+// a dark full-height folder spine separates it from the blank cover, the spine plus image frame
+// define the page safely without asking the customer to place corners by hand.
+function frameEdgePrintedPage(working,marks,surface){
+  const {width,height}=working;const rows=textRows(working,marks,null);const bounds=rows.bounds;
+  if(rows.lines<6||!bounds||bounds.right-bounds.left<width*.2||bounds.bottom-bounds.top<height*.2)return null;
+  const middle=(bounds.left+bounds.right)/2;const side=middle>width*.6?'right':middle<width*.4?'left':'';if(!side)return null;
+  const smooth=surface.smooth;const tone=(x,y)=>{const index=(y*width+x)*3;return smooth[index]*.299+smooth[index+1]*.587+smooth[index+2]*.114};
+  const mean=x=>{let total=0;let count=0;for(let y=0;y<height;y+=2){total+=tone(x,y);count+=1}return total/Math.max(1,count)};
+  const from=side==='right'?Math.round(width*.15):Math.max(2,Math.round(bounds.right+width*.03));
+  const to=side==='right'?Math.min(width-3,Math.round(bounds.left-width*.03)):Math.round(width*.85);
+  if(to-from<width*.08)return null;
+  let separator=-1;let darkest=Infinity;for(let x=from;x<=to;x+=1){const value=mean(x);if(value<darkest){darkest=value;separator=x}}
+  if(separator<0||darkest>105)return null;
+  let boundary=separator;const limit=Math.round(width*.1);
+  if(side==='right')for(let step=0;step<limit&&boundary<width-2;step+=1,boundary+=1){if(mean(boundary)>135)break}
+  else for(let step=0;step<limit&&boundary>1;step+=1,boundary-=1){if(mean(boundary)>135)break}
+  const left=side==='right'?boundary:0;const right=side==='right'?width-1:boundary;
+  const pageShare=(right-left+1)/width;if(pageShare<.35||pageShare>.65)return null;
+  const rowMean=y=>{let total=0;let count=0;for(let x=left;x<=right;x+=2){total+=tone(x,y);count+=1}return total/Math.max(1,count)};
+  let top=0;let bottom=height-1;const verticalLimit=Math.round(height*.12);
+  while(top<verticalLimit&&rowMean(top)<125)top+=1;
+  while(bottom>height-1-verticalLimit&&rowMean(bottom)<125)bottom-=1;
+  if(bottom-top<height*.75)return null;
+  let paper=0;let samples=0;for(let y=top;y<=bottom;y+=4)for(let x=left;x<=right;x+=4){const index=(y*width+x)*3;const red=smooth[index];const green=smooth[index+1];const blue=smooth[index+2];samples+=1;if(red*.299+green*.587+blue*.114>=120&&Math.max(red,green,blue)-Math.min(red,green,blue)<=45)paper+=1}
+  if(paper<samples*.45)return null;
+  const corners={topLeft:{x:left,y:top},topRight:{x:right,y:top},bottomRight:{x:right,y:bottom},bottomLeft:{x:left,y:bottom}};const area=(right-left+1)*(bottom-top+1);
+  return {corners,confidence:.84,areaRatio:area/(width*height),area,source:'frame-edge-page',metrics:{areaRatio:area/(width*height),cornerRadius:0,frameEdge:side,printLines:rows.lines}};
 }
 
 // Inside a found card, rows may run either way: a card photographed on its side still reads
@@ -1226,6 +1259,10 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale
   // Nothing found, but the picture may itself be the card: a business card or ID saved as an
   // image file or a flat scan (its photo block or logo is no card of its own). Never for a
   // photo already refused as not a document or as a receipt.
+  if(!chosen&&['automatic-detection-uncertain','competing-documents','competing-boundaries'].includes(reason)){
+    const edgePage=frameEdgePrintedPage(working,marks,surface);const edgeRows=rowsOf(edgePage);
+    if(edgePage&&edgeRows>=6){chosen=edgePage;card=false;chosenLines=edgeRows;reason='document-quadrilateral'}
+  }
   if(!chosen&&['automatic-detection-uncertain','competing-documents','competing-boundaries'].includes(reason)){
     const frame=fullFrameCard(surface,working,marks);const rows=rowsOf(frame);
     if(frame&&rows>=MINIMUM_TEXT_LINES){chosen=frame;card=true;chosenLines=rows;reason='document-quadrilateral'}
