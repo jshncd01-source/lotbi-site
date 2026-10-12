@@ -26,7 +26,7 @@ check('one constant, defined once, defaults to hidden', () => {
   assert.equal((conversation.match(/const CONNECTED_SERVICES_MENU_VISIBLE = (true|false);/g) || []).length, 1);
   assert.match(conversation, /const CONNECTED_SERVICES_MENU_VISIBLE = false;/);
   assert.match(conversation, /for \(const entry of document\.querySelectorAll\('\[data-consumer-section="mall"\]'\)\) entry\.hidden = !CONNECTED_SERVICES_MENU_VISIBLE;/);
-  assert.match(conversation, /connectedServices\.hidden = !CONNECTED_SERVICES_MENU_VISIBLE;\n\s+menu\.appendChild\(connectedServices\);/);
+  assert.match(conversation, /connectedServices\.hidden = !CONNECTED_SERVICES_MENU_VISIBLE;\r?\n\s+menu\.appendChild\(connectedServices\);/);
 });
 
 check('both drawer entries ship hidden (no flash before the script runs)', () => {
