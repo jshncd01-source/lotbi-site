@@ -2,6 +2,18 @@ READY_FOR_DEPLOY=YES
 
 # 가족 지킴이 ③ 실종 신고·관리자 열람 — Site 화면 확인용 후보
 
+## 2026-10-12 사용자 최종 시안·필수 5장 반영 재READY — 현행
+
+- `READY_FOR_DEPLOY=YES`, `FULL_FUNCTIONAL_COMPLETE=NO`, `PRODUCTION_VERIFIED=NO`.
+- 저장소/브랜치: `lotbi-site` / `feature/family-guardian-p3-01-site`. 승인 디자인+③ 기능 코드 HEAD `a5eeab106e12372dc54fae5f59cc80aea2995d3c`; ②의 `e2288b9b0b623fd105cd3ed27a42355fd6847e8e`과 기준 Ncloud `main` `16826d4a0174b6ec6b5b1d61d06af6554d8d4e38`을 정상 merge했다. 문서 이후 최종 exact SHA/readback은 Work 최종 인계표에 기록한다.
+- 필수 5장·선택 최대 10장·가상 예시→실제 등록 사진 교체 기준과 `#F6F7F9` 라이트 배경, 기존 다크/의미색을 ③ 실종 신고까지 동일하게 적용했다.
+- ③의 `safecareSosSubmitReady` 보안 제어를 보존했다. 유효한 날짜·장소·명시 동의가 모두 있어야 신고 버튼이 활성화되고, busy·철회·미동의·미래 시각은 거부한다. 실제 서버 접수번호와 가족 등록번호를 구분하며 시안 예시 값을 하드코딩하지 않는다.
+- 검증: `validate_family_guardian_sos_03.mjs` PASS, 등록번호/부분 수정 계약 PASS, 사람·반려동물 다크/취소/삭제 보호 PASS, 사진 쉬운 등록·일괄 등록 PASS, 가족 화면+SOS 브라우저 360/1280×18조합 PASS, 최신 홈 즐겨찾기 PASS, JS 구문·diff·cache `aset-c0f96a544033` write/check PASS.
+- 스크린샷: `outputs/screenshots/site/family-guardian-approved-design-p3-20261012/` 450 PNG. 신고 동의·개인정보 제공 안내·등록번호·필수 5장·dark 화면을 포함한다. 운영 접수·관리자 알림·권한 회수 E2E는 `NOT_VERIFIED`.
+- 승인 원본 6장과 SHA-256은 ① READY 최신 절을 권위로 재사용한다. 기존 ZIP·PNG·과거 READY 기록은 보존했다.
+- Core③의 기존 배정 `p0_0121`만 유지하며 이번 Site 디자인 변경으로 새 migration/Core/DB 커밋을 만들지 않았다. `p0_0120`은 미사용. main/Production/Play 업로드 없음.
+- 운영 E2E: 배포 후 배포방:
+
 ## 2026-10-12 시스템 다크 수정 재READY — 현행
 
 - READY_FOR_DEPLOY=YES, FULL_FUNCTIONAL_COMPLETE=NO, PRODUCTION_VERIFIED=NO. 기존 e32d6cb7 대신 최신 ①·② 수정 계보를 정상 merge했다. 검증 코드 HEAD 196ae0ee6, 이후 부모 READY 갱신 merge는 문서만 변경했다. 최종 exact HEAD·Ncloud push/readback은 outputs/family-guardian-system-dark-reready-2026-10-12.md에 기록한다.
