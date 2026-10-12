@@ -2,6 +2,31 @@ READY_FOR_DEPLOY=YES
 
 # 가족 지킴이 ① 이름·디자인 — Site 검증 기록
 
+## 2026-10-12 사용자 최종 시안·필수 5장 반영 재READY — 현행
+
+- `READY_FOR_DEPLOY=YES`, `FULL_FUNCTIONAL_COMPLETE=NO`, `PRODUCTION_VERIFIED=NO`.
+- 저장소/브랜치: `lotbi-site` / `feature/family-guardian-p1-01-site`. 승인 디자인 코드 HEAD `836df7f1ce3560bda064ea86923a039de9542097`; 기준 Ncloud `main` `16826d4a0174b6ec6b5b1d61d06af6554d8d4e38`을 정상 merge했다. 문서 커밋 이후 최종 branch exact SHA와 Ncloud readback은 Work 최종 인계표에 기록한다.
+- 최종 사용자 판정: 기본 등록은 얼굴 3장+상반신·전신 2장, 총 5장이다. 최대 10장은 인식 도움을 위한 선택 추가 용량이며 기본 화면에 10장 예시를 펼치지 않는다. 최초 화면에는 동일한 가상 인물의 예시 5장만 보이고, 사진을 고르면 해당 칸이 사용자의 실제 등록 사진으로 바뀐다.
+- 디자인: 가족 지킴이 라이트 콘텐츠 배경 `#F6F7F9`, 카드·입력은 흰색, 파란색은 강조에만 사용한다. 넓은 파란 배경·그라데이션·빛 번짐을 제거했고 다크 테마와 경고·오류·완료 의미색은 보존했다. 가족 지킴이 외 카테고리·Account·인증 전역 스타일은 변경하지 않았다.
+- 기능 보존: 실제 등록번호·이름·생년월·사진·버튼·개인정보 권한을 서버 응답에서 표시하며 시안의 예시 번호/사람을 운영 값으로 하드코딩하지 않는다. 새 DB/Core 변경과 빈 커밋은 없다.
+- Site 검사기 `scripts/validate_family_guardian_design_01.mjs`는 `.github/workflows/site-review.yml`에 등록했고 Chrome profile은 실행 직전 `mkdtemp`로 만든다. `site-family-guardian.css`는 `index.html`과 `auth/callback/index.html`에서 `site-safecare.css` 바로 뒤에 같은 순서로 로드된다.
+- 검증: 가족 화면 브라우저 360/1280 × light/dark/system/bootstrap 18조합 PASS, 사진 쉬운 등록 360/1280 PASS, 사진 일괄 등록 360/390/412/1440 PASS, 최신 홈 즐겨찾기 360/1280 light/dark PASS, JS 구문·diff·자산 cache write/check `aset-a8e953bc0e0f` PASS.
+- 스크린샷: `outputs/screenshots/site/family-guardian-approved-design-p1-20261012/` 432 PNG. 모듈 가상 응답 화면이며 전체 운영 사이드바·실제 사용자 저장 성공을 뜻하지 않는다.
+- 승인 원본 6장(구조·문구 참고, 배경은 `#F6F7F9` 지시 우선):
+
+| 파일 | SHA-256 |
+|---|---|
+| `ChatGPT 이미지 2026년 10월 12일 오후 05_44_09.png` | `97dfdfad4116478f11a4dc5ef684584398dd6cc7a886a7196988d83259f80611` |
+| `ChatGPT 이미지 2026년 10월 12일 오후 05_44_20.png` | `45c7165cd0c95fedd02c03197e5b2743e16f11e9d328b52d255c9b9244f6c7db` |
+| `ChatGPT 이미지 2026년 10월 12일 오후 05_44_38.png` | `2dc2ffae59be71b95181095b75ea41ddb978987b11113cab16bb49ac2409c03c` |
+| `ChatGPT 이미지 2026년 10월 12일 오후 05_44_50.png` | `6538eb11ba1f54d5a440c87143066a81fb069d8b11bf55b486a09811fad6cb53` |
+| `ChatGPT 이미지 2026년 10월 12일 오후 05_45_12.png` | `76f63dc79e7a9ddea74e0baa64833e58adddcc0321ec790389f153b5dbac38d1` |
+| `ChatGPT 이미지 2026년 10월 12일 오후 05_45_22.png` | `6c53b9ff2ecb715c51ce96d44aa731d98110dbfe25750cb71ff0c661e8c2f22b` |
+
+- 원본 경로: `C:/Users/jshnc/OneDrive/문서/카카오톡 받은 파일/`. 기존 ZIP·과거 PNG·과거 READY 기록은 보존한다.
+- `p0_0120`은 ①에서 사용하지 않으며 Core/DB 변경 없음. main 병합·Production 배포·Play 업로드 없음.
+- 운영 E2E: 배포 후 배포방:
+
 ## 2026-10-12 시스템 다크 수정 재READY — 현행
 
 - READY_FOR_DEPLOY=YES, FULL_FUNCTIONAL_COMPLETE=NO, PRODUCTION_VERIFIED=NO. 아래 “재검증 중”은 수정 커밋 작성 당시 기록이며 이 절이 현행이다.
