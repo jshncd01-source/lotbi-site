@@ -67,12 +67,12 @@ const CASES = {
 };
 
 const EXPECT = {
-  kakaoLimited: {name: '내 프로필', icon: true, handle: '', summaryPlan: '카카오 계정으로 가입 · LOTBI Free', forbidden: ['LOTBI 사용자', '@u']},
-  kakaoFull: {name: '내 프로필', icon: true, handle: '', summaryPlan: '카카오 계정으로 가입 · LOTBI Free', forbidden: ['LOTBI 사용자', GENERATED]},
-  noProvider: {name: '내 프로필', icon: true, handle: '', summaryPlan: '현재 이용 등급 · LOTBI Free', forbidden: ['LOTBI 사용자', '계정으로 가입']},
-  named: {name: '홍길동', icon: false, initials: '홍', handle: '@hong2026', summaryPlan: '현재 이용 등급 · LOTBI Free', forbidden: ['내 프로필', '계정으로 가입', GENERATED]},
-  longName: {name: CASES.longName.user.name, icon: false, handle: '', summaryPlan: '현재 이용 등급 · LOTBI Free', forbidden: ['계정으로 가입']},
-  olderCore: {name: 'LOTBI 사용자', icon: false, handle: '@' + GENERATED, summaryPlan: '현재 이용 등급 · LOTBI Free', forbidden: ['내 프로필']},
+  kakaoLimited: {name: '내 프로필', icon: true, handle: '', summaryPlan: 'LOTBI Free', forbidden: ['LOTBI 사용자', '@u']},
+  kakaoFull: {name: '내 프로필', icon: true, handle: '', summaryPlan: 'LOTBI Free', forbidden: ['LOTBI 사용자', GENERATED]},
+  noProvider: {name: '내 프로필', icon: true, handle: '', summaryPlan: 'LOTBI Free', forbidden: ['LOTBI 사용자', '계정으로 가입']},
+  named: {name: '홍길동', icon: false, initials: '홍', handle: '@hong2026', summaryPlan: 'LOTBI Free', forbidden: ['내 프로필', '계정으로 가입', GENERATED]},
+  longName: {name: CASES.longName.user.name, icon: false, handle: '', summaryPlan: 'LOTBI Free', forbidden: ['계정으로 가입']},
+  olderCore: {name: 'LOTBI 사용자', icon: false, handle: '@' + GENERATED, summaryPlan: 'LOTBI Free', forbidden: ['내 프로필']},
 };
 
 const INNER_REL = 'scripts/.social-signup-profile-ux-inner.html';
@@ -187,7 +187,8 @@ function check(caseName, w, glyphs, value) {
   assert.equal(value.sidebar.plan, 'LOTBI Free', at + ' sidebar plan');
   assert.equal(value.summary.plan, expected.summaryPlan, at + ' summary plan');
   assert.equal(value.sidebar.handle, expected.handle, at + ' sidebar handle');
-  assert.equal(value.summary.handle, expected.handle, at + ' summary handle');
+  assert.equal(value.summary.handle, '', at + ' compact summary hides handle');
+  assert.equal(value.summary.email, '', at + ' compact summary hides email');
   assert.equal(value.sidebar.icon, expected.icon, at + ' sidebar icon');
   assert.equal(value.summary.icon, expected.icon, at + ' summary icon');
   if (expected.icon) {
@@ -196,7 +197,7 @@ function check(caseName, w, glyphs, value) {
   }
   if (expected.initials) assert.equal(value.sidebar.avatarText, expected.initials, at + ' initials');
   assert.equal(value.sidebar.label, `${expected.name} 계정 메뉴 열기`, at + ' aria label');
-  assert.equal(value.labels, '프로필|개인테마|설정|연결 서비스|도움말|로그아웃', at + ' menu unchanged');
+  assert.equal(value.labels, '프로필 관리|설정|로그아웃', at + ' compact menu unchanged');
   for (const forbidden of expected.forbidden) assert.equal(value.text.includes(forbidden), false, `${at} shows ${forbidden}`);
   const {layout} = value;
   assert.ok(layout.popover.left >= -1 && layout.popover.right <= layout.viewport.width + 1, at + ' popover inside viewport ' + JSON.stringify(layout));

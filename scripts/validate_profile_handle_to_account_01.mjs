@@ -58,14 +58,13 @@ const menu = conversation.slice(
 );
 assert.ok(menu.includes("['설정', openSettings]"), "프로필 메뉴에 '설정'이 남아 있어야 합니다");
 
-// ── 3. canonical 핸들 표시는 그대로 ───────────────────────────────────────
-// 옮긴 것은 편집기뿐입니다. 계정 행과 프로필 요약이 보여주는 canonical 값은
-// validate_identity_profile_hotfix_02 / validate_conversation_sidebar_ux_01 의
-// 계약이라 그대로 살아 있어야 합니다.
+// ── 3. canonical 핸들은 계정 행에만 유지 ─────────────────────────────────
+// 승인된 소형 팝업 상단은 이름과 요금제만 보여주며 핸들·이메일은 중복하지 않습니다.
 assert.ok(conversation.includes('serverIdentity?.publicHandle'), 'canonical 핸들 표시는 그대로여야 합니다');
 assert.ok(
-  conversation.includes("handle.className = 'profile-popover-summary-handle'"),
-  '프로필 요약의 @핸들 표시는 그대로여야 합니다',
+  !conversation.includes("handle.className = 'profile-popover-summary-handle'")
+  && !conversation.includes("email.className = 'profile-popover-summary-email'"),
+  '소형 프로필 팝업은 핸들·이메일을 중복 노출하지 않아야 합니다',
 );
 
-console.log('SITE-PROFILE-HANDLE-TO-ACCOUNT-01 OK — 편집기는 계정 페이지로, 표시는 그대로');
+console.log('SITE-PROFILE-HANDLE-TO-ACCOUNT-01 OK — 편집과 상세는 계정 페이지로, 팝업은 이름·요금제만');
