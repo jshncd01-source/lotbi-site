@@ -373,6 +373,9 @@ assert.ok(directBody.indexOf('redirecting = true;') < directBody.indexOf('void b
 assert.ok(directBody.indexOf('clearSiteLogoutSuppression();') < directBody.indexOf('void beginSiteHandoff()'), 'explicit login must clear logout suppression before starting handoff');
 assert.ok(directBody.includes('document.body.dataset.siteAuthState === AUTH_STATE_AUTHENTICATED'), 'authenticated stale sidebar recovery must remain available');
 assert.ok(conversation.includes('[data-sidebar-account] a.sidebar-account-entry[href="/auth/start/"]'), 'authenticated stale sidebar login self-heal selector must remain intact');
+assert.ok(conversation.includes("!hadSession && openSurface?.dataset.siteRoute === 'wallet'"), 'a wallet opened during session restoration must remount after adopting the bearer');
+assert.ok(conversation.includes("void openConsumerSection('wallet', {expectedSurface: walletSurface})"), 'the restored Site bearer must lead back to the wallet PIN gate, not a second account-login gate');
+assert.ok(conversation.includes('if (expectedSurface && openSurface !== expectedSurface) return;'), 'a delayed wallet remount must not close a screen opened in the meantime');
 assert.ok(auth.includes("recordTiming('account-navigation-start')"), 'normal handoff must mark cross-origin Account navigation start');
 assert.ok(auth.includes("recordTiming('account-navigation-fallback')"), 'fallback must be separately observable');
 assert.ok(auth.includes('window.location.assign(ACCOUNT_SITE_FALLBACK_URL)'), 'crypto/storage failure must navigate to the Account-only fallback');

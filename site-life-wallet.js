@@ -1,7 +1,7 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-1c1a6c9533f2';
-import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-1c1a6c9533f2';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-1c1a6c9533f2';
-import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-1c1a6c9533f2';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-a8e953bc0e0f';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-a8e953bc0e0f';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-a8e953bc0e0f';
+import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-a8e953bc0e0f';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -19,6 +19,28 @@ const CARD_KINDS = Object.freeze([
   ['certificate', '증명서'],
   ['other', '기타 생활 자료'],
 ]);
+export const WALLET_ITEM_CATEGORIES = Object.freeze([
+  ['identity', '신분증'],
+  ['business-card', '명함'],
+  ['document', '증명서·문서'],
+  ['other', '기타'],
+]);
+const WALLET_ITEM_CATEGORY_IDS = Object.freeze(WALLET_ITEM_CATEGORIES.map(([value]) => value));
+const WALLET_VIEW_STATE_PREFIX = 'lotbi-life-wallet-view-v1:';
+
+export function walletItemCategory(card) {
+  if (WALLET_ITEM_CATEGORY_IDS.includes(card?.category)) return card.category;
+  const label = `${card?.name || ''} ${CARD_KINDS.find(([value]) => value === card?.kind)?.[1] || ''}`;
+  if (card?.kind === 'identity' || /(?:신분증|주민등록|운전면허|여권)/u.test(label)) return 'identity';
+  if (/(?:명함|business\s*card)/iu.test(label)) return 'business-card';
+  if (card?.kind === 'certificate' || /(?:증명서|자격증|계약서|문서)/u.test(label)) return 'document';
+  return 'other';
+}
+
+function walletCategoryLabel(card) {
+  const category = walletItemCategory(card);
+  return WALLET_ITEM_CATEGORIES.find(([value]) => value === category)?.[1] || '기타';
+}
 
 function cryptoHost() {
   if (!globalThis.crypto?.subtle || typeof globalThis.crypto.getRandomValues !== 'function') {
@@ -213,6 +235,29 @@ function availableSessionStorage() {
   catch { return null; }
 }
 
+function availableLocalStorage() {
+  try { return globalThis.localStorage || null; }
+  catch { return null; }
+}
+
+export function readWalletViewState(storage, key) {
+  if (!storage || !key) return Object.freeze({filter: 'all', selectedId: ''});
+  try {
+    const value = JSON.parse(storage.getItem(key) || 'null');
+    const filter = value?.filter === 'all' || WALLET_ITEM_CATEGORY_IDS.includes(value?.filter) ? value.filter : 'all';
+    const selectedId = typeof value?.selectedId === 'string' && /^[A-Za-z0-9_-]{1,128}$/u.test(value.selectedId) ? value.selectedId : '';
+    return Object.freeze({filter, selectedId});
+  } catch { return Object.freeze({filter: 'all', selectedId: ''}); }
+}
+
+export function writeWalletViewState(storage, key, state) {
+  if (!storage || !key) return false;
+  const filter = state?.filter === 'all' || WALLET_ITEM_CATEGORY_IDS.includes(state?.filter) ? state.filter : 'all';
+  const selectedId = typeof state?.selectedId === 'string' && /^[A-Za-z0-9_-]{1,128}$/u.test(state.selectedId) ? state.selectedId : '';
+  try { storage.setItem(key, JSON.stringify({filter, selectedId})); return true; }
+  catch { return false; }
+}
+
 function request(value) {
   return new Promise((resolve, reject) => {
     value.onsuccess = () => resolve(value.result);
@@ -344,6 +389,7 @@ function validateCard(card) {
   if (typeof card.note !== 'string' || card.note.length > 1000) throw new Error('메모는 1,000자 이하로 입력해 주세요.');
   if (typeof card.updatedAt !== 'string' || !Number.isFinite(Date.parse(card.updatedAt))) throw new Error('자료 수정 시간이 올바르지 않습니다.');
   if (card.shape !== undefined && !WALLET_ITEM_SHAPES.includes(card.shape)) throw new Error('자료 분류가 올바르지 않습니다.');
+  if (card.category !== undefined && !WALLET_ITEM_CATEGORY_IDS.includes(card.category)) throw new Error('자료 종류가 올바르지 않습니다.');
   return Object.freeze({...card, name, backDataUrl});
 }
 
@@ -1063,52 +1109,53 @@ function savedDateLabel(card) {
   return `${saved.getFullYear()}.${String(saved.getMonth() + 1).padStart(2, '0')}.${String(saved.getDate()).padStart(2, '0')} 등록`;
 }
 
-// A Samsung Pay-like card deck: every saved item is a card of one size (ID-1, 85.6 x 54 mm);
-// the card in front is shown whole and up to three next cards peek out above it, stacked.
-// Swipe or drag sideways, the arrow keys, the dots or a tap on a peeking card bring another
-// card to the front; a tap on the front card (or 보기) opens it. Pictures are never cut: they
-// fit inside the card face. When cards and documents are both saved, 전체·카드·문서 filter them.
-export function createWalletCardDeck({cards, onOpen}) {
+// A vertical real-wallet deck: the selected item is whole and the next items expose their title
+// edges above it. Up/down drag and keys move through an endless loop; pictures never rotate.
+export function createWalletCardDeck({cards, onOpen, initialSelectedId = '', initialFilter = 'all', onStateChange = () => {}}) {
   const shell = element('section', 'wallet-deck-shell');
   shell.setAttribute('aria-label', '저장 자료');
-  const filters = element('div', 'wallet-deck-filters'); filters.setAttribute('role', 'group'); filters.setAttribute('aria-label', '자료 모양'); filters.hidden = true;
+  const filters = element('div', 'wallet-deck-filters'); filters.setAttribute('role', 'group'); filters.setAttribute('aria-label', '자료 종류');
   const deck = element('div', 'wallet-deck'); deck.tabIndex = 0; deck.setAttribute('aria-roledescription', '카드 덱'); deck.setAttribute('aria-label', '저장 자료 카드');
+  const empty = element('p', 'wallet-deck-filter-empty', '이 종류에 저장된 자료가 없습니다.'); empty.hidden = true;
   const info = element('div', 'wallet-deck-info');
   const title = element('strong', 'wallet-deck-title'); const date = element('span', 'wallet-deck-date');
   const dotsRow = element('div', 'wallet-card-dots');
   const position = element('span', 'wallet-card-position'); position.setAttribute('aria-live', 'polite');
-  const open = button('보기', () => { const card = visible[index]; if (card) onOpen(card); }, true); open.classList.add('wallet-deck-open');
+  const open = button('상세 보기', () => { const card = visible[index]; if (card) onOpen(card); }, true); open.classList.add('wallet-deck-open');
   info.append(title, date, dotsRow, position, open);
-  shell.append(filters, deck, info);
+  shell.append(filters, deck, empty, info);
 
   const shapes = new Map();
-  let filter = 'all';
-  let visible = cards.slice();
-  let index = 0;
+  let filter = initialFilter === 'all' || WALLET_ITEM_CATEGORY_IDS.includes(initialFilter) ? initialFilter : 'all';
+  let visible = filter === 'all' ? cards.slice() : cards.filter(card => walletItemCategory(card) === filter);
+  if (!visible.length && cards.length && filter !== 'all') { filter = 'all'; visible = cards.slice(); }
+  let index = Math.max(0, visible.findIndex(card => card.id === initialSelectedId));
   let suppressClick = false;
 
   const faces = new Map(cards.map((card, cardIndex) => {
     const face = element('button', 'wallet-deck-card'); face.type = 'button'; face.dataset.walletDeckCard = card.id;
+    face.dataset.category = walletItemCategory(card);
+    const peek = element('span', 'wallet-deck-peek-label', walletCardTitle(card));
+    const body = element('span', 'wallet-deck-face');
     const photo = element('img', 'wallet-deck-photo'); photo.src = card.frontDataUrl; photo.alt = `${cardIndex + 1}번째 저장 자료`; photo.draggable = false;
-    face.append(photo);
+    body.append(photo); face.append(peek, body);
     face.addEventListener('click', event => {
       if (suppressClick) { event.preventDefault(); return; }
       const at = visible.indexOf(card);
       if (at === index) onOpen(card); else if (at >= 0) show(at);
     });
-    // Its shape decides the face: a card photo fills it, a page becomes a document card. The
-    // owner's own choice (상세 → 분류) wins over the measured shape.
+    // Picture shape decides presentation only: a card fills the face and a page becomes a
+    // document face. The owner-selected category is independent and never changes the image.
     const measure = () => {
       const shape = card.shape || walletItemShape(photo.naturalWidth, photo.naturalHeight);
       if (!shape || shapes.get(card.id) === shape) return;
       shapes.set(card.id, shape); face.dataset.shape = shape;
       if (shape === 'document') {
         const text = element('span', 'wallet-deck-doc-text');
-        text.append(element('span', 'wallet-deck-doc-kind', '문서'), element('strong', '', walletCardTitle(card)), element('span', '', savedDateLabel(card)));
+        text.append(element('span', 'wallet-deck-doc-kind', walletCategoryLabel(card)), element('strong', '', walletCardTitle(card)), element('span', '', savedDateLabel(card)));
         photo.className = 'wallet-deck-doc-thumb';
-        face.replaceChildren(text, photo);
+        body.replaceChildren(text, photo);
       }
-      renderFilters();
     };
     if (card.shape || (photo.complete && photo.naturalWidth)) measure(); else photo.addEventListener('load', measure, {once: true});
     deck.append(face);
@@ -1116,11 +1163,7 @@ export function createWalletCardDeck({cards, onOpen}) {
   }));
 
   function renderFilters() {
-    const counts = {card: 0, document: 0};
-    for (const card of cards) if (shapes.get(card.id)) counts[shapes.get(card.id)] += 1;
-    filters.hidden = !(counts.card && counts.document);
-    if (filters.hidden) return;
-    filters.replaceChildren(...[['all', `전체 ${cards.length}`], ['card', `카드 ${counts.card}`], ['document', `문서 ${counts.document}`]].map(([id, label]) => {
+    filters.replaceChildren(...[['all', '전체'], ...WALLET_ITEM_CATEGORIES].map(([id, label]) => {
       const chip = button(label, () => applyFilter(id), id !== filter); chip.classList.add('wallet-deck-filter'); chip.dataset.walletDeckFilter = id;
       chip.setAttribute('aria-pressed', String(id === filter));
       return chip;
@@ -1129,8 +1172,8 @@ export function createWalletCardDeck({cards, onOpen}) {
 
   function applyFilter(id) {
     const front = visible[index];
-    filter = id;
-    visible = id === 'all' ? cards.slice() : cards.filter(card => shapes.get(card.id) === id);
+    filter = id === 'all' || WALLET_ITEM_CATEGORY_IDS.includes(id) ? id : 'all';
+    visible = filter === 'all' ? cards.slice() : cards.filter(card => walletItemCategory(card) === filter);
     index = Math.max(0, visible.indexOf(front));
     renderFilters(); layout();
   }
@@ -1138,9 +1181,9 @@ export function createWalletCardDeck({cards, onOpen}) {
   function layout() {
     for (const [card, face] of faces) {
       const at = visible.indexOf(card);
-      const depth = at - index;
+      const depth = at < 0 || !visible.length ? -1 : (at - index + visible.length) % visible.length;
       face.hidden = at < 0;
-      face.dataset.depth = at < 0 ? '' : String(Math.max(-1, Math.min(depth, 4)));
+      face.dataset.depth = at < 0 ? '' : String(Math.min(depth, 4));
       face.style.transform = '';
       face.tabIndex = depth === 0 ? 0 : -1;
       face.setAttribute('aria-hidden', String(depth < 0 || depth > 3));
@@ -1152,6 +1195,7 @@ export function createWalletCardDeck({cards, onOpen}) {
     date.textContent = card ? savedDateLabel(card) : '';
     position.textContent = visible.length ? `${index + 1} / ${visible.length}` : '';
     shell.classList.toggle('wallet-deck-single', visible.length < 2);
+    deck.hidden = !card; info.hidden = !card; empty.hidden = Boolean(card);
     dotsRow.replaceChildren(...(visible.length < 2 ? [] : visible.map((entry, dotIndex) => {
       const dot = element('button', 'wallet-card-dot'); dot.type = 'button'; dot.dataset.walletCarouselDot = String(dotIndex);
       dot.setAttribute('aria-label', `${dotIndex + 1}번째 자료 보기`);
@@ -1159,48 +1203,49 @@ export function createWalletCardDeck({cards, onOpen}) {
       dot.addEventListener('click', () => show(dotIndex));
       return dot;
     })));
+    onStateChange({filter, selectedId: card?.id || ''});
   }
 
   function show(next) {
-    index = Math.max(0, Math.min(next, visible.length - 1));
+    if (!visible.length) return;
+    index = ((next % visible.length) + visible.length) % visible.length;
     layout();
   }
 
   deck.addEventListener('keydown', event => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
     event.preventDefault();
-    show(index + (event.key === 'ArrowRight' ? 1 : -1));
+    show(index + (event.key === 'ArrowDown' ? 1 : -1));
   });
-  // A finger, pen or mouse drags the front card sideways; far enough and the next (or the
-  // previous) card comes to the front, otherwise it settles back. Vertical scrolling stays
-  // with the page (touch-action: pan-y). No pointer capture: it would retarget a plain tap.
+  // A finger, pen or mouse moves the front card vertically. No pointer capture: it would
+  // retarget a plain tap. The card image is never rotated during or after the gesture.
   let drag = null;
   const move = event => {
     if (!drag || event.pointerId !== drag.pointerId) return;
-    const distance = event.clientX - drag.x;
+    const distance = event.clientY - drag.y;
     if (!drag.moved && Math.abs(distance) < 8) return;
     drag.moved = true; deck.dataset.dragging = 'true';
-    drag.face.style.transform = `translateX(${distance}px) rotate(${distance / 40}deg)`;
+    drag.face.style.transform = `translateY(${distance}px)`;
   };
   const end = event => {
     if (!drag || event.pointerId !== drag.pointerId) return;
-    const {moved, x, face} = drag; drag = null;
+    const {moved, y, face} = drag; drag = null;
     window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end);
     delete deck.dataset.dragging; face.style.transform = '';
     if (!moved) return;
     suppressClick = true; setTimeout(() => { suppressClick = false; }, 0);
-    const distance = event.clientX - x;
-    if (Math.abs(distance) > Math.min(80, deck.clientWidth * .18)) show(index + (distance < 0 ? 1 : -1));
+    const distance = event.clientY - y;
+    if (Math.abs(distance) > Math.min(72, deck.clientHeight * .18)) show(index + (distance < 0 ? 1 : -1));
   };
   deck.addEventListener('pointerdown', event => {
     if (drag || (event.pointerType === 'mouse' && event.button !== 0) || visible.length < 2) return;
     const face = faces.get(visible[index]);
     if (!face || !face.contains(event.target)) return;
-    drag = {pointerId: event.pointerId, x: event.clientX, face, moved: false};
+    drag = {pointerId: event.pointerId, y: event.clientY, face, moved: false};
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
   });
 
-  layout();
+  renderFilters(); layout();
   return shell;
 }
 
@@ -1302,6 +1347,7 @@ export function walletAddBlocked(subscription, count) {
 
 export function mountLifeWallet({root, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null, customsCode = CUSTOMS_CODE_RELEASED} = {}) {
   const vault = new LifeWalletVault(new IndexedDbWalletRepository());
+  const walletViewStateKey = accountId ? accountScope(accountId).then(scope => `${WALLET_VIEW_STATE_PREFIX}${scope}`).catch(() => '') : Promise.resolve('');
   // Sharing needs the signed-in session (share requests live on LOTBI Core). An original
   // leaves this device only sealed for the accepted recipient's key (site-life-wallet-share-crypto.js).
   const shareWallet = Object.freeze({
@@ -1318,7 +1364,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-1c1a6c9533f2') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-a8e953bc0e0f') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;
@@ -1504,8 +1550,8 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   }
 
   function renderUnlock(message = '') {
-    const wrap = element('section', 'wallet-gate');
-    wrap.append(lockMark(), element('h3', '', 'Life Wallet 잠금 해제'), element('p', '', '등록한 자료를 보려면 월렛 전용 4자리 PIN을 입력하세요.'));
+    const wrap = element('section', 'wallet-gate wallet-unlock-gate');
+    wrap.append(lockMark(), element('h3', '', 'PIN을 입력해 주세요'), element('p', '', '등록한 자료를 보려면 월렛 전용 4자리 PIN을 입력하세요.'));
     const form = element('form', 'wallet-pin-form wallet-unlock-form');
     const pin = pinInput('월렛 PIN'); const status = errorRegion(); if (message) status.textContent = message;
     // The PIN is entered on the keypad below, so the phone's on-screen keyboard stays down
@@ -1517,18 +1563,17 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const refreshDots = () => { dots.textContent = '●'.repeat(pin.value.length) + '○'.repeat(4 - pin.value.length); };
     pin.addEventListener('input', refreshDots); refreshDots();
     const keypad = element('div', 'wallet-keypad'); keypad.setAttribute('aria-label', '숫자 키패드');
-    for (const digit of ['1','2','3','4','5','6','7','8','9','지움','0','확인']) {
+    for (const digit of ['1','2','3','4','5','6','7','8','9','지움','0','열기']) {
       const key = button(digit, () => {
         if (/^\d$/u.test(digit) && pin.value.length < 4) pin.value += digit;
         if (digit === '지움') pin.value = pin.value.slice(0, -1);
         pin.dispatchEvent(new Event('input', {bubbles: true}));
-        if (digit === '확인') form.requestSubmit();
+        if (digit === '열기') form.requestSubmit();
       }, digit === '지움');
-      if (digit === '확인') key.classList.add('wallet-key-confirm');
+      if (digit === '열기') key.classList.add('wallet-key-confirm');
       keypad.append(key);
     }
-    const submit = button('PIN으로 열기'); submit.type = 'submit';
-    form.append(pin, dots, keypad, submit, status);
+    form.append(pin, dots, keypad, status);
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
       try {
@@ -1558,6 +1603,9 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       // Read before the toolbar: its late updates (the share count) need the screen in place.
       const wifiSection = await wifi.section();
       if (disposed || !unlocked || generation !== renderGeneration) return;
+      const viewStorageKey = await walletViewStateKey;
+      if (disposed || !unlocked || generation !== renderGeneration) return;
+      const viewState = readWalletViewState(availableLocalStorage(), viewStorageKey);
       const shell = element('section', 'wallet-shell');
       const toolbar = element('div', 'wallet-toolbar');
       const copy = element('div', 'wallet-storage-copy');
@@ -1619,7 +1667,6 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       toolbar.append(button('잠그기', () => void lockAndRender(), true), settings);
       shell.append(toolbar);
       if (message) shell.append(element('p', 'wallet-message', message));
-      if (customsCode) shell.append(customsCard(customs, customsUnreadable));
       if (!cards.length) {
         const empty = element('section', 'wallet-empty');
         empty.append(element('h3', '', '아직 등록한 자료가 없습니다'), element('p', '', '사용자가 직접 등록한 실제 자료만 여기에 표시됩니다.'), button('첫 자료 등록하기', openAdd));
@@ -1629,9 +1676,19 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         }
         shell.append(empty);
       } else {
-        shell.append(createWalletCardDeck({cards, onOpen: renderDetail}));
+        shell.append(createWalletCardDeck({
+          cards,
+          onOpen: renderDetail,
+          initialSelectedId: viewState.selectedId,
+          initialFilter: viewState.filter,
+          onStateChange: state => writeWalletViewState(availableLocalStorage(), viewStorageKey, state),
+        }));
       }
-      shell.append(wifiSection);
+      const lifeInfo = element('section', 'wallet-life-info');
+      lifeInfo.append(element('h3', 'wallet-life-info-title', '생활정보'));
+      if (customsCode) lifeInfo.append(customsCard(customs, customsUnreadable));
+      lifeInfo.append(wifiSection);
+      shell.append(lifeInfo);
       shell.append(element('p', 'wallet-security-note', '화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다. 10분간 사용하지 않으면 다시 잠깁니다.'));
       root.replaceChildren(shell);
       // A share link opened before (#wallet-share=…) continues here once the wallet is open.
@@ -1657,6 +1714,14 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const form = element('form', 'wallet-editor'); const status = errorRegion();
     form.dataset.walletView = 'add';
     pickerOpen = false;
+    // This is owner-selected encrypted metadata. It neither inspects the image nor
+    // changes an existing item, PIN, device key, or backup envelope.
+    const category = element('select');
+    for (const [value, label] of WALLET_ITEM_CATEGORIES) {
+      const option = element('option', '', label);
+      option.value = value;
+      category.append(option);
+    }
     let save;
     const photoPicker = createWalletPhotoPicker({
       onError: message => { status.textContent = message; },
@@ -1668,7 +1733,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const note = element('textarea'); note.maxLength = 1000; note.rows = 4;
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => { photoPicker.destroy(); void renderWallet(); }, true));
     save = button('암호화하여 저장'); save.type = 'submit'; save.disabled = true; actions.append(save);
-    form.append(element('h3', '', '자료 추가'), photoPicker.element, field('메모 · 선택', note), actions, status,
+    form.append(element('h3', '', '자료 추가'), field('자료 종류', category), photoPicker.element, field('메모 · 선택', note), actions, status,
       element('p', 'wallet-security-note', '기울기·원근·여백과 화질을 이 브라우저에서만 보정합니다. 원본과 보정 사진은 LOTBI 서버나 대화창으로 전송되지 않습니다.'));
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
@@ -1676,12 +1741,12 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         setBusy(form, true);
         if (resuming) await resuming;
         const frontDataUrl = await photoPicker.readDataUrl();
-        await vault.save(accountId, {id: randomId(), kind: 'document', note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
+        await vault.save(accountId, {id: randomId(), kind: 'document', category: category.value, note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
         photoPicker.destroy();
         await renderWallet('자료를 암호화하여 저장했습니다.');
       } catch (error) { status.textContent = safeMessage(error, '자료를 저장하지 못했습니다.'); setBusy(form, false); }
     });
-    root.replaceChildren(form); photoPicker.element.querySelector('button')?.focus(); activity();
+    root.replaceChildren(form); category.focus(); activity();
   }
 
   function renderDetail(card) {
@@ -1702,7 +1767,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     }, true);
     zoom.setAttribute('aria-pressed', 'false');
     const facts = element('p', 'wallet-detail-facts', savedDateLabel(card));
-    detail.append(facts, zoom, shapeChoice(card, frontImage));
+    detail.append(facts, zoom, categoryChoice(card));
     if (card.note) detail.append(element('p', 'wallet-card-note', card.note));
     // Deleting asks for the wallet PIN on the page itself: it cannot be undone, and embedded
     // browsers and app WebViews silently cancel window.confirm.
@@ -1730,37 +1795,36 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     root.replaceChildren(detail); activity();
   }
 
-  // 분류: 카드 | 문서. Shown as measured from the picture until the owner picks one; the pick is
-  // saved with the item (encrypted) and the deck and its filter follow it. The save time is kept,
-  // so the item keeps its place in the deck.
-  function shapeChoice(card, frontImage) {
-    const row = element('div', 'wallet-detail-shape'); row.setAttribute('role', 'group'); row.setAttribute('aria-label', '자료 분류');
+  // The owner-selected category is sealed with the item. It changes neither the corrected image
+  // nor the PIN/device-key envelope, and legacy items without one safely appear under 기타.
+  function categoryChoice(card) {
+    const row = element('div', 'wallet-detail-shape'); row.setAttribute('role', 'group'); row.setAttribute('aria-label', '자료 종류');
     const status = element('p', 'wallet-detail-shape-status'); status.setAttribute('aria-live', 'polite');
-    const choices = WALLET_ITEM_SHAPES.map(shape => {
-      const choice = button(shape === 'card' ? '카드' : '문서', () => void choose(shape), true);
-      choice.classList.add('wallet-deck-filter'); choice.dataset.walletShapeChoice = shape; return choice;
+    const choices = WALLET_ITEM_CATEGORIES.map(([category, label]) => {
+      const choice = button(label, () => void choose(category), true);
+      choice.classList.add('wallet-deck-filter'); choice.dataset.walletCategoryChoice = category; return choice;
     });
     let current = card;
     const paint = () => {
-      const shape = current.shape || walletItemShape(frontImage.naturalWidth, frontImage.naturalHeight);
+      const category = walletItemCategory(current);
       for (const choice of choices) {
-        const selected = choice.dataset.walletShapeChoice === shape;
+        const selected = choice.dataset.walletCategoryChoice === category;
         choice.setAttribute('aria-pressed', String(selected));
         choice.classList.toggle('consumer-action-secondary', !selected);
       }
     };
-    const choose = async shape => {
-      if (current.shape === shape) return;
+    const choose = async category => {
+      if (current.category === category) return;
       status.textContent = '';
       try {
         setBusy(row, true);
-        current = await vault.save(accountId, {...current, shape});
-        status.textContent = shape === 'card' ? '카드로 옮겼습니다.' : '문서로 옮겼습니다.';
+        current = await vault.save(accountId, {...current, category});
+        status.textContent = `${WALLET_ITEM_CATEGORIES.find(([value]) => value === category)?.[1] || '기타'}로 옮겼습니다.`;
       } catch (error) { status.textContent = safeMessage(error, '분류를 바꾸지 못했습니다.'); }
       finally { setBusy(row, false); paint(); activity(); }
     };
     row.append(element('span', 'wallet-detail-shape-label', '분류'), ...choices);
-    if (frontImage.complete) paint(); else { paint(); frontImage.addEventListener('load', paint, {once: true}); }
+    paint();
     const wrap = element('div', 'wallet-detail-shape-wrap'); wrap.append(row, status);
     return wrap;
   }

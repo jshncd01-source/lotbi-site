@@ -112,7 +112,7 @@ try {
   const unlock = {inputMode: pin.inputMode, type: pin.type, ariaLabel: pin.getAttribute('aria-label'), focused: document.activeElement === pin, keypadButtons: form.querySelectorAll('.wallet-keypad button').length};
   for (const digit of ['1', '3', '5', '7']) [...form.querySelectorAll('.wallet-keypad button')].find(button => button.textContent === digit).click();
   unlock.typed = pin.value.length;
-  [...form.querySelectorAll('.wallet-keypad button')].find(button => button.textContent === '확인').click();
+  [...form.querySelectorAll('.wallet-keypad button')].find(button => button.textContent === '열기').click();
   unlock.reopened = Boolean(await wait(() => [...root.querySelectorAll('button')].find(button => button.textContent === '잠그기'), 'unlocked by keypad'));
   window.__result = JSON.stringify({ok: true, unlock});
 } catch (error) { window.__result = JSON.stringify({ok: false, error: String(error?.stack || error)}); }

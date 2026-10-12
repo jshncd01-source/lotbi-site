@@ -1,0 +1,53 @@
+/* HOME-FAVORITES-01 — only the approved home shortcuts and home send state. */
+body.chat-home-page .home-favorites {
+  order: 3;
+  width: min(var(--consumer-canvas-width, 680px), 100%);
+  margin: 18px auto 0;
+  color: var(--lotbi-text-primary);
+  text-align: left;
+}
+body.chat-home-page.conversation-active .home-favorites { display: none; }
+.home-favorites-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.home-favorites-heading h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.home-favorites-heading [data-favorites-count] { margin-left: 8px; color: var(--lotbi-text-disabled); font-weight: 400; }
+.home-favorites button { font: inherit; cursor: pointer; }
+.home-favorites-heading button { min-width: 44px; min-height: 44px; padding: 8px; border: 0; background: transparent; color: var(--lotbi-accent, #2454b8); font-size: 14px; }
+.home-favorites-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; gap: 10px; }
+.home-favorite { min-width: 0; }
+.home-favorite > button,
+.home-favorites-add {
+  box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px 12px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border: 1px solid var(--lotbi-border-strong); border-radius: 24px;
+  background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary);
+  font-size: 13px; line-height: 20px; overflow-wrap: anywhere;
+}
+.home-favorite > button { border-color: var(--lotbi-accent, #2454b8); }
+.home-favorite .nav-icon { width: 18px; height: 18px; flex: 0 0 18px; color: var(--lotbi-accent, #2454b8); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.home-favorites-add { border-style: dashed; color: var(--lotbi-text-secondary); }
+.home-favorites button:hover:not(:disabled) { background: var(--lotbi-surface-hover); }
+.home-favorites button:focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 2px; }
+.home-favorite-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; margin-top: 4px; }
+.home-favorite-actions button { min-height: 44px; min-width: 44px; padding: 4px; border: 0; background: transparent; color: var(--lotbi-text-primary); font-size: 11px; }
+.home-favorite-actions button:disabled { color: var(--lotbi-text-disabled); cursor: default; }
+.home-favorites-editor { margin-top: 12px; padding: 14px; border: 1px solid var(--lotbi-border-default); border-radius: 12px; background: var(--lotbi-surface-primary); }
+.home-favorites-editor[hidden] { display: none; }
+.home-favorites-editor h4 { margin: 0 0 12px; font-size: 15px; }
+.home-favorites-editor label { display: block; margin: 10px 0 5px; font-size: 14px; }
+.home-favorites-editor label span { font-size: 12px; }
+.home-favorites-editor input,
+.home-favorites-editor textarea { box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--lotbi-border-strong); border-radius: 8px; background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font: inherit; font-size: 16px; }
+.home-favorites-editor textarea { resize: vertical; }
+.home-favorites-editor-actions { display: flex; gap: 8px; margin-top: 12px; }
+.home-favorites-editor-actions button { min-height: 44px; padding: 8px 20px; border: 1px solid var(--lotbi-border-strong); border-radius: 8px; background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); }
+.home-favorites-status { margin: 8px 0 0; font-size: 13px; line-height: 1.5; }
+body.chat-home-page:not(.conversation-active) .composer-button.send-button:disabled {
+  background: var(--lotbi-border-strong); border-color: transparent; color: #fff; opacity: .55; box-shadow: none;
+}
+body.chat-home-page:not(.conversation-active) .composer-button.send-button:not(:disabled) {
+  background: var(--lotbi-accent, #2454b8); border-color: transparent; color: #fff; opacity: 1; box-shadow: none;
+}
+@media (max-width: 760px) {
+  .home-favorites-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.chat-home-page .home-favorites { margin-top: 14px; }
+}

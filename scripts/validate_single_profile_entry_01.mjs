@@ -9,7 +9,7 @@
 //   1. the sidebar secondary menu cannot come back (markup or CSS),
 //   2. the authenticated Header renders no profile control,
 //   3. the anonymous Header keeps 로그인/회원가입 (the signup conversion path),
-//   4. all six account-menu items survive, 로그아웃 included, and
+//   4. the approved three account-menu actions survive, 로그아웃 included, and
 //   5. the account row stays reachable on desktop and in the mobile drawer.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -90,7 +90,7 @@ assert.ok(
   'the anonymous Header must keep 로그인 and 회원가입',
 );
 
-// ── 4. All six account-menu items survive ─────────────────────────────────
+// ── 4. The approved compact account menu has exactly three actions ────────
 const menu = conversation.slice(
   conversation.indexOf('const openProfileMenu = trigger =>'),
   conversation.indexOf('const openProfileMenu = trigger =>') + 4000,
@@ -99,20 +99,16 @@ const menu = conversation.slice(
 // word appears: 로그아웃 also shows up in the in-flight label and in an error
 // string, so a bare substring check would not notice the item disappearing.
 const boundItems = [
-  ["['프로필', openProfile]", '프로필'],
-  ["['개인테마', openPersonalTheme]", '개인테마'],
+  ["['프로필 관리', openProfile]", '프로필 관리'],
   ["['설정', openSettings]", '설정'],
-  ["connectedServices.textContent = '연결 서비스'", '연결 서비스'],
-  ["help.textContent = '도움말'", '도움말'],
   ["logout.textContent = '로그아웃'", '로그아웃'],
 ];
 for (const [binding, item] of boundItems) {
   assert.ok(menu.includes(binding), `the account menu must still offer ${item}`);
 }
-assert.ok(
-  menu.includes("connectedServices.href = 'https://account.lotbiai.com/connected-services'"),
-  '연결 서비스 must still reach the external account surface',
-);
+for (const removed of ['개인테마', '연결 서비스', '도움말']) {
+  assert.ok(!menu.includes(removed), `the compact account menu must omit ${removed}`);
+}
 // 로그아웃 is the one item with no other route out of the product.
 assert.ok(
   menu.includes('logout.disabled = !sessionToken')
@@ -143,4 +139,4 @@ assert.ok(
   'the account row must stay the [data-profile-menu-trigger] with intact ARIA',
 );
 
-console.log('SITE-NAV-SINGLE-PROFILE-ENTRY-01 OK — one profile entry point, six items intact');
+console.log('SITE-NAV-SINGLE-PROFILE-ENTRY-01 OK — one profile entry point, three approved actions intact');

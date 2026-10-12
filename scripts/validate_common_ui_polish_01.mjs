@@ -20,9 +20,9 @@ const conversation = read('site-conversation.js');
 const scam = read('site-scam-shield.js');
 const wallet = read('site-life-wallet.js');
 
-// #5 — one name for one destination: the drawer entry, its surface definition
-// and the account menu all say 연결 서비스, which is also Account's page title.
-check('#5 drawer and account menu share one name', () => {
+// #5 — one name for the primary navigation destination. The approved compact
+// profile popover deliberately omits this shortcut and reaches details via 설정.
+check('#5 drawer keeps the connected-services name', () => {
   const mallButtons = [...index.matchAll(/<button[^>]*data-consumer-section="mall"[^>]*>[\s\S]*?<\/button>/g)].map(match => match[0]);
   assert.equal(mallButtons.length, 2, 'desktop and mobile drawer entries');
   for (const button of mallButtons) {
@@ -31,7 +31,8 @@ check('#5 drawer and account menu share one name', () => {
   }
   assert.doesNotMatch(index, /제휴몰/);
   assert.match(conversation, /mall: \['연결 서비스', /);
-  assert.match(conversation, /connectedServices\.textContent = '연결 서비스'/);
+  const profileMenu = conversation.slice(conversation.indexOf('const openProfileMenu = trigger =>'), conversation.indexOf('let responseGradeOpen'));
+  assert.doesNotMatch(profileMenu, /connectedServices|연결 서비스/);
   assert.match(read('subscribe.html'), /<tr><th scope="row">연결 서비스<\/th>/);
 });
 
