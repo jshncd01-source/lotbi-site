@@ -1,6 +1,24 @@
-READY_FOR_DEPLOY=NO
+READY_FOR_DEPLOY=YES
 
 # 가족 지킴이 ② 등록·사진·정보 수정 — Site 사전 검증
+
+## 2026-10-12 배포 레일 재READY — 현행 화면 확인용 판정
+
+- READY_FOR_DEPLOY=YES는 확정 화면을 먼저 확인하는 공동 후보의 개발 READY다. FULL_FUNCTIONAL_COMPLETE=NO, PRODUCTION_VERIFIED=NO. 아래 과거 NO/보류 문구는 이전의 전 항목 완료 기준과 당시 SHA 기록이며 이 절이 현행 판정이다.
+- 사용자 원문(배포 총괄 관리방 2026-10-12) “레디의 조건을 너무 엄격하게 하지마 … 시안 확정되면 배포해”, “사이트에 문제가 있으면 그때 가서 수정하자”를 read_thread의 userMessage로 직접 확인했다. 배포방의 정정 기준인 확정 디자인·기본 빌드/진입·최신 main·관련 최소 검사와 보안/데이터 보존을 적용한다. 검사 삭제/완화나 실패 은폐가 아니다.
+- 저장소/단계: site 02, branch feature/family-guardian-p2-01-site. fresh main 29cc6b13a7e081dda6a224717f50d0efcfa53e25를 정상 통합/포함 확인. 기능 검증 코드 HEAD 36e610ddcc342958cceb17010302fd6cdc1298fb; 이후 문서만 바뀐 최종 exact HEAD·Ncloud push/readback은 outputs/family-guardian-screen-ready-2026-10-12.md에 기록한다.
+- 이번 기본 검사: 최신 ① 정상 merge·cache-only130 hunk 보존. 360/1280 light/dark4 PASS·PNG100, 등록번호·2000년1월·부분 수정/무변경 계약 PASS. cache aset-73d42d50568a/check208 PASS. 경로 outputs/screenshots/site/phase2-rail-main-after-20261012/.
+- Site8766, Admin5182·5183·5184, Account3107 기존 서버의 기본 HTTP 진입200 확인. HTTP200을 사용자 목적 전체 성공으로 표현하지 않는다. Core의 관련 pytest/TestClient는 LOCAL_TEST 기본 startup/API 검사이고 Production 시작 성공이 아니다. App renderer·번들/네이티브 컴파일은 실제 폰의 기본 진입 성공과 다르다.
+- CORE①·② 단독 선배포 금지. ①→②→③ 순서, 해당 단계의 Core/Admin/Site/App/Account 공동 exact HEAD를 함께 제출한다. 이 조건은 변경하지 않는다.
+- iOS 및 모든 실기기/부가기능 미검증을 화면 확인용 후보의 일괄 차단 사유로 삼지 않는다. 그러나 iOS NOT TESTED·과거 RNSVG pods FAILURE·Android after/dark NOT TESTED를 PASS로 바꾸지는 않는다. 현재 exact-head 외부 CI/trusted gate는 별도 NOT VERIFIED이며 배포방이 정상 gate를 수행해야 한다.
+- 후속 필수 목록: ② Site→시험 Core→Admin 실제 저장/재조회, App Native 사진/수정·갱신; ③ 반려동물 별도 관리자 알림 및 Site/App→Core→Admin→사용자 종료→기존 사진 URL 차단 전체 연결. 접수함 건수·화면 존재를 알림/E2E PASS로 보고하지 않는다. 이 목록 완료 전 서비스 전체 완료를 선언하지 않는다.
+- Core③ 사전 권한 검사(미동의/타인/비담당/종료 후 직접 URL 403)는 유지한다. 새 데이터 공개/자동 매칭 활성화 없음. p0_0120 미사용, p0_0121 기존 배정만 사용. 운영 DB·Secret·결제·소셜 공개·Play/AppStore 공개·휴대폰 설치/삭제 변경 없음.
+- 법적 명칭3곳은 별도 승인 전 기존 문구 유지. 새 배경은 가족 light #F6F7F9·흰 카드/입력·파란 강조, 기존 dark/의미색·다른 카테고리/Account 인증 보존. ZIP 원본·기존 PNG·과거 문서는 덮어쓰지 않는다.
+- 운영 E2E: 배포 후 배포방:
+- 다음 owner: 배포 총괄 관리방으로 공동 READY 인계. Work는 feature push/readback까지만, main/Production/내부 release APK/Play 내부 테스트(매회 소유자 승인)는 배포 담당자의 영역이다. 새 검사/권한을 우회하지 않는다.
+
+## 이하 이전 체크포인트 — 현행 판정과 분리
+
 
 ## 식별자와 현행 판정
 
@@ -66,5 +84,5 @@ READY_FOR_DEPLOY=NO
 - 최신 앱 ① 검증 APK 요청 중. App의 과거 cd5169a0 APK를 후속 배경 보완 증거로 쓰지 않는다. Play 내부 테스트 매회 소유자 승인, 공개 출시 없음.
 - main 병합·Production·운영 DB·Secret·결제·소셜 공개·휴대폰 조작/설치/삭제 없음. 실제 운영 SHA/배포와 사용자 E2E는 UNVERIFIED/NOT TESTED.
 - 사용자 브라우저 최종 승인 기록은 이 재개 회차에서 새로 받지 않았다. 로컬 검사 PASS를 사용자 최종 디자인 승인으로 표현하지 않는다. ZIP5 원본을 교체하지 않으며 배경 최종 기준은 #F6F7F9다.
-- 운영 E2E: 배포 후 배포방: 
+- 운영 E2E: 배포 후 배포방:
 - 되돌리기는 배포방의 정상 revert·자산 버전 재생성/검사. 운영 대상/사진 삭제로 되돌리지 않는다.
