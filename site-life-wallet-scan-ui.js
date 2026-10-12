@@ -1,5 +1,5 @@
-import {detectDocumentCorners, framesPrintedItem, rectifyDocument, findLabelCorners} from './site-life-wallet-scan.js?v=aset-b224e33eef8d';
-import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-b224e33eef8d';
+import {detectDocumentCorners, framesPrintedItem, rectifyDocument, findLabelCorners} from './site-life-wallet-scan.js?v=aset-c72a87550d3e';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-c72a87550d3e';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -268,7 +268,7 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
     // apart; otherwise the wallet's own detection, which also allows long labels.
     const labelRegion=label?findLabelCorners(detection.imageData):null;
     const found=labelRegion?{corners:labelRegion.corners,mode:'automatic',reason:'label-region',rotation:labelRegion.portrait?90:0,cornerRadius:0,paper:false,diagnostics:labelRegion.diagnostics}
-      :detectDocumentCorners(detection.imageData,{sourceScale:detection.scale,detail:detailImage,allowLong:label}); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
+      :detectDocumentCorners(detection.imageData,{sourceScale:detection.scale,detail:detailImage,allowLong:label,allowSmallCard:pdfSource}); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
     let mode=found.mode; let reason=found.reason||'';
     // A photo without printed text (a pet, a person) is not a wallet item: no adjusting, no saving.
     // A label that was not found is placed by hand instead (its corners open at once).

@@ -23,9 +23,9 @@
 // picked there is saved as the person's region (the same 저장 지역 Calendar
 // weather and every 지역정보 screen already read), so it is used next time.
 // Phones keep their behavior: a picked region is used once, nothing saved.
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-b224e33eef8d';
-import {isLocationUsageEnabled, setLocationUsageEnabled} from './site-location-preference.js?v=aset-b224e33eef8d';
-import {readCalendarManualWeatherRegion, saveChosenWeatherRegion} from './site-calendar-weather-region.js?v=aset-b224e33eef8d';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-c72a87550d3e';
+import {isLocationUsageEnabled, setLocationUsageEnabled} from './site-location-preference.js?v=aset-c72a87550d3e';
+import {readCalendarManualWeatherRegion, saveChosenWeatherRegion} from './site-calendar-weather-region.js?v=aset-c72a87550d3e';
 
 export const LOCATION_ALLOW_OUTCOME = Object.freeze({
   LOCATED: 'LOCATED',
@@ -145,7 +145,7 @@ export async function chooseRegion({
   onPick,
   save = prefersRegionChoice(),
   saveRegion = saveChosenWeatherRegion,
-  loadPicker = () => import('./site-region-picker.js?v=aset-b224e33eef8d'),
+  loadPicker = () => import('./site-region-picker.js?v=aset-c72a87550d3e'),
 } = {}) {
   const {openRegionPicker} = await loadPicker();
   return openRegionPicker({

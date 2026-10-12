@@ -5,7 +5,7 @@
 // writes the owner's own records. Pet photos are private bytes served from
 // an authenticated endpoint, so they are fetched as blobs and never turned
 // into a shareable URL.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-b224e33eef8d';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-c72a87550d3e';
 
 const PET_SPECIES = Object.freeze(['DOG', 'CAT']);
 const PET_SEXES = Object.freeze(['MALE', 'FEMALE', 'UNKNOWN']);
