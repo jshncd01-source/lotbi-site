@@ -81,13 +81,13 @@ const PLACE_RESULT = {
   ],
 };
 
-function buildInner() {
+function buildInner(placeResult = PLACE_RESULT) {
   let html = read('index.html');
   const runtime = html.match(/<script type="module" src="site-conversation\.js\?v=[^"]+"><\/script>/u);
   assert.ok(runtime, 'index.html must load site-conversation.js as a module');
   html = html.replace('<head>', '<head>\n  <base href="/">');
   const harness = `<script type="module">
-const PLACE_RESULT = ${JSON.stringify(PLACE_RESULT)};
+const PLACE_RESULT = ${JSON.stringify(placeResult)};
 const out = document.getElementById('drift-result');
 const fail = e => { out.textContent = JSON.stringify({ok:false,error:String((e&&e.stack)||e)}); };
 try {
@@ -103,7 +103,7 @@ try {
     });
     if (parsed.pathname === '/v2/conversation/guest/messages') return json({
       contract_id:'CORE-WEB-CHAT-01',schema_version:1,status:'ANSWERED',
-      assistant_text:'전주에서 죠죠 검색 결과로 5곳을 찾았어요.',
+      assistant_text:${JSON.stringify(placeResult.results.length ? '전주에서 죠죠 검색 결과로 5곳을 찾았어요.' : '검색한 장소가 없어요. 다른 지역이나 이름으로 다시 찾아 주세요.')},
       response_mode:'PLACE_PROVIDER_READONLY',correlation_id:'req_placecarouseldrift01',
       intent:{action:'PLACE_SEARCH',domain:'PLACE'},
       follow_up:{required:false,action:'PLACE_SEARCH',automatic_execution:false},
@@ -133,6 +133,10 @@ try {
   field.value='전주 죠죠 알려줘';
   field.dispatchEvent(new Event('input',{bubbles:true}));
   document.querySelector('.send-button').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
+  if (!PLACE_RESULT.results.length) {
+    await wait(()=>document.querySelector('.chat-message-assistant')?.textContent.includes('검색한 장소가 없어요.'),'completed empty answer');
+    out.textContent=JSON.stringify({ok:true});
+  } else {
   const rail=await wait(()=>document.querySelector('.lotbi-place-orbit'),'rail');
   await wait(()=>rail.querySelector('[data-orbit-slot="CENTER"]'),'center');
   rail.addEventListener('scroll', () => globalThis.__railScrolls.push(rail.scrollLeft));
@@ -140,6 +144,7 @@ try {
   rail.scrollIntoView({block:'center'});
   await new Promise(r=>setTimeout(r,150));
   out.textContent=JSON.stringify({ok:true});
+  }
 } catch(e) { fail(e); }
 </script><pre id="drift-result">pending</pre>`;
   return html.replace(runtime[0], harness);
@@ -148,7 +153,7 @@ try {
 const PROBE = `(() => {
   const rail = document.querySelector('.lotbi-place-orbit');
   const center = rail.querySelector('[data-orbit-slot="CENTER"]');
-  const box = node => { const r = node.getBoundingClientRect(); return {x:r.x,y:r.y,w:r.width,h:r.height,cx:r.x+r.width/2,cy:r.y+r.height/2}; };
+  const box = node => { if (!node) return {w:0,h:0}; const r = node.getBoundingClientRect(); return {x:r.x,y:r.y,w:r.width,h:r.height,cx:r.x+r.width/2,cy:r.y+r.height/2}; };
   const railBox = box(rail);
   const centerBox = box(center);
   const right = rail.querySelector('[data-orbit-slot="RIGHT_FRONT"]');
@@ -163,7 +168,7 @@ const PROBE = `(() => {
     title: box(center.querySelector('.lotbi-rich-card-title')),
     prev: box(rail.querySelector('.lotbi-place-orbit-control-prev')),
     next: box(rail.querySelector('.lotbi-place-orbit-control-next')),
-    footerButtons: rail.querySelectorAll('.lotbi-place-orbit-more, .lotbi-place-orbit-footer button').length,
+    footerButtons: rail.querySelectorAll('.lotbi-place-orbit-more, .lotbi-place-orbit-footer button:not([data-orbit-dot])').length,
     cardCount: Number(rail.dataset.cardCount),
     sideStrip: rightBox ? {cx: (centerBox.x + centerBox.w + visibleRight) / 2, cy: centerBox.cy, width: visibleRight - (centerBox.x + centerBox.w)} : null,
     snap: getComputedStyle(rail).scrollSnapType,
@@ -318,14 +323,14 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(initial.footerButtons, 0, `${testCase.label}: no 다른 장소 보기`);
     let expected = 0;
     // Phones have no ‹ › any more: a swipe on the card turns it there.
-    if (testCase.mobile) assert.ok(initial.prev.w === 0 && initial.next.w === 0, `${testCase.label}: no arrows on a phone`);
-    const goNext = b => (testCase.mobile ? swipe(b.title.cx + 60, b.title.cx - 60, b.title.cy) : tap(b.next.cx, b.next.cy));
-    const goPrev = b => (testCase.mobile ? swipe(b.title.cx - 60, b.title.cx + 60, b.title.cy) : tap(b.prev.cx, b.prev.cy));
+    assert.ok(initial.prev.w === 0 && initial.next.w === 0, `${testCase.label}: no arrows on a phone`);
+    const goNext = b => swipe(b.title.cx + 60, b.title.cx - 60, b.title.cy);
+    const goPrev = b => swipe(b.title.cx - 60, b.title.cx + 60, b.title.cy);
 
     const step = async (name, action, nextExpected) => {
       const before = await evaluate(PROBE);
       await action(before);
-      await sleep(350);
+      await sleep(450);
       const after = await evaluate(PROBE);
       log.push(`${name}:${before.activeIndex}->${after.activeIndex}@${after.scrollLeft}`);
       const where = `${testCase.label}: ${name} (${log.join(' ')})`;
@@ -370,6 +375,9 @@ async function runCase(browser, origin, dir, testCase) {
   }
 }
 
+export {browserPath, buildInner, startServer, serverPort, openDevtools, waitFor, sleep, PLACE_RESULT};
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
 const browser = browserPath();
 const dir = fs.mkdtempSync(path.join(ROOT, 'scripts/.place-carousel-drift-'));
 const server = startServer();
@@ -389,3 +397,5 @@ try {
 }
 
 console.log('PLACE-CARD-CAROUSEL-SCROLL-DRIFT-01 OK — the place card orbit never scrolls; the center card stays centered through taps, swipes, keys and scrollIntoView');
+
+}

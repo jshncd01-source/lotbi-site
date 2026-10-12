@@ -11,9 +11,8 @@
 //    the rail (PLACE-CARD-RAIL-ALL-RESULTS-01: no "다른 병원 보기" — it only
 //    held back places already sent); the same institution listed twice is one
 //    card;
-//  - wider screens keep the arrows and the keys, show one card with the arrows
-//    right beside it, and nothing half shown behind it (the side cards there
-//    made several cards look merged into one);
+//  - every screen uses result dots and keys with perspective side cards;
+//    back cards are fully hidden after the rotation finishes;
 //  - the map button still follows the map app chosen in 설정
 //    (lotbi_default_map_provider_v1) and the card body still opens a NAVER
 //    search.
@@ -254,7 +253,7 @@ const PROBE = `(() => {
   };
   const control = selector => {
     const node = rail.querySelector(selector);
-    return {display: getComputedStyle(node).display, box: box(node), disabled: node.disabled};
+    return node ? {display: getComputedStyle(node).display, box: box(node), disabled: node.disabled} : {display: 'none', box: null};
   };
   const position = rail.querySelector('.lotbi-place-orbit-position');
   const map = center.querySelector('[data-map-provider]');
@@ -284,11 +283,13 @@ const PROBE = `(() => {
       slot: card.dataset.orbitSlot, name: card.querySelector('.lotbi-rich-card-title').textContent,
       opacity: Number.parseFloat(getComputedStyle(card).opacity), pointer: getComputedStyle(card).pointerEvents, box: box(card),
     })),
+    arrows: rail.querySelectorAll('.lotbi-place-orbit-control').length,
+    dots: [...rail.querySelectorAll('[data-orbit-dot]')].map(dot => ({index: Number(dot.dataset.orbitDot), current: dot.getAttribute('aria-current'), label: dot.getAttribute('aria-label'), tabIndex: dot.tabIndex, box: box(dot)})),
     prev: control('.lotbi-place-orbit-control-prev'),
     next: control('.lotbi-place-orbit-control-next'),
     footer: box(rail.querySelector('.lotbi-place-orbit-footer')),
     position: {text: position.textContent, box: box(position)},
-    footerButtons: rail.querySelectorAll('.lotbi-place-orbit-more, .lotbi-place-orbit-footer button').length,
+    footerButtons: rail.querySelectorAll('.lotbi-place-orbit-more, .lotbi-place-orbit-footer button:not([data-orbit-dot])').length,
     status: rail.querySelector('.lotbi-place-orbit-status').textContent,
     focusedIsCenter: document.activeElement === center,
     mapProvider: map?.dataset.mapProvider || '', mapHref: map?.getAttribute('href') || '',
@@ -419,38 +420,27 @@ function checkLayout(where, p, testCase, scenarioKey, {announced = true} = {}) {
   } else {
     assert.equal(p.position.box, null, `${where}: no position for one card`);
   }
-  if (testCase.mobile) {
-    // No arrows; the next cards' edges show beside the card, never over it.
-    assert.equal(p.prev.display, 'none', `${where}: ‹ on a phone`);
-    assert.equal(p.next.display, 'none', `${where}: › on a phone`);
-    for (const side of p.sides) {
-      assert.equal(overlapArea(side.box, p.center), 0, `${where}: side card ${side.name} (${side.slot}) under the center card`);
-      if (side.slot.endsWith('_BACK')) {
-        assert.equal(side.opacity, 0, `${where}: back card ${side.name} hidden behind the front one`);
-        continue;
-      }
-      const edge = side.slot.startsWith('LEFT') ? side.box.r - p.rail.x : p.rail.r - side.box.x;
-      if (!p.dragging) {
-        assert.ok(edge >= 10 && edge <= 40, `${where}: side card ${side.name} (${side.slot}) shows its edge (${edge}px)`);
-        assert.ok(side.opacity >= 0.3, `${where}: side card ${side.name} (${side.slot}) visible (${side.opacity})`);
-      }
+  assert.equal(p.arrows, 0, `${where}: no arrow controls in the DOM`);
+  assert.equal(p.dots.length, p.shown, `${where}: one result button per place`);
+  assert.deepEqual(p.dots.filter(dot => dot.current === 'true').map(dot => dot.index), [p.activeIndex], `${where}: exactly one selected dot`);
+  for (const dot of p.dots) {
+    assert.ok(dot.label && dot.tabIndex === 0, `${where}: named focusable result button`);
+    if (p.shown > 1) {
+      assert.ok(dot.box.w >= 44 && dot.box.h >= 44 && inside(dot.box, p.footer), `${where}: 44px result button inside footer`);
+    } else assert.equal(dot.box, null, `${where}: single card has no visible rotation control`);
+  }
+  for (const side of p.sides) {
+    assert.equal(overlapArea(side.box, p.center), 0, `${where}: side card never overlaps the center`);
+    if (side.slot.endsWith('_BACK')) {
+      assert.equal(side.opacity, 0, `${where}: back card hidden`);
+      assert.equal(side.pointer, 'none', `${where}: hidden card is not pressable`);
+      continue;
     }
-  } else {
-    assert.notEqual(p.prev.display, 'none', `${where}: ‹ on desktop`);
-    assert.notEqual(p.next.display, 'none', `${where}: › on desktop`);
-    assert.ok(inside(p.prev.box, p.rail) && inside(p.next.box, p.rail), `${where}: arrows inside the rail`);
-    assert.equal(p.prev.disabled, p.shown < 2, `${where}: ‹ enabled with more than one card`);
-    assert.ok(p.prev.box.b <= p.center.b && p.prev.box.y >= p.center.y, `${where}: arrows beside the card, not on the footer`);
-    // PLACE-CARD-RAIL-ALL-RESULTS-01: right beside it, on its left and right.
-    assert.ok(p.prev.box.r <= p.center.x + 0.5 && p.center.x - p.prev.box.r <= 16, `${where}: ‹ right beside the card ${JSON.stringify({arrow: p.prev.box, card: p.center})}`);
-    assert.ok(p.next.box.x >= p.center.r - 0.5 && p.next.box.x - p.center.r <= 16, `${where}: › right beside the card ${JSON.stringify({arrow: p.next.box, card: p.center})}`);
-    // Nothing half shown behind or beside it: a side card on a wide screen is
-    // neither seen nor pressed until it turns to the center.
+    const edge = side.slot.startsWith('LEFT') ? side.box.r - p.rail.x : p.rail.r - side.box.x;
     if (!p.dragging) {
-      for (const side of p.sides) {
-        assert.equal(side.opacity, 0, `${where}: side card ${side.name} (${side.slot}) shown on a wide screen (${side.opacity})`);
-        assert.equal(side.pointer, 'none', `${where}: side card ${side.name} (${side.slot}) pressable on a wide screen`);
-      }
+      assert.ok(edge >= 10 && edge <= (testCase.mobile ? 40 : 200), `${where}: visible neighbour (${edge}px)`);
+      assert.ok(side.opacity >= .3 && side.opacity <= .6, `${where}: neighbour dimmed`);
+      assert.equal(side.pointer, 'auto', `${where}: neighbour selectable`);
     }
   }
   // A card without a photo has no photo box.
@@ -535,6 +525,14 @@ async function runScenario(page, origin, innerRel, testCase, scenarioKey) {
     const before = await evaluate(PROBE);
     await action(before);
     await sleep(450);
+    // A loaded browser can still report the last transition frame here.
+    // Wait for actual completion; keep the exact opacity/geometry assertions.
+    await waitFor(() => evaluate(`(() => {
+      const cards = [...document.querySelectorAll('.lotbi-place-orbit-card')];
+      return cards.length > 0 && cards.every(card => card.getAnimations().every(
+        animation => animation.playState === 'finished' || animation.playState === 'idle'
+      ));
+    })()`), `${testCase.label}/${scenarioKey} ${name}: rotation finished`, 2000);
     p = await evaluate(PROBE);
     log.push(`${name}:${before.position.text || '-'}→${p.position.text || '-'}`);
     const where = `${testCase.label}/${scenarioKey} ${name} (${log.join(' ')})`;
@@ -545,7 +543,7 @@ async function runScenario(page, origin, innerRel, testCase, scenarioKey) {
       seen.add(p.activeIndex);
     }
     assert.deepEqual(p.anchors, [], `${where}: no link was opened`);
-    checkLayout(where, p, testCase, scenarioKey, {announced: delta !== 0});
+    checkLayout(where, p, testCase, scenarioKey, {announced: p.shown > 1});
     return p;
   };
   const titleY = () => p.parts.title.box.cy;
@@ -560,11 +558,11 @@ async function runScenario(page, origin, innerRel, testCase, scenarioKey) {
       await step('swipe-left', b => swipe(b.center.cx + 70, b.center.cx - 70, b.parts.title.box.cy), 1);
       if (p.shown === 2) assert.ok(p.sides[0].slot.startsWith('LEFT'), `${testCase.label}/${scenarioKey}: after a swipe left the other card waits on the left`);
     } else {
-      // Round every card with ›, past the last one back to the first.
-      for (let i = 1; i <= p.shown; i += 1) await step(`next#${i}`, b => tap(b.next.box.cx, b.next.box.cy), 1);
-      await step('next', b => tap(b.next.box.cx, b.next.box.cy), 1);
-      await step('prev', b => tap(b.prev.box.cx, b.prev.box.cy), -1);
-      await step('prev(wrap)', b => tap(b.prev.box.cx, b.prev.box.cy), -1);
+      // Drag through every card, past the last one back to the first.
+      for (let i = 1; i <= p.shown; i += 1) await step(`next#${i}`, b => swipe(b.center.cx + 70, b.center.cx - 70, b.parts.title.box.cy), 1);
+      await step('next', b => swipe(b.center.cx + 70, b.center.cx - 70, b.parts.title.box.cy), 1);
+      await step('prev', b => swipe(b.center.cx - 70, b.center.cx + 70, b.parts.title.box.cy), -1);
+      await step('prev(wrap)', b => swipe(b.center.cx - 70, b.center.cx + 70, b.parts.title.box.cy), -1);
       await step('mouse-drag-left', b => swipe(b.center.cx + 70, b.center.cx - 70, b.parts.title.box.cy), 1);
       await evaluate("document.querySelector('.lotbi-place-orbit [data-orbit-slot=\"CENTER\"]').focus({preventScroll: true}), true");
       await step('ArrowRight', () => key('ArrowRight'), 1);
@@ -574,6 +572,12 @@ async function runScenario(page, origin, innerRel, testCase, scenarioKey) {
     }
   } else {
     await step('swipe-left(single)', b => swipe(b.center.cx + 70, b.center.cx - 70, b.parts.title.box.cy), 0);
+  }
+
+  if (p.shown > 1) {
+    for (let index = 0; index < p.shown; index += 1) {
+      await step(`dot#${index}`, b => tap(b.dots[index].box.cx, b.dots[index].box.cy), index - expected);
+    }
   }
 
   // Every place was reached by turning alone (4/4 included).
@@ -647,4 +651,4 @@ try {
   }
 }
 
-console.log('PLACE-MEDICAL-CARD-UX-FINAL-01 OK — phones swipe without arrows and see one whole card; no photo, no photo box; 1/4 with every place Core sent (no 다른 병원 보기); one card per institution; desktop shows one card with its arrows beside it and keys; the 설정 map app and the NAVER search stay');
+console.log('PLACE-MEDICAL-CARD-UX-FINAL-01 OK — 모바일·PC 화살표 제거, 양방향 드래그·순환·점 선택·키보드 선택, 중앙 카드 잘림 방지, 사진·전화·설정 지도앱·네이버 검색 계약 보존');

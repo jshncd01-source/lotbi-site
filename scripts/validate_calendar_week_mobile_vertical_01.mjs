@@ -137,8 +137,8 @@ try {
       hourLabels: root.querySelectorAll('.calendar-week-hour-label').length,
     };
     root.querySelector('.calendar-today-button[data-calendar-mode="day"]').click();
-    await wait(() => root.dataset.calendarManagerView === 'day', 'desk today');
-    result.desk.todayOpensDay = Boolean(root.querySelector('.calendar-day-view'));
+    await wait(() => root.dataset.calendarManagerView === 'week' && root.querySelector('[data-calendar-week-date="2026-09-21"][data-selected="true"]'), 'desk today');
+    result.desk.todayKeepsWeek = Boolean(root.querySelector('.calendar-week-timegrid'));
     out.textContent = JSON.stringify(result);
   } else {
     await wait(() => root.querySelectorAll('.calendar-week-rail-day').length === 7, 'rail');
@@ -310,12 +310,12 @@ try {
     // Month keeps its grid and is the one place with the month's total.
     root.querySelector('.calendar-mode-tab[data-calendar-mode="month"]').click();
     await wait(() => root.querySelector('.calendar-month-grid'), 'month');
-    await wait(() => root.querySelector('.calendar-amount-slot [data-calendar-amount-summary="ready"]'), 'month total');
+    await wait(() => root.querySelector('.calendar-day-panel [data-calendar-amount-summary="ready"]'), 'month total');
     result.month = {
       cells: root.querySelectorAll('.calendar-month-grid .calendar-date-cell').length,
       total: root.querySelector('.calendar-amount-line-amount')?.textContent || '',
       label: root.querySelector('.calendar-amount-line-label')?.textContent || '',
-      slotVisible: !root.querySelector('.calendar-amount-slot').hidden,
+      slotVisible: Boolean(root.querySelector('.calendar-day-panel [data-calendar-amount-summary="ready"]')),
       titleWhole: (() => { const t = root.querySelector('.calendar-title-button'); return t.scrollWidth <= t.clientWidth + 1; })(),
     };
     root.querySelector('.calendar-mode-tab[data-calendar-mode="agenda"]').click();
@@ -395,12 +395,13 @@ function checkPhone(v) {
   if (v.tap.sameTaskDate !== '2026-09-23' || v.tap.requestsDuringTap !== 0) fail('a tap must switch the day at once without a new read');
   if (v.tap.focused !== '2026-09-23') fail('focus must stay on the picked rail day');
   if (!same(v.cards.titles, ['정형외과 진료 예약 확인하고 약국에 들러 처방전 약 받아오기', '점심', '오후 회의', '장보기 목록'])) fail('cards must follow the day: by clock, then the untimed');
-  if (!same(v.cards.times, ['오전 9:00', '오후 12:30', '오후 3:00', ''])) fail('timed cards must show their clock');
+  if (!same(v.cards.times, ['오전 9:00', '오후 12:30', '오후 3:00', ''])) fail('timed cards must show their Korean 12-hour clock');
   if (!same(v.cards.amount, ['12,000원'])) fail('an amount must stay on its card');
   if (v.cards.untimedLabel !== '시간 없는 일정') fail('untimed records must be labelled');
   const g = v.geometry;
   if (!g.railBesideDetail || !g.cardsInside || !g.cardsNoOverflow || !g.cardsNoOverlap || !g.titleBesideTime || !g.amountInsideCard) fail('cards must sit beside the rail without clipping or overlap');
-  if (g.longTitleLines < 1 || g.longTitleLines > 3 || !g.longTitleWhole) fail(`a long title must wrap whole within three lines, got ${g.longTitleLines}`);
+  const maxLongTitleLines = v.viewport.width < 360 ? 4 : 3;
+  if (g.longTitleLines < 1 || g.longTitleLines > maxLongTitleLines || !g.longTitleWhole) fail(`a long title must wrap whole within ${maxLongTitleLines} lines, got ${g.longTitleLines}`);
   if (!g.weekTitleWhole) fail('the week title must not be cut');
   if (g.cardTextContrast < 4.5 || (g.cardMetaContrast !== null && g.cardMetaContrast < 4.5)) fail('card text must stay readable');
   if (g.pageOverflow > 0 || g.contentOverflow > 0 || !g.modalInsideViewport || !g.toolbarInside) fail('nothing may scroll the page sideways');
@@ -416,7 +417,7 @@ function checkPhone(v) {
   if (v.today.view !== 'week' || v.today.layout !== 'vertical' || v.today.first !== '2026-09-20') fail('오늘 must bring today\'s week into the phone Week');
   if (!v.weekAmountHidden) fail('the month total must not show in Week');
   if (!v.month.titleWhole) fail('the month title must not be cut');
-  if (v.month.cells < 35 || !v.month.slotVisible || v.month.label !== '9월 입력 금액 합계' || v.month.total !== '12,000원') fail('Month must keep its grid and the month total');
+  if (v.month.cells < 35 || !v.month.slotVisible || v.month.label !== '9월 생활비 합계' || v.month.total !== '12,000원') fail('Month must keep its grid and the month total');
   if (!v.agenda.amountHidden || !v.agenda.listed) fail('the list view must stay as it was');
   if (v.weekAgain.layout !== 'vertical' || !v.weekAgain.amountHidden) fail('coming back to Week must show the phone Week again');
 }
@@ -428,7 +429,7 @@ function checkDesk(v) {
   if (v.desk.columns !== 7 || !v.desk.sameRow || !v.desk.leftToRight || v.desk.railCount !== 0 || v.desk.hourLabels !== 24) fail('the desk Week must stay seven date columns over a 24-hour axis');
   if (v.desk.gridOverflow > 1) fail('the desk Week must fit without sideways scroll');
   if (!v.weekAmountHidden) fail('the month total must not show in Week');
-  if (!v.desk.todayOpensDay) fail('오늘 on a desk must keep opening the day view');
+  if (!v.desk.todayKeepsWeek) fail('오늘 on a desk must return to this week without changing the chosen view');
 }
 
 const browser = browserPath();

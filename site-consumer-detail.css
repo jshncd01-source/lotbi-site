@@ -351,6 +351,44 @@ body.chat-home-page .scam-status { overflow-wrap: anywhere; }
   body.chat-home-page .scam-dialog .scam-input-kinds strong { font-size: 17px; }
   body.chat-home-page .scam-input-kinds svg { width: 24px; height: 24px; }
 }
+/* SCAM-PHISHING-C-REDESIGN-01 keeps the verification dialog contract while
+   presenting it as the approved full-page workspace. The navigation/dismiss
+   stays outside the one scrolling body; these stronger rules preserve the C
+   layout from the compact legacy dialog rules above. */
+body.chat-home-page .scam-dialog[data-scam-page] {
+  border-radius: 0; box-shadow: none;
+  background: radial-gradient(circle at 38% 5%, rgb(31 112 255 / 8%), transparent 34%), var(--lotbi-surface-primary, #fff);
+}
+body.chat-home-page .scam-dialog[data-scam-page] .scam-page-shell {
+  box-sizing: border-box; display: flex; flex: 1 1 auto; flex-direction: column;
+  width: min(1132px, calc(100% - 48px)); height: 100%; min-height: 0;
+}
+body.chat-home-page .scam-dialog[data-scam-page] .scam-dialog-inner {
+  flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto;
+  padding: 0;
+}
+body.chat-home-page .scam-dialog[data-scam-page] .scam-dialog-description {
+  margin: 0 0 8px; font-size: clamp(1.35rem, 2.5vw, 2rem); line-height: 1.35; letter-spacing: -.025em;
+}
+body.chat-home-page .scam-dialog[data-scam-page] .scam-input-kinds {
+  display: flex; grid-template-columns: none; gap: 32px; margin: 0 28px;
+}
+body.chat-home-page .scam-dialog[data-scam-page] .scam-input-panel textarea,
+body.chat-home-page .scam-dialog[data-scam-page] .scam-input-panel input[type="url"] {
+  width: 100%; min-height: 170px; border-radius: 13px; padding: 20px 22px 62px;
+  font-size: 1.05rem; line-height: 1.65;
+}
+body.chat-home-page .scam-dialog[data-scam-page] .scam-input-panel input[type="url"] { min-height: 76px; padding: 18px 20px; }
+body.chat-home-page .scam-dialog[data-scam-page] :is(button, summary) { font-weight: 700; }
+@media (max-width: 760px) {
+  body.chat-home-page .scam-dialog[data-scam-page] .scam-page-shell { width: 100%; padding: 8px 0 40px; }
+  body.chat-home-page .scam-dialog[data-scam-page] .scam-dialog-inner { padding: 0; }
+  body.chat-home-page .scam-dialog[data-scam-page] .scam-input-kinds { display: flex; grid-template-columns: none; gap: 14px; margin: 0 14px; }
+  body.chat-home-page .scam-dialog[data-scam-page] .scam-input-kinds :is(label, .scam-voice-method) {
+    min-height: 62px; padding: 0 4px; flex-direction: row; align-items: center; justify-content: flex-start; text-align: left;
+  }
+  body.chat-home-page .scam-dialog[data-scam-page] .scam-input-panel textarea { min-height: 180px; padding: 16px 16px 64px; }
+}
 /* App/Web chooser uses the same quiet entry surface without decorative gradients. */
 .lotbi-mobile-entry { background: var(--lotbi-surface-primary, #fff); }
 .lotbi-entry-card { box-sizing: border-box; border: 0; border-radius: 16px; box-shadow: none; }

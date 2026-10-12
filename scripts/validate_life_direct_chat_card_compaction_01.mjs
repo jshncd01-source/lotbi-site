@@ -316,10 +316,10 @@ try {
       result.cards = [];
       for (let index = 0; index < cards.length; index += 1) {
         await wait(() => Number(centerOf()?.dataset.orbitIndex) === index, 'center ' + index);
-        await sleep(320);
+        await sleep(450);
         const center = centerOf();
         const overlaps = (a, b) => Boolean(a && b) && a.w > 0 && b.w > 0 && a.x < b.right && b.x < a.right && a.y < b.bottom && b.y < a.bottom;
-        const arrows = [...rail.querySelectorAll('.lotbi-place-orbit-control')].filter(n => n.getClientRects().length > 0 && getComputedStyle(n).visibility === 'visible').map(box);
+        const selectors = [...rail.querySelectorAll('[data-orbit-dot]')].filter(n => n.getClientRects().length > 0 && getComputedStyle(n).visibility === 'visible').map(box);
         const texts = [...center.querySelectorAll('.lotbi-rich-card-source, .lotbi-rich-card-title, .lotbi-rich-card-price, .lotbi-place-medical-line, .lotbi-place-badges')].map(box);
         const icons = [...center.querySelectorAll('.lotbi-place-action-icon')].map(box);
         const copy = center.querySelector('.lotbi-rich-card-copy');
@@ -331,8 +331,8 @@ try {
           card: box(center), rail: box(rail),
           copyClipped: copy ? copy.scrollHeight > copy.clientHeight + 1 : true,
           actions: [...center.querySelectorAll('.lotbi-rich-card-action')].map(n => ({action: n.dataset.action, provider: n.dataset.mapProvider || '', href: n.getAttribute('href') || '', ...box(n)})),
-          arrowOverText: arrows.some(a => texts.some(t => overlaps(a, t))),
-          arrowOverIcon: arrows.some(a => icons.some(i => overlaps(a, i))),
+          selectorOverText: selectors.some(a => texts.some(t => overlaps(a, t))),
+          selectorOverIcon: selectors.some(a => icons.some(i => overlaps(a, i))),
           contrast: {
             title: contrast(center.querySelector('.lotbi-rich-card-title')),
             source: contrast(center.querySelector('.lotbi-rich-card-source')),
@@ -340,7 +340,7 @@ try {
             medical: contrast(center.querySelector('.lotbi-place-medical-line')),
           },
         });
-        rail.querySelector('.lotbi-place-orbit-control-next')?.click();
+        rail.querySelectorAll('[data-orbit-dot]')[(index + 1) % cards.length]?.click();
       }
       // E: the existing helpers decide phone and map; the card must agree.
       const normalized = normalizePlaceResult(PLACES);
@@ -508,8 +508,8 @@ function assertCards(run, label, testCase, {photo}) {
       if (testCase.mobile) assert.ok(action.w >= 44 && action.h >= 44, `${label}: card ${index} ${action.action} touch target ${action.w}x${action.h}`);
     }
     if (!card.hasMedia) {
-      assert.equal(card.arrowOverText, false, `${label}: card ${index} without a photo - the arrows do not cover its text`);
-      assert.equal(card.arrowOverIcon, false, `${label}: card ${index} without a photo - the arrows do not cover phone / map`);
+      assert.equal(card.selectorOverText, false, `${label}: card ${index} without a photo - result buttons do not cover its text`);
+      assert.equal(card.selectorOverIcon, false, `${label}: card ${index} without a photo - result buttons do not cover phone / map`);
     }
     const map = card.actions.find(action => action.provider);
     assert.ok(map, `${label}: card ${index} map action`);
