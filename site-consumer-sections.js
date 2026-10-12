@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-d129cb890eb0';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-d129cb890eb0';
-import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-d129cb890eb0';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-9b0f05e59974';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-9b0f05e59974';
+import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-9b0f05e59974';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -283,7 +283,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-medical');
       detail.append(host);
       root.replaceChildren(detail); setView('life-medical');
-      import('./site-life-medical-list.js?v=aset-d129cb890eb0').then(({mountMedicalList}) => {
+      import('./site-life-medical-list.js?v=aset-9b0f05e59974').then(({mountMedicalList}) => {
         if (disposed || current !== generation) return null;
         return mountMedicalList({root: host}).then(mounted => {
           if (disposed || current !== generation) { mounted.dispose(); return; }
@@ -305,7 +305,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(host);
       root.replaceChildren(detail); setView('life-news');
-      import('./site-life-news.js?v=aset-d129cb890eb0').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-9b0f05e59974').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -326,7 +326,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(title, host);
       root.replaceChildren(detail); setView('life-education'); title.focus();
-      import('./site-life-education.js?v=aset-d129cb890eb0').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-9b0f05e59974').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
