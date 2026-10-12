@@ -1,8 +1,7 @@
 // SITE-PROFILE-MENU-PERSONAL-THEME-01
 //
-// Six account-menu entries remain. Profile identity, personalization/theme and
-// help now have one canonical Account owner rather than duplicate Site forms.
-// This Site fixture checks the menu and the profile photo picker. Cross-origin
+// The approved compact account popover keeps only Profile management, Settings
+// and Logout. This Site fixture checks that menu and the profile photo picker. Cross-origin
 // Account navigation is source-checked, not reported as an Account runtime/E2E pass.
 // PROFILE-PHOTO-ACCOUNT-SYNC-01: the photo is saved to the account in Core (a
 // fake Core here) and announced to Account only after that save succeeded; no
@@ -21,7 +20,7 @@ const index = read('index.html');
 const assetVersion = JSON.parse(read('site-asset-version.json')).version;
 const workflow = read('.github/workflows/site-review.yml');
 
-const MENU_LABELS = ['프로필', '개인테마', '설정', '연결 서비스', '도움말', '로그아웃'];
+const MENU_LABELS = ['프로필 관리', '설정', '로그아웃'];
 // The four theme preferences are tested by Account's theme tests, their owner.
 const ACCOUNT_MANAGE_URL = 'https://account.lotbiai.com/account';
 
@@ -31,21 +30,15 @@ assert.ok(
   'this gate must be wired into the Public Site Review Gate',
 );
 
-// [1] 이름만 바뀐다. 옛 이름은 남지 않는다.
+// [1] 승인된 세 항목만 남는다.
 assert.ok(
-  conversation.includes("[['프로필', openProfile], ['개인테마', openPersonalTheme], ['설정', openSettings]]"),
-  '프로필 메뉴의 앞 세 항목은 프로필 / 개인테마 / 설정 이어야 합니다',
+  conversation.includes("[['프로필 관리', openProfile], ['설정', openSettings]]"),
+  '프로필 메뉴의 앞 두 항목은 프로필 관리 / 설정 이어야 합니다',
 );
-assert.ok(
-  !conversation.includes('개인 맞춤 설정') && !conversation.includes('openPersonalization'),
-  "'개인 맞춤 설정' 은 '개인테마' 로 완전히 바뀌어야 합니다",
-);
-// 띄어쓴 '개인 테마' 는 대표가 쓴 표기가 아니다.
-assert.ok(!conversation.includes('개인 테마'), "표기는 '개인테마' 입니다 — 띄어쓰지 않습니다");
+const profileMenuSource = conversation.slice(conversation.indexOf('const openProfileMenu = trigger =>'), conversation.indexOf('let responseGradeOpen'));
+for (const removed of ['개인테마', '연결 서비스', '도움말']) assert.ok(!profileMenuSource.includes(removed), `소형 팝업에서 제거되어야 합니다: ${removed}`);
 
-// [2] 색상 글박스는 중복이라 제거됐고, 되돌아오지 않는다.
-assert.ok(conversation.includes("window.location.assign(ACCOUNT_MANAGE_URL + '#personalization')"), '개인테마는 Account의 개인 맞춤 설정으로 이동해야 합니다');
-assert.ok(conversation.includes("window.location.assign(ACCOUNT_MANAGE_URL + '#help')"), '도움말은 Account의 도움말 한곳으로 이동해야 합니다');
+// [2] 색상 글박스는 중복이라 제거됐고, 상세 설정은 설정 한곳으로 간다.
 for (const removed of ['colorPicker', "'대화 색상'", "className = 'color-picker'"]) {
   assert.ok(!conversation.includes(removed), `대화 색상 선택은 제거되어야 합니다: ${removed}`);
 }
@@ -192,9 +185,7 @@ const labels=items().map(n=>n.textContent);
 const disabledItems=items().filter(n=>n.disabled).map(n=>n.textContent);
 const popoverText=document.querySelector('.profile-popover').textContent;
 
-// Theme now has one Account owner. Navigation is source-checked; do not
-// fabricate a Site modal or claim Account theme interaction was tested here.
-if(!items().some(n=>n.textContent==='개인테마'))throw new Error('개인테마 항목 없음');
+if(labels.join('|')!=='프로필 관리|설정|로그아웃')throw new Error('compact profile menu mismatch '+labels.join('|'));
 document.querySelector('.profile-popover').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
 await wait(()=>!document.querySelector('.profile-popover'),'profile menu close');
 
@@ -326,8 +317,7 @@ try {
       borderRadius:'0px',
       sameRowAsName:true,
     }, `${surface}: 이용 등급은 이름 옆에 배지가 아닌 인라인 정보로 보여야 합니다`);
-    // 여섯 개 그대로, 순서 그대로.
-    assert.deepEqual(v.labels, MENU_LABELS, `${surface}: 프로필 메뉴는 여섯 항목이 이 순서여야 합니다`);
+    assert.deepEqual(v.labels, MENU_LABELS, `${surface}: 프로필 메뉴는 승인된 세 항목이 이 순서여야 합니다`);
     // 막다른 길 금지 — 로그인된 상태에서는 누를 수 없는 항목이 없어야 한다.
     assert.deepEqual(v.disabledItems, [], `${surface}: 누를 수 없는 메뉴 항목이 있으면 안 됩니다`);
     assert.equal(v.deadEnd, false, `${surface}: 메뉴에 '준비 중' 표시가 있으면 안 됩니다`);
