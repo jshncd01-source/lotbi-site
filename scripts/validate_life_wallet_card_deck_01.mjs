@@ -1,11 +1,6 @@
-// LIFE-WALLET-CARD-DECK-01
-// The wallet list is a Samsung Pay-like card deck (it replaces the one-item carousel of
-// LIFE-WALLET-CARD-CAROUSEL-01, whose rules carry over: nothing cut, swipe/drag/dots/keys, a
-// drag never opens, no arrow buttons, fits a phone): every item is a card of one size, the
-// front card whole and up to three next cards peeking out above it. Items are sorted into
-// 카드 / 문서 by the picture's shape alone (nothing is read from it), the owner can change it
-// on the item (saved encrypted with the item), and 전체·카드·문서 filter a mixed wallet.
-// All images are synthetic, plain colour.
+// LIFE-WALLET-VERTICAL-DECK-01
+// Synthetic-only verification: category filters, vertical/wrapping deck, local view state,
+// encrypted category editing, and the bottom 생활정보 area.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -16,211 +11,119 @@ const head = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta n
 const helpers = `
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const wait = async (predicate, label) => { for (let i = 0; i < 2400; i += 1) { const value = predicate(); if (value) return value; await sleep(25); } throw new Error('timed out ' + label); };
-const shaped = (width, height, colour) => { const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const context = canvas.getContext('2d'); context.fillStyle = '#fff'; context.fillRect(0, 0, width, height); context.fillStyle = colour || '#1f3b5a'; context.fillRect(width * .1, height * .1, width * .8, height * .8); return canvas.toDataURL('image/png'); };
-// Images are ready once loaded (complete with a size). Not image.decode(): it waits on the
-// compositor and can stay pending in headless Chrome on a saturated machine.
-const loaded = async root => { for (let i = 0; i < 400 && ![...root.querySelectorAll('img')].every(image => image.complete && image.naturalWidth); i += 1) await sleep(25); await sleep(400); };
+const shaped = (width, height, colour) => { const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const context = canvas.getContext('2d'); context.fillStyle = colour || '#1f3b5a'; context.fillRect(0, 0, width, height); return canvas.toDataURL('image/png'); };
+const loaded = async root => { for (let i = 0; i < 400 && ![...root.querySelectorAll('img')].every(image => image.complete && image.naturalWidth); i += 1) await sleep(25); await sleep(350); };
 `;
 
 const deckFixture = head + `<script type="module">
 ${helpers}
 try {
-  const {createWalletCardDeck, walletItemShape, walletCardTitle} = await import('/site-life-wallet.js?test=card-deck');
+  const {createWalletCardDeck, walletItemCategory, readWalletViewState, writeWalletViewState} = await import('/site-life-wallet.js?test=vertical-deck');
   const at = '2026-10-01T12:00:00.000Z';
-  // Two ID-sized cards, a portrait page, and a portrait picture its owner marked as a card.
   const cards = [
-    {id: 'one', name: '신분·자격 자료', kind: 'identity', note: '', updatedAt: at, frontDataUrl: shaped(1012, 638)},
-    {id: 'two', name: '회원증', kind: 'membership', note: '', updatedAt: at, frontDataUrl: shaped(1015, 643, '#5a1f3b')},
-    {id: 'three', name: '계약서', kind: 'certificate', note: '', updatedAt: at, frontDataUrl: shaped(734, 1024, '#3b5a1f')},
-    {id: 'four', name: '사원증', kind: 'membership', note: '', updatedAt: at, shape: 'card', frontDataUrl: shaped(700, 1000, '#5a3b1f')},
+    {id:'one', kind:'document', category:'identity', name:'첫 자료', note:'', updatedAt:at, frontDataUrl:shaped(1012,638)},
+    {id:'two', kind:'document', category:'business-card', name:'둘째 자료', note:'', updatedAt:at, frontDataUrl:shaped(1012,638,'#5a1f3b')},
+    {id:'three', kind:'certificate', name:'셋째 자료', note:'', updatedAt:at, frontDataUrl:shaped(734,1024,'#3b5a1f')},
+    {id:'four', kind:'membership', name:'넷째 자료', note:'', updatedAt:at, frontDataUrl:shaped(1012,638,'#5a3b1f')},
+    {id:'five', kind:'document', name:'주민등록증', note:'', updatedAt:at, frontDataUrl:shaped(1012,638,'#234')},
   ];
-  const opened = [];
-  const deck = createWalletCardDeck({cards, onOpen: card => opened.push(card.id)});
-  document.getElementById('host').append(deck);
-  await loaded(deck);
+  const stateLog = []; const opened = [];
+  const deck = createWalletCardDeck({cards, onOpen: card => opened.push(card.id), onStateChange: state => stateLog.push(state)});
+  document.getElementById('host').append(deck); await loaded(deck);
   const stage = deck.querySelector('.wallet-deck');
-  const face = id => deck.querySelector('[data-wallet-deck-card="' + id + '"]');
   const front = () => deck.querySelector('.wallet-deck-card[data-depth="0"]');
   const position = () => deck.querySelector('.wallet-card-position').textContent;
-  const rect = element => element.getBoundingClientRect();
-  const shapes = Object.fromEntries(cards.map(card => [card.id, face(card.id).dataset.shape]));
-  // Stacked: the front card whole, three peeking out above it, each a little higher.
-  const peeking = [...deck.querySelectorAll('.wallet-deck-card')].filter(card => Number(card.dataset.depth) >= 1 && Number(card.dataset.depth) <= 3 && getComputedStyle(card).opacity !== '0' && !card.hidden);
-  const frontRect = rect(front()); const shellRect = rect(deck);
-  const stack = peeking.map(card => ({depth: Number(card.dataset.depth), top: rect(card).top - frontRect.top, width: rect(card).width, z: Number(getComputedStyle(card).zIndex), visibleContent: getComputedStyle(card.firstElementChild).visibility}));
-  const frontImage = front().querySelector('img');
-  const imageRect = rect(frontImage);
-  const firstView = {
-    count: deck.querySelectorAll('.wallet-deck-card').length,
-    frontId: front().dataset.walletDeckCard, frontZ: Number(getComputedStyle(front()).zIndex),
-    stack, aboveShell: Math.min(...peeking.map(card => rect(card).top)) - shellRect.top,
-    frontInside: frontRect.left >= shellRect.left - .5 && frontRect.right <= shellRect.right + .5,
-    cardAspect: frontRect.width / frontRect.height,
-    objectFit: getComputedStyle(frontImage).objectFit, imageTransform: getComputedStyle(frontImage).transform,
-    imageInside: imageRect.left >= frontRect.left - .5 && imageRect.right <= frontRect.right + .5 && imageRect.top >= frontRect.top - .5 && imageRect.bottom <= frontRect.bottom + .5,
-    title: deck.querySelector('.wallet-deck-title').textContent, date: deck.querySelector('.wallet-deck-date').textContent, expectedTitle: walletCardTitle(cards[0]),
-    arrowButtons: deck.querySelectorAll('.wallet-card-arrow,[data-wallet-carousel-next],[data-wallet-carousel-previous]').length,
-    dots: deck.querySelectorAll('[data-wallet-carousel-dot]').length, position: position(),
-    touchAction: getComputedStyle(stage).touchAction,
-    documentFace: {kind: face('three').querySelector('.wallet-deck-doc-kind')?.textContent || '', thumbFit: getComputedStyle(face('three').querySelector('img')).objectFit},
-    filters: deck.querySelector('.wallet-deck-filters').hidden ? [] : [...deck.querySelectorAll('[data-wallet-deck-filter]')].map(chip => chip.textContent + (chip.getAttribute('aria-pressed') === 'true' ? '*' : '')),
-    shapes, measured: [walletItemShape(1012, 638), walletItemShape(734, 1024), walletItemShape(1000, 1000), walletItemShape(2400, 1000), walletItemShape(0, 0)],
-  };
-  // Filters: 문서 shows the page alone; 전체 keeps it in front.
-  deck.querySelector('[data-wallet-deck-filter="document"]').click(); await sleep(350);
-  const documentFilter = {visible: [...deck.querySelectorAll('.wallet-deck-card')].filter(card => !card.hidden).map(card => card.dataset.walletDeckCard), position: position(), dots: deck.querySelectorAll('[data-wallet-carousel-dot]').length};
-  deck.querySelector('[data-wallet-deck-filter="card"]').click(); await sleep(350);
-  const cardFilter = {visible: [...deck.querySelectorAll('.wallet-deck-card')].filter(card => !card.hidden).map(card => card.dataset.walletDeckCard), position: position()};
-  deck.querySelector('[data-wallet-deck-filter="all"]').click(); await sleep(350);
-  const allFilter = {position: position(), front: front().dataset.walletDeckCard};
-  deck.querySelectorAll('[data-wallet-carousel-dot]')[0].click(); await sleep(350);
-  const dotPosition = position();
-  // A mouse drag to the left brings the next card to the front and opens nothing.
-  const startRect = rect(face('one')); const x = startRect.left + startRect.width / 2; const y = startRect.top + startRect.height / 2;
-  face('one').querySelector('img').dispatchEvent(new PointerEvent('pointerdown', {pointerId: 7, pointerType: 'mouse', button: 0, clientX: x, clientY: y, bubbles: true}));
-  for (const step of [10, 60, 140, 220]) window.dispatchEvent(new PointerEvent('pointermove', {pointerId: 7, pointerType: 'mouse', buttons: 1, clientX: x - step, clientY: y, bubbles: true}));
-  const dragging = stage.dataset.dragging === 'true' && face('one').style.transform.includes('translateX');
-  window.dispatchEvent(new PointerEvent('pointerup', {pointerId: 7, pointerType: 'mouse', button: 0, clientX: x - 220, clientY: y, bubbles: true}));
-  face('one').click();
-  await sleep(400);
-  const drag = {position: position(), opened: opened.join(','), front: front().dataset.walletDeckCard, settled: face('one').style.transform};
-  // A short drag settles back.
-  const shortRect = rect(front()); const sx = shortRect.left + shortRect.width / 2;
-  front().dispatchEvent(new PointerEvent('pointerdown', {pointerId: 8, pointerType: 'touch', clientX: sx, clientY: y, bubbles: true}));
-  window.dispatchEvent(new PointerEvent('pointermove', {pointerId: 8, pointerType: 'touch', clientX: sx - 30, clientY: y, bubbles: true}));
-  window.dispatchEvent(new PointerEvent('pointerup', {pointerId: 8, pointerType: 'touch', clientX: sx - 30, clientY: y, bubbles: true}));
-  await sleep(300);
-  const shortDrag = position();
-  stage.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight', bubbles: true})); await sleep(300);
-  const keyRight = position();
-  stage.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowLeft', bubbles: true})); await sleep(300);
-  const keyLeft = position();
-  // A tap on a peeking card brings it forward (does not open it); a tap on the front opens.
+  const filters = () => [...deck.querySelectorAll('[data-wallet-deck-filter]')].map(button => button.textContent + (button.getAttribute('aria-pressed') === 'true' ? '*' : ''));
+  const rect = node => node.getBoundingClientRect();
+  const firstFrontRect = rect(front());
+  const stack = [...deck.querySelectorAll('.wallet-deck-card')].filter(card => [1,2,3].includes(Number(card.dataset.depth))).sort((a,b) => Number(a.dataset.depth)-Number(b.dataset.depth)).map(card => ({id:card.dataset.walletDeckCard, depth:Number(card.dataset.depth), top:rect(card).top-firstFrontRect.top, label:card.querySelector('.wallet-deck-peek-label').textContent, z:Number(getComputedStyle(card).zIndex)}));
+  const first = {front:front().dataset.walletDeckCard, position:position(), filters:filters(), stack, touchAction:getComputedStyle(stage).touchAction, imageTransform:getComputedStyle(front().querySelector('img')).transform, categories:Object.fromEntries(cards.map(card => [card.id,walletItemCategory(card)])), dots:deck.querySelectorAll('[data-wallet-carousel-dot]').length};
+
+  stage.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true})); await sleep(300);
+  const wrapUp = {front:front().dataset.walletDeckCard, position:position(), stack:stack.length};
+  stage.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true})); await sleep(300);
+  const wrapBack = front().dataset.walletDeckCard;
+
+  const frontRect = rect(front()); const x=frontRect.left+frontRect.width/2; const y=frontRect.top+frontRect.height/2;
+  front().querySelector('img').dispatchEvent(new PointerEvent('pointerdown',{pointerId:7,pointerType:'mouse',button:0,clientX:x,clientY:y,bubbles:true}));
+  window.dispatchEvent(new PointerEvent('pointermove',{pointerId:7,pointerType:'mouse',buttons:1,clientX:x,clientY:y-160,bubbles:true}));
+  const dragging = stage.dataset.dragging === 'true' && front().style.transform.includes('translateY') && !front().style.transform.includes('rotate');
+  window.dispatchEvent(new PointerEvent('pointerup',{pointerId:7,pointerType:'mouse',button:0,clientX:x,clientY:y-160,bubbles:true})); await sleep(350);
+  const drag = {front:front().dataset.walletDeckCard,position:position(),opened:opened.join(',')};
+
   deck.querySelector('.wallet-deck-card[data-depth="1"]').click(); await sleep(300);
-  const peekTap = {position: position(), opened: opened.join(',')};
-  front().click(); deck.querySelector('.wallet-deck-open').click();
-  const frontTap = opened.join(',');
-  // One item: no dots, no filters, no room kept for peeking cards.
-  const single = createWalletCardDeck({cards: [cards[0]], onOpen: () => {}});
-  document.getElementById('host').append(single); await loaded(single);
-  const singleView = {dots: single.querySelectorAll('[data-wallet-carousel-dot]').length, filters: !single.querySelector('.wallet-deck-filters').hidden, singleClass: single.classList.contains('wallet-deck-single')};
-  // Cards only: no filters.
-  const cardsOnly = createWalletCardDeck({cards: cards.slice(0, 2), onOpen: () => {}});
-  document.getElementById('host').append(cardsOnly); await loaded(cardsOnly);
-  const overflow = document.documentElement.scrollWidth > innerWidth;
-  window.__result = JSON.stringify({ok: true, width: innerWidth, firstView, documentFilter, cardFilter, allFilter, dotPosition, dragging, drag, shortDrag, keyRight, keyLeft, peekTap, frontTap, singleView, cardsOnlyFilters: !cardsOnly.querySelector('.wallet-deck-filters').hidden, overflow});
-} catch (error) { window.__result = JSON.stringify({ok: false, error: String(error?.stack || error)}); }
+  const peek = {front:front().dataset.walletDeckCard,opened:opened.join(',')};
+  deck.querySelector('[data-wallet-carousel-dot="4"]').click(); await sleep(300);
+  stage.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true})); await sleep(300);
+  const lastToFirst = front().dataset.walletDeckCard;
+  stage.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true})); await sleep(300);
+  const firstToLast = front().dataset.walletDeckCard;
+
+  deck.querySelector('[data-wallet-deck-filter="business-card"]').click(); await sleep(250);
+  const business = {front:front().dataset.walletDeckCard,position:position(),filters:filters()};
+  deck.querySelector('[data-wallet-deck-filter="document"]').click(); await sleep(250);
+  const documentOnly = {front:front().dataset.walletDeckCard,position:position()};
+
+  const identityOnly = createWalletCardDeck({cards:[cards[0]],onOpen:()=>{}}); document.getElementById('host').append(identityOnly); await loaded(identityOnly);
+  identityOnly.querySelector('[data-wallet-deck-filter="business-card"]').click();
+  const emptyFilter = {empty:!identityOnly.querySelector('.wallet-deck-filter-empty').hidden,deckHidden:identityOnly.querySelector('.wallet-deck').hidden,infoHidden:identityOnly.querySelector('.wallet-deck-info').hidden};
+  const deleted = createWalletCardDeck({cards:[cards[0]],onOpen:()=>{},initialSelectedId:'deleted',initialFilter:'all'}); document.getElementById('host').append(deleted); await loaded(deleted);
+
+  const memory = new Map(); const storage={getItem:key=>memory.get(key)||null,setItem:(key,value)=>memory.set(key,value)};
+  const stored = writeWalletViewState(storage,'view',{filter:'business-card',selectedId:'two'});
+  const restored = readWalletViewState(storage,'view');
+  storage.setItem('bad','{"filter":"secret","selectedId":"../pin"}');
+  const invalid = readWalletViewState(storage,'bad');
+  window.__result=JSON.stringify({ok:true,first,wrapUp,wrapBack,dragging,drag,peek,lastToFirst,firstToLast,business,documentOnly,emptyFilter,deletedFront:deleted.querySelector('.wallet-deck-card[data-depth="0"]').dataset.walletDeckCard,stored,restored,invalid,stateLog,overflow:document.documentElement.scrollWidth>innerWidth});
+} catch(error){window.__result=JSON.stringify({ok:false,error:String(error?.stack||error)});}
 </script></body></html>`;
 
-// The owner moves a whole (uncut) ID photo that came out as a document to 카드, on the real
-// wallet: saved encrypted with the item, its place in the deck kept, junk values refused.
-const detailFixture = head + `<script type="module">
+const integrationFixture = head + `<script type="module">
 ${helpers}
 try {
-  const {mountLifeWallet, LifeWalletVault, IndexedDbWalletRepository} = await import('/site-life-wallet.js?test=card-deck-detail');
-  const root = document.getElementById('host');
-  const accountId = 'card-deck-' + Date.now();
-  mountLifeWallet({root, authenticated: true, accountId});
-  const setup = await wait(() => root.querySelector('form.wallet-pin-form:not(.wallet-unlock-form)'), 'pin setup');
-  const [first, second] = setup.querySelectorAll('input'); first.value = '1357'; second.value = '1357'; setup.requestSubmit();
-  await wait(() => [...root.querySelectorAll('button')].find(button => button.textContent === '잠그기'), 'unlocked wallet');
-  const store = new LifeWalletVault(new IndexedDbWalletRepository());
-  await store.unlock(accountId, '1357');
-  const at = '2026-10-01T12:00:00.000Z';
-  await store.save(accountId, {id: 'whole', kind: 'document', note: '', updatedAt: at, frontDataUrl: shaped(1000, 1400)});
-  await store.save(accountId, {id: 'later', kind: 'document', note: '', updatedAt: '2026-09-01T12:00:00.000Z', frontDataUrl: shaped(1012, 638)});
-  let refused = '';
-  try { await store.save(accountId, {id: 'junk', kind: 'document', note: '', updatedAt: at, shape: 'gallery', frontDataUrl: shaped(10, 10)}); } catch (error) { refused = error.message; }
-  [...root.querySelectorAll('button')].find(button => button.textContent === '잠그기').click();
-  const form = await wait(() => root.querySelector('.wallet-unlock-form'), 'unlock form');
-  form.querySelector('input').value = '1357'; form.requestSubmit();
-  const deckFace = await wait(() => root.querySelector('[data-wallet-deck-card="whole"]'), 'deck');
-  await loaded(root);
-  const before = {shape: deckFace.dataset.shape, filters: [...root.querySelectorAll('[data-wallet-deck-filter]')].map(chip => chip.textContent)};
-  deckFace.click();
-  const detail = await wait(() => root.querySelector('.wallet-detail'), 'detail');
-  await loaded(detail);
-  const pressed = () => [...detail.querySelectorAll('[data-wallet-shape-choice]')].filter(choice => choice.getAttribute('aria-pressed') === 'true').map(choice => choice.dataset.walletShapeChoice).join(',');
-  const shown = pressed();
-  const zoom = [...detail.querySelectorAll('button')].find(button => button.textContent === '크게 보기'); zoom.click();
-  const zoomed = detail.querySelector('.wallet-detail-images').classList.contains('wallet-detail-zoomed') && zoom.getAttribute('aria-pressed') === 'true' && zoom.textContent === '맞춰 보기';
-  detail.querySelector('[data-wallet-shape-choice="card"]').click();
-  await wait(() => detail.querySelector('.wallet-detail-shape-status').textContent, 'shape saved');
-  const after = {pressed: pressed(), status: detail.querySelector('.wallet-detail-shape-status').textContent, facts: detail.querySelector('.wallet-detail-facts').textContent};
-  const saved = (await store.list(accountId)).map(card => ({id: card.id, shape: card.shape || '', updatedAt: card.updatedAt}));
-  [...detail.querySelectorAll('button')].find(button => button.textContent === '목록으로').click();
-  const back = await wait(() => root.querySelector('[data-wallet-deck-card="whole"][data-shape]'), 'deck again');
-  await loaded(root);
-  window.__result = JSON.stringify({ok: true, refused, before, shown, zoomed, after, saved, backShape: back.dataset.shape, backFront: root.querySelector('.wallet-deck-card[data-depth="0"]').dataset.walletDeckCard, backFilters: root.querySelector('.wallet-deck-filters').hidden});
-} catch (error) { window.__result = JSON.stringify({ok: false, error: String(error?.stack || error)}); }
+  const {mountLifeWallet,LifeWalletVault,IndexedDbWalletRepository,accountScope} = await import('/site-life-wallet.js?test=vertical-deck-integration');
+  const root=document.getElementById('host'); const accountId='vertical-deck-'+Date.now();
+  mountLifeWallet({root,authenticated:true,accountId});
+  const setup=await wait(()=>root.querySelector('form.wallet-pin-form:not(.wallet-unlock-form)'),'setup'); const inputs=setup.querySelectorAll('input'); inputs[0].value='1357'; inputs[1].value='1357'; setup.requestSubmit();
+  await wait(()=>[...root.querySelectorAll('button')].find(button=>button.textContent==='잠그기'),'open');
+  const store=new LifeWalletVault(new IndexedDbWalletRepository()); await store.unlock(accountId,'1357'); const at='2026-10-01T12:00:00.000Z';
+  await store.save(accountId,{id:'first',kind:'document',category:'identity',name:'첫 자료',note:'',updatedAt:at,frontDataUrl:shaped(1012,638)});
+  await store.save(accountId,{id:'second',kind:'document',category:'business-card',name:'둘째 자료',note:'',updatedAt:'2026-09-01T12:00:00.000Z',frontDataUrl:shaped(1012,638)});
+  const key='lotbi-life-wallet-view-v1:'+(await accountScope(accountId)); localStorage.setItem(key,JSON.stringify({filter:'business-card',selectedId:'second'}));
+  [...root.querySelectorAll('button')].find(button=>button.textContent==='잠그기').click(); const unlock=await wait(()=>root.querySelector('.wallet-unlock-form'),'unlock'); unlock.querySelector('input').value='1357'; unlock.requestSubmit();
+  const face=await wait(()=>root.querySelector('.wallet-deck-card[data-depth="0"]'),'restored deck'); await loaded(root);
+  const restored={front:face.dataset.walletDeckCard,filter:root.querySelector('[data-wallet-deck-filter][aria-pressed="true"]').dataset.walletDeckFilter};
+  const shell=root.querySelector('.wallet-shell'); const life=root.querySelector('.wallet-life-info'); const order={deckBeforeLife:Boolean(shell.querySelector('.wallet-deck-shell')?.compareDocumentPosition(life)&Node.DOCUMENT_POSITION_FOLLOWING),title:life.querySelector('.wallet-life-info-title')?.textContent||''};
+  face.click(); const detail=await wait(()=>root.querySelector('.wallet-detail'),'detail'); const labels=[...detail.querySelectorAll('[data-wallet-category-choice]')].map(button=>button.textContent); detail.querySelector('[data-wallet-category-choice="document"]').click(); await wait(()=>detail.querySelector('.wallet-detail-shape-status').textContent,'category save');
+  const saved=(await store.list(accountId)).find(card=>card.id==='second'); const categoryStatus=detail.querySelector('.wallet-detail-shape-status').textContent;
+  [...detail.querySelectorAll('button')].find(button=>button.textContent==='목록으로').click(); await wait(()=>root.querySelector('.wallet-deck-shell'),'back');
+  const add=[...root.querySelectorAll('button')].find(button=>button.textContent==='+ 자료 추가'); add.click(); const select=await wait(()=>root.querySelector('select'),'add select'); const options=[...select.options].map(option=>option.textContent);
+  window.__result=JSON.stringify({ok:true,restored,order,labels,savedCategory:saved.category,categoryStatus,options,viewState:JSON.parse(localStorage.getItem(key))});
+} catch(error){window.__result=JSON.stringify({ok:false,error:String(error?.stack||error)});}
 </script></body></html>`;
 
-const run = (fixtureHtml, viewport, name) => runFixturePage({root: ROOT, fixturePath: `/__life_wallet_card_deck_${name}.html`, fixtureHtml, viewport, timeoutMs: 600000, resultExpression: 'window.__result || ""'});
-
-const widths = [];
-for (const viewport of [{width: 1200, height: 900}, {width: 412, height: 900, mobile: true}, {width: 390, height: 844, mobile: true}, {width: 360, height: 800, mobile: true}]) {
-  const result = await run(deckFixture, viewport, `deck_${viewport.width}`);
-  assert.equal(result.ok, true, result.error);
-  const detail = `${viewport.width}px: ${JSON.stringify(result)}`;
-  const view = result.firstView;
-  assert.equal(view.count, 4, `every saved item is in the deck: ${detail}`);
-  assert.equal(view.frontId, 'one', `the newest item is in front: ${detail}`);
-  // The stack: three cards peek out above the front one, each higher, narrower and behind.
-  assert.equal(view.stack.length, 3, `three next cards peek out: ${detail}`);
-  view.stack.sort((left, right) => left.depth - right.depth);
-  for (const [order, card] of view.stack.entries()) {
-    assert.ok(card.top < -8 * (order + 1), `peeking card ${card.depth} shows its top edge above the front card: ${detail}`);
-    assert.ok(card.z < view.frontZ && card.width < 0.99 * (view.stack[order - 1]?.width ?? Infinity), `peeking card ${card.depth} sits behind and is smaller: ${detail}`);
-    assert.equal(card.visibleContent, 'visible', `a peeking card shows its own face: ${detail}`);
-  }
-  assert.ok(view.aboveShell >= -.5, `peeking cards stay inside the wallet (not over the toolbar): ${detail}`);
-  assert.equal(view.frontInside, true, `the front card is whole: ${detail}`);
-  assert.ok(Math.abs(view.cardAspect - 85.6 / 53.98) < .02, `one card size (ID-1) for every item: ${detail}`);
-  assert.equal(view.objectFit, 'contain', `pictures fit inside the card face, never cut: ${detail}`);
-  assert.equal(view.imageTransform, 'none', `no zoom crop: ${detail}`);
-  assert.equal(view.imageInside, true, `the picture stays inside its card: ${detail}`);
-  assert.equal(view.title, view.expectedTitle, `the front item's title is under the deck: ${detail}`);
-  assert.match(view.date, /^2026\.(?:09\.30|10\.0[12]) 등록$/u, `its save date: ${detail}`);
-  assert.equal(view.arrowButtons, 0, `moved by swipe like a phone wallet, no arrow buttons: ${detail}`);
-  assert.equal(view.dots, 4, `a dot per item: ${detail}`);
-  assert.equal(view.position, '1 / 4', detail);
-  assert.equal(view.touchAction, 'pan-y', `vertical scrolling stays with the page: ${detail}`);
-  // Shape only: 카드 for ID-like landscapes, 문서 otherwise; the owner's choice wins.
-  assert.deepEqual(view.shapes, {one: 'card', two: 'card', three: 'document', four: 'card'}, detail);
-  assert.deepEqual(view.measured, ['card', 'document', 'document', 'document', ''], detail);
-  assert.deepEqual(view.documentFace, {kind: '문서', thumbFit: 'contain'}, `a document card shows its first page small, uncut: ${detail}`);
-  assert.deepEqual(view.filters, ['전체 4*', '카드 3', '문서 1'], `a mixed wallet offers 전체·카드·문서: ${detail}`);
-  assert.deepEqual(result.documentFilter, {visible: ['three'], position: '1 / 1', dots: 0}, detail);
-  assert.deepEqual(result.cardFilter, {visible: ['one', 'two', 'four'], position: '1 / 3'}, `카드 keeps the deck order: ${detail}`);
-  assert.deepEqual(result.allFilter, {position: '1 / 4', front: 'one'}, `전체 keeps the card in front: ${detail}`);
-  assert.equal(result.dotPosition, '1 / 4', detail);
-  assert.equal(result.dragging, true, `a drag moves the front card: ${detail}`);
-  assert.deepEqual(result.drag, {position: '2 / 4', opened: '', front: 'two', settled: ''}, `a drag left brings the next card forward and opens nothing: ${detail}`);
-  assert.equal(result.shortDrag, '2 / 4', `a short drag settles back: ${detail}`);
-  assert.equal(result.keyRight, '3 / 4', detail);
-  assert.equal(result.keyLeft, '2 / 4', detail);
-  assert.deepEqual(result.peekTap, {position: '3 / 4', opened: ''}, `a tap on a peeking card brings it forward: ${detail}`);
-  assert.equal(result.frontTap, 'three,three', `a tap on the front card (or 보기) opens it: ${detail}`);
-  assert.deepEqual(result.singleView, {dots: 0, filters: false, singleClass: true}, `one item: no deck controls: ${detail}`);
-  assert.equal(result.cardsOnlyFilters, false, `cards only: no filters: ${detail}`);
-  assert.equal(result.overflow, false, `no sideways scrolling: ${detail}`);
-  widths.push(viewport.width);
+const run=(fixtureHtml,viewport,name)=>runFixturePage({root:ROOT,fixturePath:`/__life_wallet_vertical_deck_${name}.html`,fixtureHtml,viewport,timeoutMs:600000,resultExpression:'window.__result || ""'});
+const expectedFilters=['전체*','신분증','명함','증명서·문서','기타'];
+for(const viewport of [{width:1200,height:900},{width:412,height:900,mobile:true},{width:360,height:800,mobile:true}]){
+  const result=await run(deckFixture,viewport,`deck_${viewport.width}`); assert.equal(result.ok,true,result.error); const text=`${viewport.width}px ${JSON.stringify(result)}`;
+  assert.equal(result.first.front,'one',text); assert.equal(result.first.position,'1 / 5',text); assert.deepEqual(result.first.filters,expectedFilters,text);
+  assert.deepEqual(result.first.categories,{one:'identity',two:'business-card',three:'document',four:'other',five:'identity'},`legacy mapping: ${text}`);
+  assert.equal(result.first.stack.length,3,text); result.first.stack.forEach((card,index)=>{assert.ok(card.top<-24*(index+1),text); assert.ok(card.label,text); assert.ok(card.z<5,text);});
+  assert.equal(result.first.touchAction,'pan-x',text); assert.equal(result.first.imageTransform,'none',text); assert.equal(result.first.dots,5,text);
+  assert.deepEqual(result.wrapUp,{front:'five',position:'5 / 5',stack:3},text); assert.equal(result.wrapBack,'one',text);
+  assert.equal(result.dragging,true,text); assert.deepEqual(result.drag,{front:'two',position:'2 / 5',opened:''},text); assert.deepEqual(result.peek,{front:'three',opened:''},text);
+  assert.equal(result.lastToFirst,'one',text); assert.equal(result.firstToLast,'five',text);
+  assert.equal(result.business.front,'two',text); assert.equal(result.business.position,'1 / 1',text); assert.deepEqual(result.business.filters,['전체','신분증','명함*','증명서·문서','기타'],text);
+  assert.deepEqual(result.documentOnly,{front:'three',position:'1 / 1'},text); assert.deepEqual(result.emptyFilter,{empty:true,deckHidden:true,infoHidden:true},text);
+  assert.equal(result.deletedFront,'one',text); assert.equal(result.stored,true,text); assert.deepEqual(result.restored,{filter:'business-card',selectedId:'two'},text); assert.deepEqual(result.invalid,{filter:'all',selectedId:''},text);
+  assert.equal(result.overflow,false,text);
 }
 
-const detail = await run(detailFixture, {width: 390, height: 844, mobile: true}, 'detail');
-assert.equal(detail.ok, true, detail.error);
-{
-  const text = JSON.stringify(detail);
-  assert.equal(detail.refused, '자료 분류가 올바르지 않습니다.', `only 카드 or 문서 is stored: ${text}`);
-  assert.equal(detail.before.shape, 'document', `a whole portrait photo first counts as a document: ${text}`);
-  assert.deepEqual(detail.before.filters, ['전체 2', '카드 1', '문서 1'], text);
-  assert.equal(detail.shown, 'document', `the detail shows the measured 분류: ${text}`);
-  assert.equal(detail.zoomed, true, `크게 보기 toggles a larger view: ${text}`);
-  assert.deepEqual(detail.after, {pressed: 'card', status: '카드로 옮겼습니다.', facts: detail.after.facts}, text);
-  assert.match(detail.after.facts, /등록$/u, text);
-  assert.deepEqual(detail.saved, [{id: 'whole', shape: 'card', updatedAt: '2026-10-01T12:00:00.000Z'}, {id: 'later', shape: '', updatedAt: '2026-09-01T12:00:00.000Z'}], `saved with the item, save time (deck place) kept: ${text}`);
-  assert.equal(detail.backShape, 'card', `the deck follows the owner's choice: ${text}`);
-  assert.equal(detail.backFront, 'whole', text);
-  assert.equal(detail.backFilters, true, `now both are cards: no filters: ${text}`);
-}
-console.log(`LIFE_WALLET_CARD_DECK_01 PASS — deck at ${widths.join('/')}px, shape 카드/문서 + owner change saved encrypted`);
+const integration=await run(integrationFixture,{width:390,height:844,mobile:true},'integration'); assert.equal(integration.ok,true,integration.error); const integrationText=JSON.stringify(integration);
+assert.deepEqual(integration.restored,{front:'second',filter:'business-card'},integrationText);
+assert.deepEqual(integration.order,{deckBeforeLife:true,title:'생활정보'},integrationText);
+assert.deepEqual(integration.labels,['신분증','명함','증명서·문서','기타'],integrationText);
+assert.equal(integration.savedCategory,'document',integrationText); assert.equal(integration.categoryStatus,'증명서·문서로 옮겼습니다.',integrationText);
+assert.deepEqual(integration.options,['신분증','명함','증명서·문서','기타'],integrationText);
+assert.deepEqual(integration.viewState,{filter:'all',selectedId:'second'},`empty restored category safely falls back without losing the selected item: ${integrationText}`);
+console.log('LIFE_WALLET_VERTICAL_DECK_01 PASS — desktop/mobile, categories, vertical wrap, local restore, encrypted category');

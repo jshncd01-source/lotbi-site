@@ -717,7 +717,7 @@ function cornerRadiusEstimate(labels,label,corners,sides,width,height){
   return clamp((estimates[1]+estimates[2])/2*1.1/Math.max(1,short),0,.12);
 }
 
-function surfaceCandidate(component,labels,smooth,light,edges,width,height,threshold,{occluded=false}={}){
+function surfaceCandidate(component,labels,smooth,light,edges,width,height,threshold,{occluded=false,allowSmallCard=false}={}){
   const boundary=componentBoundary(labels,component,width,height);if(boundary.length<40)return {rejected:'small-contour',rectangularity:0};
   const rectangle=minimumAreaRectangle(convexHull(boundary));if(!rectangle)return {rejected:'no-rectangle',rectangularity:0};
   const rectangularity=component.count/Math.max(1,rectangle.area);
@@ -739,13 +739,16 @@ function surfaceCandidate(component,labels,smooth,light,edges,width,height,thres
   const metrics={areaRatio,fill,outside,coverage,straightness:straightness/fitted.tolerance,contrast,minimumContrast:Math.min(...contrasts),contrastToSurface:contrast/threshold,edgeSupport,shapeScore,rectangularity,angles:angles.map(value=>Math.round(value))};
   const fits=ordered.every(point=>point.x>=-width*.02&&point.y>=-height*.02&&point.x<=width*1.02&&point.y<=height*1.02);
   // An ID or business card shot from arm's length fills only a few percent of a phone photo;
-  // such a small region counts only when it is card-shaped (1.45 to 1.8 : 1).
+  // such a small region counts only when it is card-shaped (1.45 to 1.8 : 1). A scanned PDF
+  // may place one card on a much larger white page, so its lower limit is relaxed only for
+  // that caller. The print-row check below still rejects empty rectangles and decorations.
   const aspect=Math.max(lengths[0]+lengths[2],lengths[1]+lengths[3])/Math.max(1e-6,Math.min(lengths[0]+lengths[2],lengths[1]+lengths[3]));
+  const smallCard=allowSmallCard&&areaRatio>=.012&&aspect>=1.45&&aspect<=1.8;
   const gates=[
-    [(areaRatio>=.1||(areaRatio>=.04&&aspect>=1.45&&aspect<=1.8))&&areaRatio<=.93,'area'],
+    [(areaRatio>=.1||(areaRatio>=.04&&aspect>=1.45&&aspect<=1.8)||smallCard)&&areaRatio<=.93,'area'],
     [!nearSourceFrame(corners,width,height,areaRatio,{strict:true}),'source-frame'],
     [fits,'outside-image'],
-    [Math.min(...lengths)>=Math.min(width,height)*.18,'short-side'],
+    [Math.min(...lengths)>=Math.min(width,height)*(smallCard?.07:.18),'short-side'],
     [angles.every(value=>value>=60&&value<=120),'angles'],
     [fill>=(occluded?.8:.86)&&fill<=1.25,'fill'],
     [outside<=.08,'protrusion'],
@@ -795,12 +798,12 @@ function withoutFrameOccluder(component,labels,smooth,gradient,width,height){
 
 // Evaluate a region as a document; a region that reaches the photo edge and fails may be a
 // card with the holding hand attached, so evaluate it again without that hand.
-function evaluateRegion(component,labels,smooth,light,edges,width,height,threshold,gradientOf){
-  const direct={...surfaceCandidate(component,labels,smooth,light,edges,width,height,threshold),component};
+function evaluateRegion(component,labels,smooth,light,edges,width,height,threshold,gradientOf,{allowSmallCard=false}={}){
+  const direct={...surfaceCandidate(component,labels,smooth,light,edges,width,height,threshold,{allowSmallCard}),component};
   const touchesFrame=component.minimumX===0||component.minimumY===0||component.maximumX===width-1||component.maximumY===height-1;
   if(!direct.rejected||!touchesFrame)return direct;
   const trimmed=withoutFrameOccluder(component,labels,smooth,gradientOf(),width,height);if(!trimmed)return direct;
-  const held=surfaceCandidate(trimmed.component,trimmed.labels,smooth,light,edges,width,height,threshold,{occluded:true});
+  const held=surfaceCandidate(trimmed.component,trimmed.labels,smooth,light,edges,width,height,threshold,{occluded:true,allowSmallCard});
   if(held.rejected)return direct;
   held.metrics.occluder=trimmed.occluderRatio;
   return {...held,component,labels:trimmed.labels,heldComponent:trimmed.component};
@@ -835,11 +838,11 @@ function splitHolderRegion(component,labels,smooth,light,edges,width,height,thre
   return candidates.sort((left,right)=>right.area-left.area);
 }
 
-function surfaceCandidates(smooth,light,edges,width,height,domain,{adaptive=false}={}){
+function surfaceCandidates(smooth,light,edges,width,height,domain,{adaptive=false,allowSmallCard=false}={}){
   const flood=floodSurface(smooth,width,height,domain,{adaptive});if(!flood)return {flood:null,valid:[],evaluated:[],adaptive};
-  const {labels,components}=labelComponents(flood.foreground,width,height,Math.max(60,width*height*.03));
+  const {labels,components}=labelComponents(flood.foreground,width,height,Math.max(60,width*height*(allowSmallCard?.008:.03)));
   let gradient=null;const gradientOf=()=>gradient??=gradientMagnitude(smooth,width,height);
-  const evaluated=components.sort((left,right)=>right.count-left.count).slice(0,6).map(component=>domain?{...surfaceCandidate(component,labels,smooth,light,edges,width,height,flood.threshold),component}:evaluateRegion(component,labels,smooth,light,edges,width,height,flood.threshold,gradientOf));
+  const evaluated=components.sort((left,right)=>right.count-left.count).slice(0,6).map(component=>domain?{...surfaceCandidate(component,labels,smooth,light,edges,width,height,flood.threshold,{allowSmallCard}),component}:evaluateRegion(component,labels,smooth,light,edges,width,height,flood.threshold,gradientOf,{allowSmallCard}));
   return {flood,labels,evaluated,adaptive,valid:evaluated.filter(candidate=>!candidate.rejected).sort((left,right)=>right.area-left.area)};
 }
 
@@ -890,17 +893,17 @@ function fullPageDocument(smooth,light,width,height){
 }
 
 // Strict surface model first; illumination adaptation only when it finds no document.
-function surfaceLevel(smooth,light,edges,width,height,domain){
-  const strict=surfaceCandidates(smooth,light,edges,width,height,domain);
+function surfaceLevel(smooth,light,edges,width,height,domain,{allowSmallCard=false}={}){
+  const strict=surfaceCandidates(smooth,light,edges,width,height,domain,{allowSmallCard});
   if(strict.valid.length||!strict.flood)return strict;
-  const adapted=surfaceCandidates(smooth,light,edges,width,height,domain,{adaptive:true});
+  const adapted=surfaceCandidates(smooth,light,edges,width,height,domain,{adaptive:true,allowSmallCard});
   return adapted.valid.length?adapted:{...strict,contentRatioAdapted:adapted.flood?.contentRatio};
 }
 
-function borderSurfaceDetection(working,edges){
+function borderSurfaceDetection(working,edges,{allowSmallCard=false}={}){
   const {width,height}=working;
   const smooth=smoothColor(working.color,width,height,2,2);const light=smoothColor(working.color,width,height,1,1);
-  const level=surfaceLevel(smooth,light,edges,width,height,null);
+  const level=surfaceLevel(smooth,light,edges,width,height,null,{allowSmallCard});
   let gradient=null;const gradientOf=()=>gradient??=gradientMagnitude(smooth,width,height);
   const summary={floodThreshold:level.flood?Number(level.flood.threshold.toFixed(1)):null,floodMode:level.adaptive?'adaptive':'strict',calmGradient:level.flood?Number(level.flood.calm.toFixed(2)):null,foregroundRegions:level.evaluated.length,surfaceCandidates:level.valid.length,rejected:level.evaluated.filter(candidate=>candidate.rejected).slice(0,4).map(candidate=>`${candidate.rejected}:${(candidate.component.count/(width*height)).toFixed(2)}`)};
   const result={background:level.flood?.background||null,labels:level.labels||null,components:level.evaluated.map(candidate=>({...candidate.component,rejected:candidate.rejected||null})),summary,smooth,light};
@@ -1019,13 +1022,46 @@ function textRows(working,marks,corners,downward=false,tallest=.05){
     }
   }
   const rows=new Map();
-  glyphs.forEach((glyph,index)=>{const key=root(index);const row=rows.get(key)||{count:0,left:Infinity,right:-Infinity,heights:[],spans:[]};row.count+=1;row.left=Math.min(row.left,glyph.left);row.right=Math.max(row.right,glyph.right);row.heights.push(glyph.tall);row.spans.push([glyph.left,glyph.right]);rows.set(key,row)});
+  glyphs.forEach((glyph,index)=>{const key=root(index);const row=rows.get(key)||{count:0,left:Infinity,right:-Infinity,top:Infinity,bottom:-Infinity,heights:[],spans:[]};row.count+=1;row.left=Math.min(row.left,glyph.left);row.right=Math.max(row.right,glyph.right);row.top=Math.min(row.top,glyph.middle-glyph.tall/2);row.bottom=Math.max(row.bottom,glyph.middle+glyph.tall/2);row.heights.push(glyph.tall);row.spans.push([glyph.left,glyph.right]);rows.set(key,row)});
   const lines=[...rows.values()].filter(row=>{row.heights.sort((first,second)=>first-second);return row.count>=5&&row.right-row.left>=6*row.heights[Math.floor(row.heights.length/2)]&&!madePattern(row.spans)});
-  return {lines:lines.length,starts:lines.map(row=>row.left),ends:lines.map(row=>row.right)};
+  const bounds=lines.length?{left:Math.min(...lines.map(row=>row.left)),right:Math.max(...lines.map(row=>row.right)),top:Math.min(...lines.map(row=>row.top)),bottom:Math.max(...lines.map(row=>row.bottom))}:null;
+  return {lines:lines.length,starts:lines.map(row=>row.left),ends:lines.map(row=>row.right),bounds};
 }
 
 function textLines(working,marks,corners){
   return textRows(working,marks,corners).lines;
+}
+
+// A certificate photographed in an open folder can fill one half of the image and run out at
+// the top, bottom and outer frame, leaving only its inner edge visible. Four-corner surface
+// detection correctly refuses that geometry. When several real print rows occupy one side and
+// a dark full-height folder spine separates it from the blank cover, the spine plus image frame
+// define the page safely without asking the customer to place corners by hand.
+function frameEdgePrintedPage(working,marks,surface){
+  const {width,height}=working;const rows=textRows(working,marks,null);const bounds=rows.bounds;
+  if(rows.lines<6||!bounds||bounds.right-bounds.left<width*.2||bounds.bottom-bounds.top<height*.2)return null;
+  const middle=(bounds.left+bounds.right)/2;const side=middle>width*.6?'right':middle<width*.4?'left':'';if(!side)return null;
+  const smooth=surface.smooth;const tone=(x,y)=>{const index=(y*width+x)*3;return smooth[index]*.299+smooth[index+1]*.587+smooth[index+2]*.114};
+  const mean=x=>{let total=0;let count=0;for(let y=0;y<height;y+=2){total+=tone(x,y);count+=1}return total/Math.max(1,count)};
+  const from=side==='right'?Math.round(width*.15):Math.max(2,Math.round(bounds.right+width*.03));
+  const to=side==='right'?Math.min(width-3,Math.round(bounds.left-width*.03)):Math.round(width*.85);
+  if(to-from<width*.08)return null;
+  let separator=-1;let darkest=Infinity;for(let x=from;x<=to;x+=1){const value=mean(x);if(value<darkest){darkest=value;separator=x}}
+  if(separator<0||darkest>105)return null;
+  let boundary=separator;const limit=Math.round(width*.1);
+  if(side==='right')for(let step=0;step<limit&&boundary<width-2;step+=1,boundary+=1){if(mean(boundary)>135)break}
+  else for(let step=0;step<limit&&boundary>1;step+=1,boundary-=1){if(mean(boundary)>135)break}
+  const left=side==='right'?boundary:0;const right=side==='right'?width-1:boundary;
+  const pageShare=(right-left+1)/width;if(pageShare<.35||pageShare>.65)return null;
+  const rowMean=y=>{let total=0;let count=0;for(let x=left;x<=right;x+=2){total+=tone(x,y);count+=1}return total/Math.max(1,count)};
+  let top=0;let bottom=height-1;const verticalLimit=Math.round(height*.12);
+  while(top<verticalLimit&&rowMean(top)<125)top+=1;
+  while(bottom>height-1-verticalLimit&&rowMean(bottom)<125)bottom-=1;
+  if(bottom-top<height*.75)return null;
+  let paper=0;let samples=0;for(let y=top;y<=bottom;y+=4)for(let x=left;x<=right;x+=4){const index=(y*width+x)*3;const red=smooth[index];const green=smooth[index+1];const blue=smooth[index+2];samples+=1;if(red*.299+green*.587+blue*.114>=120&&Math.max(red,green,blue)-Math.min(red,green,blue)<=45)paper+=1}
+  if(paper<samples*.45)return null;
+  const corners={topLeft:{x:left,y:top},topRight:{x:right,y:top},bottomRight:{x:right,y:bottom},bottomLeft:{x:left,y:bottom}};const area=(right-left+1)*(bottom-top+1);
+  return {corners,confidence:.84,areaRatio:area/(width*height),area,source:'frame-edge-page',metrics:{areaRatio:area/(width*height),cornerRadius:0,frameEdge:side,printLines:rows.lines}};
 }
 
 // Inside a found card, rows may run either way: a card photographed on its side still reads
@@ -1175,7 +1211,7 @@ export function framesPrintedItem(imageData,corners){
 // squared up from it, where thin lettering is still crisp; on the shrunken copy fine print of
 // a card that is small in a phone photo blurs below the ink threshold.
 // allowLong: a router label (LIFE-WALLET-WIFI-CARD-01) may be longer than a receipt-like 1.85:1.
-export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale = 1, detail = null, allowLong = false} = {}) {
+export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale = 1, detail = null, allowLong = false, allowSmallCard = false} = {}) {
   if (!imageData || !Number.isInteger(imageData.width) || !Number.isInteger(imageData.height) || !imageData.data) throw new TypeError('Valid image data is required.');
   const working = workingGray(imageData, maximumEdge);
   const blurred=boxBlur(working.gray,working.width,working.height);
@@ -1184,7 +1220,7 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale
   // The border-connected surface model decides whenever it sees exactly one document;
   // it vetoes crops when several documents compete and defers to the edge/patch
   // pipeline only for frame-like regions (photo of a mat) or when it found nothing.
-  const surface=borderSurfaceDetection(working,combined);
+  const surface=borderSurfaceDetection(working,combined,{allowSmallCard});
   let legacy=null;let reason='automatic-detection-uncertain';let legacyConfidence=0;
   if(surface.status==='nested'||surface.status==='none'){
     const selection=edgeAndPatchSelection(working,blurred,combined);
@@ -1197,7 +1233,7 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale
   else if(surface.status==='none'&&legacy&&surfaceConsistent(surface,legacy.corners,working.width,working.height))chosen=legacy;
   // A card filling only a few percent of the photo (shot from arm's length) is cropped only
   // when the original photo still holds it at a legible size.
-  if(chosen&&chosen.source!=='full-page'&&(chosen.areaRatio??1)<.1&&quadSides(chosen.corners).short/working.scale/sourceScale<300){chosen=null;reason='automatic-detection-uncertain'}
+  if(chosen&&chosen.source!=='full-page'&&(chosen.areaRatio??1)<.1&&quadSides(chosen.corners).short/working.scale/sourceScale<(allowSmallCard?140:300)){chosen=null;reason='automatic-detection-uncertain'}
   // Wallet items are IDs, licences, cards and documents: they carry printed rows of text. A
   // photo with hardly any (a pet, a person, a room) is not cropped, and the scanner refuses it.
   const marks=printMarks(working,surface.smooth,surface.light);
@@ -1223,6 +1259,10 @@ export function detectDocumentCorners(imageData, {maximumEdge = 720, sourceScale
   // Nothing found, but the picture may itself be the card: a business card or ID saved as an
   // image file or a flat scan (its photo block or logo is no card of its own). Never for a
   // photo already refused as not a document or as a receipt.
+  if(!chosen&&['automatic-detection-uncertain','competing-documents','competing-boundaries'].includes(reason)){
+    const edgePage=frameEdgePrintedPage(working,marks,surface);const edgeRows=rowsOf(edgePage);
+    if(edgePage&&edgeRows>=6){chosen=edgePage;card=false;chosenLines=edgeRows;reason='document-quadrilateral'}
+  }
   if(!chosen&&['automatic-detection-uncertain','competing-documents','competing-boundaries'].includes(reason)){
     const frame=fullFrameCard(surface,working,marks);const rows=rowsOf(frame);
     if(frame&&rows>=MINIMUM_TEXT_LINES){chosen=frame;card=true;chosenLines=rows;reason='document-quadrilateral'}

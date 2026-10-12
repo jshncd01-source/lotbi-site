@@ -108,11 +108,7 @@ try {
   document.getElementById('host').replaceChildren(noteScanner.element);
   await wait(() => noteScanner.element.dataset.scanState === 'review', 'uncertain print review state');
   const noteConfirm = noteScanner.element.querySelector('[data-wallet-scan-confirm]');
-  const press = async (corner, key, times) => { const handle = noteScanner.element.querySelector('.wallet-scan-handle[data-corner="' + corner + '"]'); for (let step = 0; step < times; step += 1) handle.dispatchEvent(new KeyboardEvent('keydown', {key, shiftKey: true, bubbles: true})); await sleep(400); await wait(() => noteScanner.element.dataset.scanState === 'review', 'review after adjusting'); };
-  const manualView = {mode: noteScanner.element.dataset.scanMode, initialConfirm: !noteConfirm.disabled, initialHeading: noteScanner.element.querySelector('h3').textContent, initialStatus: noteScanner.element.querySelector('.wallet-scan-status').textContent, initialWarnings: noteScanner.element.querySelector('.wallet-scan-warnings').textContent};
-  await press('topLeft', 'ArrowRight', 1); manualView.framingConfirm = !noteConfirm.disabled;
-  await press('bottomRight', 'ArrowUp', 30); await press('bottomRight', 'ArrowLeft', 30);
-  manualView.blankConfirm = !noteConfirm.disabled; manualView.blankStatus = noteScanner.element.querySelector('.wallet-scan-status').textContent;
+  const manualView = {mode: noteScanner.element.dataset.scanMode, initialConfirm: !noteConfirm.disabled, initialHeading: noteScanner.element.querySelector('h3').textContent, initialStatus: noteScanner.element.querySelector('.wallet-scan-status').textContent, initialWarnings: noteScanner.element.querySelector('.wallet-scan-warnings').textContent, adjustHidden: noteScanner.element.querySelector('[data-wallet-scan-adjust]').getClientRects().length === 0, rotateHidden: noteScanner.element.querySelector('[data-wallet-scan-rotate]').getClientRects().length === 0, visibleText: noteScanner.element.innerText};
   noteScanner.destroy(); globalThis.createImageBitmap = nativeBitmap;
   // A card photographed on its side comes out upright (landscape, photo on the left), and the
   // 회전 button turns the result a quarter.
@@ -123,11 +119,7 @@ try {
   await wait(() => sideScanner.element.dataset.scanState === 'review', 'sideways review state');
   const sidePreview = sideScanner.element.querySelector('.wallet-scan-result-image'); await sidePreview.decode();
   const sideTones = (() => { const c = document.createElement('canvas'); c.width = sidePreview.naturalWidth; c.height = sidePreview.naturalHeight; const x = c.getContext('2d', {willReadFrequently: true}); x.drawImage(sidePreview, 0, 0); const band = (from, to) => { const d = x.getImageData(Math.round(c.width * from), Math.round(c.height * .3), Math.max(1, Math.round(c.width * (to - from))), Math.round(c.height * .4)).data; let sum = 0; for (let o = 0; o < d.length; o += 4) sum += d[o] * .299 + d[o + 1] * .587 + d[o + 2] * .114; return sum / (d.length / 4); }; return {photoSide: band(.08, .28), textSide: band(.7, .9)}; })();
-  const sideView = {mode: sideScanner.element.dataset.scanMode, rotation: sideScanner.element.dataset.scanRotation, width: sidePreview.naturalWidth, height: sidePreview.naturalHeight, ...sideTones};
-  sideScanner.element.querySelector('[data-wallet-scan-rotate]').click();
-  await wait(() => sideScanner.element.dataset.scanRotation !== sideView.rotation && sideScanner.element.dataset.scanState === 'review', 'rotated review');
-  await sleep(300); await sidePreview.decode();
-  sideView.turnedRotation = sideScanner.element.dataset.scanRotation; sideView.turnedPortrait = sidePreview.naturalHeight > sidePreview.naturalWidth;
+  const sideView = {mode: sideScanner.element.dataset.scanMode, rotation: sideScanner.element.dataset.scanRotation, width: sidePreview.naturalWidth, height: sidePreview.naturalHeight, rotateHidden: sideScanner.element.querySelector('[data-wallet-scan-rotate]').getClientRects().length === 0, ...sideTones};
   sideScanner.destroy(); globalThis.createImageBitmap = nativeBitmap;
   // A phone photo stored as 9000x6000 pixels with EXIF orientation 6 is a 6000x9000 portrait;
   // the bounded decode size must follow the rotated frame or the page is squashed.
@@ -189,23 +181,20 @@ assert.equal(result.ok, true, result.error);
   assert.equal(petView.adjustHidden, true, 'no manual adjustment for a pet photo');
   assert.equal(petView.heading, '등록할 수 없는 사진입니다', `refused photo heading: ${JSON.stringify(petView)}`);
   assert.equal(petView.warnings, '', 'no photo-quality advice for a refused photo');
-  assert.equal(manualView.mode, 'manual', `the uncertain print scene must need manual corners: ${JSON.stringify(manualView)}`);
-  assert.equal(manualView.initialConfirm, false, 'save stays off until corners are placed');
+  assert.equal(manualView.mode, 'manual', `the uncertain print scene must be refused safely: ${JSON.stringify(manualView)}`);
+  assert.equal(manualView.initialConfirm, false, 'save stays off when automatic correction is uncertain');
   assert.equal(manualView.initialHeading, '자료를 찾지 못했습니다', `not-found heading: ${JSON.stringify(manualView)}`);
-  // LIFE-WALLET-SCAN-COPY-UNIFY-01: every item is a 자료; the guidance says what to do (whole item
-  // in the frame) and never asks for an ID in particular.
-  assert.ok(manualView.initialStatus.includes('네 모서리가 모두 화면 안에 들어오게'), `not-found guidance: ${manualView.initialStatus}`);
-  assert.ok(!manualView.initialStatus.includes('신분증') && !manualView.blankStatus.includes('신분증'), `no ID-specific wording: ${manualView.initialStatus} / ${manualView.blankStatus}`);
+  assert.ok(manualView.initialStatus.includes('자료가 화면 안에 모두 들어오도록'), `not-found guidance: ${manualView.initialStatus}`);
+  assert.ok(!manualView.initialStatus.includes('신분증'), `no ID-specific wording: ${manualView.initialStatus}`);
   assert.equal(manualView.initialWarnings, '', 'no photo-quality advice before an item is found');
-  assert.equal(manualView.framingConfirm, true, `corners framing the print must allow saving: ${JSON.stringify(manualView)}`);
-  assert.equal(manualView.blankConfirm, false, `corners framing no print must not allow saving: ${JSON.stringify(manualView)}`);
-  assert.ok(manualView.blankStatus.includes('모서리 안에 자료가 보이지 않습니다'), `blank-crop message: ${manualView.blankStatus}`);
+  assert.equal(manualView.adjustHidden, true, 'wallet customers must not receive corner adjustment');
+  assert.equal(manualView.rotateHidden, true, 'wallet customers must not receive manual rotation');
+  assert.ok(!manualView.visibleText.includes('직접 조정'), 'failure view must not mention manual adjustment');
   assert.equal(sideView.mode, 'automatic', `a card on its side must be cropped: ${JSON.stringify(sideView)}`);
   assert.equal(sideView.rotation, '270', `a clockwise-lying card is turned back: ${JSON.stringify(sideView)}`);
   assert.ok(sideView.width > sideView.height, `the card comes out landscape: ${JSON.stringify(sideView)}`);
   assert.ok(sideView.photoSide < sideView.textSide - 15, `the card comes out upright (photo on the left): ${JSON.stringify(sideView)}`);
-  assert.equal(sideView.turnedRotation, '0', 'the rotate button turns a quarter (270 → 0)');
-  assert.equal(sideView.turnedPortrait, true, 'after a quarter turn the result is portrait');
-  assert.equal(ambiguous.confirmEnabled, false, 'ambiguous scenes keep save disabled until the user adjusts corners');
+  assert.equal(sideView.rotateHidden, true, 'automatic orientation does not expose a rotate control');
+  assert.equal(ambiguous.confirmEnabled, false, 'ambiguous scenes keep save disabled');
   console.log(`LIFE_WALLET_DOCUMENT_SCAN_UI_02 PASS — aspect=${automatic.aspect.toFixed(3)} edge_surface=${automatic.edgeSurfaceRatio.toFixed(3)} ambiguous=${ambiguous.reason}`);
 }

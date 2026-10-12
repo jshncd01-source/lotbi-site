@@ -12,6 +12,33 @@
   color: var(--lotbi-text-primary, #202634);
 }
 
+.person-photo-form .person-bulk {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 16px 18px;
+  border-color: color-mix(in srgb, var(--lotbi-link-primary, #2563eb) 20%, var(--lotbi-border-default, #e2e6ee));
+  background: var(--lotbi-surface-primary, #fff);
+}
+
+.person-photo-form .person-bulk-title,
+.person-photo-form .person-bulk-warning,
+.person-photo-form .person-bulk-angles,
+.person-photo-form .person-bulk-note,
+.person-photo-form .person-bulk-status,
+.person-photo-form .person-bulk-bar,
+.person-photo-form .person-bulk-alert,
+.person-photo-form .person-bulk-notices,
+.person-photo-form .person-bulk-result {
+  grid-column: 1;
+}
+
+.person-photo-form .person-bulk-pick {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  min-width: 250px;
+  justify-self: end;
+}
+
 .person-bulk-title {
   margin: 0;
   font-size: 16px;
@@ -239,6 +266,20 @@
 @media (max-width: 640px) {
   .person-bulk {
     padding: 12px;
+  }
+
+  .person-photo-form .person-bulk {
+    grid-template-columns: 1fr;
+  }
+
+  .person-photo-form .person-bulk > * {
+    grid-column: 1;
+  }
+
+  .person-photo-form .person-bulk-pick {
+    grid-row: auto;
+    min-width: 0;
+    justify-self: stretch;
   }
 
   .person-bulk-pick {
