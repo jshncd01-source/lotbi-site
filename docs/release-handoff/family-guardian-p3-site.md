@@ -2,6 +2,17 @@ READY_FOR_DEPLOY=YES
 
 # 가족 지킴이 ③ 실종 신고·관리자 열람 — Site 화면 확인용 후보
 
+## 2026-10-13 Trusted Gate 사진 카드 계약 수정 재READY — 현행
+
+- `READY_FOR_DEPLOY=YES`, `FULL_FUNCTIONAL_COMPLETE=NO`, `PRODUCTION_VERIFIED=NO`. 실패 release 후보 `b564ce94e84968f79e0a254218a3d7c6d0c8b05f`는 배포 금지 상태로 유지한다.
+- Gate 실패 `validate_safecare_photo_upload_fix_03.mjs:172`를 동일 branch에서 재현했다. 승인된 compact 5장 카드가 안내 문구를 렌더링하지 않도록 바뀌면서 기존 DOM 계약이 요구한 `hint`·`visible` 노드까지 누락된 것이 원인이었다.
+- 확정 화면을 바꾸지 않고 `site-person-ui.js`에서 두 안내 노드를 DOM에 보존한 뒤 compact 카드에서는 `hidden`으로 처리했다. 검사기를 삭제·skip·완화하지 않았고 실패 검사는 단독 PASS다.
+- 관련 회귀에서 과거 필수 10장 구조를 전제로 4·5번째 사진을 옆면으로 고정한 `validate_safecare_profile_slot_acceptance_01.mjs`의 오래된 순서 계약도 확인했다. 사용자 확정 기준대로 필수 5장 `정면·좌45도·우45도·상반신·전신`과 선택 옆면 순서를 각각 검사하도록 강화했고, 360·375·390·412·1440 전부 PASS다.
+- 사진 회귀 PASS: 사람 intake gate, 사람 개인정보/CRUD, 반려동물 5장, 사람 일괄 사진 360·390·412·1440, 사진 쉬운 등록 360·1280, 촬영 예시 자산, 발견 제보 intake, 실제 사용자 사람 등록 계약.
+- 가족 회귀 PASS: 등록번호·부분 수정 계약, 신고 동의·접수번호 계약, 사람 취소·재개·삭제 보호와 light/dark/system-dark, Chrome 360/1280 light/dark/system/bootstrap 18조합. 확정 UI·문구·가상 예시→실제 등록 사진 전환·`#F6F7F9` 배경은 변경하지 않았다.
+- 자산 캐시는 `aset-c0fbcdd9de51`로 write/check PASS(`targets=172`, `refs=211`). 기준 Ncloud main은 `dadd05173089242d4dc56f795ad1dadd59b967f0`; 최종 exact HEAD/readback은 배포총괄 인계에 기록한다.
+- main 병합·Production 배포·운영 E2E는 수행하지 않았다. 운영 E2E: 배포 후 배포방:
+
 ## 2026-10-13 최신 Site main 재통합 재READY — 현행
 
 - `READY_FOR_DEPLOY=YES`, `FULL_FUNCTIONAL_COMPLETE=NO`, `PRODUCTION_VERIFIED=NO`.

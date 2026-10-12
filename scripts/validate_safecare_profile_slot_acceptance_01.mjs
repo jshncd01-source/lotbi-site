@@ -236,6 +236,7 @@ try {
         await __until(() => document.querySelector('[data-person-slot-grid]'));
         const tiles = () => [...document.querySelectorAll('[data-person-slot]')];
         const labels = tiles().map(tile => tile.querySelector('.safecare-slot-label').textContent);
+        const codes = tiles().map(tile => tile.dataset.personSlot);
         const side = tiles().filter(item => ['FACE_LEFT_PROFILE', 'FACE_RIGHT_PROFILE'].includes(item.dataset.personSlot));
         const sideControls = side.reduce((sum, item) => sum + item.querySelectorAll('button, input').length, 0);
         globalThis.__refuse = ${JSON.stringify(reason)};
@@ -245,7 +246,7 @@ try {
         const message = row.querySelector('[data-person-bulk-message]');
         const box = document.querySelector('[data-person-bulk]').getBoundingClientRect(), text = message.getBoundingClientRect();
         return {
-          labels, sideControls, text: message.textContent, state: row.dataset.personBulkState, overflow: __overflow(),
+          labels, codes, sideControls, text: message.textContent, state: row.dataset.personBulkState, overflow: __overflow(),
           inside: text.left >= box.left - 1 && text.right <= box.right + 1 && text.width > 0 && text.height > 0,
           errorWidth: Math.round(text.width), panelWidth: Math.round(box.width),
           sideEmpty: side.map(item => item.dataset.safecareSlotFilled),
@@ -254,7 +255,9 @@ try {
         };
       `);
       const where = `${label} ${reason}`;
-      assert.deepEqual(r.labels.slice(3, 5), ['왼쪽 옆면', '오른쪽 옆면'], `${where}: slot 4/5 order`);
+      assert.deepEqual(r.codes.slice(0, 5), ['FACE_FRONT', 'FACE_LEFT_45', 'FACE_RIGHT_45', 'UPPER_BODY_FRONT', 'FULL_BODY_FRONT'], `${where}: approved five required slots`);
+      assert.deepEqual(r.codes.slice(5, 7), ['FACE_LEFT_PROFILE', 'FACE_RIGHT_PROFILE'], `${where}: optional profile slot order`);
+      assert.deepEqual(r.labels.slice(0, 5), ['얼굴 사진', '얼굴 사진', '얼굴 사진', '상반신 사진', '전신 사진'], `${where}: approved five labels`);
       assert.equal(r.sideControls, 0, `${where}: the side tiles are examples without a picker`);
       assert.equal(r.state, 'REFUSED', where);
       assert.match(r.text, pattern, where);
