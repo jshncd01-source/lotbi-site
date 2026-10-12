@@ -1400,15 +1400,16 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
   if (!userId || !sessionId || !installationId || !isNormalSiteAssurance(session.assurance_level)) {
     throw new SiteCoreError('LOTBI 사용자 정보 응답이 올바르지 않습니다.', {code: 'SITE_IDENTITY_CONTRACT_INVALID'});
   }
+  const chatBubbleColor = typeof user.chat_bubble_color === 'string' && /^#[0-9a-f]{6}$/iu.test(user.chat_bubble_color)
+    ? user.chat_bubble_color.toLowerCase()
+    : null;
   return Object.freeze({
     userId,
     ...userFacingIdentity(user),
     sessionId,
     installationId,
     expiresAt: typeof session.expires_at === 'string' ? session.expires_at : '',
-    chatBubbleColor: typeof user.chat_bubble_color === 'string' && /^#[0-9a-f]{6}$/iu.test(user.chat_bubble_color)
-      ? user.chat_bubble_color.toLowerCase()
-      : null,
+    ...(chatBubbleColor ? {chatBubbleColor} : {}),
   });
 }
 
