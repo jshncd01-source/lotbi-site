@@ -232,10 +232,10 @@ try {
   fs.rmSync(INNER, {force: true});
 }
 
-// The menu 대표 asked for is #250's and this must not have disturbed it.
+// Screen-mode synchronization must not disturb the approved compact profile menu.
 assert.deepEqual(
-  report.labels, ['프로필', '개인테마', '설정', '연결 서비스', '도움말', '로그아웃'],
-  '메뉴는 대표가 지시한 여섯 항목 그대로여야 합니다',
+  report.labels, ['프로필 관리', '설정', '로그아웃'],
+  '메뉴는 승인된 세 항목 그대로여야 합니다',
 );
 // '자동모드' is stored as the preference, and what paints is the resolved state.
 assert.equal(report.auto.preference, 'auto', '선택한 preference 는 자동으로 남아야 합니다');

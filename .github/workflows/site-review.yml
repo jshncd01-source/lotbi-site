@@ -64,6 +64,9 @@ jobs:
       - name: Validate UI/UX Phase 1 contracts
         run: node scripts/validate_uiux_phase1_01.mjs
 
+      - name: 홈 즐겨찾기 기본 진입·편집·렌더링 확인
+        run: node scripts/validate_home_favorites_01.mjs
+
       - name: Validate footer business information is identical across pages
         run: python scripts/sync_footer_business_info.py --check
 
@@ -111,6 +114,9 @@ jobs:
       - name: Validate same-page profile menu runtime
         run: node scripts/validate_profile_menu_improvement_01.mjs
 
+      - name: Validate approved compact profile popover
+        run: node scripts/validate_profile_compact_popover_01.mjs
+
       # The account row is now the only profile entry point. Guard the removals
       # and, more importantly, that every item it absorbed is still reachable.
       # 계정 전역 식별자는 계정 페이지가 주인입니다. 프로필 화면에서는 빼되,
@@ -121,9 +127,9 @@ jobs:
       - name: Validate single profile entry point
         run: node scripts/validate_single_profile_entry_01.mjs
 
-      # 프로필 메뉴는 여섯 항목 그대로여야 하고, 개인테마 창에는 테마만,
-      # 프로필 창에는 계정 관리 버튼이 없어야 한다.
-      - name: Validate 개인테마 profile menu
+      # 승인된 프로필 팝업은 프로필 관리·설정·로그아웃 세 항목만 유지하고,
+      # 기존 계정 사진 저장 계약은 그대로 보존한다.
+      - name: Validate compact profile menu and account photo
         run: node scripts/validate_profile_menu_personal_theme_01.mjs
 
       # 프로필 사진은 계정 데이터 — Core에 저장되고 Account·Site·App이 같은
