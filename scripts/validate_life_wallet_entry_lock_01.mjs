@@ -82,10 +82,11 @@ await simplifiedWallet.save('simplified-add-account', {
 const [simplifiedCard] = await simplifiedWallet.list('simplified-add-account');
 assert.equal(simplifiedCard.name, '증명서', 'the selected kind must provide the stored display name');
 assert.equal(simplifiedCard.backDataUrl, '', 'the single-photo flow must preserve an empty legacy back image');
-// The add form no longer asks for a kind; new items are neutral 'document' items and the
-// older kinds stay readable.
-assert.ok(!/field\('자료 종류'/u.test(walletSource), 'the add form must not ask for a document kind');
-assert.match(walletSource, /kind: 'document', note: note\.value/u, 'new items are saved with the neutral document kind');
+// The owner selects the label for a new item. This is metadata only: the picker
+// still owns image confirmation, and existing encrypted items remain readable.
+assert.match(walletSource, /field\('자료 종류', kind\)/u, 'the add form must expose the existing kind choices');
+assert.match(walletSource, /kind: kind\.value, note: note\.value/u, 'new items must preserve the owner-selected kind');
+assert.match(walletSource, /\['identity', '신분·자격 자료'\].*\['membership', '회원증'\].*\['certificate', '증명서'\]/su, 'the restored choices must include identity, membership, and certificate');
 await simplifiedWallet.save('simplified-add-account', {
   id: 'neutral-document', kind: 'document', note: '',
   frontDataUrl: 'data:image/png;base64,AA==', updatedAt: '2026-10-07T00:00:00.000Z',

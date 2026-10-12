@@ -1,7 +1,7 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-b3fb2b84997d';
-import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-b3fb2b84997d';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-b3fb2b84997d';
-import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-b3fb2b84997d';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-51fb659da232';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-51fb659da232';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-51fb659da232';
+import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-51fb659da232';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -1318,7 +1318,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-b3fb2b84997d') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-51fb659da232') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;
@@ -1657,6 +1657,14 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const form = element('form', 'wallet-editor'); const status = errorRegion();
     form.dataset.walletView = 'add';
     pickerOpen = false;
+    // This is owner-selected encrypted metadata. It neither inspects the image nor
+    // changes an existing item, PIN, device key, or backup envelope.
+    const kind = element('select');
+    for (const [value, label] of CARD_KINDS) {
+      const option = element('option', '', label);
+      option.value = value;
+      kind.append(option);
+    }
     let save;
     const photoPicker = createWalletPhotoPicker({
       onError: message => { status.textContent = message; },
@@ -1668,7 +1676,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const note = element('textarea'); note.maxLength = 1000; note.rows = 4;
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => { photoPicker.destroy(); void renderWallet(); }, true));
     save = button('암호화하여 저장'); save.type = 'submit'; save.disabled = true; actions.append(save);
-    form.append(element('h3', '', '자료 추가'), photoPicker.element, field('메모 · 선택', note), actions, status,
+    form.append(element('h3', '', '자료 추가'), field('자료 종류', kind), photoPicker.element, field('메모 · 선택', note), actions, status,
       element('p', 'wallet-security-note', '기울기·원근·여백과 화질을 이 브라우저에서만 보정합니다. 원본과 보정 사진은 LOTBI 서버나 대화창으로 전송되지 않습니다.'));
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
@@ -1676,12 +1684,12 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         setBusy(form, true);
         if (resuming) await resuming;
         const frontDataUrl = await photoPicker.readDataUrl();
-        await vault.save(accountId, {id: randomId(), kind: 'document', note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
+        await vault.save(accountId, {id: randomId(), kind: kind.value, note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
         photoPicker.destroy();
         await renderWallet('자료를 암호화하여 저장했습니다.');
       } catch (error) { status.textContent = safeMessage(error, '자료를 저장하지 못했습니다.'); setBusy(form, false); }
     });
-    root.replaceChildren(form); photoPicker.element.querySelector('button')?.focus(); activity();
+    root.replaceChildren(form); kind.focus(); activity();
   }
 
   function renderDetail(card) {
