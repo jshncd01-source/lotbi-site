@@ -15,7 +15,7 @@ const consumerSource = await readFile(path.join(root, 'site-consumer-sections.js
 const conversationSource = await readFile(path.join(root, 'site-conversation.js'), 'utf8');
 const indexSource = await readFile(path.join(root, 'index.html'), 'utf8');
 const walletModule = await import('../site-life-wallet.js');
-const {LifeWalletVault, MemoryWalletRepository, validateWalletPin, validateBackupPasswordPair, canExportWalletBackup} = walletModule;
+const {LifeWalletVault, MemoryWalletRepository, validateWalletPin, validateBackupPasswordPair, canExportWalletBackup, readWalletViewState, writeWalletViewState} = walletModule;
 
 class MemorySessionStorage {
   constructor() { this.values = new Map(); }
@@ -82,10 +82,11 @@ await simplifiedWallet.save('simplified-add-account', {
 const [simplifiedCard] = await simplifiedWallet.list('simplified-add-account');
 assert.equal(simplifiedCard.name, '증명서', 'the selected kind must provide the stored display name');
 assert.equal(simplifiedCard.backDataUrl, '', 'the single-photo flow must preserve an empty legacy back image');
-// The add form no longer asks for a kind; new items are neutral 'document' items and the
-// older kinds stay readable.
-assert.ok(!/field\('자료 종류'/u.test(walletSource), 'the add form must not ask for a document kind');
-assert.match(walletSource, /kind: 'document', note: note\.value/u, 'new items are saved with the neutral document kind');
+// The owner selects the category for a new item. This is sealed metadata only: the picker
+// still owns image confirmation, and existing encrypted legacy kinds remain readable.
+assert.match(walletSource, /field\('자료 종류', category\)/u, 'the add form must expose the category choices');
+assert.match(walletSource, /kind: 'document', category: category\.value, note: note\.value/u, 'new items must preserve the owner-selected category without changing the legacy envelope kind');
+assert.match(walletSource, /\['identity', '신분증'\].*\['business-card', '명함'\].*\['document', '증명서·문서'\].*\['other', '기타'\]/su, 'the category choices must include identity, business card, document, and other');
 await simplifiedWallet.save('simplified-add-account', {
   id: 'neutral-document', kind: 'document', note: '',
   frontDataUrl: 'data:image/png;base64,AA==', updatedAt: '2026-10-07T00:00:00.000Z',
@@ -182,6 +183,11 @@ assert.match(walletSource, /10분 동안 사용하지 않아 다시 잠겼습니
 assert.match(walletSource, /화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다\. 10분간 사용하지 않으면 다시 잠깁니다\./u);
 assert.doesNotMatch(walletSource, /60초 동안 사용하지 않아|60초 비활동/u);
 assert.match(walletSource, /await vault\.resumeUnlock\(accountId\)/u, 'mount must restore a valid same-tab unlock grant');
+assert.match(walletSource, /PIN을 입력해 주세요/u, 'the PIN lock gate must keep the approved entry title');
+assert.match(walletSource, /\['1','2','3','4','5','6','7','8','9','지움','0','열기'\]/u, 'the keypad must provide one explicit open action');
+assert.doesNotMatch(walletSource, /const submit = button\('PIN으로 열기'\)/u, 'the lock gate must not duplicate the keypad open action');
+assert.match(walletCssSource, /\.wallet-gate \{[^}]*width: min\(100%, 520px\)[^}]*border-radius: 24px/su, 'the lock gate must be a responsive contained card');
+assert.match(walletCssSource, /\.wallet-lock-mark \{[^}]*background: color-mix/su, 'the lock mark must use the approved blue accent treatment');
 assert.match(walletSource, /vault\.lock\(\{preserveSession: true\}\)/u, 'page transitions must preserve the same-tab unlock grant');
 assert.match(walletSource, /window\.addEventListener\('pagehide'/u);
 assert.match(walletSource, /window\.addEventListener\('pageshow'/u);
@@ -193,7 +199,13 @@ assert.match(walletSource, /detail\?\.authenticated === false/u);
 // image or wallet data leaves the device.
 assert.match(consumerSource, /mountLifeWallet\(\{root, authenticated, accountId, sessionExpiresAt, sessionToken, subscription\}\)/u);
 assert.match(walletSource, /MAX_PIN_FAILURES = 5/u);
-assert.doesNotMatch(walletSource, /localStorage/u, 'wallet must not store secrets or data in localStorage');
+const localViewValues = new Map();
+const localViewStorage = {getItem: key => localViewValues.get(key) ?? null, setItem: (key, value) => localViewValues.set(key, value)};
+assert.equal(writeWalletViewState(localViewStorage, 'view', {filter: 'identity', selectedId: 'item-1', frontDataUrl: 'secret-image', pin: '1234'}), true);
+assert.equal(localViewValues.get('view'), '{"filter":"identity","selectedId":"item-1"}', 'local view state must contain only the approved filter and opaque item id');
+assert.deepEqual(readWalletViewState(localViewStorage, 'view'), {filter: 'identity', selectedId: 'item-1'});
+localViewValues.set('invalid-view', '{"filter":"secret","selectedId":"../pin"}');
+assert.deepEqual(readWalletViewState(localViewStorage, 'invalid-view'), {filter: 'all', selectedId: ''}, 'invalid local view state must fail closed');
 assert.doesNotMatch(walletSource, /fetch\s*\(/u, 'wallet must not upload data');
 assert.doesNotMatch(walletSource, /PublicKeyCredential|navigator\.credentials|WebAuthn/u, 'PC wallet must not claim or invoke device authentication');
 assert.doesNotMatch(walletSource, /Windows Hello·지문·Face ID를 지원하는 것처럼 표시하지 않습니다|PC Web은 4자리 월렛 PIN만 사용합니다/u);

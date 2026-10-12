@@ -1028,15 +1028,16 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(cards['박영자'].badge, '등록 중 · 사진 3장');
   assert.equal(cards['김하늘'].photoAction, '사진 갱신·관리');
 
-  // person photos: exactly ten labelled slots, progress, card-local artwork, web wording
-  assert.equal(r.personPhotos.before.count, 10, `${label}: exactly ten identity slots`);
-  assert.deepEqual(r.personPhotos.before.labels, ['정면 얼굴', '왼쪽 45도', '오른쪽 45도', '왼쪽 옆면', '오른쪽 옆면', '정면 상반신', '정면 전신', '추가 정면', '추가 왼쪽', '추가 오른쪽']);
+  // person photos: five visible required examples plus five optional-capacity
+  // slots in the collapsed disclosure; Core still owns all ten physical slots.
+  assert.equal(r.personPhotos.before.count, 10, `${label}: five required and five optional physical slots`);
+  assert.deepEqual(r.personPhotos.before.labels, ['얼굴 사진', '얼굴 사진', '얼굴 사진', '상반신 사진', '전신 사진', '추가 얼굴 사진', '추가 얼굴 사진', '추가 얼굴 사진', '추가 얼굴 사진', '추가 얼굴 사진']);
   assert.equal(r.personPhotos.before.counter, '얼굴 3/3 · 몸 0/2지금 3장 · 10장까지 올릴 수 있어요');
   assert.equal(r.personPhotos.before.note, '상반신·전신 사진 2장이 더 있으면 등록을 마칠 수 있어요.');
   assert.equal(r.personPhotos.before.guideBoxPresent, false, `${label}: the duplicated explanation box must not sit above the photo cards`);
   assert.equal(r.personPhotos.before.emptyArtworkCount, 7, `${label}: every empty photo card must show its own large shooting example`);
   assert.deepEqual(r.personPhotos.before.accept, ['image/*']);
-  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): photos go in through '사진 여러 장 선택'
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): photos go in through the gallery picker
   // only (one slot-free POST each); the tiles have no picker or button while registering.
   assert.equal(r.personPhotos.before.tileInputs, 0, `${label}: no per-tile picker`);
   assert.deepEqual(r.personPhotos.before.buttons, [...Array(3).fill(['true', '']), ...Array(7).fill(['false', ''])], `${label}: no tile button while registering`);
@@ -1097,11 +1098,11 @@ for (const [label, r] of Object.entries(results)) {
   assert.ok(r.personRenewalNotice.renewalNotice.text.includes('만료 30일·7일·1일 전'));
   assert.ok(r.personRenewalNotice.renewalNotice.text.includes('안심케어 등록 및 실종 시 후보 검색'));
   assert.ok(r.personRenewalNotice.renewalNotice.text.includes('등록을 삭제하면 관련 식별 사진과 생성된 식별정보도 삭제'));
-  // SAFECARE-PHOTO-EASY-UPLOAD-01: a new registration has one way in, '사진 여러 장 선택';
+  // SAFECARE-PHOTO-EASY-UPLOAD-01: a new person registration has one gallery picker;
   // the ten tiles are examples without their own picker.
   assert.deepEqual(r.personRegisterFlow.retry, Array(10).fill(0), `${label}: no tile offers a button on a new registration`);
   assert.equal(r.personRegisterFlow.pickers, 0, `${label}: no per-tile picker on a new registration`);
-  assert.equal(r.personRegisterFlow.bulkPick, '사진 여러 장 선택', label);
+  assert.equal(r.personRegisterFlow.bulkPick, '갤러리에서 여러 장 선택', label);
 
   // person SOS: expired photos blocked, only Core's fields
   assert.ok(r.personSos.blocked.includes('유효기간'), `${label}: expired photos must block a new SOS with a reason`);

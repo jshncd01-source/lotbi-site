@@ -20,7 +20,7 @@ assert.match(html, /data-lotbi-avatar-stage/);
 assert.match(html, /data-lotbi-avatar-fallback/);
 assert.match(html, /lotbi-lockup-160w\.png/);
 assert.match(js, /https:\/\/account\.lotbiai\.com\/account/);
-assert.match(js, /\['프로필', openProfile\], \['개인테마', openPersonalTheme\], \['설정', openSettings\]/);
+assert.match(js, /\['프로필 관리', openProfile\], \['설정', openSettings\]/);
 assert.match(js, /mountConsumerSection/);
 assert.match(js, /workspace: section/);
 const calendarSurface = js.slice(js.indexOf('const openCalendar = async'), js.indexOf('const bindCalendarEntries'));

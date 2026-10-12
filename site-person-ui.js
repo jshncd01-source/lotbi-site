@@ -15,20 +15,21 @@ import {
   personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, personSosReceivedMessage, putHumanSightingPhoto,
   respondGuardianNotice, PERSON_FOUND_EMERGENCY_TEXT, PERSON_FOUND_FORM_NOTE, PERSON_SOS_ACTIVE_NOTE, PERSON_SOS_EMERGENCY_TEXT, PERSON_SOS_FORM_NOTE,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-1568c9660e38';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-1568c9660e38';
+} from './site-person.js?v=aset-4c8b02ae5ce6';
+import {PERSON_OPTIONAL_EXAMPLE_SLOTS, PERSON_REQUIRED_EXAMPLE_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-4c8b02ae5ce6';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, birthYearStart, formatDate, formatMoment, foundPhotoProgress, personFoundReviewStateCopy,
   identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge, safecareEmergencyNotice,
-} from './site-safecare-common.js?v=aset-1568c9660e38';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-1568c9660e38';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-1568c9660e38';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-1568c9660e38';
-import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-1568c9660e38';
+} from './site-safecare-common.js?v=aset-4c8b02ae5ce6';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-4c8b02ae5ce6';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-4c8b02ae5ce6';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-4c8b02ae5ce6';
+import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-4c8b02ae5ce6';
 
 const RELATIONSHIPS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'], ['FAMILY', '가족'], ['DEPENDENT', '돌봄 대상'], ['OTHER', '기타']]);
 const SIGHTING_SLOT_LABELS = Object.freeze(['얼굴 정면', '얼굴 왼쪽', '얼굴 오른쪽', '상반신', '전신', '추가 사진 1', '추가 사진 2', '추가 사진 3', '추가 사진 4', '추가 사진 5']);
 const STEPS = Object.freeze(['기본정보', '식별 사진', '최종 확인', '등록 완료']);
+const PERSON_DISPLAY_SLOTS = Object.freeze([...PERSON_REQUIRED_EXAMPLE_SLOTS, ...PERSON_OPTIONAL_EXAMPLE_SLOTS]);
 
 const el = (tag, className = '', text = '') => { const node = document.createElement(tag); if (className) node.className = className; if (text) node.textContent = text; return node; };
 const relationshipLabel = value => RELATIONSHIPS.find(([code]) => code === value)?.[1] || '기타';
@@ -518,13 +519,35 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     };
     birthTrigger.addEventListener('click', openBirthPicker);
     const error = errorNode();
-    const submit = el('button', 'site-button person-primary', view.edit ? '수정 저장' : '다음: 식별 사진 등록');
+    const submit = el('button', 'site-button person-primary', view.edit ? '변경사항 저장' : '다음: 사진 선택');
     submit.type = 'submit';
-    form.append(
-      el('h4', 'person-form-title', view.edit ? `${person?.displayName || ''} 정보 수정` : '기본정보'),
-      labeled('이름', name), labeled('관계', relationship), birth,
-      error, submit,
+    const intro = el('div', 'person-screen-intro');
+    intro.append(
+      el('h4', 'person-form-title', view.edit ? '정보 수정' : '기본정보'),
+      el('p', 'person-screen-subtitle', view.edit ? '등록된 가족의 기본정보를 수정해 주세요.' : '등록할 사람의 기본정보를 입력해 주세요.'),
     );
+    if (view.edit && person) {
+      const identity = el('div', 'person-registration-identity');
+      const identityCopy = el('div');
+      identityCopy.append(el('strong', '', person.displayName), el('span', '', '가족 등록번호'), el('b', '', person.registrationNumber || person.personId));
+      const copy = button('복사', async () => {
+        try { await navigator.clipboard.writeText(person.registrationNumber || person.personId); showStatus('가족 등록번호를 복사했습니다.'); }
+        catch { showStatus('가족 등록번호를 복사하지 못했습니다.'); }
+      });
+      copy.classList.add('person-registration-copy');
+      identity.append(identityCopy, copy);
+      form.append(intro, identity);
+    } else form.append(intro);
+    const fields = el('div', 'person-basic-fields');
+    const pair = el('div', 'person-field-pair');
+    fields.append(labeled('이름', name));
+    pair.append(labeled('관계', relationship), birth);
+    fields.append(pair);
+    const info = el('p', 'person-info-callout', view.edit ? '기본정보 수정은 사진 갱신으로 처리되지 않아요. 사진은 사진 갱신·관리에서 바꿔 주세요.' : '사진은 다음 단계에서 선택해요.');
+    const actions = el('div', 'person-form-actions person-form-actions-end');
+    if (view.edit && person) actions.append(button('사진 갱신·관리', () => go({name: 'register', step: 2, personId: person.personId, manage: true})));
+    actions.append(submit);
+    form.append(fields, info, error, actions);
     form.addEventListener('submit', async event => {
       event.preventDefault();
       if (busy) return;
@@ -561,6 +584,8 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     content.append(form);
     if (view.edit && person) {
       const danger = el('div', 'person-danger-zone');
+      const dangerCopy = el('div');
+      dangerCopy.append(el('strong', '', '등록 삭제'), el('span', '', '삭제 전에 대상과 삭제되는 항목을 확인해 주세요.'));
       const remove = button('등록 삭제', () => { remove.hidden = true; confirm.hidden = false; });
       remove.classList.add('person-danger');
       const confirm = el('div', 'person-delete-confirm'); confirm.hidden = true;
@@ -572,7 +597,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       });
       confirmButton.classList.add('person-danger');
       confirm.append(el('span', '', `"${person.displayName}" 등록과 사진을 삭제합니다. 되돌릴 수 없습니다.`), confirmButton);
-      danger.append(remove, confirm);
+      danger.append(dangerCopy, remove, confirm);
       content.append(danger);
     }
     queueMicrotask(() => { if (!person) name.focus(); });
@@ -580,10 +605,9 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
 
   // SAFECARE-PHOTO-EASY-UPLOAD-01: the ten cards are examples to look at; a
   // stored photo shows in the card Core placed it in.
-  const photoTile = (person, slot, index, filledSlots, removable, onChange) => {
-    const slotIndex = index + 1;
+  const photoTile = (person, slot, slotIndex, filledSlots, removable, onChange, {compact = false} = {}) => {
     const filled = filledSlots.has(slotIndex);
-    const tile = el('figure', 'safecare-slot');
+    const tile = el('figure', `safecare-slot${compact ? ' safecare-slot-compact' : ''}`);
     tile.dataset.personSlot = slot.code;
     tile.dataset.safecareSlotFilled = filled ? 'true' : 'false';
     const media = el('div', 'safecare-slot-media');
@@ -602,11 +626,12 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       }
     }
     const caption = el('figcaption', 'safecare-slot-caption');
-    caption.append(el('span', 'safecare-slot-index', filled ? '✓' : String(slotIndex)), el('span', 'safecare-slot-label', slot.label));
+    caption.append(el('span', 'safecare-slot-index', filled ? '✓' : String(slotIndex)), el('span', 'safecare-slot-label', slot.displayLabel || slot.label));
     const hint = el('p', 'safecare-slot-hint', slot.hint);
     const visible = el('p', 'safecare-slot-visible');
     visible.append(el('strong', '', '보여야 하는 부분'), document.createTextNode(` ${slot.visible}`));
-    tile.append(media, caption, hint, visible);
+    tile.append(media, caption);
+    if (!compact) tile.append(hint, visible);
     // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): photos go in through the batch
     // only (Core places them). In 사진 갱신·관리 a stored photo can be taken out
     // to make room for a newer one; it takes a second tap.
@@ -654,6 +679,14 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): three face photos and two body
     // photos complete the set; up to ten are recommended, never required.
     const set = personPhotoSet(person, photos);
+    const card = el('section', 'person-form person-photo-form');
+    card.dataset.personPhotoForm = '';
+    const intro = el('div', 'person-screen-intro');
+    intro.append(
+      el('p', 'person-screen-eyebrow', person.displayName),
+      el('h4', 'person-form-title', view.manage ? `${person.displayName} 사진 갱신·관리` : '기본 사진 5장을 등록해 주세요'),
+      el('p', 'person-screen-subtitle', view.manage ? '등록된 사진을 확인하고 필요한 사진만 바꿔 주세요.' : '새로 찍지 않아도 돼요. 휴대폰에 있는 사진을 한 번에 선택해 주세요.'),
+    );
     const header = el('div', 'safecare-photo-header');
     header.append(el('h4', 'person-form-title', view.manage ? `${person.displayName} 사진 갱신·관리` : `${person.displayName} 식별 사진`));
     header.append(el('p', 'person-card-meta', `등록번호 ${person.registrationNumber}`));
@@ -666,26 +699,39 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const fill = el('span', 'safecare-progress-fill'); fill.style.width = `${set.requiredDone * 20}%`; bar.append(fill);
     const setNote = el('p', 'person-field-hint safecare-photo-set-note', personPhotoSetMessage({...set, photoCount: photos.length}));
     setNote.dataset.personPhotoSetNote = '';
-    content.append(header, bar, setNote);
+    card.append(intro, header, bar, setNote);
     if (view.manage) {
       const renewal = renewalBadge({state: person.identityPhotoState, daysRemaining: person.identityPhotoDaysRemaining});
       const note = el('p', `person-card-note safecare-badge-${renewal.tone}-text`);
       note.textContent = person.identityPhotoExpiresAt
         ? `사진 상태: ${renewal.label} · 다음 갱신일 ${formatDate(person.identityPhotoExpiresAt)}. 새 사진은 '사진 여러 장 선택'으로 올리고, 오래된 사진은 칸의 '사진 빼기'로 뺄 수 있어요.`
         : `사진 상태: ${renewal.label}. 새 사진은 '사진 여러 장 선택'으로 올리고, 오래된 사진은 칸의 '사진 빼기'로 뺄 수 있어요.`;
-      content.append(note);
-      if (activeCaseFor(person.personId)) content.append(el('p', 'person-card-note', '진행 중인 실종 상태는 전환 당시 사진으로 계속 비교합니다. 지금 바꾼 사진은 진행 중인 실종 비교에 반영되지 않습니다.'));
+      card.append(note);
+      if (activeCaseFor(person.personId)) card.append(el('p', 'person-card-note', '진행 중인 실종 상태는 전환 당시 사진으로 계속 비교합니다. 지금 바꾼 사진은 진행 중인 실종 비교에 반영되지 않습니다.'));
     }
     // SAFECARE-PHOTO-BULK-UPLOAD-01: up to ten photos at once (site-person-bulk-photos.js).
     // SAFECARE-PHOTO-EASY-UPLOAD-01: that is the only way in; the tiles below are examples.
     if (bulkPhotos?.personId !== person.personId) bulkPhotos = createPersonBulkPhotos({sessionToken, personId: person.personId, isBusy: () => busy, setBusy: value => { busy = value; }, reload: () => reloadPerson(person.personId), rerender: () => render(), isDisposed: () => disposed});
-    content.append(bulkPhotos.render({storedCount: photos.length}));
-    const grid = el('div', 'safecare-slot-grid');
+    card.append(bulkPhotos.render({storedCount: photos.length}));
+    const referenceHead = el('div', 'person-photo-reference-head');
+    referenceHead.append(
+      el('strong', '', '사진 선택 예시'),
+      el('span', '', '참고 이미지 사진입니다.'),
+    );
+    const grid = el('div', 'safecare-slot-grid safecare-slot-grid-required');
     grid.dataset.personSlotGrid = '';
-    PERSON_IDENTITY_SLOTS.forEach((slot, index) => grid.append(photoTile(person, slot, index, filledSlots, Boolean(view.manage), () => render())));
-    const examples = el('p', 'person-field-hint safecare-slot-examples', '아래 10칸은 어떤 사진이 있으면 좋은지 보여 주는 예시예요. 사진은 위의 ‘사진 여러 장 선택’으로 한 번에 올려 주세요. 칸을 다 채우지 않아도 돼요.');
+    PERSON_REQUIRED_EXAMPLE_SLOTS.forEach(slot => grid.append(photoTile(person, slot, slot.slotIndex, filledSlots, Boolean(view.manage), () => render(), {compact: true})));
+    const examples = el('p', 'person-field-hint safecare-slot-examples', '사진을 선택하면 등록할 사람의 사진으로 변경됩니다.');
     examples.dataset.personSlotExamples = '';
-    content.append(examples, grid, el('p', 'person-consent', '같은 사진은 여러 방향에 사용할 수 없습니다. 사진은 계정에 비공개로 암호화 저장되고, 평소에는 검색에 사용되지 않습니다.'));
+    card.append(referenceHead, grid, examples);
+    const optional = el('details', 'person-photo-optional');
+    optional.open = view.manage && PERSON_OPTIONAL_EXAMPLE_SLOTS.some(slot => filledSlots.has(slot.slotIndex));
+    const optionalSummary = el('summary', '', '인식을 돕는 사진 더 추가하기 (선택)');
+    const optionalCopy = el('p', 'person-field-hint', '필수 5장으로 등록할 수 있어요. 추가 사진은 원하는 경우에만 확인해 주세요.');
+    const optionalGrid = el('div', 'safecare-slot-grid safecare-slot-grid-optional');
+    PERSON_OPTIONAL_EXAMPLE_SLOTS.forEach(slot => optionalGrid.append(photoTile(person, slot, slot.slotIndex, filledSlots, Boolean(view.manage), () => render(), {compact: true})));
+    optional.append(optionalSummary, optionalCopy, optionalGrid);
+    card.append(optional, el('p', 'person-consent', '같은 사진은 여러 방향에 사용할 수 없습니다. 사진은 계정에 비공개로 암호화 저장되고, 평소에는 검색에 사용되지 않습니다.'));
     const actions = el('div', 'person-form-actions safecare-wizard-actions');
     if (view.manage) actions.append(button('완료', () => go({name: 'list'}), true));
     else {
@@ -696,25 +742,66 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       actions.append(next);
       if (!set.complete) actions.append(el('span', 'person-field-hint', personPhotoSetMessage({...set, photoCount: photos.length})));
     }
-    content.append(actions);
+    card.append(actions);
+    content.append(card);
   };
   let bulkPhotos = null;  // SAFECARE-PHOTO-BULK-UPLOAD-01: the open batch survives the photo step's re-renders.
+
+  const reviewPhoto = (person, photo) => {
+    const slot = PERSON_DISPLAY_SLOTS.find(item => item.slotIndex === photo.slotIndex);
+    const figure = el('figure', 'person-review-photo');
+    const media = el('div', 'person-review-photo-media');
+    const label = slot?.displayLabel || (photo.category === 'BODY' ? '상반신·전신 사진' : '얼굴 사진');
+    const key = `${person.personId}:${photo.slotIndex}:${photo.revision || 0}`;
+    const draw = url => {
+      const image = el('img'); image.src = url; image.alt = `${label}`; image.decoding = 'async';
+      media.replaceChildren(image);
+    };
+    if (previews.has(key)) draw(previews.get(key));
+    else {
+      media.append(el('span', '', '사진'));
+      void fetchPersonIdentityPhotoObjectUrl(sessionToken, person.personId, photo.slotIndex).then(url => {
+        if (disposed) { URL.revokeObjectURL(url); return; }
+        previews.set(key, url);
+        if (media.isConnected) draw(url);
+      }).catch(() => {});
+    }
+    figure.append(media, el('figcaption', '', label));
+    return figure;
+  };
 
   const renderReviewStep = () => {
     const person = people.find(item => item.personId === view.personId);
     if (!person) { go({name: 'list'}); return; }
     content.replaceChildren(registrationBar(person), stepper(3));
-    const box = el('section', 'person-form');
-    box.append(el('h4', 'person-form-title', '등록 내용을 마지막으로 확인해 주세요'));
+    const box = el('section', 'person-form person-review-form');
+    const intro = el('div', 'person-screen-intro');
+    intro.append(el('h4', 'person-form-title', '등록 내용을 확인해 주세요'), el('p', 'person-screen-subtitle', '정보와 사진을 확인한 뒤 등록해 주세요.'));
+    box.append(intro);
+    const basicSection = el('section', 'person-review-section');
+    const basicHead = el('div', 'person-review-section-head');
+    basicHead.append(el('h5', '', '기본정보'), button('기본정보 수정', () => go({name: 'register', step: 1, personId: person.personId, edit: true})));
     const facts = el('dl', 'person-review');
     const fact = (term, value) => facts.append(el('dt', '', term), el('dd', '', value));
     fact('이름', person.displayName);
     fact('관계', relationshipLabel(person.relationship));
     fact('등록번호', person.registrationNumber);
     fact('출생', person.birthYear ? `${person.birthYear}년 ${person.birthMonth}월` : '출생정보 없음');
-    fact('식별 사진', photoCountLabel(person));
-    if (person.identityPhotoValidityDays) fact('갱신 주기', validityLabel(person.identityPhotoValidityDays));
-    box.append(facts, el('p', 'person-consent', '등록 사진은 평소 검색에 사용되지 않습니다. 실종 상태로 전환하며 동의한 기간에만 후보 검색과 관리자 검토에 사용합니다.'));
+    basicSection.append(basicHead, facts);
+    const photos = identityPhotos.get(person.personId) || [];
+    const photoSection = el('section', 'person-review-section');
+    const photoHead = el('div', 'person-review-section-head');
+    photoHead.append(el('h5', '', `등록 사진 ${photos.length}장`), button('사진 수정', () => go({name: 'register', step: 2, personId: person.personId})));
+    const photoGrid = el('div', 'person-review-photo-grid');
+    for (const photo of photos) photoGrid.append(reviewPhoto(person, photo));
+    const ready = el('p', 'person-review-ready', '필수 사진이 모두 준비됐어요.');
+    photoSection.append(photoHead, photoGrid, ready);
+    const notices = el('div', 'person-review-notices');
+    notices.append(
+      el('p', '', `사진 갱신 안내 · ${person.identityPhotoValidityDays ? `${validityLabel(person.identityPhotoValidityDays)}마다 갱신해 주세요.` : '목록에서 다음 갱신일을 확인해 주세요.'}`),
+      el('p', '', '등록 사진은 평소 검색에 사용되지 않아요. 실종 상태로 전환하고 동의한 기간에만 후보 검색과 관리자 검토에 사용합니다.'),
+    );
+    box.append(basicSection, photoSection, notices);
     const error = errorNode();
     const actions = el('div', 'person-form-actions safecare-wizard-actions');
     const finish = button('등록 완료', async () => {
@@ -757,11 +844,22 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const person = people.find(item => item.personId === view.personId);
     if (!person) { go({name: 'list'}); return; }
     content.replaceChildren(backBar());
-    const box = el('form', 'person-form');
+    const box = el('form', 'person-form person-sos-form');
     box.dataset.personSosForm = person.personId;
     box.append(el('p', 'person-card-meta', `등록번호 ${person.registrationNumber}`));
     box.noValidate = true;
-    box.append(el('h4', 'person-form-title', `${person.displayName} 실종 상태로 전환`), safecareEmergencyNotice(PERSON_SOS_EMERGENCY_TEXT));
+    const intro = el('div', 'person-screen-intro');
+    intro.append(el('h4', 'person-form-title', '실종 신고 접수'), el('p', 'person-screen-subtitle', '대상과 마지막으로 본 정보를 확인해 주세요.'));
+    const target = el('section', 'person-sos-target');
+    const targetCopy = el('div');
+    targetCopy.append(el('strong', '', person.displayName), el('span', '', `사람 · ${relationshipLabel(person.relationship)}`));
+    const targetFacts = el('dl', 'person-sos-target-facts');
+    targetFacts.append(
+      el('dt', '', '등록 사진'), el('dd', '', photoCountLabel(person)),
+      el('dt', '', '가족 등록번호'), el('dd', '', person.registrationNumber || person.personId),
+    );
+    target.append(targetCopy, targetFacts);
+    box.append(intro, target, safecareEmergencyNotice(PERSON_SOS_EMERGENCY_TEXT));
     if (!availability.sos) {
       box.append(el('p', 'person-empty person-empty-panel', '사람 등록과 사진 관리는 지금 사용할 수 있습니다. 실종 관리 연결은 준비 중입니다.'));
       content.append(box);
@@ -788,14 +886,30 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     const description = el('textarea'); description.maxLength = 1000; description.placeholder = '옷차림, 소지품, 당시 상황 등';
     const consent = el('label', 'person-consent-check');
     const checkbox = el('input'); checkbox.type = 'checkbox'; checkbox.required = true;
-    consent.append(checkbox, el('span', '', '등록 사진을 활성 SOS 기간 동안만 비공개 후보 검색과 관리자 검토에 사용하는 데 동의합니다.'));
+    consent.append(checkbox, el('span', '', '위 정보 제공 범위와 이용 기간을 확인하고 동의합니다.'));
     const error = errorNode();
-    const submit = el('button', 'site-button person-primary', '동의하고 실종 상태로 전환'); submit.type = 'submit';
-    box.append(
-      labeled('실종 날짜·시간', lastSeenAt), labeled('마지막으로 본 장소', location), labeled('당시 특징·기타 (선택)', description),
-      el('p', 'person-consent', PERSON_SOS_FORM_NOTE),
-      consent, error, submit,
-    );
+    const submit = el('button', 'site-button person-primary', '실종 신고 접수하기'); submit.type = 'submit';
+    const formLayout = el('div', 'person-sos-layout');
+    const fields = el('div', 'person-sos-fields');
+    fields.append(labeled('실종 날짜·시간', lastSeenAt), labeled('마지막으로 본 장소', location), labeled('당시 특징·기타 (선택)', description));
+    const privacy = el('section', 'person-sos-privacy');
+    const privacyList = el('ol');
+    for (const text of [
+      '신고 전에는 관리자도 등록 사진과 상세 개인정보를 열람할 수 없어요.',
+      '동의하면 담당 관리자에게 등록 사진과 수색에 필요한 대상 정보·신고 내용이 제공돼요.',
+      '활성 신고 기간 동안 비공개 후보 검색과 관리자 검토에만 사용해요.',
+      '신고가 종료되면 해당 신고의 사진·상세정보 열람 권한을 종료해요.',
+    ]) privacyList.append(el('li', '', text));
+    privacy.append(el('h5', '', '개인정보 제공 안내'), privacyList, el('p', '', '시스템이 같은 사람이라고 확정하지 않으며, 일반 이용자에게 사진·연락처를 공개하지 않아요.'));
+    formLayout.append(fields, privacy);
+    const actions = el('div', 'person-form-actions person-form-actions-end');
+    actions.append(button('취소', () => go({name: 'list'})), submit);
+    box.append(formLayout, el('p', 'person-consent', PERSON_SOS_FORM_NOTE), consent, error, actions);
+    const syncSubmit = () => { submit.disabled = !(lastSeenAt.value && location.value.trim() && checkbox.checked); };
+    lastSeenAt.addEventListener('input', syncSubmit);
+    location.addEventListener('input', syncSubmit);
+    checkbox.addEventListener('change', syncSubmit);
+    syncSubmit();
     box.addEventListener('submit', async event => {
       event.preventDefault();
       if (busy) return;

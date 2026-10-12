@@ -2,7 +2,7 @@
 //
 // 연결 서비스's three partners are all still being prepared, so a visitor must not
 // be sent to a page of things that are not ready. The three entry points (the
-// desktop drawer, the phone drawer, the account menu) are hidden by ONE constant,
+// desktop drawer and phone drawer) are hidden by ONE constant,
 // and Account's own /connected-services page is left alone. This gate holds that
 // the entries really are out of sight AND out of the keyboard's reach, that the
 // neighbouring entries are not collateral, and that flipping the constant brings
@@ -26,7 +26,8 @@ check('one constant, defined once, defaults to hidden', () => {
   assert.equal((conversation.match(/const CONNECTED_SERVICES_MENU_VISIBLE = (true|false);/g) || []).length, 1);
   assert.match(conversation, /const CONNECTED_SERVICES_MENU_VISIBLE = false;/);
   assert.match(conversation, /for \(const entry of document\.querySelectorAll\('\[data-consumer-section="mall"\]'\)\) entry\.hidden = !CONNECTED_SERVICES_MENU_VISIBLE;/);
-  assert.match(conversation, /connectedServices\.hidden = !CONNECTED_SERVICES_MENU_VISIBLE;\r?\n\s+menu\.appendChild\(connectedServices\);/);
+  const menu = conversation.slice(conversation.indexOf('const openProfileMenu = trigger =>'), conversation.indexOf('let responseGradeOpen'));
+  assert.doesNotMatch(menu, /connectedServices|연결 서비스/, 'approved compact profile menu omits this shortcut');
 });
 
 check('both drawer entries ship hidden (no flash before the script runs)', () => {
@@ -41,7 +42,6 @@ check('the stylesheet makes [hidden] win over the flex rows', () => {
 
 check("Account's own page is untouched by this change", () => {
   assert.match(conversation, /window\.location\.assign\('https:\/\/account\.lotbiai\.com\/connected-services'\)/);
-  assert.match(conversation, /connectedServices\.href = 'https:\/\/account\.lotbiai\.com\/connected-services';/);
 });
 
 function browserPath() {
@@ -116,12 +116,11 @@ async function openBrowser(browser, profile) {
   return {send, close: () => { try { socket.close(); } catch {} chrome.kill('SIGTERM'); }};
 }
 
-// The drawers as rendered, and the account menu's row rendered from the real stylesheet
-// (the menu itself is built at sign-in, which this gate cannot do without a session).
+// The drawers as rendered, plus a generic [hidden] menu row from the real stylesheet.
 const MEASURE = `(() => {
   const probe = document.createElement('div');
   probe.className = 'profile-popover';
-  probe.innerHTML = '<a role="menuitem" data-probe="hidden-row" hidden>연결 서비스</a><a role="menuitem" data-probe="shown-row">도움말</a>';
+  probe.innerHTML = '<a role="menuitem" data-probe="hidden-row" hidden>숨김 항목</a><a role="menuitem" data-probe="shown-row">설정</a>';
   document.body.append(probe);
   const rows = [...document.querySelectorAll('[data-consumer-section]')].map(el => {
     const box = el.getBoundingClientRect();
@@ -182,8 +181,8 @@ try {
       check(`${name}: switch off — the 연결 서비스 entries are out of sight and layout`, () => {
         assert.equal(mall.length, 2, JSON.stringify(m.rows));
         for (const row of mall) assert.deepEqual([row.display, row.hidden, row.w, row.h], ['none', true, 0, 0], JSON.stringify(row));
-        assert.equal(m.menuHidden, 'none', 'account menu row');
-        assert.notEqual(m.menuShown, 'none', 'neighbouring account menu rows stay');
+        assert.equal(m.menuHidden, 'none', 'generic hidden menu row');
+        assert.notEqual(m.menuShown, 'none', 'neighbouring menu rows stay');
       });
       check(`${name}: switch off — neighbouring entries are not collateral`, () => {
         const visibleSections = new Set(m.rows.filter(row => row.display !== 'none').map(row => row.section));
@@ -210,4 +209,4 @@ try {
   }
 }
 
-console.log(`SITE-CONNECTED-SERVICES-HIDE-01 PASS (${passed} checks; viewport emulation, the account menu row is measured as a stylesheet probe)`);
+console.log(`SITE-CONNECTED-SERVICES-HIDE-01 PASS (${passed} checks; viewport emulation, generic hidden menu row probe)`);

@@ -1,5 +1,5 @@
-import {detectDocumentCorners, framesPrintedItem, rectifyDocument, findLabelCorners} from './site-life-wallet-scan.js?v=aset-1568c9660e38';
-import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-1568c9660e38';
+import {detectDocumentCorners, framesPrintedItem, rectifyDocument, findLabelCorners} from './site-life-wallet-scan.js?v=aset-4c8b02ae5ce6';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-4c8b02ae5ce6';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -180,6 +180,9 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
   const choices=node('div','wallet-scan-choices');
   const adjust=node('button','consumer-action wallet-scan-adjust','직접 조정'); adjust.type='button'; adjust.dataset.walletScanAdjust='';
   const rotate=node('button','consumer-action wallet-scan-rotate','회전'); rotate.type='button'; rotate.dataset.walletScanRotate=''; rotate.setAttribute('aria-label','오른쪽으로 90도 회전');
+  // Wallet documents are corrected automatically. Corner and rotation controls remain only
+  // for the separate router-label tool, whose purpose is selecting a label inside a device.
+  adjust.hidden=!label; rotate.hidden=!label;
   choices.append(rotate,adjust);
   const actions=node('div','wallet-scan-actions');
   const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,...(typeof onReplace==='function'?[replace]:[]),confirm);
@@ -238,8 +241,8 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
         :label?'공유기 스티커를 가까이 찍어 주세요. 또는 아래 사진에서 스티커의 네 모서리를 맞춰 주세요.'
         :receipt?'영수증은 등록하지 않습니다. 다른 사진을 선택해 주세요.'
         :notDocument?'등록할 수 있는 자료로 보이지 않습니다. 다른 사진을 선택해 주세요.'
-        :adjusted?'모서리 안에 자료가 보이지 않습니다. 자료에 맞춰 모서리를 조정해 주세요.'
-        :'자료의 네 모서리가 모두 화면 안에 들어오게 다시 찍거나 다른 사진을 선택해 주세요. 직접 조정으로 모서리를 맞출 수도 있습니다.';
+        :adjusted?'모서리 안에 자료가 보이지 않습니다. 자료가 화면 안에 모두 들어오게 다시 찍어 주세요.'
+        :'자료가 화면 안에 모두 들어오도록 다시 찍거나 다른 사진을 선택해 주세요.';
       confirm.disabled=notDocument||!manualFramesItem||glareCovers; shell.dataset.scanState='review';
     }catch(error){if(version===renderVersion&&!destroyed){status.textContent=error instanceof Error?error.message:'사진을 보정하지 못했습니다.';shell.dataset.scanState='error'}}
   }
@@ -268,11 +271,11 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
     // apart; otherwise the wallet's own detection, which also allows long labels.
     const labelRegion=label?findLabelCorners(detection.imageData):null;
     const found=labelRegion?{corners:labelRegion.corners,mode:'automatic',reason:'label-region',rotation:labelRegion.portrait?90:0,cornerRadius:0,paper:false,diagnostics:labelRegion.diagnostics}
-      :detectDocumentCorners(detection.imageData,{sourceScale:detection.scale,detail:detailImage,allowLong:label}); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
+      :detectDocumentCorners(detection.imageData,{sourceScale:detection.scale,detail:detailImage,allowLong:label,allowSmallCard:pdfSource}); corners=Object.fromEntries(Object.entries(found.corners).map(([name,point])=>[name,{x:point.x/detection.scale,y:point.y/detection.scale}]));
     let mode=found.mode; let reason=found.reason||'';
     // A photo without printed text (a pet, a person) is not a wallet item: no adjusting, no saving.
     // A label that was not found is placed by hand instead (its corners open at once).
-    notDocument=!label&&(reason==='not-a-document'||reason==='receipt-like'); adjust.hidden=notDocument; rotate.hidden=notDocument;
+    notDocument=!label&&(reason==='not-a-document'||reason==='receipt-like'); adjust.hidden=notDocument||!label; rotate.hidden=notDocument||!label;
     // A card or page found lying on its side is turned upright; the 회전 button corrects it.
     rotation=mode==='automatic'?found.rotation||0:0;
     if(mode==='manual'&&pdfSource&&!notDocument&&reason!=='receipt-like'){

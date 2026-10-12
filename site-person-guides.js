@@ -21,6 +21,30 @@ export const PERSON_IDENTITY_SLOTS = Object.freeze([
   Object.freeze({code: 'FACE_RIGHT_ALT', label: '추가 오른쪽', hint: '오른쪽 45도와 같은 각도로, 다른 날·다른 장소에서 찍은 사진입니다. 두 눈·코·입이 모두 보여야 합니다.', visible: '두 눈(먼 쪽 눈은 작게) · 코 · 입 · 가까운 쪽 귀', view: 'turn', direction: 'right', extra: true, artwork: 'assets/safecare/person-face-right-alt-v1.png'}),
 ]);
 
+// FAMILY-GUARDIAN-DESIGN-01: registration starts with five visible examples.
+// The remaining slots are optional capacity, not another required checklist.
+const displaySlot = (slotIndex, displayLabel) => Object.freeze({
+  ...PERSON_IDENTITY_SLOTS[slotIndex - 1],
+  slotIndex,
+  displayLabel,
+});
+
+export const PERSON_REQUIRED_EXAMPLE_SLOTS = Object.freeze([
+  displaySlot(1, '얼굴 사진'),
+  displaySlot(2, '얼굴 사진'),
+  displaySlot(3, '얼굴 사진'),
+  displaySlot(6, '상반신 사진'),
+  displaySlot(7, '전신 사진'),
+]);
+
+export const PERSON_OPTIONAL_EXAMPLE_SLOTS = Object.freeze([
+  displaySlot(4, '추가 얼굴 사진'),
+  displaySlot(5, '추가 얼굴 사진'),
+  displaySlot(8, '추가 얼굴 사진'),
+  displaySlot(9, '추가 얼굴 사진'),
+  displaySlot(10, '추가 얼굴 사진'),
+]);
+
 export function personSlotArtwork(slot) {
   const image = document.createElement('img');
   image.className = 'person-slot-guide-image';
