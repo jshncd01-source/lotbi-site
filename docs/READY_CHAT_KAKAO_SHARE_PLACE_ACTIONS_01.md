@@ -21,6 +21,13 @@
 - `docs/browser-evidence/place-actions-390.png`
 - `docs/browser-evidence/place-actions-1280.png`
 
+확정 시안 대조:
+
+- 전달된 최신 확정 시안은 `축제·행사` 화면 기준이며, 이 PR의 변경 범위는 채팅 공유 메뉴와 장소 카드 액션에 한정됨
+- 데스크톱 증빙에서 기존 LOTBI 로고·롯비 캐릭터·좌측 메뉴·최근 대화 영역이 유지되고, 카드 수·기존 지도 아이콘은 테스트 입력과 동일함
+- 모바일 증빙은 접힌 메뉴 상태이므로 좌측 메뉴·최근 대화·프로필 영역의 시안 일치는 `NOT_VERIFIED`
+- 확정 축제 시안의 좌측 메뉴 문구와 이 브랜치 기준 main의 실제 메뉴 문구에는 차이가 있으나, 이 PR은 해당 문구를 변경하지 않음. 축제 카드·배너·카테고리·바로가기는 추가하지 않음
+
 한계:
 
 - Android Chrome·Samsung Internet·iPhone Safari 실기기 및 Android/iOS 네이티브 WebView는 미검증이며, 위 모바일 결과는 Chrome 사용자 에이전트와 뷰포트 에뮬레이션임
