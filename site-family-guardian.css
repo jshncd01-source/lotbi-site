@@ -1,5 +1,6 @@
 /* Family Guardian only. Never recolor Account, auth or other workspaces. */
-body:not([data-site-theme="dark"]) :is(
+:is(body:not([data-site-theme="dark"])[data-site-theme="light"],
+  html[data-site-theme-bootstrap="light"] body:not([data-site-theme="dark"]):not([data-site-theme])) :is(
   .consumer-workspace[data-workspace="care"],
   .consumer-workspace[data-workspace="pets"],
   .consumer-section-panel:has([data-consumer-surface="care"]),
@@ -20,7 +21,8 @@ body:not([data-site-theme="dark"]) :is(
   background: #F6F7F9;
 }
 
-body:not([data-site-theme="dark"]) :is(
+:is(body:not([data-site-theme="dark"])[data-site-theme="light"],
+  html[data-site-theme-bootstrap="light"] body:not([data-site-theme="dark"]):not([data-site-theme])) :is(
   [data-consumer-surface="care"], .person-care-surface, .pet-family-surface
 ) :is(.person-card, .person-form, .person-empty-panel, .pet-card, .pet-form,
   .pet-profile, .pet-empty, .safecare-guide, .safecare-complete-card, input, select, textarea) {
@@ -28,26 +30,85 @@ body:not([data-site-theme="dark"]) :is(
 }
 
 /* Reference artwork stays intact; remove decorative gradients and glow only. */
-body:not([data-site-theme="dark"]) :is(
+:is(body:not([data-site-theme="dark"])[data-site-theme="light"],
+  html[data-site-theme-bootstrap="light"] body:not([data-site-theme="dark"]):not([data-site-theme])) :is(
   [data-consumer-surface="care"], .person-care-surface, .pet-family-surface
 ) :is(.safecare-guide-figure, .safecare-slot-media) {
   background: #fff;
   box-shadow: none;
 }
 
-body:not([data-site-theme="dark"]) [data-consumer-surface="care"]
+:is(body:not([data-site-theme="dark"])[data-site-theme="light"],
+  html[data-site-theme-bootstrap="light"] body:not([data-site-theme="dark"]):not([data-site-theme])) [data-consumer-surface="care"]
   .consumer-tabs button[aria-selected="true"] {
   border-bottom-color: #2563eb;
   color: #2563eb;
 }
 
 /* Stronger than the shared neutral consumer control, and light/family only. */
-body:not([data-site-theme="dark"]) :is(
+:is(body:not([data-site-theme="dark"])[data-site-theme="light"],
+  html[data-site-theme-bootstrap="light"] body:not([data-site-theme="dark"]):not([data-site-theme])) :is(
   [data-consumer-surface="care"], .person-care-surface, .pet-family-surface
 ) .site-button-primary {
   background: #2563eb;
   border-color: #2563eb;
   color: #fff;
+}
+
+
+/* Automatic/default light must follow the OS; never overwrite system-dark. */
+@media (prefers-color-scheme: light) {
+  html:not([data-site-theme-bootstrap="dark"]) body:not([data-site-theme="dark"]):not([data-site-theme="light"]) :is(
+    .consumer-workspace[data-workspace="care"],
+    .consumer-workspace[data-workspace="pets"],
+    .consumer-section-panel:has([data-consumer-surface="care"]),
+    [data-consumer-surface="care"],
+    .person-care-surface,
+    .pet-family-surface
+  ) {
+    --lotbi-bg-primary: #F6F7F9;
+    --lotbi-surface-primary: #fff;
+    --lotbi-surface-elevated: #fff;
+    --lotbi-link-primary: #2563eb;
+    --lotbi-link-hover: #1d4ed8;
+    --lotbi-brand-solid-bg: #2563eb;
+    --lotbi-brand-solid-bg-hover: #1d4ed8;
+    --lotbi-brand-solid-text: #fff;
+    --brand-violet: #2563eb;
+    --lotbi-focus-ring: #2563eb;
+    background: #F6F7F9;
+  }
+
+  html:not([data-site-theme-bootstrap="dark"]) body:not([data-site-theme="dark"]):not([data-site-theme="light"]) :is(
+    [data-consumer-surface="care"], .person-care-surface, .pet-family-surface
+  ) :is(.person-card, .person-form, .person-empty-panel, .pet-card, .pet-form,
+    .pet-profile, .pet-empty, .safecare-guide, .safecare-complete-card, input, select, textarea) {
+    background: #fff;
+  }
+
+  /* Reference artwork stays intact; remove decorative gradients and glow only. */
+  html:not([data-site-theme-bootstrap="dark"]) body:not([data-site-theme="dark"]):not([data-site-theme="light"]) :is(
+    [data-consumer-surface="care"], .person-care-surface, .pet-family-surface
+  ) :is(.safecare-guide-figure, .safecare-slot-media) {
+    background: #fff;
+    box-shadow: none;
+  }
+
+  html:not([data-site-theme-bootstrap="dark"]) body:not([data-site-theme="dark"]):not([data-site-theme="light"]) [data-consumer-surface="care"]
+    .consumer-tabs button[aria-selected="true"] {
+    border-bottom-color: #2563eb;
+    color: #2563eb;
+  }
+
+  /* Stronger than the shared neutral consumer control, and light/family only. */
+  html:not([data-site-theme-bootstrap="dark"]) body:not([data-site-theme="dark"]):not([data-site-theme="light"]) :is(
+    [data-consumer-surface="care"], .person-care-surface, .pet-family-surface
+  ) .site-button-primary {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+  }
+
 }
 
 .family-guardian-welcome {

@@ -1,6 +1,17 @@
-READY_FOR_DEPLOY=YES
+READY_FOR_DEPLOY=NO
 
 # 가족 지킴이 ① 이름·디자인 — Site 검증 기록
+
+## 2026-10-12 시스템 다크 Gate RED 반환 — 재검증 중
+
+- 과거 7210caf1의 화면 확인용 READY는 Gate run 20261012T015817Z-567185-1240611897의 실제 대비 실패로 개발방에 반환됐다. 이 절이 현행 상태다. 운영방 보고의 main/Production 미변경은 LAST_REPORTED이며 Work가 배포한 것이 아니다.
+- 같은 validate_safecare_person_dark_cancel_01.mjs를 수정 전 실행해 light/dark 0건, system-dark 두 폭 합계520건 실패를 재현했다. 대표 fg245/245/245 대 bg246/247/249 ratio1.02와 흰 카드 ratio1.09다.
+- 원인: body:not([data-site-theme="dark"])가 system 및 부트스트랩 다크에도 라이트 토큰/흰 배경을 덮었다. 명시적 light 또는 OS light의 자동/기본 테마에만 가족 라이트 규칙을 적용하도록 고쳤다. 기존 공통 다크 토큰, 문구/레이아웃/사진/권한/다른 카테고리는 보존했다.
+- 수정 후 같은 기존 validator: 390/1280 light/dark/system-dark 모든 화면 대비 위반0, 360dark/412system-dark/1280light 등록 취소·계속·재개·삭제 보호 흐름 PASS. 기존 검사 assertion과 WCAG 기준을 변경하지 않았다.
+- 가족 검사에 OS 반대 명시 테마, 시스템 light/dark, body 적용 전 부트스트랩 테마를 추가했다. media 블록 안쪽 selector도 기존 동일한 dark 제외/family 범위 assertion으로 검사하도록 파서를 보완했다. 새 조건은 추가하며 삭제/skip/완화하지 않는다.
+- 기존 원본 ZIP/PNG 보존. before는 D:/LOTBI-WORK/fg-evidence-sd7210의 7210caf1 실제 CSS로 촬영한 system-dark 360/1280 44PNG, 캡처 harness만 현행 테마 설정을 사용했다. 일반 동작 PASS는 대비 PASS가 아니며 before의 대비는 FAIL이다. 경로 outputs/screenshots/site/phase1-system-dark-fix-before-7210/.
+- 360/1280 9테마 설정씩18조합 회귀·새 after 캡처는 진행 중이다. 모두 통과 후 최종 SHA와 READY를 별도 갱신한다.
+- 운영 E2E: 배포 후 배포방:
 
 ## 2026-10-12 배포 레일 재READY — 현행 화면 확인용 판정
 

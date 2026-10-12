@@ -12,10 +12,14 @@ const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const css = read('site-family-guardian.css');
 assert.ok(css.includes('#F6F7F9'), 'final approved light canvas');
 assert.ok(!/gradient\(/.test(css), 'no new blue gradient');
+assert.ok(css.includes('body:not([data-site-theme="dark"])[data-site-theme="light"]'),
+  'explicit light stays light even when the OS is dark');
+assert.ok(css.includes('@media (prefers-color-scheme: light)') &&
+  css.includes('html:not([data-site-theme-bootstrap="dark"]) body:not([data-site-theme="dark"]):not([data-site-theme="light"])'),
+  'automatic light follows the OS and excludes a bootstrap dark preference');
 // Every light-specific rule must explicitly exclude the dark theme.
-for (const rule of css.replace(/\/\*[\s\S]*?\*\//g, '').split('}')) {
+for (const [, selector, rule] of css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
   if (!rule.includes('#F6F7F9') && !rule.includes('#fff') && !rule.includes('#2563eb')) continue;
-  const selector = rule.split('{')[0];
   assert.ok(selector.includes('body:not([data-site-theme="dark"])'), 'palette must exclude dark');
   assert.ok(/care|person-care-surface|pet-family-surface/.test(selector), 'palette must be family-scoped');
 }
@@ -45,9 +49,18 @@ if (!process.argv.includes('--source-only')) {
       FAMILY_GUARDIAN_REGISTRATION_REVIEW: fs.existsSync(path.join(root,'scripts/validate_family_guardian_registration_02.mjs')) ? '1' : '0',
       FAMILY_GUARDIAN_SOS_REVIEW: fs.existsSync(path.join(root,'scripts/validate_family_guardian_sos_03.mjs')) ? '1' : '0',
       SAFECARE_VIEWPORTS_JSON: JSON.stringify([
-        ['mobile-360-light', 360, 844, 'light'], ['mobile-360-dark', 360, 844, 'dark'],
-        ['desktop-1280-light', 1280, 900, 'light'], ['desktop-1280-dark', 1280, 900, 'dark'],
-      ])},
+        ['mobile-360', 360, 844], ['desktop-1280', 1280, 900],
+      ].flatMap(([label, width, height]) => [
+        [label + '-light', width, height, 'light', 'light'],
+        [label + '-dark', width, height, 'dark', 'dark'],
+        [label + '-system-light', width, height, 'system', 'light'],
+        [label + '-system-dark', width, height, 'system', 'dark'],
+        [label + '-light-os-dark', width, height, 'light', 'dark'],
+        [label + '-dark-os-light', width, height, 'dark', 'light'],
+        [label + '-bootstrap-dark', width, height, 'dark', 'dark', true],
+        [label + '-bootstrap-system-dark', width, height, 'system', 'dark', true],
+        [label + '-bootstrap-light-os-dark', width, height, 'light', 'dark', true],
+      ]))},
   });
   assert.equal(result.status, 0, `family screen browser regression failed: ${result.error?.message || ''}`);
 }
