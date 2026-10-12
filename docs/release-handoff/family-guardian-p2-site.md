@@ -2,6 +2,18 @@ READY_FOR_DEPLOY=YES
 
 # 가족 지킴이 ② 등록·사진·정보 수정 — Site 사전 검증
 
+## 2026-10-12 사용자 최종 시안·필수 5장 반영 재READY — 현행
+
+- `READY_FOR_DEPLOY=YES`, `FULL_FUNCTIONAL_COMPLETE=NO`, `PRODUCTION_VERIFIED=NO`.
+- 저장소/브랜치: `lotbi-site` / `feature/family-guardian-p2-01-site`. 승인 디자인+② 기능 코드 HEAD `e2288b9b0b623fd105cd3ed27a42355fd6847e8e`; ①의 `836df7f1ce3560bda064ea86923a039de9542097`과 기준 Ncloud `main` `16826d4a0174b6ec6b5b1d61d06af6554d8d4e38`을 정상 merge했다. 문서 이후 최종 exact SHA/readback은 Work 최종 인계표에 기록한다.
+- 기본 사진은 얼굴 3장+상반신·전신 2장, 총 5장이다. 최대 10장은 선택 추가 용량이다. 가상 인물 예시 5장은 사용자가 선택한 실제 등록 사진으로 교체된다. 10칸 예시 기본 화면은 제거했다.
+- ②의 실제 등록번호 표시, 2000년 1월 같은 연·월 보존, 정보 부분 수정, 무변경 저장 차단, 사진 갱신·관리 동작을 유지했다. 운영 예시 번호/이름/날짜 하드코딩 없음.
+- 검증: `validate_family_guardian_registration_02.mjs` PASS, 가족 화면 360/1280×18조합 PASS, 사진 쉬운 등록·일괄 등록 PASS, 최신 홈 즐겨찾기 PASS, JS 구문·diff·cache `aset-4c8b02ae5ce6` write/check PASS.
+- 스크린샷: `outputs/screenshots/site/family-guardian-approved-design-p2-20261012/` 450 PNG. light/dark/system과 등록·확인·목록·정보 수정·사진 관리·신고 진입을 포함한다. 가상 응답 검증이며 운영 저장 성공은 `NOT_VERIFIED`.
+- 승인 원본 6장과 SHA-256은 ① READY의 최신 절을 권위로 재사용하며 원본·기존 증거를 덮어쓰지 않았다.
+- `p0_0120`은 **미사용**. 새 Core/DB/migration 변경, Secret, 결제, 운영 데이터 변경 없음. main/Production/Play 업로드 없음.
+- 운영 E2E: 배포 후 배포방:
+
 ## 2026-10-12 시스템 다크 수정 재READY — 현행
 
 - READY_FOR_DEPLOY=YES, FULL_FUNCTIONAL_COMPLETE=NO, PRODUCTION_VERIFIED=NO. 기존 05a10023 대신 최신 ① 시스템 다크 수정 계보를 정상 merge했다. 검증 코드 HEAD b6c931156, 이후 ① 문서 merge는 문서만 변경했다. 최종 exact HEAD·Ncloud push/readback은 outputs/family-guardian-system-dark-reready-2026-10-12.md에 기록한다.
