@@ -2,10 +2,18 @@ READY_FOR_DEPLOY=NO
 
 # 캘린더 사진 분석 수정 01 — SITE 인계
 
-CURRENT_BASE_MAIN_SHA=29cc6b13a7e081dda6a224717f50d0efcfa53e25
-TESTED_CODE_SHA=f3c49c2756c68f59c04dc1acc3d395d711e7dedb
+CURRENT_BASE_MAIN_SHA=16826d4a0174b6ec6b5b1d61d06af6554d8d4e38
+TESTED_CODE_SHA=a79d004327581118bb139432d8898790f16f63ef
 CURRENT_BRANCH=feature/calendar-photo-extraction-fix-01-site
 CURRENT_STATUS=IMPLEMENTED / LOCAL_RECHECK_PASS / READY_NO
+
+## 2026-10-12 최신 Site main 재통합
+
+- Ncloud Site main이 `16826d4a0174b6ec6b5b1d61d06af6554d8d4e38`로 18커밋 진행해 feature에 정상 merge했다. 88개 파일의 130개 충돌 중 126개는 자산 캐시 번호만 달랐다. 실제 내용 차이 4개에서는 최신 main의 `site-home-favorites` CSS·초기화 import를 보존하고 사진 중복방지 `calendarDraftLogicalRequestId` import도 유지했다.
+- 자산 캐시를 `aset-93edcb316398`로 다시 생성했고 `asset_cache_version.mjs --check` PASS, conflict marker 0, `git diff --check` PASS다. 새 CSS 추가가 아니라 main의 기존 즐겨찾기 CSS를 통합한 것이며 `auth/callback/index.html`에도 main과 같은 순서로 남아 있다.
+- 사진 검사 360/1280×라이트/다크 각 15개 단언 PASS. 합성 제공자→실제 Core 정규화→HTTP router→SQLite 저장 연결 30개 단언 PASS: 영수증 당일·월 합계 2,400,000원, 재업로드 후 1건, 날짜 수정 저장 PASS, 매출집계표 자동 저장 0건.
+- 기존 사진 추가 호텔, Life Calendar client, 지출 합계, 대화 자동제안·중복 정책, secondary surfaces, 월 geometry 회귀검사도 PASS했다.
+- 사용자가 브라우저에서 직접 확인하기 전에는 READY를 보내지 말라고 지시했다. 따라서 코드·로컬 검사는 통과했지만 `READY_FOR_DEPLOY=NO`를 유지하며, 운영 main 병합·Production 배포 요청을 하지 않는다.
 
 재개 시 추가 변경 파일: `scripts/validate_calendar_photo_extraction_fix_01.mjs`(의존성 없는 Chrome 실행기), `scripts/calendar_photo_extraction_fix_01_checks.js`(기존 단언 보존), 이 인계 문서. 최신 main 정상 통합 후 자산 캐시 참조도 재생성했다. 기존 사진 기능 변경은 `site-core.js`, `site-calendar-manager.js`에 유지하며 홈 CSS는 main과 동일하다.
 
