@@ -17,12 +17,13 @@
 // The ten tiles below the panel are examples; this panel is the only way in.
 import {
   addPersonIdentityPhoto, personErrorMessage, personIdentityPhotoErrorMessage,
-} from './site-person.js?v=aset-93edcb316398';
-import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-93edcb316398';
+} from './site-person.js?v=aset-c0fbcdd9de51';
+import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-c0fbcdd9de51';
 
 export const PERSON_BULK_MAX_FILES = 10;
 export const PERSON_BULK_WARNING = '정확한 비교를 위해 동일한 사람의 사진만 등록해 주세요. 다른 사람이나 동물·사물 사진이 섞이면 등록이 제한될 수 있습니다.';
-export const PERSON_BULK_ANGLE_GUIDE = '휴대폰에 있는 사진 중 얼굴이 잘 보이는 사진 3장과 상반신·전신 사진 2장이면 충분해요. 각도는 대충 맞아도 괜찮아요.';
+export const PERSON_BULK_ANGLE_GUIDE = '기본 등록에는 얼굴 3장과 상반신·전신 사진 2장이 필요해요.';
+export const PERSON_BULK_OPTIONAL_GUIDE = '다양한 각도와 상황의 사진을 최대 10장까지 등록하면 인식에 도움이 될 수 있어요.';
 export const PERSON_BULK_ANCHOR_HINT = '처음 저장된 사진이 다른 사람일 수 있어요. 사진 갱신·관리에서 그 사진을 빼고 다시 올려 주세요.';
 export const PERSON_BULK_UNAVAILABLE = '여러 장 한 번에 등록은 지금 사용할 수 없어요. 잠시 후 다시 시도해 주세요. 고른 사진은 저장하지 않았어요.';
 export const PERSON_BULK_FULL = '사진은 10장까지 등록할 수 있어요. 더 바꾸려면 사진 갱신·관리에서 기존 사진을 빼 주세요.';
@@ -70,7 +71,7 @@ export function personPhotoSetMessage({complete, faceCount, bodyCount, photoCoun
   if (complete) {
     return Number(photoCount) >= PERSON_BULK_MAX_FILES
       ? '등록에 필요한 사진이 모두 있어요.'
-      : '등록할 수 있어요. 사진을 더 올리면(최대 10장) 찾을 확률을 높일 수 있어요.';
+      : '필수 사진 5장이 준비됐어요. 이대로 등록할 수 있어요.';
   }
   const needFace = Math.max(0, faceMinimum - (Number(faceCount) || 0));
   const needBody = Math.max(0, bodyMinimum - (Number(bodyCount) || 0));
@@ -338,14 +339,14 @@ export function createPersonBulkPhotos({
     if (Number.isInteger(storedCount) && !running) stored = storedCount;
     const section = el('section', 'person-bulk');
     section.dataset.personBulk = '';
-    const title = el('h5', 'person-bulk-title', '사진 여러 장 한 번에 등록');
+    const title = el('h5', 'person-bulk-title', '사진 선택');
     const warning = el('p', 'person-bulk-warning', PERSON_BULK_WARNING);
     warning.dataset.personBulkWarning = '';
     const angles = el('p', 'person-bulk-angles', PERSON_BULK_ANGLE_GUIDE);
     angles.dataset.personBulkAngles = '';
-    const note = el('p', 'person-bulk-note', `한 번에 최대 ${PERSON_BULK_MAX_FILES}장까지 고를 수 있어요. 사진마다 얼굴 사진인지 상반신·전신 사진인지 확인해서 맞는 칸에 넣어요.`);
+    const note = el('p', 'person-bulk-note', PERSON_BULK_OPTIONAL_GUIDE);
     const input = fileInput(true, 'personBulkInput');
-    const pick = actionButton('사진 여러 장 선택', () => { if (guard()) input.click(); }, true);
+    const pick = actionButton('갤러리에서 여러 장 선택', () => { if (guard()) input.click(); }, true);
     pick.classList.add('person-bulk-pick');
     pick.dataset.personBulkPick = '';
     input.addEventListener('change', () => {

@@ -5,7 +5,7 @@
 // writes the owner's own records. Pet photos are private bytes served from
 // an authenticated endpoint, so they are fetched as blobs and never turned
 // into a shareable URL.
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-93edcb316398';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-c0fbcdd9de51';
 
 const PET_SPECIES = Object.freeze(['DOG', 'CAT']);
 const PET_SEXES = Object.freeze(['MALE', 'FEMALE', 'UNKNOWN']);
@@ -332,6 +332,7 @@ function normalizePet(value) {
   if (!petId || !name) return null;
   return Object.freeze({
     petId,
+    registrationNumber: typeof value.registration_number === 'string' && value.registration_number.trim() ? value.registration_number : petId,
     name,
     species: PET_SPECIES.includes(value.species) ? value.species : 'DOG',
     sex: PET_SEXES.includes(value.sex) ? value.sex : 'UNKNOWN',

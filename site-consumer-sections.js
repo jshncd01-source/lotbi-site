@@ -1,6 +1,6 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-93edcb316398';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-93edcb316398';
-import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-93edcb316398';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-c0fbcdd9de51';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-c0fbcdd9de51';
+import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-c0fbcdd9de51';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -283,7 +283,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-medical');
       detail.append(host);
       root.replaceChildren(detail); setView('life-medical');
-      import('./site-life-medical-list.js?v=aset-93edcb316398').then(({mountMedicalList}) => {
+      import('./site-life-medical-list.js?v=aset-c0fbcdd9de51').then(({mountMedicalList}) => {
         if (disposed || current !== generation) return null;
         return mountMedicalList({root: host}).then(mounted => {
           if (disposed || current !== generation) { mounted.dispose(); return; }
@@ -305,7 +305,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(host);
       root.replaceChildren(detail); setView('life-news');
-      import('./site-life-news.js?v=aset-93edcb316398').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-c0fbcdd9de51').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -326,7 +326,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(title, host);
       root.replaceChildren(detail); setView('life-education'); title.focus();
-      import('./site-life-education.js?v=aset-93edcb316398').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-c0fbcdd9de51').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -430,6 +430,19 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         const active = button.dataset.careTab === value;
         button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1;
       }
+      // The signed-out category is useful without loading private target APIs.
+      if (!authenticated) {
+        body.removeAttribute('aria-busy');
+        const welcome = node('section', 'family-guardian-welcome');
+        welcome.dataset.familyGuardianWelcome = value;
+        const heading = node('h3', '', value === 'pets' ? '반려동물을 함께 지켜요' : '소중한 가족을 함께 지켜요');
+        const copy = node('p', '', '로그인하면 보호 대상을 등록하고 사진을 관리할 수 있어요. 실종 시에는 별도 동의 후 관리자에게 신고가 접수됩니다.');
+        const login = node('a', 'site-button site-button-primary', '로그인하고 시작하기');
+        login.href = '/auth/start/';
+        welcome.append(heading, copy, login);
+        body.replaceChildren(welcome);
+        return;
+      }
       if (value === 'family') {
         body.setAttribute('aria-busy', 'true');
         const host = node('div'); body.replaceChildren(host);
@@ -456,7 +469,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
           if (disposed || current !== generation) { mounted?.dispose?.(); return; }
           releasePeople = mounted?.dispose;
         } catch {
-          if (!disposed && current === generation) body.replaceChildren(node('p', 'consumer-error', '사람 안심케어 정보를 확인하지 못했습니다. 잠시 후 다시 열어 주세요.'));
+          if (!disposed && current === generation) body.replaceChildren(node('p', 'consumer-error', '사람 가족 지킴이 정보를 확인하지 못했습니다. 잠시 후 다시 열어 주세요.'));
         } finally { if (!disposed && current === generation) body.removeAttribute('aria-busy'); }
         return;
       }

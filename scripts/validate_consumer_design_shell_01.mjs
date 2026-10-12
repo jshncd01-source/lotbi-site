@@ -7,7 +7,7 @@ const subscribe = read('subscribe.html');
 // CONNECTED-SERVICES-NAME-01 — 대표 결정(2026-10-10 "연결서비스로 통합"): the last item
 // always opened Account's 연결 서비스 page; it now carries that page's name.
 // TROUBLE-HELPER-01: 분쟁·사고 도우미 joins right after 사기·피싱 확인 (eight menus).
-const expected = ['새 대화', '캘린더', 'Life Wallet', '사기·피싱 확인', '분쟁·사고 도우미', '안심케어', '지역정보', '연결 서비스'];
+const expected = ['새 대화', '캘린더', 'Life Wallet', '사기·피싱 확인', '분쟁·사고 도우미', '가족 지킴이', '지역정보', '연결 서비스'];
 const navs = [...html.matchAll(/<div class="consumer-primary-nav"[^>]*>([\s\S]*?)<\/div>/g)];
 assert.equal(navs.length, 2, 'desktop and mobile use the same navigation');
 for (const [,nav] of navs) {
@@ -61,7 +61,7 @@ assert.doesNotMatch(consumerSections, /긴급한 상황이라면|사람 실종 �
 assert.match(js, /openFestival/);
 assert.match(js, /openLotbiBox/);
 assert.match(js, /backLabel: '지역정보로 돌아가기', onBack: \(\) => openConsumerSection\('life'\)/);
-assert.match(js, /backLabel: '안심케어로 돌아가기', onBack: \(\) => openConsumerSection\('care'\)/);
+assert.match(js, /backLabel: '가족 지킴이로 돌아가기', onBack: \(\) => openConsumerSection\('care'\)/);
 assert.match(js, /back.removeEventListener\('click', closeSurface\)/);
 for (const text of ['일상을 챙겨주는 AI 생활비서', '생활 전반을 더 많이 맡기는 개인비서', 'LOTBI를 가장 넉넉하게 사용', '9,900원', '29,900원', '39,900원', '프로필 1개', '프로필 5개', '프로필 15개']) assert.ok(subscribe.includes(text));
 assert.doesNotMatch(subscribe, /19,900원/);
