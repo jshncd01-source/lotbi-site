@@ -260,7 +260,6 @@ function resolvePlaceOrbitPointerIndex({
 // to, not code to delete.
 // (superseding) "소리내어 읽기" was absent while Core's /v2/live/tts was unreachable
 // from a Site session; a permanently dead button is worse than no button.
-const MESSAGE_ACTION_SHARE_URL = SAFE_SHARE_URL;
 const MESSAGE_ACTION_ICON_COPY = 'M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1Zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16h-9V7h9v14Z';
 const MESSAGE_ACTION_ICON_SHARE = 'M12 2 7.5 6.5l1.4 1.4L11 5.8V16h2V5.8l2.1 2.1 1.4-1.4L12 2ZM5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8h-2v8H7v-8H5Z';
 const MESSAGE_ACTION_ICON_SPEAK = 'M4 9v6h4l5 4V5L8 9H4Zm11.5 3a4 4 0 0 0-2-3.46v6.92A4 4 0 0 0 15.5 12Zm-2-7.77v2.06A6 6 0 0 1 13.5 18.3v2.06a8 8 0 0 0 0-15.6Z';
@@ -363,7 +362,7 @@ async function shareMessageText(text, {includeUrl = true} = {}) {
   const value = safeShareSummary(text, {maxLength: 1200});
   if (!value) throw new Error('공유할 내용이 없습니다.');
   const shareData = includeUrl
-    ? {title: 'LOTBI', text: value, url: MESSAGE_ACTION_SHARE_URL}
+    ? {title: 'LOTBI', text: value, url: SAFE_SHARE_URL}
     : {text: value};
   if (typeof navigator.share === 'function') {
     try {
@@ -373,7 +372,7 @@ async function shareMessageText(text, {includeUrl = true} = {}) {
       if (error && error.name === 'AbortError') return 'cancelled';
     }
   }
-  await writeMessageTextToClipboard(includeUrl ? `${value}\n\n${MESSAGE_ACTION_SHARE_URL}` : value);
+  await writeMessageTextToClipboard(includeUrl ? `${value}\n\n${SAFE_SHARE_URL}` : value);
   return 'copied';
 }
 
@@ -468,7 +467,7 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
   });
   copyShareLink.addEventListener('click', () => {
     closeShareMenu();
-    void writeMessageTextToClipboard(MESSAGE_ACTION_SHARE_URL)
+    void writeMessageTextToClipboard(SAFE_SHARE_URL)
       .then(() => report('안전한 LOTBI 링크를 복사했습니다.'))
       .catch(() => report('링크를 복사하지 못했습니다.', 'error'));
   });
