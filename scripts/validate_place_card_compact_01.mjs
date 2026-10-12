@@ -152,6 +152,9 @@ try {
   const center=await wait(()=>rail.querySelector('[data-orbit-slot="CENTER"]'),'center');
   await new Promise(r=>setTimeout(r,250));
   const side=rail.querySelector('.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"])');
+  const shareButton=document.querySelector('[data-message-action="share"]');
+  shareButton?.click();
+  const shareMenu=document.querySelector('.chat-message-share-menu');
   const box=node=>{const r=node.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}};
   const actions=[...center.querySelectorAll('.lotbi-rich-card-action')];
   out.textContent=JSON.stringify({
@@ -165,6 +168,7 @@ try {
       aria:node.getAttribute('aria-label')||'',
       target:node.getAttribute('target')||'',
       rel:node.getAttribute('rel')||'',
+      href:node.getAttribute('href')||'',
       ...box(node),
     })),
     mediaHidden:center.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
@@ -178,6 +182,8 @@ try {
     consumerText:rail.textContent||'',
     noPhoneActions:side.querySelectorAll('[data-action="phone"]').length,
     assistantText:document.querySelector('.chat-message-assistant .chat-message-body')?.textContent||'',
+    shareMenuVisible:Boolean(shareMenu&&!shareMenu.hidden),
+    shareChoices:[...document.querySelectorAll('.chat-message-share-choice')].map(node=>(node.textContent||'').trim()),
   });
 } catch(e) { fail(e); }
 </script><pre id="placecard-result">pending</pre>`;
@@ -237,6 +243,15 @@ try {
     const reading=run(browser,testCase);
     const expected=['phone','naver-map','kakao-navi','tmap','google-maps'];
     assert.deepEqual(reading.actions.map(x=>x.action),expected,`${testCase.label}: actions`);
+    const phone=reading.actions.find(x=>x.action==='phone');
+    const naver=reading.actions.find(x=>x.action==='naver-map');
+    assert.ok(phone.x<=reading.card.x+10,`${testCase.label}: phone must stay at the left edge`);
+    assert.ok(naver.x+naver.w>=reading.card.x+reading.card.w-10,`${testCase.label}: NAVER must stay at the right edge`);
+    assert.ok(naver.x-(phone.x+phone.w)>=44,`${testCase.label}: phone and NAVER need a clear middle gap`);
+    assert.match(phone.href,/^tel:/u,`${testCase.label}: phone href`);
+    assert.match(naver.href,/^https:\/\/map\.naver\.com\/p\/search\//u,`${testCase.label}: NAVER href`);
+    assert.equal(reading.shareMenuVisible,true,`${testCase.label}: share menu visible`);
+    assert.deepEqual(reading.shareChoices,['카카오톡으로 공유','다른 앱으로 공유','링크 복사'],`${testCase.label}: share menu choices`);
     for(const action of reading.actions) {
       assert.ok(action.w>=44&&action.h>=44,`${testCase.label}: ${action.action} ${action.w}x${action.h}`);
       assert.equal(action.text,'',`${testCase.label}: ${action.action} visible label`);
