@@ -1406,6 +1406,9 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
     sessionId,
     installationId,
     expiresAt: typeof session.expires_at === 'string' ? session.expires_at : '',
+    chatBubbleColor: typeof user.chat_bubble_color === 'string' && /^#[0-9a-f]{6}$/iu.test(user.chat_bubble_color)
+      ? user.chat_bubble_color.toLowerCase()
+      : null,
   });
 }
 
