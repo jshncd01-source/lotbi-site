@@ -1,11 +1,18 @@
-READY_FOR_DEPLOY=NO
+READY_FOR_DEPLOY=YES
 
 # 캘린더 사진 분석 수정 01 — SITE 인계
 
 CURRENT_BASE_MAIN_SHA=16826d4a0174b6ec6b5b1d61d06af6554d8d4e38
 TESTED_CODE_SHA=a79d004327581118bb139432d8898790f16f63ef
 CURRENT_BRANCH=feature/calendar-photo-extraction-fix-01-site
-CURRENT_STATUS=IMPLEMENTED / LOCAL_RECHECK_PASS / READY_NO
+CURRENT_STATUS=IMPLEMENTED / LOCAL_RECHECK_PASS / READY_FOR_DEPLOY
+
+## 2026-10-12 배포 후보 확정
+
+- 사용자가 이 작업방에서 Ncloud feature를 READY로 올리라고 직접 지시했다.
+- 최신 main 재통합, 자산 캐시 검사, 360/1280×라이트/다크 사진 검사, 로컬 Core+SQLite 30단언 및 기존 캘린더 회귀검사 PASS를 배포 후보 근거로 사용한다.
+- 실제 원본 OPENAI 결과와 운영 저장 E2E는 아직 NOT_VERIFIED다. 배포총괄 Gate와 배포 후 사용자 브라우저 확인이 필요하다.
+- migration `p0_0123` 미사용, 새 Secret·DB 변경 없음. Core → Site → App 순서를 유지한다.
 
 ## 2026-10-12 최신 Site main 재통합
 
