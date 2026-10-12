@@ -181,3 +181,10 @@ export function birthYearStart(relationship, now = new Date()) {
   const age = BIRTH_YEAR_START_AGE[relationship] ?? BIRTH_YEAR_START_AGE.OTHER;
   return now.getFullYear() - age;
 }
+
+// UI eligibility only. Core still checks consent, ownership and photo access.
+export function safecareSosSubmitReady({busy, lastSeenAt, location, consented}, now = Date.now()) {
+  const timestamp = Date.parse(String(lastSeenAt || ''));
+  return !busy && consented === true && typeof location === 'string' && Boolean(location.trim()) &&
+    Number.isFinite(timestamp) && timestamp <= now;
+}

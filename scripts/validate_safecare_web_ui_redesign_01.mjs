@@ -772,6 +772,21 @@ async function run() {
         return {blocked, fields: [...form.querySelectorAll('.person-field-label')].map(node => node.textContent), consent: Boolean(form.querySelector('input[type=checkbox]'))};
       `);
       await shoot('person-05-sos-form');
+      if (process.env.FAMILY_GUARDIAN_SOS_REVIEW === '1') {
+        const entry = await cdp.evaluate(`
+          const form=document.querySelector('[data-person-sos-form]');
+          const checkbox=form.querySelector('input[type=checkbox]'),submit=form.querySelector('button[type=submit]');
+          const initial={unchecked:!checkbox.checked,disabled:submit.disabled};
+          const place=[...form.querySelectorAll('input')].find(input=>input.placeholder.startsWith('예:'));
+          place.value='가상 시험 장소';place.dispatchEvent(new Event('input',{bubbles:true}));checkbox.click();
+          const enabled=!submit.disabled;
+          checkbox.click(); const revoked=submit.disabled;
+          place.value='';place.dispatchEvent(new Event('input',{bubbles:true}));
+          return {initial,enabled,revoked};
+        `);
+        assert.deepEqual(entry.initial,{unchecked:true,disabled:true});
+        assert.equal(entry.enabled,true); assert.equal(entry.revoked,true);
+      }
 
       // ------------------------------------------------ person: found report
       r.personFound = await cdp.evaluate(`
@@ -986,6 +1001,20 @@ async function run() {
         return true;
       `);
       await shoot('pet-11-sos-form');
+      if (process.env.FAMILY_GUARDIAN_SOS_REVIEW === '1') {
+        const entry = await cdp.evaluate(`
+          const form=document.querySelector('[data-pet-sos-form]');
+          const checkbox=form.querySelector('input[type=checkbox]'),submit=form.querySelector('button[type=submit]');
+          const initial={unchecked:!checkbox.checked,disabled:submit.disabled};
+          const place=[...form.querySelectorAll('input')].find(input=>input.placeholder.startsWith('예:'));
+          place.value='가상 시험 장소';place.dispatchEvent(new Event('input',{bubbles:true}));checkbox.click();
+          const enabled=!submit.disabled;
+          checkbox.click(); const revoked=submit.disabled;
+          return {initial,enabled,revoked};
+        `);
+        assert.deepEqual(entry.initial,{unchecked:true,disabled:true});
+        assert.equal(entry.enabled,true);assert.equal(entry.revoked,true);
+      }
     }
     socket.close();
     return results;

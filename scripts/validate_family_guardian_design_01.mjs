@@ -43,6 +43,7 @@ if (!process.argv.includes('--source-only')) {
   const result = spawnSync(process.execPath, [path.join(root, 'scripts/validate_safecare_web_ui_redesign_01.mjs')], {
     cwd: root, stdio: 'inherit', env: {...process.env, FAMILY_GUARDIAN_REVIEW: '1',
       FAMILY_GUARDIAN_REGISTRATION_REVIEW: fs.existsSync(path.join(root,'scripts/validate_family_guardian_registration_02.mjs')) ? '1' : '0',
+      FAMILY_GUARDIAN_SOS_REVIEW: fs.existsSync(path.join(root,'scripts/validate_family_guardian_sos_03.mjs')) ? '1' : '0',
       SAFECARE_VIEWPORTS_JSON: JSON.stringify([
         ['mobile-360-light', 360, 844, 'light'], ['mobile-360-dark', 360, 844, 'dark'],
         ['desktop-1280-light', 1280, 900, 'light'], ['desktop-1280-dark', 1280, 900, 'dark'],

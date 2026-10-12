@@ -56,21 +56,21 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-73d42d50568a';
+} from './site-pet.js?v=aset-4f46f64546d1';
 import {
   petPhotoSlotArtwork,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-73d42d50568a';
+} from './site-pet-guides.js?v=aset-4f46f64546d1';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-73d42d50568a';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-73d42d50568a';
-import {personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-73d42d50568a';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-73d42d50568a';
+} from './site-pet-gate.js?v=aset-4f46f64546d1';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-4f46f64546d1';
+import {personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-4f46f64546d1';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-4f46f64546d1';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -78,7 +78,8 @@ import {
   foundReviewStateCopy,
   identityPhotoProgress,
   renewalBadge,
-} from './site-safecare-common.js?v=aset-73d42d50568a';
+  safecareSosSubmitReady,
+} from './site-safecare-common.js?v=aset-4f46f64546d1';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -617,6 +618,7 @@ export async function mountPetFamilyManager({
         const missingBox = el('div', 'safecare-sos-active');
         missingBox.dataset.petActiveSos = activeCase.caseId;
         missingBox.appendChild(el('strong', '', '실종 상태 진행 중'));
+        if (activeCase.caseId) missingBox.appendChild(el('span', 'pet-number-value', `접수번호 ${activeCase.caseId}`));
         if (activeCase.occurredAt) missingBox.appendChild(el('span', '', `마지막 목격 ${displayMoment(activeCase.occurredAt)}`));
         if (activeCase.locationLabel) missingBox.appendChild(el('span', '', activeCase.locationLabel));
         missingBox.appendChild(el(
@@ -1482,10 +1484,20 @@ export async function mountPetFamilyManager({
     formError.setAttribute('role', 'alert');
     const submit = el('button', 'site-button site-button-primary', '동의하고 실종 상태로 전환');
     submit.type = 'submit';
+    const syncSosSubmit = () => {
+      submit.disabled = !safecareSosSubmitReady({busy,lastSeenAt:moment.input.value,location:place.input.value,consented:consentInput.checked});
+      submit.setAttribute('aria-disabled',String(submit.disabled));
+    };
+    for(const field of [moment.input,place.input,consentInput]) {
+      field.addEventListener('input',syncSosSubmit); field.addEventListener('change',syncSosSubmit);
+    }
+    syncSosSubmit();
     form.append(
       moment.field, place.field, note.field,
       // SAFECARE-PHOTO-EASY-UPLOAD-01: what happens today — administrators see the active case and the found reports.
       el('p', 'pet-empty-copy', '실종 상태로 전환하면 가족 지킴이 관리자가 실종 목록에서 확인하고, 들어온 발견 제보도 관리자가 확인합니다. AI가 같은 반려동물이라고 확정하지 않습니다.'),
+      el('p', 'pet-empty-copy', '동의한 활성 신고는 담당 관리자에게 접수됩니다. 담당자는 신고 처리에 필요한 등록 사진과 신고 내용을 확인하며, 신고를 종료하면 이 신고를 근거로 한 열람 권한이 회수됩니다.'),
+      el('p', 'pet-number-value', `${LOTBI_PET_NUMBER_LABEL} ${lotbiPetNumber(pet.registrationNumber)}`),
       consent, formError, submit,
     );
 
@@ -1533,8 +1545,8 @@ export async function mountPetFamilyManager({
         const code = errorCodeOf(value);
         if (code) formError.dataset.petErrorCode = code;
       } finally {
-        submit.disabled = false;
         setBusy(false);
+        syncSosSubmit();
       }
     });
     sosSection.appendChild(form);

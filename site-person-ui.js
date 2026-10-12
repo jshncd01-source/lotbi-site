@@ -15,16 +15,16 @@ import {
   personErrorMessage, personIdentityPhotoErrorMessage, personRequestKey, personSosReceivedMessage, putHumanSightingPhoto,
   respondGuardianNotice, PERSON_FOUND_EMERGENCY_TEXT, PERSON_FOUND_FORM_NOTE, PERSON_SOS_ACTIVE_NOTE, PERSON_SOS_EMERGENCY_TEXT, PERSON_SOS_FORM_NOTE,
   submitHumanSighting, updatePerson,
-} from './site-person.js?v=aset-73d42d50568a';
-import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-73d42d50568a';
+} from './site-person.js?v=aset-4f46f64546d1';
+import {PERSON_IDENTITY_SLOTS, personSlotArtwork} from './site-person-guides.js?v=aset-4f46f64546d1';
 import {
   FOUND_REPORT_MAX_PHOTOS, birthYearOptions, birthYearStart, formatDate, formatMoment, foundPhotoProgress, personFoundReviewStateCopy,
-  identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge, safecareEmergencyNotice,
-} from './site-safecare-common.js?v=aset-73d42d50568a';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-73d42d50568a';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-73d42d50568a';
-import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-73d42d50568a';
-import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-73d42d50568a';
+  identityPhotoProgress, isoFromLocal, localNowValue, normalizeBirthMonth, normalizeBirthYear, renewalBadge, safecareEmergencyNotice, safecareSosSubmitReady,
+} from './site-safecare-common.js?v=aset-4f46f64546d1';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-4f46f64546d1';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-4f46f64546d1';
+import {PERSON_PHOTO_ACCEPT, PersonPhotoPrepareError, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-4f46f64546d1';
+import {createPersonBulkPhotos, personPhotoSetMessage} from './site-person-bulk-photos.js?v=aset-4f46f64546d1';
 
 const RELATIONSHIPS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'], ['FAMILY', '가족'], ['DEPENDENT', '돌봄 대상'], ['OTHER', '기타']]);
 const SIGHTING_SLOT_LABELS = Object.freeze(['얼굴 정면', '얼굴 왼쪽', '얼굴 오른쪽', '상반신', '전신', '추가 사진 1', '추가 사진 2', '추가 사진 3', '추가 사진 4', '추가 사진 5']);
@@ -352,6 +352,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       const missing = el('div', 'safecare-sos-active');
       missing.dataset.personActiveSos = activeCase.sosId;
       missing.append(el('strong', '', '실종 상태 진행 중'));
+      if (activeCase.sosId) missing.append(el('span', 'person-card-meta', `접수번호 ${activeCase.sosId}`));
       if (activeCase.lastSeenAt) missing.append(el('span', '', `마지막 목격 ${formatMoment(activeCase.lastSeenAt)}`));
       if (activeCase.lastSeenSummary) missing.append(el('span', '', activeCase.lastSeenSummary));
       missing.append(el('span', 'safecare-sos-active-note', PERSON_SOS_ACTIVE_NOTE));
@@ -791,9 +792,18 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
     consent.append(checkbox, el('span', '', '등록 사진을 활성 SOS 기간 동안만 비공개 후보 검색과 관리자 검토에 사용하는 데 동의합니다.'));
     const error = errorNode();
     const submit = el('button', 'site-button person-primary', '동의하고 실종 상태로 전환'); submit.type = 'submit';
+    const syncSosSubmit = () => {
+      submit.disabled = !safecareSosSubmitReady({busy,lastSeenAt:lastSeenAt.value,location:location.value,consented:checkbox.checked});
+      submit.setAttribute('aria-disabled',String(submit.disabled));
+    };
+    for (const field of [lastSeenAt,location,checkbox]) {
+      field.addEventListener('input',syncSosSubmit); field.addEventListener('change',syncSosSubmit);
+    }
+    syncSosSubmit();
     box.append(
       labeled('실종 날짜·시간', lastSeenAt), labeled('마지막으로 본 장소', location), labeled('당시 특징·기타 (선택)', description),
       el('p', 'person-consent', PERSON_SOS_FORM_NOTE),
+      el('p', 'person-consent', '동의한 활성 신고는 담당 관리자에게 접수됩니다. 담당자는 신고 처리에 필요한 등록 사진과 신고 내용을 확인하며, 신고를 종료하면 이 신고를 근거로 한 열람 권한이 회수됩니다.'),
       consent, error, submit,
     );
     box.addEventListener('submit', async event => {
@@ -807,7 +817,7 @@ export async function mountPersonCareManager({sessionToken, root, initialSurface
       // SAFECARE-SOS-ADMIN-INTAKE: admin inbox / notification lines only when Core reports them; the 112 line always.
       try { const created = await createPersonSos(sessionToken, {personId: person.personId, lastSeenAt: when, lastSeenSummary: location.value.trim(), description: description.value.trim(), matchingConsentConfirmed: true}); await refresh(); showStatus(personSosReceivedMessage(person.displayName, created)); go({name: 'list'}); }
       catch (value) { fail(error, value, '실종 상태로 전환하지 못했습니다. 사진(얼굴 3장·몸 2장)과 갱신 상태, 동의를 확인해 주세요.'); }
-      finally { busy = false; submit.disabled = false; }
+      finally { busy = false; syncSosSubmit(); }
     });
     content.append(box);
   };
