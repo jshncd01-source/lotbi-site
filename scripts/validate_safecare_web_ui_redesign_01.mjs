@@ -417,14 +417,19 @@ async function run() {
     const viewports = process.env.SAFECARE_VIEWPORTS_JSON
       ? JSON.parse(process.env.SAFECARE_VIEWPORTS_JSON)
       : [['desktop-1440', 1440, 900, 'light'], ['mobile-390', 390, 844, 'light']];
-    for (const [label, width, height, theme = 'light'] of viewports) {
+    for (const [label, width, height, theme = 'light', scheme = theme === 'dark' ? 'dark' : 'light', bootstrap = false] of viewports) {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 768});
+      await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
       await cdp.send('Page.navigate', {url: `${baseUrl}/${fixtureName}`});
       for (let t = 0; t < 100; t += 1) {
         if (await cdp.evaluate('return globalThis.__fixtureReady === true;').catch(() => false)) break;
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-      await cdp.evaluate(`document.body.dataset.siteTheme = ${JSON.stringify(theme)};`);
+      await cdp.evaluate(`
+        document.documentElement.dataset.siteThemeBootstrap = ${JSON.stringify(theme)};
+        if (${JSON.stringify(bootstrap)}) delete document.body.dataset.siteTheme;
+        else document.body.dataset.siteTheme = ${JSON.stringify(theme)};
+      `);
       const shoot = async name => {
         const overflow = await cdp.evaluate('return __overflow();');
         assert.ok(overflow <= 1, `${label}/${name}: horizontal overflow ${overflow}px`);
@@ -463,7 +468,7 @@ async function run() {
           assert.ok(guest.text.includes('로그인하고 시작하기'));
           assert.equal(guest.calls, 0, 'signed-out category never loads target APIs');
           assert.equal(guest.mountedPrivate, 0, 'signed-out category never mounts a private manager');
-          if (theme === 'light') {
+          if (theme === 'light' || (theme === 'system' && scheme === 'light')) {
             assert.equal(guest.background, 'rgb(246, 247, 249)');
             assert.equal(guest.card, 'rgb(255, 255, 255)');
             assert.equal(guest.button, 'rgb(37, 99, 235)');
