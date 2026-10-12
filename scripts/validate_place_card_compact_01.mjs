@@ -44,7 +44,7 @@ const PLACE_RESULT = {
       photo_evidence: {
         provider: 'GOOGLE_PLACES',
         provider_place_id: 'google:verified-one',
-        match_basis: 'EXACT_NAME_AND_80M_COORDINATE',
+        match_basis: 'EXACT_NAME_AND_ADDRESS',
         fetched_at: '2026-09-25T08:30:00Z',
         verification_state: 'VERIFIED',
         attributions: [{display_name: 'Google Places contributor'}],
@@ -227,7 +227,23 @@ function run(browser, testCase) {
   return parsed;
 }
 
+function captureScreenshot(browser, testCase) {
+  const output=path.join(EVIDENCE_DIR,`place-actions-${testCase.label}.png`);
+  const userAgent=testCase.mobile?MOBILE_UA:DESKTOP_UA;
+  const result=spawnSync(browser,[
+    '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--ignore-certificate-errors',
+    `--user-agent=${userAgent}`,'--window-size=1500,1000','--force-device-scale-factor=1',
+    '--force-prefers-reduced-motion=reduce','--virtual-time-budget=80000',`--screenshot=${output}`,
+    ORIGIN+'/'+WRAPPER_REL,
+  ],{encoding:'utf8',timeout:150000,maxBuffer:16*1024*1024});
+  if(result.error)throw result.error;
+  if(result.status!==0)throw new Error(result.stderr);
+  assert.ok(fs.existsSync(output),`${testCase.label}: screenshot missing`);
+}
+
 const browser=browserPath();
+const EVIDENCE_DIR=path.join(ROOT,'docs','browser-evidence');
+fs.mkdirSync(EVIDENCE_DIR,{recursive:true});
 const FIXTURE_DIR=fs.mkdtempSync(path.join(ROOT,'scripts/.placecard-'));
 const FIXTURE_REL='scripts/'+path.basename(FIXTURE_DIR);
 const INNER_REL=FIXTURE_REL+'/inner.html';
@@ -279,6 +295,7 @@ try {
       assert.doesNotMatch(reading.consumerText,new RegExp(forbidden,'u'),`${testCase.label}: ${forbidden}`);
     }
     assert.ok(reading.assistantText.length<100,`${testCase.label}: verbose answer`);
+    if(testCase.label==='390'||testCase.label==='1280')captureScreenshot(browser,testCase);
   }
 } finally {
   server?.kill();
