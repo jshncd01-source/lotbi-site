@@ -1,7 +1,7 @@
 import {
   createPersonProfile, deletePersonProfile, listPersonProfiles,
   personThumbnailUrl, uploadPersonPhoto,
-} from './site-person.js?v=aset-de88e6e1b0a7';
+} from './site-person.js?v=aset-3a6682ca77f2';
 
 const RELATIONSHIPS = Object.freeze([
   ['CHILD', '자녀'], ['PARENT', '부모'], ['SPOUSE', '배우자'],

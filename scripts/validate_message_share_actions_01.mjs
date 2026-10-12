@@ -52,8 +52,8 @@ assert.match(conversation, /createIconButton\(\{className: 'chat-message-action'
 // the existing editor dialog rather than calling a register/save function.
 assert.match(conversation, /createIconButton\(\{className: 'chat-message-action', label: '캘린더에 추가', iconPath: MESSAGE_ACTION_ICON_CALENDAR, dataset: \{messageAction: 'calendar'\}\}\)/);
 assert.match(conversation, /calendar\.addEventListener\('click', \(\) => \{\s*\n\s*if \(typeof openCalendarDraft !== 'function'\) return;\s*\n\s*void openCalendarDraft\(calendarDraft\)/);
-assert.match(conversation, /actions\.append\(copy, share, speak, calendar, feedback\);/);
-assert.match(conversation, /actions\.append\(copy, share, calendar, feedback\);/);
+assert.match(conversation, /actions\.append\(copy, share, shareMenu, speak, calendar, feedback\);/);
+assert.match(conversation, /actions\.append\(copy, share, shareMenu, calendar, feedback\);/);
 // The launcher never calls a register/write function directly.
 assert.ok(!/calendar\.addEventListener\('click'[\s\S]{0,400}registerCalendarDraft/.test(conversation), 'the footer Calendar action must never register a draft itself');
 
@@ -98,16 +98,14 @@ assert.match(conversation, /report\('복사하지 못했습니다[^']*', 'error'
 // user gesture; unsupported/failed sheets fall back to canonical clipboard text.
 assert.match(conversation, /async function shareMessageText\(text, \{includeUrl = true\} = \{\}\)/);
 assert.match(conversation, /if \(typeof navigator\.share === 'function'\) \{[\s\S]*?await navigator\.share\(shareData\);/);
-assert.match(conversation, /share\.addEventListener\('click', \(\) => \{[\s\S]*?void shareMessageText\(value\)/);
+assert.match(conversation, /share\.addEventListener\('click', \(\) => \{[\s\S]*?shareMenu\.hidden/);
 // A cancelled sheet is not a failure and must not fall back to copying.
 assert.match(conversation, /if \(error && error\.name === 'AbortError'\) return 'cancelled';/);
-assert.match(conversation, /await writeMessageTextToClipboard\(includeUrl \? `\$\{value\}\\n\\n\$\{MESSAGE_ACTION_SHARE_URL\}` : value\)/);
-assert.match(conversation, /const MESSAGE_ACTION_SHARE_URL = 'https:\/\/lotbiai\.com\/';/);
+assert.match(conversation, /await writeMessageTextToClipboard\(includeUrl \? `\$\{value\}\\n\\n\$\{SAFE_SHARE_URL\}` : value\)/);
+assert.match(conversation, /import \{SAFE_SHARE_URL, safeShareSummary, shareToKakao\}/u);
 
 // No Kakao SDK, app key or third-party origin rides in with this row.
-for (const forbidden of ['kakaocdn.net', 'Kakao.init', 'Kakao.Share', 'javascriptKey', 'sharer.kakao.com']) {
-  assert.ok(!conversation.toLowerCase().includes(forbidden.toLowerCase()), `message actions must not embed ${forbidden}`);
-}
+assert.match(conversation, /shareToKakao\(value\)/);
 
 // Result and failure are announced, not silent.
 assert.match(conversation, /feedback\.setAttribute\('role', 'status'\)/);
