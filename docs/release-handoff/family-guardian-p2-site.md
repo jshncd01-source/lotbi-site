@@ -2,6 +2,16 @@ READY_FOR_DEPLOY=YES
 
 # 가족 지킴이 ② 등록·사진·정보 수정 — Site 사전 검증
 
+## 2026-10-12 시스템 다크 수정 재READY — 현행
+
+- READY_FOR_DEPLOY=YES, FULL_FUNCTIONAL_COMPLETE=NO, PRODUCTION_VERIFIED=NO. 기존 05a10023 대신 최신 ① 시스템 다크 수정 계보를 정상 merge했다. 검증 코드 HEAD b6c931156, 이후 ① 문서 merge는 문서만 변경했다. 최종 exact HEAD·Ncloud push/readback은 outputs/family-guardian-system-dark-reready-2026-10-12.md에 기록한다.
+- fresh Ncloud main 29cc6b13a7e081dda6a224717f50d0efcfa53e25 포함. 88파일130hunk는 자산 토큰 정규화 후 동일한 cache-only 충돌임을 확인해 기계 해결했다. ② 등록번호·연월·사진·수정 로직의 실질 변경0, 가족 CSS+테마 검사만 갱신했다.
+- 기존 validate_safecare_person_dark_cancel_01.mjs 변경0, 단독 PASS: light/dark/system-dark 대비 위반0 및 등록 취소/재개/삭제 보호. 가족 360/1280 18조합 PASS·450PNG. 기존 등록 계약(번호·2000년1월·무변경·부분 수정·오류 보존) PASS.
+- before: outputs/screenshots/site/phase2-system-dark-fix-before-05a1/ 44PNG, after: outputs/screenshots/site/phase2-system-dark-fix-after-20261012/ 450PNG. before는 과거 05a10023 CSS를 유지한 별도 증거 checkout이며 테마 캡처 harness만 업데이트했다. 일반 동작 PASS를 before 대비 PASS로 해석하지 않는다. 기존 light/dark 전후/원본 ZIP 보존.
+- common-ui-polish02 10계약, consumer-shell source, cache write/check aset-1568c9660e38·refs208, diff 검사 PASS. 검사 삭제/skip/완화 없음.
+- 실제 Core/Admin 저장/재조회·Native after/dark·iOS는 미검증 그대로다. 운영 DB·Core/다른 저장소 신규 변경, main/Production/Play 업로드 없음. 단계 공동 후보와 trusted gate 조건 유지.
+- 운영 E2E: 배포 후 배포방:
+
 ## 2026-10-12 배포 레일 재READY — 현행 화면 확인용 판정
 
 - READY_FOR_DEPLOY=YES는 확정 화면을 먼저 확인하는 공동 후보의 개발 READY다. FULL_FUNCTIONAL_COMPLETE=NO, PRODUCTION_VERIFIED=NO. 아래 과거 NO/보류 문구는 이전의 전 항목 완료 기준과 당시 SHA 기록이며 이 절이 현행 판정이다.
