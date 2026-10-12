@@ -1,4 +1,4 @@
-import {CORE_ORIGIN} from './site-core.js?v=aset-73d42d50568a';
+import {CORE_ORIGIN} from './site-core.js?v=aset-1568c9660e38';
 
 // LIFE-WALLET-ENCRYPTED-BACKUP-01 — the wallet's sealed backup kept on LOTBI Core, so a new
 // device or browser can bring the wallet back (like KakaoTalk's backup restore). The wallet
