@@ -342,7 +342,16 @@ async function runCombo(cdp, page, sessionId, origin, viewport, theme, measureme
     }
   };
   const openGate = async () => {
-    await tap('[data-scam-open]');
+    if (viewport.mobile) {
+      await tap('[data-mobile-nav-open]');
+      await waitFor(
+        () => evaluate("document.body.classList.contains('nav-drawer-open')"),
+        `${where} mobile menu shown`,
+      );
+      await tap('#mobile-nav-drawer [data-scam-open]');
+    } else {
+      await tap('[data-scam-open]');
+    }
     await waitFor(() => evaluate(GATE_SHOWN), `${where} 로그인 안내 shown`);
     await sleep(80);
   };
