@@ -727,7 +727,8 @@ async function run() {
       `);
       await shoot('person-09-complete');
       if (process.env.FAMILY_GUARDIAN_REGISTRATION_REVIEW === '1') {
-        assert.ok(r.personComplete.done.includes('aaaaaaaa-0000-4000-8000-000000000005'),'완료 화면 실제 대상 번호');
+        assert.ok(r.personComplete.done.includes('FAM-****-****'),'완료 화면 대상 번호 마스킹');
+        assert.ok(!r.personComplete.done.includes('aaaaaaaa-0000-4000-8000-000000000005'),'완료 화면 내부 대상 번호 비노출');
         assert.ok(r.personComplete.done.includes('2018년 8월'),'기존 아동 등록 출생정보 완료 표시 유지');
       }
       await cdp.evaluate(`

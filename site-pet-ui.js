@@ -39,7 +39,6 @@ import {
   listPets,
   LOTBI_PET_NUMBER_LABEL,
   OFFICIAL_REGISTRATION_LABEL,
-  lotbiPetNumber,
   maskOfficialRegistrationNumber,
   petDraftPhotoInspectionMessage,
   petDraftPhotoProgression,
@@ -56,22 +55,22 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-799d6b2459ca';
+} from './site-pet.js?v=aset-8deef8da0431';
 import {
   PET_APPROVED_EXAMPLE_CROPS,
   petPhotoSlotArtwork,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-799d6b2459ca';
+} from './site-pet-guides.js?v=aset-8deef8da0431';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-799d6b2459ca';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-799d6b2459ca';
-import {personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-799d6b2459ca';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-799d6b2459ca';
+} from './site-pet-gate.js?v=aset-8deef8da0431';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-8deef8da0431';
+import {personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-8deef8da0431';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-8deef8da0431';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -80,7 +79,7 @@ import {
   identityPhotoProgress,
   renewalBadge,
   safecareSosSubmitReady,
-} from './site-safecare-common.js?v=aset-799d6b2459ca';
+} from './site-safecare-common.js?v=aset-8deef8da0431';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -522,10 +521,13 @@ export async function mountPetFamilyManager({
       const card = el('article', 'pet-card');
       card.dataset.petCard = pet.petId;
       const profile = petProfiles.get(pet.petId);
+      const petSlots = filledSlots.get(pet.petId) || new Set();
+      const representativeSlot = profile?.thumbnailSlot || PET_PHOTO_DISPLAY_ORDER.find(slotCode => petSlots.has(slotCode)) || '';
 
-      if (profile?.thumbnailSlot) {
+      const identity = el('div', 'pet-card-identity');
+      if (representativeSlot) {
         const thumbnail = el('div', 'pet-profile-thumbnail');
-        const key = previewKey(pet.petId, profile.thumbnailSlot);
+        const key = previewKey(pet.petId, representativeSlot);
         const cached = photoPreviews.get(key);
         if (cached) {
           const image = el('img', 'pet-profile-thumbnail-image');
@@ -537,7 +539,7 @@ export async function mountPetFamilyManager({
           thumbnail.appendChild(el('span', 'pet-profile-thumbnail-loading', '사진'));
           void (async () => {
             try {
-              const url = await fetchPetPhotoObjectUrl(sessionToken, pet.petId, profile.thumbnailSlot);
+              const url = await fetchPetPhotoObjectUrl(sessionToken, pet.petId, representativeSlot);
               photoPreviews.set(key, url);
               if (!thumbnail.isConnected) return;
               const image = el('img', 'pet-profile-thumbnail-image');
@@ -550,11 +552,12 @@ export async function mountPetFamilyManager({
             }
           })();
         }
-        card.appendChild(thumbnail);
-      }
+        identity.appendChild(thumbnail);
+      } else identity.appendChild(el('div', 'pet-profile-thumbnail pet-profile-thumbnail-empty', '사진'));
 
       const head = el('div', 'pet-card-head');
-      head.append(el('h4', 'pet-card-name', `${pet.name}${profile?.isPrimary ? ' ⭐' : ''}`));
+      identity.append(el('h4', 'pet-card-name', `${pet.name}${profile?.isPrimary ? ' ⭐' : ''}`));
+      head.append(identity);
       head.appendChild(el('span', 'pet-card-species', petSpeciesLabel(pet.species)));
       if (profile) {
         const badge = renewalBadge({state: profile.identityPhotoState, daysRemaining: profile.identityPhotoDaysRemaining});
@@ -609,7 +612,10 @@ export async function mountPetFamilyManager({
       }
 
       const filled = photoCounts.get(pet.petId);
-      card.appendChild(el('p', 'pet-number-value', `${LOTBI_PET_NUMBER_LABEL} ${lotbiPetNumber(pet.registrationNumber)}`));
+      const photoKinds = petPhotoSetCounts(petSlots);
+      const optionalCount = Math.max(0, petSlots.size - photoKinds.faceCount - photoKinds.bodyCount);
+      card.appendChild(el('p', 'pet-photo-kind-summary', `등록 사진 · 얼굴 ${photoKinds.faceCount}장 · 몸 전체 ${photoKinds.bodyCount}장${optionalCount ? ` · 추가 ${optionalCount}장` : ''}`));
+      card.appendChild(el('p', 'pet-number-value', `${LOTBI_PET_NUMBER_LABEL} ${maskedPetRegistrationNumber()}`));
       const progress = el('div', 'pet-progress');
       const bar = el('div', 'pet-progress-bar');
       const fill = el('span', 'pet-progress-fill');
@@ -1202,7 +1208,7 @@ export async function mountPetFamilyManager({
     lotbiNumber.dataset.petLotbiNumber = '';
     lotbiNumber.append(
       el('span', 'pet-number-term', LOTBI_PET_NUMBER_LABEL),
-      el('code', 'pet-number-value', lotbiPetNumber(pet.registrationNumber)),
+      el('code', 'pet-number-value', maskedPetRegistrationNumber()),
       el('p', 'pet-number-note', '롯비가 발급한 번호입니다. 국가 동물등록번호를 대신하지 않습니다.'),
     );
     detailSection.appendChild(lotbiNumber);
@@ -2650,7 +2656,7 @@ export async function mountPetFamilyManager({
       done.dataset.petRegisterDone = created.petId;
       done.appendChild(el('h4', 'pet-draft-title', `${created.name} 등록이 완료되었습니다`));
       const facts = el('dl', 'pet-facts');
-      facts.append(el('dt', '', LOTBI_PET_NUMBER_LABEL), el('dd', 'pet-number-value', lotbiPetNumber(created.registrationNumber)));
+      facts.append(el('dt', '', LOTBI_PET_NUMBER_LABEL), el('dd', 'pet-number-value', maskedPetRegistrationNumber()));
       facts.append(
         el('dt', '', '다음 사진 갱신일'),
         el('dd', '', profile?.identityPhotoExpiresAt ? formatDate(profile.identityPhotoExpiresAt) : '목록의 반려동물 카드에서 확인할 수 있습니다'),
