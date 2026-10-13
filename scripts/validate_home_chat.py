@@ -20,6 +20,7 @@ AVATAR_CSS = ROOT / "site-avatar.css"
 AVATAR_JS = ROOT / "site-avatar.js"
 HOME_JS = ROOT / "home-shell.js"
 CONTINUITY_JS = ROOT / "site-continuity.js"
+FOOTER_LEGAL_JS = ROOT / "site-footer-legal.js"
 LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 ACCOUNT_URL = "https://account.lotbiai.com/account"
@@ -305,16 +306,12 @@ def main() -> int:
         r'<script type="module" src="site-continuity\.js\?v=[^"]+"></script>',
         text,
     )
-    footer_legal_script = re.search(
-        r'<script type="module" src="site-footer-legal\.js\?v=[^"]+"></script>',
-        text,
-    )
     if not conversation_script:
         errors.append("index.html: current conversation module must be cache-busted")
     if not continuity_script:
         errors.append("index.html: current continuity module must be cache-busted")
-    if not footer_legal_script:
-        errors.append("index.html: current footer legal-sheet module must be cache-busted")
+    if "site-footer-legal.js" in text or FOOTER_LEGAL_JS.exists():
+        errors.append("approved direct home company information must not restore the footer legal-sheet module")
 
     approved_scripts = (
         f'<script src="home-shell.js?v={asset_version}" defer></script>',
@@ -323,7 +320,6 @@ def main() -> int:
         f'<script type="module" src="site-avatar.js?v={asset_version}"></script>',
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
-        footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
     # +1 sealed Avatar import map, +3 exact-purpose inline bootstraps:
     # theme first-paint, HTTP→HTTPS custom-domain canonicalization and the
@@ -331,7 +327,7 @@ def main() -> int:
     if text.lower().count("<script") != len(approved_scripts) + 4 or any(approved not in text for approved in approved_scripts):
         errors.append(
             "index.html: only the approved import map and "
-            "home/avatar/mobile/conversation/continuity/footer-legal scripts are allowed"
+            "home/avatar/mobile/conversation/continuity scripts are allowed"
         )
     if text.count('<script type="importmap">') != 1 or '"three": "/avatar-runtime/vendor/three/three.module.js"' not in text:
         errors.append("index.html: sealed Three.js import map missing or changed")

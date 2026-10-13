@@ -38,6 +38,12 @@
  * app's #424242 so legal pages and the Home shell draw the same rule.
  */
 
+/* 회사정보는 메인 대화 화면에서만 보여준다. 정적 안내·약관 화면은 각 문서의
+   본문과 링크 푸터만 유지하며, 동의 증빙용 HTML 원문은 바꾸지 않는다. */
+.lotbi-footer > .company-legal {
+  display: none;
+}
+
 /* The dark wordmark is opt-in, exactly as it is in site-theme-tokens.css. */
 .lotbi-brand-logo-dark {
   display: none;
