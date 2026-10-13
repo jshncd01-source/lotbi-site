@@ -17,6 +17,7 @@ import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {LIFE_LOCAL_CARD_ENABLED as LOCAL_ON} from '../site-feature-flags.js';
+import {LIFE_SHORTCUTS} from '../site-consumer-sections.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8').replace(/\r\n/g, '\n');
@@ -126,7 +127,13 @@ try {
     await wait(() => panel.querySelector('[data-life-shortcut]'), 'life shortcuts');
     await sleep(200);
     result.life = {
-      shortcuts: [...panel.querySelectorAll('[data-life-shortcut]')].map(node => ({id: node.dataset.lifeShortcut, label: node.textContent.trim(), visible: visible(node)})),
+      shortcuts: [...panel.querySelectorAll('[data-life-shortcut]')].map(node => ({
+        id: node.dataset.lifeShortcut,
+        title: node.querySelector('.consumer-shortcut-title')?.textContent.trim() || '',
+        description: node.querySelector('.consumer-shortcut-description')?.textContent.trim() || '',
+        accessibleName: node.getAttribute('aria-label') || '',
+        visible: visible(node)
+      })),
       topBar: [...panel.querySelectorAll('.consumer-search, input[type="search"]')].length,
       footer: [...panel.querySelectorAll('.consumer-section-footer')].length,
       text: panel.innerText,
@@ -277,9 +284,16 @@ try {
       if (testCase.mobile) await devtools.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
 
       const home = await runPhase(devtools, `${origin}/${innerRel}?phase=home`, `${label}/home`);
-      console.log(`LIFE_INFO_CLEANUP ${label}`, JSON.stringify({shortcuts: home.life.shortcuts.map(s => s.label), topBar: home.life.topBar, footer: home.life.footer, products: home.products, hash: home.hashOpen.surface}));
+      console.log(`LIFE_INFO_CLEANUP ${label}`, JSON.stringify({shortcuts: home.life.shortcuts.map(s => s.title), topBar: home.life.topBar, footer: home.life.footer, products: home.products, hash: home.hashOpen.surface}));
       // 1 공과금 menu
       assert.deepEqual(home.life.shortcuts.map(item => item.id), ['medical', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', ...(LOCAL_ON ? ['local'] : []), 'my-child'], `${label}: 지역정보 menu without 공과금 (REGIONAL-INFO-APPROVED-UX-RESTORE-P0: 병원·응급실 one card, 약국 separate, 유치원·학교 inside 내 아이 학교·유치원)`);
+      assert.deepEqual(home.life.shortcuts.map(({id, title, description, accessibleName}) => ({id, title, description, accessibleName})),
+        LIFE_SHORTCUTS.map(item => ({
+          id: item.id,
+          title: item.label,
+          description: item.description || '',
+          accessibleName: `${item.label}. ${item.description || ''}`.trim(),
+        })), `${label}: 지역정보 카드 제목·설명·접근성 이름`);
       assert.ok(home.life.shortcuts.every(item => item.visible), `${label}: every menu is visible`);
       for (const detail of home.details) assert.ok(!/공과금|고지서/u.test(detail.text), `${label}: ${detail.id} detail mentions no 공과금`);
       // 2 top question bar

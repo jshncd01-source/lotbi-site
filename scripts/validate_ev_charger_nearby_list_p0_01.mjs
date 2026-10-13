@@ -60,6 +60,7 @@ await check('지역정보: 전기차 충전소 right after 병원·응급실·�
   assert.equal(ids.indexOf('ev-chargers'), ids.indexOf('medical') + 1);
   const card = sections.LIFE_SHORTCUTS.find(item => item.id === 'ev-chargers');
   assert.equal(card.label, '전기차 충전소');
+  assert.equal(card.description, '가까운 충전기와 사용 상태');
   assert.equal(card.icon, 'ev');
   for (const key of ['ask', 'prompt', 'choices', 'children']) assert.equal(card[key], undefined, key);
 });
@@ -548,10 +549,12 @@ async function runCase(browser, origin, workDir, testCase) {
       const columns = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
       const rows = new Map();
       for (const card of cards) { const r = card.getBoundingClientRect(); const key = Math.round(r.top); rows.set(key, (rows.get(key) || 0) + (Math.abs(r.width - grid.getBoundingClientRect().width) < 4 ? columns : 1)); }
+      const evCard = grid.querySelector('[data-life-shortcut="ev-chargers"]');
       return {ids: cards.map(card => card.dataset.lifeShortcut), columns, rows: [...rows.values()],
         heights: cards.map(card => Math.round(card.getBoundingClientRect().height)),
-        evIcon: Boolean(grid.querySelector('[data-life-shortcut="ev-chargers"] svg path')),
-        evLabel: grid.querySelector('[data-life-shortcut="ev-chargers"] span')?.textContent || ''};
+        evIcon: Boolean(evCard?.querySelector('svg path')),
+        evLabel: evCard?.querySelector('.consumer-shortcut-title')?.textContent || '',
+        evAccessibleName: evCard?.getAttribute('aria-label') || ''};
     })()`);
     await check(`${label}: 지역정보 grid — 전기차 충전소 after 약국, ${testCase.mobile ? 'two columns' : 'the desktop grid'}, every row full`, () => {
       assert.deepEqual(grid.ids, EXPECTED_CARDS);
@@ -559,6 +562,7 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.ok(grid.rows.every(count => count === grid.columns), JSON.stringify(grid));
       assert.ok(grid.heights.every(height => height >= 44), JSON.stringify(grid.heights));
       assert.equal(grid.evLabel, '전기차 충전소');
+      assert.equal(grid.evAccessibleName, '전기차 충전소. 가까운 충전기와 사용 상태');
       assert.ok(grid.evIcon);
     });
 

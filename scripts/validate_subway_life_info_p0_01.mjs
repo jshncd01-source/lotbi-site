@@ -56,7 +56,7 @@ await check('지역정보: 지하철 정보 right after 지역뉴스, the other 
   const ids = sections.LIFE_SHORTCUTS.map(item => item.id);
   assert.deepEqual(ids, EXPECTED_CARDS);
   const card = sections.LIFE_SHORTCUTS.find(item => item.id === 'subway');
-  assert.deepEqual(card, {id: 'subway', label: '지하철 정보', icon: 'subway'});
+  assert.deepEqual(card, {id: 'subway', label: '지하철 정보', description: '노선과 도착 정보를 확인해요', icon: 'subway'});
 });
 
 await check('the card opens routed screens of its own; nothing goes to the conversation', () => {
@@ -447,17 +447,22 @@ async function runCase(browser, origin, workDir, testCase) {
       const columns = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
       const rows = new Map();
       for (const card of cards) { const r = card.getBoundingClientRect(); const key = Math.round(r.top); rows.set(key, (rows.get(key) || 0) + (Math.abs(r.width - grid.getBoundingClientRect().width) < 4 ? columns : 1)); }
+      const subwayCard = grid.querySelector('[data-life-shortcut="subway"]');
       return {ids: cards.map(card => card.dataset.lifeShortcut), columns, rows: [...rows.values()],
         heights: cards.map(card => Math.round(card.getBoundingClientRect().height)),
-        icon: Boolean(grid.querySelector('[data-life-shortcut="subway"] svg path')),
-        label: grid.querySelector('[data-life-shortcut="subway"] span')?.textContent || ''};
+        icon: Boolean(subwayCard?.querySelector('svg path')),
+        title: subwayCard?.querySelector('.consumer-shortcut-title')?.textContent || '',
+        description: subwayCard?.querySelector('.consumer-shortcut-description')?.textContent || '',
+        accessibleName: subwayCard?.getAttribute('aria-label') || ''};
     })()`);
     await check(`${label}: 지역정보 grid — 지하철 정보 after 지역뉴스, ${testCase.mobile ? 'two columns' : 'the desktop grid'}, every row full`, () => {
       assert.deepEqual(grid.ids, EXPECTED_CARDS);
       if (testCase.mobile) assert.equal(grid.columns, 2, 'phones keep two columns');
       assert.ok(grid.rows.every(count => count === grid.columns), JSON.stringify(grid));
       assert.ok(grid.heights.every(height => height >= 44), JSON.stringify(grid.heights));
-      assert.equal(grid.label, '지하철 정보');
+      assert.equal(grid.title, '지하철 정보');
+      assert.equal(grid.description, '노선과 도착 정보를 확인해요');
+      assert.equal(grid.accessibleName, '지하철 정보. 노선과 도착 정보를 확인해요');
       assert.ok(grid.icon);
     });
 

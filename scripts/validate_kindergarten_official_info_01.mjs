@@ -41,6 +41,8 @@ await check('지역정보: signed out, 내 아이 학교·유치원 links 로그
   assert.equal(sections.LIFE_SHORTCUTS.some(entry => entry.id === 'education'), false);
   const card = sections.LIFE_SHORTCUTS.find(entry => entry.id === 'my-child');
   assert.ok(card && card.children === undefined && !card.prompt);
+  assert.equal(card.label, '내 아이 학교·유치원');
+  assert.equal(card.description, '가까운 교육시설과 정보');
   assert.equal(sections.LIFE_VIEW_PARENT['life-education'], 'life-my-child');
   const source = read('site-consumer-sections.js');
   assert.match(source, /import\('\.\/site-life-education\.js\?v=aset-[0-9a-f]{12}'\)/u);
@@ -197,7 +199,12 @@ const SCENARIO = `(async () => {
   document.querySelector('[data-consumer-section="life"]').click();
   const panel = await wait(() => document.querySelector('.consumer-section-panel'), 'life surface');
   const shortcut = await wait(() => panel.querySelector('[data-life-shortcut="my-child"]'), 'my-child shortcut');
-  result.shortcut = {label: shortcut.textContent.trim(), box: box(shortcut), grid: box(shortcut.parentElement)};
+  result.shortcut = {
+    title: shortcut.querySelector('.consumer-shortcut-title')?.textContent.trim() || '',
+    description: shortcut.querySelector('.consumer-shortcut-description')?.textContent.trim() || '',
+    accessibleName: shortcut.getAttribute('aria-label') || '',
+    box: box(shortcut), grid: box(shortcut.parentElement)
+  };
   shortcut.click();
   const choice = await wait(() => panel.querySelector('[data-life-education-entry]'), '로그인 없이 학교·유치원 찾기 link');
   result.choice = {label: choice.textContent.trim(), h: box(choice).h};
@@ -405,7 +412,9 @@ try {
     const r = await runCase(browser, origin, dir, testCase, 'inner.html', false);
     const label = testCase.label;
     await check(`${label}: 유치원·학교 opens 학교 / 유치원 tabs, 유치원 first`, () => {
-      assert.equal(r.shortcut.label, '내 아이 학교·유치원');
+      assert.equal(r.shortcut.title, '내 아이 학교·유치원');
+      assert.equal(r.shortcut.description, '가까운 교육시설과 정보');
+      assert.equal(r.shortcut.accessibleName, '내 아이 학교·유치원. 가까운 교육시설과 정보');
       assert.equal(r.choice.label, '로그인 없이 학교·유치원 찾기');
       assert.ok(r.choice.h >= 44, `choice touch target ${r.choice.h}`);
       assert.deepEqual(r.tabs.map(tab => [tab.id, tab.selected]), [['school', 'false'], ['kindergarten', 'true']]);

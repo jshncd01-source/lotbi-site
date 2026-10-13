@@ -326,7 +326,11 @@ try {
     return {grid:g, rows:[...byRow.values()]};
   };
   const workspace = document.querySelector('.consumer-workspace');
-  reading.life = {labels:[...grid.children].map(button => button.textContent.trim()), rows:rows(),
+  reading.life = {cards:[...grid.children].map(button => ({
+      id:button.dataset.lifeShortcut || '',
+      title:button.querySelector('.consumer-shortcut-title')?.textContent.trim() || '',
+      description:button.querySelector('.consumer-shortcut-description')?.textContent.trim() || ''
+    })), rows:rows(),
     foodShortcut:Boolean(workspace.querySelector('[data-life-shortcut="jeonbuk-food"]')),
     foodForm:Boolean(document.querySelector('[data-regional-food-form]')),
     jeonbukText:/전북/u.test(workspace.textContent)};
@@ -441,10 +445,22 @@ try {
       // Registry-only medical card.
       assert.deepEqual(r.medical.lines.map(line => line.state), ['REGISTRY', 'REGISTRY_NO_HOURS']);
       assert.ok(r.medical.lines.every(line => !/진료 중/u.test(line.text)));
-      // 생활정보 home grid: eight cards (one 병원·응급실·약국, 지역생활정보 hidden), full rows (an odd count's last card spans), no 전북 맛집·음식 card, form or label.
-      assert.deepEqual(r.life.labels, ['병원·응급실·약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', ...(LOCAL_ON ? ['지역생활정보'] : []), '내 아이 학교·유치원']);
+      // 생활정보 home grid: eight cards (one 병원·응급실·약국, 지역생활정보 hidden),
+      // mobile two columns / desktop four columns, full rows (an odd count's last
+      // card spans), no 전북 맛집·음식 card, form or label.
+      assert.deepEqual(r.life.cards, LIFE_SHORTCUTS.map(item => ({
+        id: item.id,
+        title: item.label,
+        description: item.description || '',
+      })), `${where}: 지역정보 카드의 ID·제목·설명 또는 순서가 달라짐`);
       assertRowsFilled(`${where} ${LIFE_SHORTCUTS.length} cards`, r.life.rows);
-      assert.equal(r.life.rows.rows.length, Math.ceil(LIFE_SHORTCUTS.length / 2), `${where}: rows of two (an odd last card on its own row)`);
+      const columns = testCase.mobile ? 2 : 4;
+      const remainder = LIFE_SHORTCUTS.length % columns;
+      const rowCount = Math.ceil(LIFE_SHORTCUTS.length / columns);
+      const expectedCounts = Array.from({length: rowCount}, (_, index) =>
+        index === rowCount - 1 && remainder ? remainder : columns);
+      assert.deepEqual(r.life.rows.rows.map(row => row.count), expectedCounts,
+        `${where}: ${columns}-column rows (an odd last card spans its own full row)`);
       assert.equal(r.life.foodShortcut, false, `${where}: a 전북 맛집·음식 card is on 지역정보`);
       assert.equal(r.life.foodForm, false, `${where}: a 전북 맛집·음식 form is on the page`);
       assert.equal(r.life.jeonbukText, false, `${where}: 전북 appears on the 지역정보 home`);

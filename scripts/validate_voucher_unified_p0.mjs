@@ -43,6 +43,7 @@ const same = (actual, expected, message) => { assert.deepEqual(actual, expected,
 {
   const card = LIFE_SHORTCUTS.find(item => item.id === 'onnuri');
   check(['온누리상품권·지역화폐', '온누리·지역화폐'].includes(card.label), `menu card label (${card.label})`);
+  same(card.description, '사용처와 혜택을 찾아요', 'menu card description');
   same(card.brandSlot, 'onnuri', 'brand slot kept for the approved logo');
   same(card.icon, 'voucher', 'QA 2026-10-10 #12: a plain LOTBI voucher icon until then');
   same(VOUCHER_HUB_TITLE, '온누리상품권·지역화폐');
@@ -254,7 +255,7 @@ const PROBE = `(() => {
   const hub = workspace?.querySelector('.voucher-hub');
   const local = hub?.querySelector('.voucher-surface');
   const shortcut = workspace?.querySelector('[data-life-shortcut="onnuri"]');
-  const shortcutLabel = shortcut?.querySelector('span');
+  const shortcutLabel = shortcut?.querySelector('.consumer-shortcut-title');
   const lines = node => { const range = document.createRange(); range.selectNodeContents(node); return new Set([...range.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top))).size; };
   const cards = [...(local?.querySelectorAll('.voucher-card') || [])].map(card => {
     const title = card.querySelector('.voucher-card-title');
@@ -283,7 +284,7 @@ const PROBE = `(() => {
     title: panel?.querySelector('.site-modal-header h2')?.textContent || '',
     backButton: (() => { const b = panel?.querySelector('.site-modal-close'); return b ? {label: b.getAttribute('aria-label'), box: box(b)} : null; })(),
     shortcuts: [...(workspace?.querySelectorAll('.consumer-shortcut') || [])].map(b => b.dataset.lifeShortcut),
-    shortcut: shortcut ? {label: shortcutLabel?.textContent || '', box: box(shortcut), labelBox: box(shortcutLabel), lines: shortcutLabel ? lines(shortcutLabel) : 0,
+    shortcut: shortcut ? {label: shortcutLabel?.textContent || '', description: shortcut.querySelector('.consumer-shortcut-description')?.textContent || '', accessibleName: shortcut.getAttribute('aria-label') || '', box: box(shortcut), labelBox: box(shortcutLabel), lines: shortcutLabel ? lines(shortcutLabel) : 0,
       clipped: shortcutLabel ? shortcutLabel.scrollWidth > shortcutLabel.clientWidth + 1 || shortcutLabel.getBoundingClientRect().right > shortcut.getBoundingClientRect().right + 0.5 : true,
       columns: getComputedStyle(shortcut.parentElement).gridTemplateColumns.split(' ').filter(Boolean).length,
       slot: shortcut.querySelector('[data-brand-logo-slot]')?.dataset.logoState || '', img: Boolean(shortcut.querySelector('img'))} : null,
@@ -550,6 +551,8 @@ async function runCase(browser, origin, workDir, testCase) {
     await load();
     let v = await probe();
     check(['온누리상품권·지역화폐', '온누리·지역화폐'].includes(v.shortcut.label), `${testCase.label}: card label ${v.shortcut.label}`);
+    same(v.shortcut.description, '사용처와 혜택을 찾아요', `${testCase.label}: card description`);
+    same(v.shortcut.accessibleName, '온누리상품권·지역화폐. 사용처와 혜택을 찾아요', `${testCase.label}: card accessible name`);
     check(!v.shortcut.clipped, `${testCase.label}: card label not clipped (${v.shortcut.columns} columns, ${v.shortcut.lines} line(s))`);
     check(v.shortcut.box.right <= v.viewport.w && v.shortcut.box.x >= 0, `${testCase.label}: card inside the viewport`);
     check(v.shortcut.box.h >= 44, `${testCase.label}: card touch target`);
@@ -560,13 +563,12 @@ async function runCase(browser, origin, workDir, testCase) {
     else check(v.themeAttr !== 'dark' && v.bodyBgLum > 0.6, `${testCase.label}: light theme while the OS says dark (${v.themeAttr})`);
     const cardInfo = {label: v.shortcut.label, columns: v.shortcut.columns, lines: v.shortcut.lines};
     if (testCase.mobile) {
-      // A two-column phone grid (another room may switch the list to it): the
-      // long name wraps inside its cell, never clipped or overflowing.
+      // The approved two-column phone grid keeps the long title inside its cell.
       const twoColumn = await evaluate(`(() => {
         const grid = document.querySelector('.consumer-workspace .consumer-shortcuts');
         const before = grid.style.gridTemplateColumns;
         grid.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
-        const card = grid.querySelector('[data-life-shortcut="onnuri"]'); const label = card.querySelector('span');
+        const card = grid.querySelector('[data-life-shortcut="onnuri"]'); const label = card.querySelector('.consumer-shortcut-title');
         const range = document.createRange(); range.selectNodeContents(label);
         const lines = new Set([...range.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top))).size;
         const out = {lines, clipped: label.scrollWidth > label.clientWidth + 1 || label.getBoundingClientRect().right > card.getBoundingClientRect().right + 0.5,

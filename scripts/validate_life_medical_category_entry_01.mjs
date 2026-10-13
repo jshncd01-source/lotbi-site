@@ -78,18 +78,20 @@ const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleW
 const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36';
 const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36';
 const CASES = [
-  {label: 'mobile-360x780', width: 360, height: 780, mobile: true, userAgent: ANDROID_UA},
-  {label: 'mobile-375x812', width: 375, height: 812, mobile: true, userAgent: IPHONE_UA},
-  {label: 'mobile-390x844', width: 390, height: 844, mobile: true, userAgent: IPHONE_UA},
-  {label: 'mobile-412x915', width: 412, height: 915, mobile: true, userAgent: ANDROID_UA},
-  {label: 'desktop-1280x900', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA},
+  {label: 'mobile-light-360x780', theme: 'light', width: 360, height: 780, mobile: true, userAgent: ANDROID_UA},
+  {label: 'mobile-dark-360x780', theme: 'dark', width: 360, height: 780, mobile: true, userAgent: ANDROID_UA},
+  {label: 'mobile-light-375x812', theme: 'light', width: 375, height: 812, mobile: true, userAgent: IPHONE_UA},
+  {label: 'mobile-dark-390x844', theme: 'dark', width: 390, height: 844, mobile: true, userAgent: IPHONE_UA},
+  {label: 'mobile-light-412x915', theme: 'light', width: 412, height: 915, mobile: true, userAgent: ANDROID_UA},
+  {label: 'desktop-light-1280x900', theme: 'light', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA},
+  {label: 'desktop-dark-1280x900', theme: 'dark', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA},
 ];
 
 function buildInner() {
   let html = read('index.html');
   const runtime = html.match(/<script type="module" src="site-conversation\.js\?v=[^"]+"><\/script>/u);
   assert.ok(runtime, 'index.html must load site-conversation.js as a module');
-  html = html.replace('<head>', '<head>\n  <base href="/">');
+  html = html.replace('<head>', '<head>\n  <base href="/">\n  <style>#lme-result{display:none}</style>');
   const harness = `<script type="module">
 const out = document.getElementById('lme-result');
 try {
@@ -143,11 +145,12 @@ const PROBE = `(() => {
     }
     return rows.map(row => row.text); };
   const shortcuts = [...(workspace?.querySelectorAll('.consumer-shortcut') || [])].map(button => {
-    const label = button.querySelector('span');
+    const label = button.querySelector('.consumer-shortcut-title');
+    const description = button.querySelector('.consumer-shortcut-description');
     const hit = (() => { const b = box(button); const el = document.elementFromPoint(b.cx, Math.min(Math.max(b.cy, 0), innerHeight - 1)); return el?.closest?.('.consumer-shortcut') === button; })();
     // KINDERGARTEN-OFFICIAL-INFO-01: an odd last card may take its whole row.
     const spansRow = button.getBoundingClientRect().width >= button.parentElement.getBoundingClientRect().width - 2;
-    return {id: button.dataset.lifeShortcut, label: label?.textContent || '', box: box(button), labelBox: box(label), lines: label ? lines(label) : 0, lineTexts: label ? lineTexts(label) : [],
+    return {id: button.dataset.lifeShortcut, label: label?.textContent || '', description: description?.textContent || '', ariaLabel: button.getAttribute('aria-label') || '', box: box(button), labelBox: box(label), descriptionBox: box(description), lines: label ? lines(label) : 0, lineTexts: label ? lineTexts(label) : [],
       labelClipped: label ? label.scrollWidth > label.parentElement.clientWidth : true, hit, icon: Boolean(button.querySelector('svg path')), brandSlot: button.querySelector('[data-brand-logo-slot]')?.dataset.brandLogoSlot || '',
       spansRow: getComputedStyle(button).gridColumnStart === '1' && getComputedStyle(button).gridColumnEnd === '-1'};
   });
@@ -167,6 +170,7 @@ const PROBE = `(() => {
     freeQuery: /어떤 생활정보가 필요하세요|롯비에게 물어보기/u.test(workspace?.textContent || ''), footer: Boolean(workspace?.querySelector('.consumer-section-footer')),
     homeChildren: [...(workspace?.querySelector('[data-consumer-surface]')?.children || [])].map(child => child.className),
     header: box(panel?.querySelector('.site-modal-header')), description: box(panel?.querySelector('.site-modal-description')), label: box(workspace?.querySelector('.consumer-section-label')),
+    location: box(workspace?.querySelector('.consumer-life-location')), locationText: workspace?.querySelector('.consumer-life-location-label')?.textContent || '', regionChange: box(workspace?.querySelector('.consumer-life-region-change')),
     focusedShortcut: document.activeElement?.dataset?.lifeShortcut || '',
     shortcuts,
     detail: detail ? {id: detail.dataset.lifeDetail || '', title: detail.querySelector('h3')?.textContent || '', box: box(detail), back: box([...detail.querySelectorAll('.consumer-action')].find(b => b.textContent === '지역정보로 돌아가기')),
@@ -277,6 +281,7 @@ async function runCase(browser, origin, dir, testCase) {
     }, `${testCase.label}: harness`, 60000);
     const parsedReady = JSON.parse(ready);
     if (!parsedReady.ok) throw new Error(`${testCase.label}: ${parsedReady.error}`);
+    await evaluate(`document.body.dataset.siteTheme = ${JSON.stringify(testCase.theme)}, true`);
 
     const probe = () => evaluate(PROBE);
     const tap = async ({cx: x, cy: y}) => {
@@ -337,36 +342,39 @@ async function runCase(browser, origin, dir, testCase) {
     // last one spans the row (site-life-onnuri.css, site-life-education.css), so a
     // spanning card fills every column.
     // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: the applied (computed) grid is the
-    // approved two columns on every width, phones included — not one column.
-    assert.equal(main.gridColumns, 2, `${testCase.label}: 지역정보 menu uses two columns (computed ${main.gridColumns})`);
-    assert.equal(main.shortcuts.at(-1).spansRow, main.shortcuts.length % 2 === 1, `${testCase.label}: only an odd last card spans its row`);
+    // approved four columns on desktop and two on phones.
+    const expectedColumns = testCase.mobile ? 2 : 4;
+    assert.equal(main.gridColumns, expectedColumns, `${testCase.label}: 지역정보 menu uses ${expectedColumns} columns (computed ${main.gridColumns})`);
+    assert.equal(main.shortcuts.at(-1).spansRow, main.shortcuts.length % expectedColumns !== 0, `${testCase.label}: only an incomplete last row spans the grid`);
     const cells = main.shortcuts.reduce((sum, card) => sum + (card.spansRow ? main.gridColumns : 1), 0);
     assert.ok(main.gridColumns >= 1 && cells % main.gridColumns === 0, `${testCase.label}: ${main.shortcuts.length} cards fill ${main.gridColumns} columns without an empty cell`);
     const rows = new Map();
     for (const card of main.shortcuts) { const top = Math.round(card.box.y); rows.set(top, (rows.get(top) || 0) + (card.spansRow ? main.gridColumns : 1)); }
     assert.deepEqual([...rows.values()], Array(cells / main.gridColumns).fill(main.gridColumns), `${testCase.label}: every row is full ${JSON.stringify([...rows])}`);
-    // LIFE-MEDICAL-MERGE-01 + QA_화면전수_01 H3: eight cards (지역생활정보 hidden) — four full
-    // rows of two, no card spans. With the switch on there are nine: the last card
-    // (내 아이 학교·유치원) spans its own full row.
-    const odd = main.shortcuts.length % 2 === 1;
-    assert.deepEqual(main.shortcuts.filter(card => card.spansRow).map(card => card.label), odd ? ['내 아이 학교·유치원'] : [], `${testCase.label}: only an odd last card spans its row`);
-    assert.deepEqual([...rows.values()], Array(Math.ceil(main.shortcuts.length / 2)).fill(2), `${testCase.label}: every row full ${JSON.stringify([...rows])}`);
+    // Eight approved cards are 4×2 on desktop and 2×4 on phones. Feature-flagged
+    // extra cards keep the existing last-card full-row rule.
+    const incomplete = main.shortcuts.length % expectedColumns !== 0;
+    assert.deepEqual(main.shortcuts.filter(card => card.spansRow).map(card => card.label), incomplete ? ['내 아이 학교·유치원'] : [], `${testCase.label}: only an incomplete final row spans the grid`);
+    assert.deepEqual([...rows.values()], Array(cells / expectedColumns).fill(expectedColumns), `${testCase.label}: every row full ${JSON.stringify([...rows])}`);
     const lastRowTop = Math.round(main.shortcuts.at(-1).box.y);
-    assert.deepEqual(main.shortcuts.filter(card => Math.round(card.box.y) === lastRowTop).map(card => card.label), odd ? ['내 아이 학교·유치원'] : ['부동산 실거래가', '내 아이 학교·유치원'], `${testCase.label}: last row`);
+    assert.equal(main.shortcuts.filter(card => Math.round(card.box.y) === lastRowTop).length, incomplete ? 1 : expectedColumns, `${testCase.label}: final row count`);
     assert.equal(new Set(main.shortcuts.filter(item => !item.spansRow || main.gridColumns === 1).map(item => Math.round(item.box.w))).size, 1, `${testCase.label}: all cards share one width`);
     // Category list right under the description; nothing above or below it.
     assert.equal(main.search, false, `${testCase.label}: no free-question bar on the life home`);
     assert.equal(main.freeQuery, false, `${testCase.label}: no 어떤 생활정보가 필요하세요 / 롯비에게 물어보기`);
     assert.equal(main.saved, false, `${testCase.label}: no 저장한 정보 다시 보기 on the life home`);
     assert.equal(main.footer, false, `${testCase.label}: no footer row`);
-    assert.deepEqual(main.homeChildren, ['consumer-section-label', 'consumer-shortcuts'], `${testCase.label}: the home is label + list only`);
+    assert.deepEqual(main.homeChildren, ['consumer-life-home'], `${testCase.label}: the main is isolated in one location + label + cards wrapper`);
     assert.ok(main.header.y >= 0, `${testCase.label}: header inside the viewport (${main.header.y})`);
-    const descriptionToLabel = main.label.y - main.description.bottom;
+    const descriptionToLocation = main.location.y - main.description.bottom;
+    const locationToLabel = main.label.y - main.location.bottom;
     const labelToList = main.shortcuts[0].box.y - main.label.bottom;
-    assert.ok(descriptionToLabel >= 12 && descriptionToLabel <= 32, `${testCase.label}: description → 생활에 필요한 정보 ${descriptionToLabel}px`);
+    assert.ok(descriptionToLocation >= 8 && descriptionToLocation <= 32, `${testCase.label}: description → location ${descriptionToLocation}px`);
+    assert.ok(locationToLabel >= 4 && locationToLabel <= 24, `${testCase.label}: location → 생활에 필요한 정보 ${locationToLabel}px`);
     assert.ok(labelToList >= 4 && labelToList <= 16, `${testCase.label}: label → first category ${labelToList}px`);
-    assert.ok(main.shortcuts[0].box.y <= 160, `${testCase.label}: first category at ${main.shortcuts[0].box.y}px (was 251px with the bar)`);
-    assert.ok(main.shortcuts.at(-1).box.bottom <= main.viewport.h, `${testCase.label}: every category on the first screen`);
+    assert.match(main.locationText, /^현재 위치 · /u, `${testCase.label}: current region is named`);
+    assert.ok(main.regionChange.h >= 44 && main.regionChange.w >= 44, `${testCase.label}: region change has a 44px target`);
+    if (!testCase.mobile) assert.ok(main.shortcuts.at(-1).box.bottom <= main.viewport.h, `${testCase.label}: desktop shows both rows without page clipping`);
     assert.ok(main.pageOverflowX <= 0, `${testCase.label}: no horizontal page scroll (${main.pageOverflowX})`);
     assert.ok(main.panelOverflowX <= 0, `${testCase.label}: panel does not scroll sideways (${main.panelOverflowX})`);
     const heights = main.shortcuts.map(item => Math.round(item.box.h));
@@ -389,6 +397,9 @@ async function runCase(browser, origin, dir, testCase) {
       }
       assert.ok(card.labelBox.y >= card.box.y - 0.5 && card.labelBox.bottom <= card.box.bottom + 0.5, `${testCase.label}: ${card.label} label inside its card ${JSON.stringify(card.labelBox)} / ${JSON.stringify(card.box)}`);
       assert.ok(card.box.h >= 44, `${testCase.label}: ${card.label} touch target ${card.box.h}px`);
+      assert.ok(card.description.length > 0, `${testCase.label}: ${card.label} has its one-line purpose`);
+      assert.equal(card.ariaLabel, `${card.label}. ${card.description}`, `${testCase.label}: ${card.label} has a complete screen-reader name`);
+      assert.ok(card.descriptionBox.y >= card.box.y && card.descriptionBox.bottom <= card.box.bottom + 0.5, `${testCase.label}: ${card.label} description stays inside its card`);
       // 온누리상품권 keeps a reserved logo slot instead of an icon until the
       // official logo is approved (ONNURI-MERCHANT-01).
       assert.ok(card.icon || (card.id === 'onnuri' && card.brandSlot === 'onnuri'), `${testCase.label}: ${card.label} has its icon`);

@@ -205,7 +205,21 @@ async function openBrowser(browser, profile) {
     pending.set(nextId, {resolve, reject});
     socket.send(JSON.stringify({id: nextId, method, params, ...(sessionId ? {sessionId} : {})}));
   });
-  return {send, close: () => { try { socket.close(); } catch {} chrome.kill('SIGTERM'); }, on: listener => { listeners.add(listener); return () => listeners.delete(listener); }};
+  return {
+    send,
+    close: async () => {
+      try { socket.close(); } catch {}
+      if (chrome.exitCode !== null) return;
+      const exited = new Promise(resolve => chrome.once('exit', resolve));
+      chrome.kill('SIGTERM');
+      await Promise.race([exited, sleep(5000)]);
+      if (chrome.exitCode === null) {
+        chrome.kill('SIGKILL');
+        await Promise.race([exited, sleep(2000)]);
+      }
+    },
+    on: listener => { listeners.add(listener); return () => listeners.delete(listener); },
+  };
 }
 
 // In the page: which screen is on view and what the URL names.
@@ -349,11 +363,19 @@ async function runCase(browser, origin, workDir, testCase) {
     const emptySpot = () => evaluate(`(() => {
       const surface = document.querySelector('[data-site-route]');
       if (!surface) return null;
+      const panel = surface.querySelector('.site-modal');
+      const header = panel?.querySelector('.site-modal-header');
+      if (header) {
+        const r = header.getBoundingClientRect();
+        for (const fx of [0.92, 0.82, 0.68, 0.5]) for (let y = Math.ceil(r.top) + 6; y < Math.floor(r.bottom) - 6; y += 8) {
+          const x = Math.round(r.left + r.width * fx);
+          if (document.elementFromPoint(x, y) === header) return {x, y, backdrop: false};
+        }
+      }
       for (const fx of [0.5, 0.06, 0.94]) for (let y = innerHeight - 6; y > innerHeight * 0.35; y -= 12) {
         const x = Math.round(innerWidth * fx);
         if (document.elementFromPoint(x, y) === surface) return {x, y, backdrop: true};
       }
-      const panel = surface.querySelector('.site-modal');
       if (!panel) return null;
       const r = panel.getBoundingClientRect();
       const interactive = 'button, a, input, select, textarea, label, summary, [role="button"], [role="tab"], [tabindex], [contenteditable], img, video, iframe';
@@ -361,24 +383,91 @@ async function runCase(browser, origin, workDir, testCase) {
         for (const fx of [0.5, 0.15, 0.85]) {
           const x = Math.round(r.left + r.width * fx);
           const hit = document.elementFromPoint(x, y);
-          if (hit && panel.contains(hit) && !hit.closest(interactive) && hit.matches('.site-modal, .site-modal-content, .consumer-section-content, .consumer-life-detail')) return {x, y, backdrop: false};
+          if (hit && panel.contains(hit) && !hit.closest(interactive) && hit.matches('.site-modal, .site-modal-header, .site-modal-content, .consumer-section-content, .consumer-life-detail')) return {x, y, backdrop: false};
         }
       }
       return null;
     })()`);
+    const inspectEmptySpot = spot => evaluate(`(() => {
+      const spot = ${JSON.stringify(spot)};
+      const surface = document.querySelector('[data-site-route]');
+      const panel = surface?.querySelector('.site-modal');
+      const hit = document.elementFromPoint(spot.x, spot.y);
+      const interactive = 'button, a, input, select, textarea, label, summary, [role="button"], [role="tab"], [tabindex], [contenteditable], img, video, iframe';
+      const allowedPanel = Boolean(hit && panel?.contains(hit) && !hit.closest(interactive)
+        && hit.matches('.site-modal, .site-modal-header, .site-modal-content, .consumer-section-content, .consumer-life-detail'));
+      const allowed = Boolean(hit && (hit === surface || allowedPanel));
+      const name = hit ? [hit.tagName.toLowerCase(), hit.id ? '#' + hit.id : '', ...[...hit.classList].map(value => '.' + value)].join('') : '';
+      return {ok: allowed, name, backdrop: hit === surface, interactive: Boolean(hit?.closest(interactive))};
+    })()`);
+    const stableEmptySpot = async what => {
+      let stable = 0;
+      let previous = '';
+      return waitFor(async () => {
+        const spot = await emptySpot();
+        if (!spot) { stable = 0; previous = ''; return {ok: false, reason: 'no spot'}; }
+        const [hit, index] = await Promise.all([inspectEmptySpot(spot), historyIndex()]);
+        const key = hit.ok ? JSON.stringify({x: spot.x, y: spot.y, name: hit.name, backdrop: hit.backdrop, index}) : '';
+        if (key && key === previous) stable += 1; else { stable = 0; previous = key; }
+        return stable >= 8 ? {...spot, hit: hit.name, backdrop: hit.backdrop, index} : {ok: false, spot, hit, index, stable};
+      }, `${label}: ${what}: a stable non-interactive empty spot`, 15000);
+    };
+    const armEmptyTapProbe = spot => evaluate(`(() => {
+      const spot = ${JSON.stringify(spot)};
+      const surface = document.querySelector('[data-site-route]');
+      const panel = surface?.querySelector('.site-modal');
+      const interactive = 'button, a, input, select, textarea, label, summary, [role="button"], [role="tab"], [tabindex], [contenteditable], img, video, iframe';
+      const describe = target => {
+        const allowedPanel = Boolean(target && panel?.contains(target) && !target.closest(interactive)
+          && target.matches('.site-modal, .site-modal-header, .site-modal-content, .consumer-section-content, .consumer-life-detail'));
+        return {
+          name: target ? [target.tagName.toLowerCase(), target.id ? '#' + target.id : '', ...[...target.classList].map(value => '.' + value)].join('') : '',
+          interactive: Boolean(target?.closest(interactive)),
+          allowed: Boolean(target && (target === surface || allowedPanel)),
+        };
+      };
+      const hit = document.elementFromPoint(spot.x, spot.y);
+      const probe = {point: describe(hit), events: []};
+      window.__lotbiEmptyTapProbe = probe;
+      for (const type of ['pointerdown', 'click']) document.addEventListener(type, event => {
+        if (window.__lotbiEmptyTapProbe !== probe) return;
+        probe.events.push({type, ...describe(event.target), x: Math.round(event.clientX), y: Math.round(event.clientY)});
+      }, {capture: true, once: true});
+      return {ok: probe.point.allowed && !probe.point.interactive, ...probe.point};
+    })()`);
+    const readEmptyTapProbe = () => evaluate(`window.__lotbiEmptyTapProbe || null`);
     const tapEmptyKeepsScreen = async what => {
       const before = await snapshot();
-      const index = await historyIndex();
-      const spot = await waitFor(async () => (await emptySpot()) || {ok: false}, `${label}: ${what}: an empty spot to tap`, 8000);
+      let spot;
+      let armed;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        spot = await stableEmptySpot(what);
+        armed = await armEmptyTapProbe(spot);
+        const immediateIndex = await historyIndex();
+        if (armed.ok && immediateIndex === spot.index) break;
+        spot = undefined;
+      }
+      assert.ok(spot && armed?.ok, `${label}: ${what}: no stable non-interactive empty target immediately before the tap`);
+      const index = spot.index;
       await tapAt(spot);
       await sleep(700);
       const after = await snapshot();
+      const probe = await readEmptyTapProbe();
+      assert.ok(probe?.events?.length, `${label}: ${what}: the physical empty-area tap produced no pointer/click event`);
+      for (const event of probe.events) {
+        assert.equal(event.interactive, false, `${label}: ${what}: ${event.type} landed on an interactive target ${event.name}`);
+        assert.equal(event.allowed, true, `${label}: ${what}: ${event.type} left the verified empty container ${event.name}`);
+      }
       assert.ok(!after.home && after.route === before.route && after.hash === before.hash && after.detail === before.detail,
-        `${label}: ${what}: a tap on the empty area (${spot.backdrop ? 'backdrop' : 'panel'}) closed or changed the screen ${JSON.stringify({before, after, spot})}`);
+        `${label}: ${what}: a tap on the empty area (${spot.backdrop ? 'backdrop' : 'panel'}) closed or changed the screen ${JSON.stringify({before, after, spot, probe})}`);
       assert.equal(await historyIndex(), index, `${label}: ${what}: the empty tap wrote or stepped history`);
       log.push(`${what}:${spot.backdrop ? 'backdrop' : 'panel'}`);
     };
-    const headerBack = () => tapSelector('[data-site-route] .site-modal-close');
+    // Detail modules may finish mounting and move focus while their header is
+    // being measured. Require the real header target to stay put before the
+    // physical click so the desktop run validates the control, not a stale
+    // coordinate captured during that mount.
+    const headerBack = () => tapSelector('[data-site-route] .site-modal-close', {settle: true});
 
     await navigate(`${origin}/`);
     await ready();
@@ -475,7 +564,11 @@ async function runCase(browser, origin, workDir, testCase) {
     await openLife();
     await tapSelector('[data-site-route="life"] [data-life-shortcut="medical"]');
     await atScreen(CATEGORIES[0], 'medical');
-    assert.equal(await evaluate("document.querySelectorAll('[data-site-route=\"life-medical\"] .medical-kind').length"), 3, `${label}: the three choices are on the screen`);
+    await waitFor(
+      () => evaluate("document.querySelectorAll('[data-site-route=\"life-medical\"] .medical-kind').length === 3"),
+      `${label}: the three choices are on the screen`,
+      30000,
+    );
     assert.equal(await evaluate('globalThis.__asked.length'), askedBeforeMedical, `${label}: opening 병원·응급실·약국 asks the conversation nothing`);
     await go(-1);
     await atLife('medical: system back');
@@ -572,7 +665,7 @@ async function runCase(browser, origin, workDir, testCase) {
     assert.deepEqual(errors, [], `${label}: page errors`);
     return log;
   } finally {
-    cdp.close();
+    await cdp.close();
   }
 }
 
