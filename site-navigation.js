@@ -47,7 +47,7 @@ function normalizeVerifiedPhoto(place) {
       || !(host === 'googleusercontent.com' || host.endsWith('.googleusercontent.com'))
       || evidence.provider !== 'GOOGLE_PLACES'
       || evidence.verification_state !== 'VERIFIED'
-      || !['EXACT_NAME_AND_ADDRESS', 'EXACT_NAME_AND_80M_COORDINATE'].includes(text(evidence.match_basis))
+      || !['EXACT_NAME_AND_ADDRESS', 'EXACT_NAME_AND_PHONE', 'EXACT_NAME_AND_80M_COORDINATE'].includes(text(evidence.match_basis))
       || !text(evidence.provider_place_id)
       || !Number.isFinite(Date.parse(text(evidence.fetched_at)))
     ) return Object.freeze({url: '', evidence: null});
@@ -90,7 +90,7 @@ export function buildVerifiedPhoneHref(place) {
 
 // LIFE-PUBLIC-DATA-01 / NIGHT MEDICAL. 국립중앙의료원 등록 진료시간·응급실 실시간 보고.
 // Only what Core sent is kept; ER bed numbers survive only for a FRESH report.
-const OPEN_STATES = new Set(['OPEN', 'CLOSED', 'NOT_LISTED', 'LISTED']);
+const OPEN_STATES = new Set(['OPEN', 'CLOSED', 'NOT_LISTED', 'LISTED', 'ALL_DAY']);
 const REALTIME_STATES = new Set(['FRESH', 'STALE', 'UNAVAILABLE', 'NOT_CHECKED']);
 const KINDS = new Set(['HOSPITAL', 'PHARMACY', 'EMERGENCY']);
 const SAFE_TEXT_RE = /[\u0000-\u001f<>]/gu;
@@ -111,6 +111,10 @@ export function normalizeMedicalStatus(value) {
     targetLabel: boundedText(value.target_label, 40),
     // Core could not read this year's public holidays: hours are by weekday.
     holidayUnverified: value.holiday_basis === 'UNVERIFIED_YEAR',
+    badges: Object.freeze((Array.isArray(value.status_badges) ? value.status_badges : [])
+      .map(item => boundedText(item, 24).toUpperCase())
+      .filter(item => ['NIGHT', 'HOLIDAY', 'ALL_DAY', 'CLOSING_SOON'].includes(item))
+      .slice(0, 4)),
   });
 }
 

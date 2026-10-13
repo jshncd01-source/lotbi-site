@@ -24,10 +24,10 @@ import {
   locateUrl, normalizeApartmentItem, readGuestFavorites, readOpenApartment, readRegionPreference, REAL_ESTATE_DEALS,
   REAL_ESTATE_DETAIL_MONTHS, REAL_ESTATE_GUEST_FAVORITES_LIMIT, REAL_ESTATE_LIST_MONTHS, writeGuestFavorites,
   writeOpenApartment, writeRegionPreference,
-} from './site-real-estate-client.js?v=aset-d3cb8f96c851';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-d3cb8f96c851';
-import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-d3cb8f96c851';
-import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-d3cb8f96c851';
+} from './site-real-estate-client.js?v=aset-e99b480c964e';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-e99b480c964e';
+import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-e99b480c964e';
+import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-e99b480c964e';
 
 export const REAL_ESTATE_SETTINGS_URL = 'https://account.lotbiai.com/account#privacy';
 const MAP_ICON_BASE = '/assets/place-actions/';
