@@ -95,12 +95,18 @@ try {
   const face=await wait(()=>root.querySelector('.wallet-deck-card[data-depth="0"]'),'restored deck'); await loaded(root);
   const restored={front:face.dataset.walletDeckCard,filter:root.querySelector('[data-wallet-deck-filter][aria-pressed="true"]').dataset.walletDeckFilter};
   const toolbar={add:root.querySelector('.wallet-add-action')?.innerText.trim()||'',lock:root.querySelector('.wallet-toolbar-icon-action')?.textContent.trim()||'',settings:root.querySelector('.wallet-settings > button')?.textContent.trim()||'',icons:root.querySelectorAll('.wallet-toolbar-icon-action svg').length,topShare:root.querySelector('.wallet-toolbar > [data-wallet-share-open]')!==null,visibleStorageCopy:root.querySelector('.wallet-storage-reassurance')?.getClientRects().length>0};
+  const settingsToggle=root.querySelector('.wallet-settings > button'); settingsToggle.click(); await sleep(100);
+  const settingsMenu=root.querySelector('.wallet-settings-menu'); const menuRect=settingsMenu.getBoundingClientRect(); const faceRect=face.getBoundingClientRect();
+  const overlap={left:Math.max(menuRect.left,faceRect.left),top:Math.max(menuRect.top,faceRect.top),right:Math.min(menuRect.right,faceRect.right),bottom:Math.min(menuRect.bottom,faceRect.bottom)};
+  const overlaps=overlap.right>overlap.left&&overlap.bottom>overlap.top; const overlapTopNode=overlaps?document.elementFromPoint((overlap.left+overlap.right)/2,(overlap.top+overlap.bottom)/2):null;
+  const settingsLayer={open:!settingsMenu.hidden,overlaps,topIsMenu:Boolean(overlapTopNode&&settingsMenu.contains(overlapTopNode)),toolbarZ:Number(getComputedStyle(root.querySelector('.wallet-toolbar')).zIndex),menuZ:Number(getComputedStyle(settingsMenu).zIndex),cardZ:Number(getComputedStyle(face).zIndex)};
+  settingsToggle.click();
   const shell=root.querySelector('.wallet-shell'); const life=root.querySelector('.wallet-life-info'); const order={deckBeforeLife:Boolean(shell.querySelector('.wallet-deck-shell')?.compareDocumentPosition(life)&Node.DOCUMENT_POSITION_FOLLOWING),title:life.querySelector('.wallet-life-info-title')?.textContent||'',lifeGap:parseFloat(getComputedStyle(life).marginTop)};
   face.click(); const detail=await wait(()=>root.querySelector('.wallet-detail'),'detail'); const labels=[...detail.querySelectorAll('[data-wallet-category-choice]')].map(button=>button.textContent); detail.querySelector('[data-wallet-category-choice="document"]').click(); await wait(()=>detail.querySelector('.wallet-detail-shape-status').textContent,'category save');
   const saved=(await store.list(accountId)).find(card=>card.id==='second'); const categoryStatus=detail.querySelector('.wallet-detail-shape-status').textContent;
   [...detail.querySelectorAll('button')].find(button=>button.textContent==='목록으로').click(); await wait(()=>root.querySelector('.wallet-deck-shell'),'back');
   const add=root.querySelector('.wallet-add-action'); add.click(); const select=await wait(()=>root.querySelector('select'),'add select'); const options=[...select.options].map(option=>option.textContent);
-  window.__result=JSON.stringify({ok:true,restored,toolbar,order,labels,savedCategory:saved.category,categoryStatus,options,viewState:JSON.parse(localStorage.getItem(key))});
+  window.__result=JSON.stringify({ok:true,restored,toolbar,settingsLayer,order,labels,savedCategory:saved.category,categoryStatus,options,viewState:JSON.parse(localStorage.getItem(key))});
 } catch(error){window.__result=JSON.stringify({ok:false,error:String(error?.stack||error)});}
 </script></body></html>`;
 
@@ -127,6 +133,7 @@ for (const [name, viewport, addLabel] of [['mobile',{width:390,height:844,mobile
   const integration=await run(integrationFixture,viewport,`integration_${name}`); assert.equal(integration.ok,true,integration.error); const integrationText=JSON.stringify(integration);
   assert.deepEqual(integration.restored,{front:'second',filter:'business-card'},integrationText);
   assert.deepEqual(integration.toolbar,{add:addLabel,lock:'잠그기',settings:'설정',icons:2,topShare:false,visibleStorageCopy:false},integrationText);
+  assert.deepEqual(integration.settingsLayer,{open:true,overlaps:true,topIsMenu:true,toolbarZ:20,menuZ:30,cardZ:5},`설정 메뉴는 카드 덱과 겹치는 실제 위치에서도 항상 앞에 있어야 합니다: ${integrationText}`);
   assert.deepEqual(integration.order,{deckBeforeLife:true,title:'생활정보',lifeGap:24},integrationText);
   assert.deepEqual(integration.labels,['신분증','명함','증명서·문서','기타'],integrationText);
   assert.equal(integration.savedCategory,'document',integrationText); assert.equal(integration.categoryStatus,'증명서·문서로 옮겼습니다.',integrationText);
