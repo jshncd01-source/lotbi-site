@@ -392,7 +392,11 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.equal(await historyIndex(), index, `${label}: ${what}: the empty tap wrote or stepped history`);
       log.push(`${what}:${spot.backdrop ? 'backdrop' : 'panel'}`);
     };
-    const headerBack = () => tapSelector('[data-site-route] .site-modal-close');
+    // Detail modules may finish mounting and move focus while their header is
+    // being measured. Require the real header target to stay put before the
+    // physical click so the desktop run validates the control, not a stale
+    // coordinate captured during that mount.
+    const headerBack = () => tapSelector('[data-site-route] .site-modal-close', {settle: true});
 
     await navigate(`${origin}/`);
     await ready();
