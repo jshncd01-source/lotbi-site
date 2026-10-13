@@ -17,12 +17,12 @@
 // The ten tiles below the panel are examples; this panel is the only way in.
 import {
   addPersonIdentityPhoto, personErrorMessage, personIdentityPhotoErrorMessage,
-} from './site-person.js?v=aset-84d34e2ec17f';
-import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-84d34e2ec17f';
+} from './site-person.js?v=aset-d908778a1240';
+import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-d908778a1240';
 
 export const PERSON_BULK_MAX_FILES = 10;
-export const PERSON_BULK_WARNING = '정확한 비교를 위해 동일한 사람의 사진만 등록해 주세요. 다른 사람이나 동물·사물 사진이 섞이면 등록이 제한될 수 있습니다.';
-export const PERSON_BULK_ANGLE_GUIDE = '기본 등록에는 얼굴 3장과 상반신·전신 사진 2장이 필요해요.';
+export const PERSON_BULK_WARNING = '같은 사람의 사진만 선택해 주세요. 다른 사람이나 동물·사물 사진은 등록되지 않을 수 있어요.';
+export const PERSON_BULK_ANGLE_GUIDE = '최소 5장 권장 · 얼굴 3장 + 상반신·전신 2장';
 export const PERSON_BULK_OPTIONAL_GUIDE = '다양한 각도와 상황의 사진을 최대 10장까지 등록하면 인식에 도움이 될 수 있어요.';
 export const PERSON_BULK_ANCHOR_HINT = '처음 저장된 사진이 다른 사람일 수 있어요. 사진 갱신·관리에서 그 사진을 빼고 다시 올려 주세요.';
 export const PERSON_BULK_UNAVAILABLE = '여러 장 한 번에 등록은 지금 사용할 수 없어요. 잠시 후 다시 시도해 주세요. 고른 사진은 저장하지 않았어요.';
@@ -345,6 +345,8 @@ export function createPersonBulkPhotos({
     const angles = el('p', 'person-bulk-angles', PERSON_BULK_ANGLE_GUIDE);
     angles.dataset.personBulkAngles = '';
     const note = el('p', 'person-bulk-note', PERSON_BULK_OPTIONAL_GUIDE);
+    const help = el('details', 'person-bulk-help');
+    help.append(el('summary', '', '사진 등록 안내'), angles, warning, note);
     const input = fileInput(true, 'personBulkInput');
     const pick = actionButton('갤러리에서 여러 장 선택', () => { if (guard()) input.click(); }, true);
     pick.classList.add('person-bulk-pick');
@@ -372,7 +374,7 @@ export function createPersonBulkPhotos({
     const noticeBox = el('div', 'person-bulk-notices');
     const result = el('div', 'person-bulk-result');
     result.dataset.personBulkResult = '';
-    section.append(title, warning, angles, note, pick, input, status, bar, alert, noticeBox, result);
+    section.append(title, pick, input, help, status, bar, alert, noticeBox, result);
     view = {section, status, bar, fill, alert, noticeBox, result, pick};
     paint();
     if (!running) {

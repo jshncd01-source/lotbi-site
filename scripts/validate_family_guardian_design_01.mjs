@@ -41,11 +41,11 @@ const personUi = read('site-person-ui.js');
 const personGuides = read('site-person-guides.js');
 const personBulk = read('site-person-bulk-photos.js');
 for (const copy of [
-  '기본 등록에는 얼굴 3장과 상반신·전신 사진 2장이 필요해요.',
+  '최소 5장 권장 · 얼굴 3장 + 상반신·전신 2장',
   '다양한 각도와 상황의 사진을 최대 10장까지 등록하면 인식에 도움이 될 수 있어요.',
 ]) assert.ok(personBulk.includes(copy), `approved photo copy: ${copy}`);
 for (const copy of [
-  '기본 사진 5장을 등록해 주세요',
+  '사진을 등록해 주세요',
   '참고 이미지 사진입니다.',
   '사진을 선택하면 등록할 사람의 사진으로 변경됩니다.',
   '인식을 돕는 사진 더 추가하기 (선택)',

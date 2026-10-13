@@ -31,7 +31,7 @@ const FALLBACK = '__fallback__';
 const INTERNAL = [/score/i, /yaw/i, /confidence/i, /model/i, /\bAI\b/, /\d+(\.\d+)?\s*%/, /모델/, /점수/, /신뢰도/, /PERSON_/];
 
 const client = await import(`${pathToFileURL(path.join(root, 'site-person.js')).href}?contract=intake-gate-01`);
-const {PERSON_IDENTITY_SLOTS} = await import(`${pathToFileURL(path.join(root, 'site-person-guides.js')).href}?contract=intake-gate-01`);
+const {PERSON_IDENTITY_SLOTS, PERSON_APPROVED_EXAMPLE_CROPS} = await import(`${pathToFileURL(path.join(root, 'site-person-guides.js')).href}?contract=intake-gate-01`);
 const slotByCode = Object.fromEntries(PERSON_IDENTITY_SLOTS.map(slot => [slot.code, slot]));
 
 // 1. Every refusal has its own guardian-facing sentence; none leaks internals.
@@ -89,14 +89,16 @@ const sendCatch = send.slice(send.lastIndexOf('} catch (error) {'));
 assert.ok(!sendCatch.includes("'STORED'") && !sendCatch.includes('저장했'), 'a refusal must never read as saved');
 assert.ok(sendCatch.includes("state: 'REFUSED'") && sendCatch.includes('personIdentityPhotoErrorMessage(error, null'), 'a refusal explains Core\'s reason');
 
-// 4. Guide art: LEFT_45 shows a face looking toward the viewer's left (the v1
-//    art faced right, same as RIGHT_45). Core locks the direction with the
-//    same art; here the Site must ship the corrected file.
-assert.equal(slotByCode.FACE_LEFT_45.artwork, 'assets/safecare/person-face-left-45-v2.png');
-const v2 = fs.readFileSync(path.join(root, 'assets/safecare/person-face-left-45-v2.png'));
-const right45 = fs.readFileSync(path.join(root, 'assets/safecare/person-face-right-45-v1.png'));
-assert.equal(v2.subarray(1, 4).toString('ascii'), 'PNG');
-assert.ok(v2.length >= 80_000 && !v2.equals(right45), 'LEFT_45 art must be its own finished illustration');
+// 4. Guide photos come from the user's exact approved source sheets. Direction
+//    instructions stay explicit; no generated drawing may replace the source.
+assert.equal(slotByCode.FACE_LEFT_45.example, PERSON_APPROVED_EXAMPLE_CROPS.FACE_LEFT_45);
+assert.equal(slotByCode.FACE_RIGHT_45.example, PERSON_APPROVED_EXAMPLE_CROPS.FACE_RIGHT_45);
+assert.notEqual(slotByCode.FACE_LEFT_45.example.viewBox, slotByCode.FACE_RIGHT_45.example.viewBox);
+for (const example of [slotByCode.FACE_LEFT_45.example, slotByCode.FACE_RIGHT_45.example]) {
+  const source = fs.readFileSync(path.join(root, example.sheet));
+  assert.equal(source.subarray(1, 4).toString('ascii'), 'PNG');
+  assert.ok(source.length >= 80_000, 'approved source sheet must be a finished photo image');
+}
 assert.match(slotByCode.FACE_LEFT_45.hint, /왼쪽을 바라보도록/);
 assert.match(slotByCode.FACE_RIGHT_45.hint, /오른쪽을 바라보도록/);
 
