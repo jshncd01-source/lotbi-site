@@ -3,7 +3,8 @@
 // Contract checked here:
 // * 지역정보 has ONE medical card named 병원·응급실·약국 (no 약국 card) and, with the
 //   unfinished 지역생활정보 card hidden (QA_화면전수_01 H3), eight cards in all —
-//   four full rows of two, no card spans; it opens its own screen
+//   four full mobile rows of two / two full desktop rows of four, no card spans;
+//   it opens its own screen
 //   (/#life-medical) — never the conversation: no chat request, nothing typed
 //   into the composer, no AI
 // * the screen reads only Core's public GET /v2/life/medical/nearby (credentials
@@ -57,9 +58,10 @@ await check('지역정보: one 병원·응급실·약국 card (no 약국 card), 
   assert.equal(LOCAL_ON, false, 'the shipped switch hides the unfinished 지역생활정보 card');
   assert.equal(sections.LIFE_SHORTCUTS.some(item => item.id === 'local'), false);
   assert.deepEqual(sections.LIFE_SHORTCUTS.map(item => item.id), EXPECTED_CARDS);
-  assert.equal(EXPECTED_CARDS.length, 8, 'eight cards: four rows of two');
+  assert.equal(EXPECTED_CARDS.length, 8, 'eight cards: mobile 2×4, desktop 4×2');
   const card = sections.LIFE_SHORTCUTS[0];
   assert.equal(card.label, '병원·응급실·약국');
+  assert.equal(card.description, '진료과와 운영 중인 곳을 찾아요');
   assert.equal(card.icon, 'hospital');
   assert.equal(card.choices, undefined, 'no two-way choice in front of the screen');
   assert.equal(card.ask, undefined, 'the card never asks the conversation');
@@ -548,11 +550,13 @@ async function runCase(browser, origin, workDir, testCase) {
       const columns = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
       const rows = new Map();
       for (const card of cards) { const r = card.getBoundingClientRect(); const key = Math.round(r.top); rows.set(key, (rows.get(key) || 0) + (Math.abs(r.width - grid.getBoundingClientRect().width) < 4 ? columns : 1)); }
+      const medicalCard = grid.querySelector('[data-life-shortcut="medical"]');
       return {ids: cards.map(card => card.dataset.lifeShortcut), columns, rows: [...rows.values()],
         heights: cards.map(card => Math.round(card.getBoundingClientRect().height)),
-        label: grid.querySelector('[data-life-shortcut="medical"] .consumer-shortcut-title')?.textContent || '',
-        description: grid.querySelector('[data-life-shortcut="medical"] .consumer-shortcut-description')?.textContent || '',
-        icon: Boolean(grid.querySelector('[data-life-shortcut="medical"] svg path')),
+        label: medicalCard?.querySelector('.consumer-shortcut-title')?.textContent || '',
+        description: medicalCard?.querySelector('.consumer-shortcut-description')?.textContent || '',
+        accessibleName: medicalCard?.getAttribute('aria-label') || '',
+        icon: Boolean(medicalCard?.querySelector('svg path')),
         pharmacy: Boolean(grid.querySelector('[data-life-shortcut="pharmacy"]'))};
     })()`);
     await check(`${label}: 지역정보 grid — one 병원·응급실·약국 card, 8 cards in ${testCase.mobile ? 'two columns' : 'four columns'}, full rows, cards ≥ 48 px`, () => {
@@ -560,6 +564,7 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.equal(grid.rows.length, testCase.mobile ? 4 : 2, JSON.stringify(grid));
       assert.equal(grid.label, '병원·응급실·약국');
       assert.equal(grid.description, '진료과와 운영 중인 곳을 찾아요');
+      assert.equal(grid.accessibleName, '병원·응급실·약국. 진료과와 운영 중인 곳을 찾아요');
       assert.equal(grid.pharmacy, false);
       assert.ok(grid.icon);
       assert.equal(grid.columns, testCase.mobile ? 2 : 4, `${testCase.mobile ? 'phones' : 'desktop'} keep the approved columns`);

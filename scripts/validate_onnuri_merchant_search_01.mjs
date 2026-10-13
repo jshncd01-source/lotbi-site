@@ -34,6 +34,7 @@ const ID = n => String(n).padStart(40, 'a').slice(-40).replace(/[^0-9a-f]/gu, 'b
   // LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: the card now opens 온누리상품권·지역화폐;
   // the onnuri module itself (ONNURI_MENU_LABEL) is unchanged.
   assert.equal(onnuri.label, '온누리상품권·지역화폐');
+  assert.equal(onnuri.description, '사용처와 혜택을 찾아요');
   assert.equal(ONNURI_MENU_LABEL, '온누리상품권');
   assert.equal(ONNURI_CARD_LABEL, '온누리 가맹점');
   // QA 2026-10-10 #12: LOTBI's own plain voucher icon until the official logo
@@ -207,7 +208,12 @@ const PROBE = `(() => {
     pageOverflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     panelOverflowX: panel ? panel.scrollWidth - panel.clientWidth : null,
     shortcuts: [...(workspace?.querySelectorAll('.consumer-shortcut') || [])].map(b => b.dataset.lifeShortcut),
-    shortcut: shortcut ? {label: shortcut.textContent, slot: shortcut.querySelector('[data-brand-logo-slot]')?.dataset.logoState || '', img: Boolean(shortcut.querySelector('img')), svg: Boolean(shortcut.querySelector('svg')), box: box(shortcut)} : null,
+    shortcut: shortcut ? {
+      title: shortcut.querySelector('.consumer-shortcut-title')?.textContent || '',
+      description: shortcut.querySelector('.consumer-shortcut-description')?.textContent || '',
+      accessibleName: shortcut.getAttribute('aria-label') || '',
+      slot: shortcut.querySelector('[data-brand-logo-slot]')?.dataset.logoState || '', img: Boolean(shortcut.querySelector('img')), svg: Boolean(shortcut.querySelector('svg')), box: box(shortcut)
+    } : null,
     surface: Boolean(surface),
     disclaimer: surface?.querySelector('.onnuri-disclaimer')?.textContent || '',
     // ONNURI-REGION-FIRST-UX-01 (QA #16)
@@ -396,7 +402,9 @@ async function runCase(browser, origin, dir, testCase) {
     // 1. No permission: region first (QA #16), then 전북 → first page (12; all 8 test shops), no distance; shortcut shows text only.
     await load();
     let state = await probe();
-    assert.equal(state.shortcut.label, '온누리상품권·지역화폐');
+    assert.equal(state.shortcut.title, '온누리상품권·지역화폐');
+    assert.equal(state.shortcut.description, '사용처와 혜택을 찾아요');
+    assert.equal(state.shortcut.accessibleName, '온누리상품권·지역화폐. 사용처와 혜택을 찾아요');
     assert.equal(state.shortcut.slot, '', 'the plain icon shows; no logo slot drawn');
     assert.equal(state.shortcut.img, false, 'no official logo image');
     assert.equal(state.shortcut.svg, true, 'the plain voucher icon');

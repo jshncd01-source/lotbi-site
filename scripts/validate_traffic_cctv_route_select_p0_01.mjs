@@ -78,6 +78,7 @@ await check(`switch ${TRAFFIC_CCTV_UI_ENABLED ? 'on' : 'off'}: ${TRAFFIC_CCTV_UI
   assert.deepEqual(ids, EXPECTED_CARDS);
   const card = sections.LIFE_SHORTCUTS.find(item => item.id === 'traffic-cctv');
   assert.equal(card.label, '도로 CCTV', 'one line on a 360 px phone; the screen keeps the full title');
+  assert.equal(card.description || '', '');
   assert.equal(card.icon, 'cctv');
   for (const key of ['ask', 'prompt', 'choices', 'children']) assert.equal(card[key], undefined, key);
 });
@@ -675,17 +676,22 @@ async function runCase(browser, origin, workDir, testCase) {
       const columns = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
       const rows = new Map();
       for (const card of cards) { const r = card.getBoundingClientRect(); const key = Math.round(r.top); rows.set(key, (rows.get(key) || 0) + (Math.abs(r.width - grid.getBoundingClientRect().width) < 4 ? columns : 1)); }
+      const cctvCard = grid.querySelector('[data-life-shortcut="traffic-cctv"]');
       return {ids: cards.map(card => card.dataset.lifeShortcut), columns, rows: [...rows.values()],
         heights: cards.map(card => Math.round(card.getBoundingClientRect().height)),
-        icon: Boolean(grid.querySelector('[data-life-shortcut="traffic-cctv"] svg path')),
-        label: grid.querySelector('[data-life-shortcut="traffic-cctv"] span')?.textContent || ''};
+        icon: Boolean(cctvCard?.querySelector('svg path')),
+        title: cctvCard?.querySelector('.consumer-shortcut-title')?.textContent || '',
+        description: cctvCard?.querySelector('.consumer-shortcut-description')?.textContent || '',
+        accessibleName: cctvCard?.getAttribute('aria-label') || ''};
     })()`);
     await check(`${label}: 지역정보 grid — 실시간 도로 CCTV after 부동산 실거래가, ${testCase.mobile ? 'two columns' : 'the desktop grid'}, every row full`, () => {
       assert.deepEqual(grid.ids, EXPECTED_CARDS);
       if (testCase.mobile) assert.equal(grid.columns, 2, 'phones keep two columns');
       assert.ok(grid.rows.every(count => count === grid.columns), JSON.stringify(grid));
       assert.ok(grid.heights.every(height => height >= 44), JSON.stringify(grid.heights));
-      assert.equal(grid.label, '도로 CCTV');
+      assert.equal(grid.title, '도로 CCTV');
+      assert.equal(grid.description, '');
+      assert.equal(grid.accessibleName, '도로 CCTV.');
       assert.ok(grid.icon);
     });
 

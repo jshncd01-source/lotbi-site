@@ -74,7 +74,7 @@ const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
   assert.doesNotMatch(screen, /setItem\([^)]*latitude|savedLifeRegion|lotbi\.calendar\.weather-region/u, 'the LOTBI 기본 생활지역 is never written');
 
   const sections = read('site-consumer-sections.js');
-  assert.match(sections, /\{id: 'real-estate', label: '부동산 실거래가', icon: 'building'\}/u);
+  assert.match(sections, /\{id: 'real-estate', label: '부동산 실거래가', description: '우리 동네 실제 거래 가격', icon: 'building'\}/u);
   assert.match(sections, /item\.id === 'real-estate' \? onRealEstate\?\.\(\)/u);
   const routes = read('site-route.js');
   assert.match(routes, /'real-estate',\n\s+'real-estate-apartment',/u);
@@ -276,7 +276,12 @@ const PROBE = `(() => {
     open: Boolean(re && visible(re)), view: re?.dataset.reView || '', listState: re?.dataset.reListState || '',
     pageOverflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     panelOverflowX: panel ? panel.scrollWidth - panel.clientWidth : null,
-    shortcuts: [...(document.querySelectorAll('.consumer-workspace .consumer-shortcut') || [])].map(b => ({id: b.dataset.lifeShortcut, box: box(b), label: b.textContent})),
+    shortcuts: [...(document.querySelectorAll('.consumer-workspace .consumer-shortcut') || [])].map(b => ({
+      id: b.dataset.lifeShortcut, box: box(b),
+      title: b.querySelector('.consumer-shortcut-title')?.textContent || '',
+      description: b.querySelector('.consumer-shortcut-description')?.textContent || '',
+      accessibleName: b.getAttribute('aria-label') || ''
+    })),
     lifeOpen: Boolean(document.querySelector('.consumer-workspace .consumer-shortcuts')),
     tab: re?.querySelector('[data-re-tab][aria-selected="true"]')?.dataset.reTab || '',
     sido: sel('sido'), sigungu: sel('sigungu'), dong: sel('dong'),
@@ -516,6 +521,12 @@ async function runCase(browser, origin, dir, testCase) {
     let state = await probe();
     const ids = state.shortcuts.map(item => item.id);
     assert.ok(ids.indexOf('real-estate') === ids.indexOf('onnuri') + 1, `${testCase.label}: 부동산 실거래가 follows 온누리상품권 (${ids})`);
+    const shortcut = state.shortcuts.find(item => item.id === 'real-estate');
+    assert.deepEqual({title: shortcut.title, description: shortcut.description, accessibleName: shortcut.accessibleName}, {
+      title: '부동산 실거래가',
+      description: '우리 동네 실제 거래 가격',
+      accessibleName: '부동산 실거래가. 우리 동네 실제 거래 가격',
+    });
     if (testCase.width <= 600) {
       const tops = [...new Set(state.shortcuts.map(item => Math.round(item.box.y)))];
       const perRow = tops.map(top => state.shortcuts.filter(item => Math.round(item.box.y) === top).length);
@@ -779,4 +790,4 @@ try {
   }
 }
 
-console.log('REAL-ESTATE-REGION-FAVORITES-P0 OK — 지역정보 card (2-column), location → 법정동 as far as confirmed, 3-step manual regions kept, 매매/전세/월세 lists, name search, honest empty/unavailable states, detail with default map app (no pin), ♡/♥ favorites on device and per account, back paths (system / ← / Escape) list ↔ detail ↔ 지역정보 ↔ home (viewport emulation, not a device run)');
+console.log('REAL-ESTATE-REGION-FAVORITES-P0 OK — 지역정보 card (mobile 2-column, desktop 4-column), location → 법정동 as far as confirmed, 3-step manual regions kept, 매매/전세/월세 lists, name search, honest empty/unavailable states, detail with default map app (no pin), ♡/♥ favorites on device and per account, back paths (system / ← / Escape) list ↔ detail ↔ 지역정보 ↔ home (viewport emulation, not a device run)');

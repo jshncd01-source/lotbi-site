@@ -60,6 +60,7 @@ await check('지역정보: 전기차 충전소 right after 병원·응급실·�
   assert.equal(ids.indexOf('ev-chargers'), ids.indexOf('medical') + 1);
   const card = sections.LIFE_SHORTCUTS.find(item => item.id === 'ev-chargers');
   assert.equal(card.label, '전기차 충전소');
+  assert.equal(card.description, '가까운 충전기와 사용 상태');
   assert.equal(card.icon, 'ev');
   for (const key of ['ask', 'prompt', 'choices', 'children']) assert.equal(card[key], undefined, key);
 });

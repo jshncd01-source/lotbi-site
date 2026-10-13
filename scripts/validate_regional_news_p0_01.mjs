@@ -40,7 +40,7 @@ assert.match(conversation, /openConsumerSection\('life'\)/u);
 // ── 지역뉴스 shortcut and screen ──────────────────────────────────────────
 const ids = LIFE_SHORTCUTS.map(item => item.id);
 assert.equal(ids[ids.indexOf('festivals') + 1], 'news', '지역뉴스 sits right after 축제·행사');
-assert.deepEqual(LIFE_SHORTCUTS.find(item => item.id === 'news'), {id: 'news', label: '지역뉴스', icon: 'news'});
+assert.deepEqual(LIFE_SHORTCUTS.find(item => item.id === 'news'), {id: 'news', label: '지역뉴스', description: '내 지역의 중요한 소식', icon: 'news'});
 const sections = read('site-consumer-sections.js');
 assert.match(sections, /news: \['M4 5h13v14/u, 'a line news icon in the shortcut icon set');
 assert.match(sections, /item\.id === 'news' \? openNewsEntry\(item\)/u);
@@ -325,10 +325,11 @@ const PROBE = `(() => {
   const workspace = document.querySelector('.consumer-workspace');
   const panel = workspace?.querySelector('.site-modal');
   const shortcuts = [...(workspace?.querySelectorAll('.consumer-shortcut') || [])].map(button => {
-    const label = button.querySelector('span');
+    const label = button.querySelector('.consumer-shortcut-title');
+    const description = button.querySelector('.consumer-shortcut-description');
     const b = box(button);
     const hit = document.elementFromPoint(b.cx, Math.min(Math.max(b.cy, 0), innerHeight - 1))?.closest?.('.consumer-shortcut') === button;
-    return {id: button.dataset.lifeShortcut, label: label?.textContent || '', box: b, lines: label ? lines(label) : 0,
+    return {id: button.dataset.lifeShortcut, label: label?.textContent || '', description: description?.textContent || '', accessibleName: button.getAttribute('aria-label') || '', box: b, lines: label ? lines(label) : 0,
       clipped: label ? label.scrollWidth > label.parentElement.clientWidth : true, hit, icon: Boolean(button.querySelector('svg path'))};
   });
   const detail = workspace?.querySelector('.consumer-life-detail');
@@ -570,6 +571,8 @@ async function runCase(browser, origin, dir, testCase) {
     const news = state.shortcuts.find(item => item.id === 'news');
     assert.ok(news, `${testCase.label}: 지역뉴스 card`);
     assert.equal(news.label, '지역뉴스');
+    assert.equal(news.description, '내 지역의 중요한 소식');
+    assert.equal(news.accessibleName, '지역뉴스. 내 지역의 중요한 소식');
     assert.equal(news.icon, true);
     assert.equal(news.lines, 1, `${testCase.label}: label on one line`);
     assert.equal(news.clipped, false);

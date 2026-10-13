@@ -355,7 +355,12 @@ const SCENARIO = `(async () => {
   const panel = await wait(() => document.querySelector('.consumer-section-panel'), 'life surface');
   const shortcut = await wait(() => panel.querySelector('[data-life-shortcut="my-child"]'), 'my-child shortcut');
   result.cards = [...panel.querySelectorAll('[data-life-shortcut]')].map(n => n.dataset.lifeShortcut);
-  result.card = {label: shortcut.textContent.trim(), box: box(shortcut)};
+  result.card = {
+    title: shortcut.querySelector('.consumer-shortcut-title')?.textContent.trim() || '',
+    description: shortcut.querySelector('.consumer-shortcut-description')?.textContent.trim() || '',
+    accessibleName: shortcut.getAttribute('aria-label') || '',
+    box: box(shortcut)
+  };
   shortcut.click();
   const host = await wait(() => panel.querySelector('.lotbi-mychild'), 'my-child screen');
   result.choices = [...panel.querySelectorAll('[data-child-choice]')].map(n => n.dataset.childChoice + ':' + n.textContent.trim());
@@ -672,7 +677,9 @@ try {
     await check(`${label}: the last card opens the saved screen at once with 지역정보로 돌아가기; empty list explains storage`, () => {
       assert.deepEqual(r.choices, [], 'no 내 아이 정보 / 유치원·학교 찾기 choice');
       assert.deepEqual(r.cards, ['medical', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', ...(LOCAL_ON ? ['local'] : []), 'my-child']);
-      assert.equal(r.card.label, '내 아이 학교·유치원');
+      assert.equal(r.card.title, '내 아이 학교·유치원');
+      assert.equal(r.card.description, '가까운 교육시설과 정보');
+      assert.equal(r.card.accessibleName, '내 아이 학교·유치원. 가까운 교육시설과 정보');
       assert.ok(r.card.box.h >= 44, JSON.stringify(r.card.box));
       assert.equal(r.back, '지역정보로 돌아가기');
       assert.equal(r.textBack, false, 'one back: the header ←, no second text link (QA #3)');
