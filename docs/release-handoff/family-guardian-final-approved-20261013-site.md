@@ -2,6 +2,18 @@ READY_FOR_DEPLOY=YES
 
 # 가족 지킴이 사용자 최종 승인 디자인 — Site READY
 
+## 2026-10-13 Life Wallet 최신 main 통합 최종 재READY
+
+- 최종 기준 Ncloud `main`: `64f96971e931135d507f4f9ac5cf8ae375d45dac`.
+- 정상 merge 커밋: `67627347996020550bcaeccc6d7ded78462145bd`.
+- merge 직후 drift: 최신 `main`보다 뒤처짐 `0`, 기능 브랜치 고유 커밋 `7`.
+- 두 차례 merge에서 발생한 87개 파일 충돌은 모두 전역 `aset-*` 캐시 토큰 문자열 충돌이었다. 내용 정규화 비교 결과 실제 코드·디자인 충돌은 `0`건이며, 최신 `main`의 의료·Life Wallet 변경과 사용자 확정 가족 지킴이 변경을 모두 보존했다.
+- 최종 자산 캐시: `aset-d908778a1240` (`targets=169`, `refs=208`, write/check PASS).
+- 최종 결합본에서 가족 지킴이 360/1280 라이트·다크·시스템·bootstrap 18조합, 사람·반려동물 등록·사진·실종신고, 반려동물 종 제한·사진 선택, Life Wallet PIN 디자인 회귀가 모두 PASS했다.
+- `scripts/validate_pet_family_web_01.mjs`의 raw Pet ID 노출 검사는 `pet-card-identity` 클래스명을 `pet-card-id`로 오인하던 문자열 포함 검사를 제거하고, 실제 사용자 표시 텍스트에 `pet.petId`가 들어가는 패턴을 직접 거부하도록 정밀화했다. 검사 완화나 skip은 없다.
+- 이 문서 커밋을 포함한 최종 exact HEAD와 Ncloud 원격 readback은 외부 READY 인계 문서와 배포총괄 전달 메시지에 기록한다.
+- 아래의 과거 `a87bfe29...`, `aset-8deef8da0431`, `aset-799d6b2459ca` 값은 작업 이력이며 최종 배포 기준이 아니다.
+
 ## 2026-10-13 직원 피드백 반영 재READY
 
 - 코드 커밋: `dee1df35a85e2fb8df1636eccadf3fd695842859`.
@@ -19,8 +31,8 @@ READY_FOR_DEPLOY=YES
 - feature branch: `feature/family-guardian-approved-photos-01-site`
 - 사용자 최종 승인: 2026-10-13 KST
 - 디자인 코드 커밋: `baff7ed11` (`feat(site): finalize approved family guardian design`)
-- 통합한 Ncloud `main`: `a87bfe29da6f444a922f4bd5e4203690ef768200`
-- 정상 merge 커밋: `2bf104f2c9b8b40d036f67f5912293e385cdf551`
+- 통합한 Ncloud `main`: `64f96971e931135d507f4f9ac5cf8ae375d45dac`
+- 정상 merge 커밋: `67627347996020550bcaeccc6d7ded78462145bd`
 - 최종 문서 커밋을 포함한 exact HEAD와 Ncloud readback SHA는 외부 Work 인계 문서 및 배포총괄 전달 메시지에 기록한다.
 - 상태: `READY_FOR_DEPLOY=YES`, `FULL_FUNCTIONAL_COMPLETE=NO`, `PRODUCTION_DEPLOYED=NO`, `PRODUCTION_VERIFIED=NO`.
 
