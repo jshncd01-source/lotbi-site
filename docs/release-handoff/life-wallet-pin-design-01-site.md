@@ -3,10 +3,10 @@
 - STATUS: `READY`
 - REPOSITORY: `lotbi-site`
 - BRANCH: `feature/life-wallet-pin-design-01-site`
-- BASE_NCLOUD_MAIN: `a87bfe29da6f444a922f4bd5e4203690ef768200`
-- MAIN_MERGE_SHA: `8f5fd0fba`
+- BASE_NCLOUD_MAIN: `c1f58fea942f38b51b60b485f90f77a5acc9a978`
+- MAIN_MERGE_SHA: `311debb14cf27389a2e5e471b6555a6ce108b3fc`
 - CODE_SHA: `8bf13d0597061dc3e24b49ed127a77cdc58a563a`
-- ASSET_VERSION: `aset-547365c1b736`
+- ASSET_VERSION: `aset-84d34e2ec17f`
 
 ## 확정 구현
 
@@ -38,7 +38,8 @@
 - PIN, 잠금, 암호화 저장, 백업, 공유, Wi-Fi, 개인통관고유부호 회귀검사 `PASS`
 - `validate_common_ui_polish_01.mjs`, `validate_photo_input_no_camcorder_01.mjs`, `validate_subview_back_navigation_01.mjs`, `validate_consumer_design_shell_01.mjs`, `validate_conversation_sidebar_ux_01.mjs` `PASS`
 - `validate_consumer_theme_sync_01.mjs`는 Windows의 Chrome 경로를 `CHROME_BIN`으로 지정해 `PASS`
-- `scripts/asset_cache_version.mjs` `PASS` (`aset-547365c1b736`, targets=169, refs=208)
+- 최신 main의 병원·응급실·약국 디자인 병합 후 Life Wallet 카드 덱·모바일·PDF·PIN 첨부, 의료 196개, 홈·푸터 회귀검사 재실행 `PASS`
+- `scripts/asset_cache_version.mjs` `PASS` (`aset-84d34e2ec17f`, targets=169, refs=208)
 - `git diff --check` `PASS`
 
 모든 사진·PDF 검사는 개인정보 없는 합성 자료만 사용했다. 실제 신분증, 운영 사용자 데이터, 운영 DB, Secret, 유료 AI 호출은 사용하거나 변경하지 않았다.
