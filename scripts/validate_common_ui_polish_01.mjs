@@ -280,8 +280,8 @@ try {
       assert.equal(phone.switchOn.word, '"ON"');
       assert.equal(phone.switchOff.word, '"OFF"');
     });
-    check('#21 padlock renders as a stroked 24px icon', () => {
-      assert.deepEqual([phone.lock.w, phone.lock.h], [24, 24]);
+    check('#21 padlock renders as the approved stroked 28px mobile icon', () => {
+      assert.deepEqual([phone.lock.w, phone.lock.h], [28, 28]);
       assert.equal(phone.lock.fill, 'none');
       assert.equal(phone.lock.stroke, phone.lock.ink);
     });

@@ -1,7 +1,7 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-26bc54accaa5';
-import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-26bc54accaa5';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-26bc54accaa5';
-import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-26bc54accaa5';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-d908778a1240';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-d908778a1240';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-d908778a1240';
+import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-d908778a1240';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -833,6 +833,23 @@ function button(label, onClick, secondary = false) {
   return value;
 }
 
+function walletActionIcon(name) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const paths = name === 'lock'
+    ? ['M7 10V8a5 5 0 0 1 10 0v2', 'M6 10h12a2 2 0 0 1 2 2v8H4v-8a2 2 0 0 1 2-2Z', 'M12 14v2.5']
+    : ['M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z', 'M12 2v3', 'M12 19v3', 'M4.93 4.93l2.12 2.12', 'M16.95 16.95l2.12 2.12', 'M2 12h3', 'M19 12h3', 'M4.93 19.07l2.12-2.12', 'M16.95 7.05l2.12-2.12'];
+  for (const value of paths) {
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', value);
+    svg.append(path);
+  }
+  return svg;
+}
+
 function field(labelText, input) {
   const label = element('label', 'wallet-field');
   label.append(element('span', '', labelText), input);
@@ -1119,10 +1136,10 @@ export function createWalletCardDeck({cards, onOpen, initialSelectedId = '', ini
   const empty = element('p', 'wallet-deck-filter-empty', '이 종류에 저장된 자료가 없습니다.'); empty.hidden = true;
   const info = element('div', 'wallet-deck-info');
   const title = element('strong', 'wallet-deck-title'); const date = element('span', 'wallet-deck-date');
-  const dotsRow = element('div', 'wallet-card-dots');
+  const gestureHint = element('span', 'wallet-deck-gesture-hint', '↕ 위아래로 넘겨보세요');
   const position = element('span', 'wallet-card-position'); position.setAttribute('aria-live', 'polite');
-  const open = button('상세 보기', () => { const card = visible[index]; if (card) onOpen(card); }, true); open.classList.add('wallet-deck-open');
-  info.append(title, date, dotsRow, position, open);
+  const open = button('상세 보기', () => { const card = visible[index]; if (card) onOpen(card); }); open.classList.add('wallet-deck-open');
+  info.append(gestureHint, title, date, position, open);
   shell.append(filters, deck, empty, info);
 
   const shapes = new Map();
@@ -1196,13 +1213,6 @@ export function createWalletCardDeck({cards, onOpen, initialSelectedId = '', ini
     position.textContent = visible.length ? `${index + 1} / ${visible.length}` : '';
     shell.classList.toggle('wallet-deck-single', visible.length < 2);
     deck.hidden = !card; info.hidden = !card; empty.hidden = Boolean(card);
-    dotsRow.replaceChildren(...(visible.length < 2 ? [] : visible.map((entry, dotIndex) => {
-      const dot = element('button', 'wallet-card-dot'); dot.type = 'button'; dot.dataset.walletCarouselDot = String(dotIndex);
-      dot.setAttribute('aria-label', `${dotIndex + 1}번째 자료 보기`);
-      if (dotIndex === index) dot.setAttribute('aria-current', 'true');
-      dot.addEventListener('click', () => show(dotIndex));
-      return dot;
-    })));
     onStateChange({filter, selectedId: card?.id || ''});
   }
 
@@ -1364,7 +1374,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-26bc54accaa5') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-d908778a1240') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;
@@ -1551,7 +1561,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
 
   function renderUnlock(message = '') {
     const wrap = element('section', 'wallet-gate wallet-unlock-gate');
-    wrap.append(lockMark(), element('h3', '', 'PIN을 입력해 주세요'), element('p', '', '등록한 자료를 보려면 월렛 전용 4자리 PIN을 입력하세요.'));
+    wrap.append(lockMark(), element('h3', '', 'PIN을 입력해 주세요'), element('p', '', '등록한 자료를 안전하게 보려면 4자리 PIN을 입력하세요.'));
     const form = element('form', 'wallet-pin-form wallet-unlock-form');
     const pin = pinInput('월렛 PIN'); const status = errorRegion(); if (message) status.textContent = message;
     // The PIN is entered on the keypad below, so the phone's on-screen keyboard stays down
@@ -1608,7 +1618,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       const viewState = readWalletViewState(availableLocalStorage(), viewStorageKey);
       const shell = element('section', 'wallet-shell');
       const toolbar = element('div', 'wallet-toolbar');
-      const copy = element('div', 'wallet-storage-copy');
+      const storageCount = element('span', 'wallet-storage-count', `저장 자료 ${cards.length}개`);
       const reassurance = element('div', 'wallet-storage-reassurance');
       reassurance.append(...(backupMeta ? [
         element('strong', '', '자료는 이 기기에 저장되고, 서버에는 암호화된 백업만 보관됩니다.'),
@@ -1620,15 +1630,16 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       // Said only once Core answers that the relay is on (it stays off until the owner turns it on).
       const shareNote = share ? element('span', 'wallet-storage-share-note', '공유를 수락한 상대에게 암호화해 전달할 때만 서버를 거칩니다.') : null;
       if (shareNote) { shareNote.hidden = true; shareNote.dataset.walletShareRelay = 'pending'; reassurance.append(shareNote); }
-      copy.append(element('strong', 'wallet-storage-count', `저장 자료 ${cards.length}개`), reassurance);
       const settings = element('div', 'wallet-settings');
       const settingsMenu = element('div', 'wallet-settings-menu');
       settingsMenu.hidden = true; settingsMenu.setAttribute('role', 'menu'); settingsMenu.setAttribute('aria-label', 'Life Wallet 설정');
-      const settingsToggle = button('⚙ 설정', () => {
+      const settingsToggle = button('설정', () => {
         settingsMenu.hidden = !settingsMenu.hidden;
         settingsToggle.setAttribute('aria-expanded', String(!settingsMenu.hidden));
         if (!settingsMenu.hidden) settingsMenu.querySelector('button:not(:disabled)')?.focus();
       }, true);
+      settingsToggle.classList.add('wallet-toolbar-icon-action');
+      settingsToggle.prepend(walletActionIcon('settings'));
       settingsToggle.setAttribute('aria-haspopup', 'menu'); settingsToggle.setAttribute('aria-expanded', 'false');
       const pinAction = button('PIN 변경', renderChangePin, true); pinAction.setAttribute('role', 'menuitem');
       const backupAction = button('암호화 백업 파일 만들기', () => renderBackup(Boolean(customs)), true); backupAction.setAttribute('role', 'menuitem');
@@ -1652,19 +1663,31 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         if (event.key !== 'Escape' || settingsMenu.hidden) return;
         settingsMenu.hidden = true; settingsToggle.setAttribute('aria-expanded', 'false'); settingsToggle.focus();
       });
+      let shareAction = null;
+      if (share) {
+        shareAction = button('공유', () => void share.openHub(), true); shareAction.dataset.walletShareOpen = ''; shareAction.setAttribute('role', 'menuitem');
+        settingsMenu.append(shareAction);
+      }
+      reassurance.classList.add('wallet-settings-help');
+      settingsMenu.append(reassurance);
       settings.append(settingsToggle, settingsMenu);
       const openAdd = () => (walletAddBlocked(subscription, cards.length) ? renderAddLimit() : renderAdd());
       // One way to add: 첫 자료 등록하기 on an empty wallet, + 자료 추가 once something is saved.
-      toolbar.append(copy, ...(cards.length ? [button('+ 자료 추가', openAdd)] : []));
+      const actions = element('div', 'wallet-toolbar-actions');
+      if (cards.length) {
+        const addAction = button('', openAdd); addAction.classList.add('wallet-add-action');
+        addAction.append(element('span', 'wallet-add-label-desktop', '+ 자료 추가'), element('span', 'wallet-add-label-mobile', '+ 추가'));
+        actions.append(addAction);
+      }
       if (share) {
-        const shareAction = button('공유', () => void share.openHub(), true); shareAction.dataset.walletShareOpen = '';
-        toolbar.append(shareAction);
         void share.pendingCount().then(count => {
           if (count && shareAction.isConnected) shareAction.textContent = `공유 ${count}`;
           if (shareNote) { const on = share.transferAvailable(); shareNote.hidden = !on; shareNote.dataset.walletShareRelay = on ? 'on' : 'off'; }
         });
       }
-      toolbar.append(button('잠그기', () => void lockAndRender(), true), settings);
+      const lockAction = button('잠그기', () => void lockAndRender(), true); lockAction.classList.add('wallet-toolbar-icon-action'); lockAction.prepend(walletActionIcon('lock'));
+      actions.append(lockAction, settings);
+      toolbar.append(storageCount, actions);
       shell.append(toolbar);
       if (message) shell.append(element('p', 'wallet-message', message));
       if (!cards.length) {

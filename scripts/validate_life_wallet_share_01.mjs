@@ -173,7 +173,7 @@ try {
   const shareButton = await wait(() => root.querySelector('[data-wallet-share-open]'), 'wallet share button');
   await wait(() => shareButton.textContent === '공유 1' || shareButton.textContent === '공유 2', 'pending count');
   results.walletShareCount = shareButton.textContent;
-  [...root.querySelectorAll('button')].find(b => b.textContent === '+ 자료 추가').click();
+  root.querySelector('.wallet-add-action').click();
   await wait(() => root.querySelector('.wallet-add-limit'), 'limit');
   results.freeLimit = root.textContent.includes('무료 회원은 자료를 1개까지 보관할 수 있습니다') && root.textContent.includes('이미 저장한 자료는 그대로 남아 있습니다') && root.querySelector('a[href="/subscribe"]') !== null;
   results.cardsKept = (await vault.list(account)).length === 1;
@@ -181,7 +181,7 @@ try {
   const root2 = document.createElement('div'); host.replaceChildren(root2);
   const plus = wallet.mountLifeWallet({root: root2, authenticated: true, accountId: account, sessionExpiresAt: new Date(Date.now() + 3600000).toISOString(), sessionToken: 'tok', subscription: {plan: 'PLUS'}});
   await wait(() => root2.querySelector('[data-wallet-share-open]'), 'plus wallet');
-  [...root2.querySelectorAll('button')].find(b => b.textContent === '+ 자료 추가').click();
+  root2.querySelector('.wallet-add-action').click();
   await wait(() => root2.querySelector('.wallet-attach'), 'plus add form');
   results.plusAdds = !root2.querySelector('.wallet-add-limit');
   plus.dispose();
