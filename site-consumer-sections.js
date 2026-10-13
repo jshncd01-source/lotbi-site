@@ -1,6 +1,7 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-d908778a1240';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-d908778a1240';
-import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-d908778a1240';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-7327fad003f1';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-7327fad003f1';
+import {chooseRegion} from './site-location-allow.js?v=aset-7327fad003f1';
+import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-7327fad003f1';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -42,23 +43,23 @@ import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-f
 // (site-consumer-design.css), so no cell is empty either way.
 export const LIFE_SHORTCUTS = Object.freeze([
   // LIFE-MEDICAL-MERGE-01: 병원·응급실·약국 in one screen (site-life-medical-list.js), no chat.
-  {id: 'medical', label: '병원·응급실·약국', icon: 'hospital'},
+  {id: 'medical', label: '병원·응급실·약국', description: '진료과와 운영 중인 곳을 찾아요', icon: 'hospital'},
   // EV-CHARGER-NEARBY-LIST-P0: nearest stations from 한국환경공단 data, no chat.
-  {id: 'ev-chargers', label: '전기차 충전소', icon: 'ev'},
-  {id: 'festivals', label: '축제·행사', icon: 'calendar'},
+  {id: 'ev-chargers', label: '전기차 충전소', description: '가까운 충전기와 사용 상태', icon: 'ev'},
+  {id: 'festivals', label: '축제·행사', description: '이번 주 우리 동네 즐길 거리', icon: 'calendar'},
   // REGIONAL-NEWS-SCREEN-LIST-01: lists 광역시·도 news titles itself (site-life-news.js).
-  {id: 'news', label: '지역뉴스', icon: 'news'},
+  {id: 'news', label: '지역뉴스', description: '내 지역의 중요한 소식', icon: 'news'},
   // SUBWAY-LIFE-INFO-P0: its own screen (site-life-subway.js) — nearby and
   // searched stations, official real-time arrivals, average congestion. No chat.
-  {id: 'subway', label: '지하철 정보', icon: 'subway'},
+  {id: 'subway', label: '지하철 정보', description: '노선과 도착 정보를 확인해요', icon: 'subway'},
   // ONNURI-MERCHANT-01: its own search surface (site-life-onnuri.js). The
   // official logo is not used before approval; brandSlot names the place it
   // takes then. LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: 온누리상품권 + 지역화폐 in
   // one card. QA 2026-10-10 #12: until then a plain voucher icon (LOTBI's own
   // line icon, not the official mark) so it is not the one card without one.
-  {id: 'onnuri', label: '온누리상품권·지역화폐', icon: 'voucher', brandSlot: 'onnuri'},
+  {id: 'onnuri', label: '온누리상품권·지역화폐', description: '사용처와 혜택을 찾아요', icon: 'voucher', brandSlot: 'onnuri'},
   // REAL-ESTATE-REGION-FAVORITES-P0: 국토교통부 실거래가 list + 관심 아파트, no chat.
-  {id: 'real-estate', label: '부동산 실거래가', icon: 'building'},
+  {id: 'real-estate', label: '부동산 실거래가', description: '우리 동네 실제 거래 가격', icon: 'building'},
   // TRAFFIC-CCTV P0: official ITS road cameras by road, route and 구간, no chat.
   // The screen is titled 실시간 도로 CCTV; the card says 도로 CCTV so the label
   // stays on one line in the approved two-column grid at 360 px. Hidden while
@@ -70,7 +71,7 @@ export const LIFE_SHORTCUTS = Object.freeze([
   // 2026-10-10 — LOTBI serves the whole country, not 전북 only). The 전북 official
   // record cards shown in a conversation answer stay.
   // MY-CHILD-SCHOOL-01: the saved schools / 유치원 screen, opened at once. Last.
-  {id: 'my-child', label: '내 아이 학교·유치원', icon: 'backpack'},
+  {id: 'my-child', label: '내 아이 학교·유치원', description: '가까운 교육시설과 정보', icon: 'backpack'},
 ]);
 
 // REGIONAL-INFO-BACK-NAVIGATION-01 — the screens inside 지역정보, each a route of
@@ -150,6 +151,73 @@ function icon(name) {
   }
   return svg;
 }
+
+const REGIONAL_ICON_PARTS = Object.freeze({
+  hospital: [
+    ['path', {d: 'M16 54V20h32v34M10 54h44', fill: '#dff0ff', stroke: '#087cf1', 'stroke-width': '4', 'stroke-linejoin': 'round'}],
+    ['path', {d: 'M25 54V42h14v12M23 29h18M32 20v18M27 25h10', fill: 'none', stroke: '#087cf1', 'stroke-width': '4', 'stroke-linecap': 'round'}],
+    ['rect', {x: '27', y: '8', width: '10', height: '16', rx: '3', fill: '#ff5b57'}],
+    ['rect', {x: '24', y: '11', width: '16', height: '10', rx: '3', fill: '#ff5b57'}],
+    ['path', {d: 'M32 11v10M27 16h10', stroke: '#fff', 'stroke-width': '3', 'stroke-linecap': 'round'}],
+  ],
+  ev: [
+    ['rect', {x: '12', y: '10', width: '29', height: '44', rx: '7', fill: '#087cf1'}],
+    ['path', {d: 'm29 16-9 16h8l-5 14 14-19h-8l5-11Z', fill: '#fff'}],
+    ['path', {d: 'M42 22h5a5 5 0 0 1 5 5v15a5 5 0 0 0 10 0V25M56 17v9m-5-9v9', fill: 'none', stroke: '#52adff', 'stroke-width': '4', 'stroke-linecap': 'round'}],
+  ],
+  calendar: [
+    ['rect', {x: '10', y: '14', width: '44', height: '40', rx: '7', fill: '#e6f3ff', stroke: '#087cf1', 'stroke-width': '4'}],
+    ['path', {d: 'M10 25h44M21 9v11M43 9v11', stroke: '#087cf1', 'stroke-width': '4', 'stroke-linecap': 'round'}],
+    ['path', {d: 'm32 31 3.5 7 7.5 1-5.5 5.2 1.4 7.4L32 48l-6.9 3.6 1.4-7.4L21 39l7.5-1Z', fill: '#ffb300'}],
+  ],
+  news: [
+    ['rect', {x: '14', y: '12', width: '40', height: '43', rx: '5', fill: '#63b8ff', opacity: '.65'}],
+    ['rect', {x: '8', y: '17', width: '40', height: '38', rx: '5', fill: '#e7f4ff', stroke: '#087cf1', 'stroke-width': '4'}],
+    ['path', {d: 'M16 26h15v10H16z', fill: '#087cf1'}],
+    ['path', {d: 'M35 27h7M35 34h7M16 43h26M16 49h20', stroke: '#087cf1', 'stroke-width': '3', 'stroke-linecap': 'round'}],
+  ],
+  subway: [
+    ['rect', {x: '13', y: '8', width: '38', height: '43', rx: '9', fill: '#087cf1'}],
+    ['rect', {x: '19', y: '15', width: '26', height: '14', rx: '3', fill: '#bfe3ff'}],
+    ['path', {d: 'M13 34h38', stroke: '#eaf6ff', 'stroke-width': '3'}],
+    ['circle', {cx: '22', cy: '41', r: '4', fill: '#fff'}],
+    ['circle', {cx: '42', cy: '41', r: '4', fill: '#fff'}],
+    ['path', {d: 'm21 50-5 7m27-7 5 7M22 57h20', stroke: '#087cf1', 'stroke-width': '4', 'stroke-linecap': 'round'}],
+  ],
+  voucher: [
+    ['rect', {x: '7', y: '13', width: '48', height: '34', rx: '7', fill: '#0b7ff2'}],
+    ['rect', {x: '13', y: '20', width: '35', height: '7', rx: '3', fill: '#9dd4ff'}],
+    ['path', {d: 'M14 35h18', stroke: '#fff', 'stroke-width': '4', 'stroke-linecap': 'round'}],
+    ['circle', {cx: '49', cy: '45', r: '12', fill: '#ff9f1a'}],
+    ['text', {x: '49', y: '50', 'text-anchor': 'middle', 'font-size': '15', 'font-weight': '800', fill: '#fff'}, '₩'],
+  ],
+  building: [
+    ['path', {d: 'M8 31 32 11l24 20v25H8Z', fill: '#dff0ff', stroke: '#087cf1', 'stroke-width': '4', 'stroke-linejoin': 'round'}],
+    ['path', {d: 'M22 56V37h20v19M5 31 32 8l27 23', fill: 'none', stroke: '#087cf1', 'stroke-width': '4', 'stroke-linecap': 'round', 'stroke-linejoin': 'round'}],
+    ['path', {d: 'M27 43h10', stroke: '#52adff', 'stroke-width': '4', 'stroke-linecap': 'round'}],
+  ],
+  backpack: [
+    ['path', {d: 'm7 25 25-13 25 13-25 13Z', fill: '#087cf1', stroke: '#0566c7', 'stroke-width': '3', 'stroke-linejoin': 'round'}],
+    ['path', {d: 'M17 32v11c8 7 22 7 30 0V32', fill: '#52adff', stroke: '#087cf1', 'stroke-width': '3'}],
+    ['path', {d: 'M54 27v18', stroke: '#ffb300', 'stroke-width': '4', 'stroke-linecap': 'round'}],
+    ['circle', {cx: '54', cy: '49', r: '4', fill: '#ffb300'}],
+  ],
+});
+
+function regionalIcon(name) {
+  const frame = node('span', `consumer-shortcut-icon consumer-shortcut-icon-${name}`);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 64 64');
+  svg.setAttribute('aria-hidden', 'true');
+  for (const [tag, attributes, text] of REGIONAL_ICON_PARTS[name] || REGIONAL_ICON_PARTS.news) {
+    const part = document.createElementNS(svg.namespaceURI, tag);
+    for (const [attribute, value] of Object.entries(attributes)) part.setAttribute(attribute, value);
+    if (text) part.textContent = text;
+    svg.append(part);
+  }
+  frame.append(svg);
+  return frame;
+}
 // Reserved place for an approved partner logo. Renders nothing until then.
 function brandSlot(name) {
   const slot = node('i', `${name}-logo-slot`);   // not a <span>: the label stays the tile's first span
@@ -195,7 +263,35 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     // then shows the parent, so the screen and the URL change together.
     // showLifeView is how back/forward or a reload of a 'life-*' URL shows a
     // screen in this surface.
+    const home = node('section', 'consumer-life-home');
     const grid = node('div', 'consumer-shortcuts');
+    const location = node('div', 'consumer-life-location');
+    const locationChip = node('div', 'consumer-life-location-chip');
+    const locationLabel = node('span', 'consumer-life-location-label');
+    const regionButton = node('button', 'consumer-life-region-change');
+    regionButton.type = 'button';
+    regionButton.append(node('span', '', '지역 변경'), node('span', 'consumer-life-region-chevron', '›'));
+    const showRegion = name => { locationLabel.textContent = `현재 위치 · ${name || '지역 미설정'}`; };
+    showRegion(savedLifeRegionLabel());
+    regionButton.addEventListener('click', async () => {
+      if (disposed || regionButton.disabled) return;
+      regionButton.disabled = true;
+      try {
+        await chooseRegion({
+          returnFocus: regionButton,
+          save: true,
+          onPick: name => {
+            if (disposed) return;
+            showRegion(name);
+            window.dispatchEvent(new CustomEvent('lotbi:calendar-weather-region-sync'));
+          },
+        });
+      } finally {
+        if (!disposed) regionButton.disabled = false;
+      }
+    });
+    locationChip.append(icon('pin'), locationLabel);
+    location.append(locationChip, regionButton);
     const items = Object.fromEntries(LIFE_SHORTCUTS.map(item => [item.id, item]));
     let view = 'life';
     const setView = name => { view = name; onLifeView?.(name); };
@@ -218,7 +314,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     // list (its label says so, lifeBackLabel); no second '지역정보로 돌아가기' link.
     function showGrid(from = '') {
       releaseDetail();
-      root.replaceChildren(heading, grid);
+      root.replaceChildren(home);
       setView('life');
       if (LIFE_VIEW_CARD[from]) grid.querySelector(`[data-life-shortcut="${LIFE_VIEW_CARD[from]}"]`)?.focus();
     }
@@ -283,7 +379,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-medical');
       detail.append(host);
       root.replaceChildren(detail); setView('life-medical');
-      import('./site-life-medical-list.js?v=aset-d908778a1240').then(({mountMedicalList}) => {
+      import('./site-life-medical-list.js?v=aset-7327fad003f1').then(({mountMedicalList}) => {
         if (disposed || current !== generation) return null;
         return mountMedicalList({root: host}).then(mounted => {
           if (disposed || current !== generation) { mounted.dispose(); return; }
@@ -305,7 +401,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(host);
       root.replaceChildren(detail); setView('life-news');
-      import('./site-life-news.js?v=aset-d908778a1240').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-7327fad003f1').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -326,7 +422,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(title, host);
       root.replaceChildren(detail); setView('life-education'); title.focus();
-      import('./site-life-education.js?v=aset-d908778a1240').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-7327fad003f1').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -367,7 +463,10 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     }
     for (const item of LIFE_SHORTCUTS) {
       const button = node('button', 'consumer-shortcut'); button.type = 'button'; button.dataset.lifeShortcut = item.id;
-      button.append(item.icon ? icon(item.icon) : brandSlot(item.brandSlot), node('span', '', item.label));
+      const copy = node('div', 'consumer-shortcut-copy');
+      copy.append(node('span', 'consumer-shortcut-title', item.label), node('small', 'consumer-shortcut-description', item.description || ''));
+      button.setAttribute('aria-label', `${item.label}. ${item.description || ''}`.trim());
+      button.append(regionalIcon(item.icon), copy);
       button.addEventListener('click', () => {
         if (disposed) return;
         if (item.ask) onAsk(item.ask);
@@ -384,7 +483,8 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       grid.append(button);
     }
     const heading = node('h3', 'consumer-section-label', '생활에 필요한 정보');
-    root.append(heading, grid);
+    home.append(location, heading, grid);
+    root.append(home);
     // A reload or back/forward of a 'life-*' URL opens that screen directly.
     if (lifeView !== 'life' && LIFE_VIEW_PARENT[lifeView]) showLifeView(lifeView);
   } else if (section === 'wallet') {

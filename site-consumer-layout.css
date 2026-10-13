@@ -131,14 +131,44 @@ body.chat-home-page .consumer-workspace > .site-modal { max-width: 880px; }
 body.chat-home-page .consumer-workspace .site-modal-header { gap: 16px; padding-bottom: 16px; }
 body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 26px; line-height: 1.4; }
 body.chat-home-page .consumer-workspace .site-modal-description { font-size: 14px; line-height: 1.7; margin-bottom: 32px; }
-/* 생활정보 home is a category picker: the list sits right under the description. */
-body.chat-home-page .consumer-workspace:has([data-consumer-surface='life']) .site-modal-description { margin-bottom: 24px; }
-body.chat-home-page .consumer-workspace [data-consumer-surface='life'] { gap: 8px; }
-body.chat-home-page .consumer-workspace .consumer-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; }
-body.chat-home-page .consumer-workspace .consumer-shortcut { flex-direction: row; align-items: center; min-height: 72px; padding: 16px 12px; gap: 16px; border: 0; border-bottom: 1px solid var(--lotbi-border-default); border-radius: 0; font-size: 15px; }
-body.chat-home-page .consumer-workspace .consumer-shortcut svg { width: 20px; height: 20px; }
-body.chat-home-page .consumer-workspace .consumer-shortcut::after { content: ''; margin-left: auto; width: 6px; height: 6px; border-right: 1px solid currentColor; border-top: 1px solid currentColor; transform: rotate(45deg); flex: 0 0 6px; }
-body.chat-home-page .consumer-workspace .consumer-section-label { margin: 0; font-weight: 400; font-size: 13px; }
+.consumer-workspace:has([data-consumer-surface='life']) .site-modal-description { margin-bottom: 24px; }
+/* 사용자 확정 지역정보 메인: 데스크톱 4×2, 모바일 2열, 큰 컬러 아이콘. */
+body.chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) > .site-modal { max-width: 760px; }
+body[data-site-theme='light'].chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) { background: radial-gradient(circle at 56% 0%, #f3f8ff 0, #fff 46%); }
+body[data-site-theme='dark'].chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) { background: radial-gradient(circle at 56% 0%, #1c2b3b 0, #111a24 58%, #101820 100%); }
+body.chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) .site-modal-header { flex-direction: column; align-items: flex-start; gap: 12px; padding-bottom: 4px; }
+body.chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) .site-modal-header h2 { font-size: 30px; font-weight: 700; line-height: 1.25; letter-spacing: -.035em; }
+body.chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) .site-modal-close { display: inline-flex; align-items: center; gap: 8px; width: auto; min-width: 0; min-height: 32px; height: 32px; padding: 0 4px; border: 0; border-radius: 7px; background: transparent; color: var(--lotbi-text-secondary); box-shadow: none; font-size: 17px; }
+body.chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) .site-modal-close::after { content: '뒤로가기'; font-size: 14px; font-weight: 550; }
+body.chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) .site-modal-description { margin: 0 0 16px; font-size: 15px; line-height: 1.6; }
+body.chat-home-page .consumer-workspace [data-consumer-surface='life'] { gap: 0; }
+body.chat-home-page .consumer-workspace .consumer-life-home { display: grid; gap: 14px; }
+body.chat-home-page .consumer-workspace .consumer-life-location { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+body.chat-home-page .consumer-workspace .consumer-life-location-chip { display: inline-flex; align-items: center; gap: 9px; min-height: 42px; box-sizing: border-box; padding: 8px 14px; border-radius: 10px; background: var(--lotbi-surface-subtle); }
+body.chat-home-page .consumer-workspace .consumer-life-location-chip > svg { width: 21px; height: 21px; overflow: visible; }
+body.chat-home-page .consumer-workspace .consumer-life-location-chip > svg path:first-child { fill: #1683ff; stroke: #1683ff; }
+body.chat-home-page .consumer-workspace .consumer-life-location-chip > svg path:last-child { fill: #fff; stroke: #fff; }
+body.chat-home-page .consumer-workspace .consumer-life-location-label { color: var(--lotbi-text-primary); font-size: 14px; font-weight: 650; white-space: nowrap; }
+body.chat-home-page .consumer-workspace .consumer-life-region-change { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 8px 6px; border: 0; border-radius: 8px; background: transparent; color: #087cf1; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; }
+body.chat-home-page .consumer-workspace .consumer-life-region-change:hover { background: rgb(8 124 241 / 8%); }
+body.chat-home-page .consumer-workspace .consumer-life-region-change:focus-visible { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 2px; }
+body.chat-home-page .consumer-workspace .consumer-life-region-change:disabled { opacity: .55; cursor: wait; }
+body.chat-home-page .consumer-workspace .consumer-life-region-chevron { font-size: 25px; font-weight: 400; line-height: .8; transform: translateY(-1px); }
+body.chat-home-page .consumer-workspace .consumer-section-label { margin: 6px 0 0; color: var(--lotbi-text-primary); font-size: 19px; font-weight: 700; line-height: 1.35; }
+body.chat-home-page .consumer-workspace .consumer-shortcuts { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; grid-auto-rows: 1fr; }
+body.chat-home-page .consumer-workspace .consumer-shortcut { position: relative; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; min-height: 156px; box-sizing: border-box; padding: 14px 13px 13px; gap: 10px; border: 1px solid var(--lotbi-border-default); border-radius: 10px; background: var(--lotbi-surface-primary); color: inherit; font-size: 15px; }
+body.chat-home-page .consumer-workspace .consumer-shortcut::after { content: ''; position: absolute; top: 22px; right: 15px; width: 7px; height: 7px; border-top: 1.8px solid var(--lotbi-text-secondary); border-right: 1.8px solid var(--lotbi-text-secondary); transform: rotate(45deg); opacity: .85; }
+body.chat-home-page .consumer-workspace .consumer-shortcut-icon { display: grid; place-items: center; width: 58px; height: 58px; flex: 0 0 58px; border-radius: 50%; background: rgb(22 131 255 / 9%); }
+body.chat-home-page .consumer-workspace .consumer-shortcut-icon > svg { width: 43px; height: 43px; overflow: visible; }
+body.chat-home-page .consumer-workspace .consumer-shortcut-copy { display: grid; gap: 4px; min-width: 0; width: 100%; }
+body.chat-home-page .consumer-workspace .consumer-shortcut-title { color: var(--lotbi-text-primary); font-size: 14.5px; font-weight: 700; line-height: 1.28; letter-spacing: -.015em; word-break: keep-all; overflow-wrap: anywhere; }
+body.chat-home-page .consumer-workspace .consumer-shortcut-description { color: var(--lotbi-text-secondary); font-size: 12px; font-weight: 450; line-height: 1.4; word-break: keep-all; overflow-wrap: anywhere; }
+body.chat-home-page .consumer-workspace .consumer-shortcut:hover { border-color: rgb(8 124 241 / 42%); background: rgb(8 124 241 / 4%); }
+body.chat-home-page .consumer-workspace .consumer-shortcut:focus-visible { outline: 3px solid var(--lotbi-focus-ring); outline-offset: 2px; }
+body[data-site-theme='dark'].chat-home-page .consumer-workspace .consumer-life-location-chip { background: #2a3949; }
+body[data-site-theme='dark'].chat-home-page .consumer-workspace .consumer-shortcut { border-color: #344657; background: rgb(18 31 44 / 76%); }
+body[data-site-theme='dark'].chat-home-page .consumer-workspace .consumer-shortcut:hover { border-color: #3b84cf; background: rgb(24 52 78 / 80%); }
+body[data-site-theme='dark'].chat-home-page .consumer-workspace .consumer-shortcut-icon { background: #193b5f; }
 body.chat-home-page .consumer-workspace .consumer-feature-note { font-size: 13px; line-height: 1.7; }
 body.chat-home-page .consumer-workspace .consumer-empty { min-height: 320px; gap: 16px; }
 body.chat-home-page .consumer-workspace .consumer-empty h3 { font-size: 24px; font-weight: 500; line-height: 1.45; }
@@ -183,14 +213,29 @@ body.chat-home-page .scam-status { font-size: 13px; line-height: 1.7; }
 @media (max-width: 600px) {
   body.chat-home-page .consumer-workspace { padding: 20px; }
   body.chat-home-page .consumer-workspace .site-modal-header h2 { font-size: 23px; }
+  body.chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) { padding: 24px 18px; }
+  body.chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) .site-modal-header { flex-direction: row; align-items: center; gap: 12px; padding-bottom: 12px; }
+  body.chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) .site-modal-header h2 { font-size: 28px; }
+  body.chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) .site-modal-close { width: 34px; height: 34px; flex: 0 0 34px; justify-content: flex-start; padding: 0; font-size: 28px; }
+  body.chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) .site-modal-close::after { content: none; }
+  body.chat-home-page .consumer-workspace[data-workspace='life']:has(.consumer-life-home) .site-modal-description { margin-bottom: 12px; font-size: 14px; }
+  body.chat-home-page .consumer-workspace .consumer-life-home { gap: 12px; }
+  body.chat-home-page .consumer-workspace .consumer-life-location { gap: 6px; }
+  body.chat-home-page .consumer-workspace .consumer-life-location-chip { min-height: 46px; padding: 9px 13px; }
+  body.chat-home-page .consumer-workspace .consumer-life-location-label { font-size: 13.5px; }
+  body.chat-home-page .consumer-workspace .consumer-life-region-change { min-height: 46px; padding-inline: 6px; font-size: 13.5px; }
+  body.chat-home-page .consumer-workspace .consumer-section-label { margin-top: 7px; font-size: 20px; }
   /* Phones keep the approved two columns; long names wrap at word gaps. */
   /* SUBWAY-LIFE-INFO-P0: with an even card count 내 아이 학교·유치원 sits in a
      half-width cell and wraps on a 360px phone; every row takes the tallest row's
      height so the list keeps one card height whatever the count. */
-  body.chat-home-page .consumer-workspace .consumer-shortcuts { gap: 0 16px; grid-auto-rows: 1fr; }
-  body.chat-home-page .consumer-workspace .consumer-shortcut { min-height: 60px; padding: 10px 4px; gap: 10px; }
-  /* 1.25 keeps a two-line name inside the same 60px card as a one-line one. */
-  body.chat-home-page .consumer-workspace .consumer-shortcut > span { min-width: 0; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.25; }
+  body.chat-home-page .consumer-workspace .consumer-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; grid-auto-rows: 1fr; }
+  body.chat-home-page .consumer-workspace .consumer-shortcut { min-height: 183px; padding: 13px 11px; gap: 10px; border-radius: 11px; }
+  body.chat-home-page .consumer-workspace .consumer-shortcut::after { top: 23px; right: 14px; }
+  body.chat-home-page .consumer-workspace .consumer-shortcut-icon { width: 62px; height: 62px; flex-basis: 62px; }
+  body.chat-home-page .consumer-workspace .consumer-shortcut-icon > svg { width: 47px; height: 47px; }
+  body.chat-home-page .consumer-workspace .consumer-shortcut-title { font-size: 15.5px; line-height: 1.28; }
+  body.chat-home-page .consumer-workspace .consumer-shortcut-description { font-size: 12.5px; line-height: 1.38; }
   body.chat-home-page .consumer-workspace .consumer-life-detail h3 { font-size: 25px; }
   body.chat-home-page .consumer-workspace .consumer-empty { min-height: 280px; }
   body.chat-home-page .scam-input-kinds label { flex-direction: row; min-height: 48px; }

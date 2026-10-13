@@ -205,7 +205,21 @@ async function openBrowser(browser, profile) {
     pending.set(nextId, {resolve, reject});
     socket.send(JSON.stringify({id: nextId, method, params, ...(sessionId ? {sessionId} : {})}));
   });
-  return {send, close: () => { try { socket.close(); } catch {} chrome.kill('SIGTERM'); }, on: listener => { listeners.add(listener); return () => listeners.delete(listener); }};
+  return {
+    send,
+    close: async () => {
+      try { socket.close(); } catch {}
+      if (chrome.exitCode !== null) return;
+      const exited = new Promise(resolve => chrome.once('exit', resolve));
+      chrome.kill('SIGTERM');
+      await Promise.race([exited, sleep(5000)]);
+      if (chrome.exitCode === null) {
+        chrome.kill('SIGKILL');
+        await Promise.race([exited, sleep(2000)]);
+      }
+    },
+    on: listener => { listeners.add(listener); return () => listeners.delete(listener); },
+  };
 }
 
 // In the page: which screen is on view and what the URL names.
@@ -475,7 +489,11 @@ async function runCase(browser, origin, workDir, testCase) {
     await openLife();
     await tapSelector('[data-site-route="life"] [data-life-shortcut="medical"]');
     await atScreen(CATEGORIES[0], 'medical');
-    assert.equal(await evaluate("document.querySelectorAll('[data-site-route=\"life-medical\"] .medical-kind').length"), 3, `${label}: the three choices are on the screen`);
+    await waitFor(
+      () => evaluate("document.querySelectorAll('[data-site-route=\"life-medical\"] .medical-kind').length === 3"),
+      `${label}: the three choices are on the screen`,
+      30000,
+    );
     assert.equal(await evaluate('globalThis.__asked.length'), askedBeforeMedical, `${label}: opening 병원·응급실·약국 asks the conversation nothing`);
     await go(-1);
     await atLife('medical: system back');
@@ -572,7 +590,7 @@ async function runCase(browser, origin, workDir, testCase) {
     assert.deepEqual(errors, [], `${label}: page errors`);
     return log;
   } finally {
-    cdp.close();
+    await cdp.close();
   }
 }
 

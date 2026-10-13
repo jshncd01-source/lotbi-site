@@ -550,17 +550,19 @@ async function runCase(browser, origin, workDir, testCase) {
       for (const card of cards) { const r = card.getBoundingClientRect(); const key = Math.round(r.top); rows.set(key, (rows.get(key) || 0) + (Math.abs(r.width - grid.getBoundingClientRect().width) < 4 ? columns : 1)); }
       return {ids: cards.map(card => card.dataset.lifeShortcut), columns, rows: [...rows.values()],
         heights: cards.map(card => Math.round(card.getBoundingClientRect().height)),
-        label: grid.querySelector('[data-life-shortcut="medical"] span')?.textContent || '',
+        label: grid.querySelector('[data-life-shortcut="medical"] .consumer-shortcut-title')?.textContent || '',
+        description: grid.querySelector('[data-life-shortcut="medical"] .consumer-shortcut-description')?.textContent || '',
         icon: Boolean(grid.querySelector('[data-life-shortcut="medical"] svg path')),
         pharmacy: Boolean(grid.querySelector('[data-life-shortcut="pharmacy"]'))};
     })()`);
-    await check(`${label}: 지역정보 grid — one 병원·응급실·약국 card, 8 cards in ${testCase.mobile ? 'two columns' : 'the desktop grid'}, four full rows, cards ≥ 48 px`, () => {
+    await check(`${label}: 지역정보 grid — one 병원·응급실·약국 card, 8 cards in ${testCase.mobile ? 'two columns' : 'four columns'}, full rows, cards ≥ 48 px`, () => {
       assert.deepEqual(grid.ids, EXPECTED_CARDS);
-      assert.equal(grid.rows.length, 4, JSON.stringify(grid));
+      assert.equal(grid.rows.length, testCase.mobile ? 4 : 2, JSON.stringify(grid));
       assert.equal(grid.label, '병원·응급실·약국');
+      assert.equal(grid.description, '진료과와 운영 중인 곳을 찾아요');
       assert.equal(grid.pharmacy, false);
       assert.ok(grid.icon);
-      if (testCase.mobile) assert.equal(grid.columns, 2, 'phones keep two columns');
+      assert.equal(grid.columns, testCase.mobile ? 2 : 4, `${testCase.mobile ? 'phones' : 'desktop'} keep the approved columns`);
       assert.ok(grid.rows.every(count => count === grid.columns), JSON.stringify(grid));
       assert.ok(grid.heights.every(height => height >= 48), JSON.stringify(grid.heights));
     });
