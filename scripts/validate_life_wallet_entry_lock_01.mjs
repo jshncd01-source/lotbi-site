@@ -186,8 +186,9 @@ assert.match(walletSource, /await vault\.resumeUnlock\(accountId\)/u, 'mount mus
 assert.match(walletSource, /PIN을 입력해 주세요/u, 'the PIN lock gate must keep the approved entry title');
 assert.match(walletSource, /\['1','2','3','4','5','6','7','8','9','지움','0','열기'\]/u, 'the keypad must provide one explicit open action');
 assert.doesNotMatch(walletSource, /const submit = button\('PIN으로 열기'\)/u, 'the lock gate must not duplicate the keypad open action');
-assert.match(walletCssSource, /\.wallet-gate \{[^}]*width: min\(100%, 520px\)[^}]*border-radius: 24px/su, 'the lock gate must be a responsive contained card');
-assert.match(walletCssSource, /\.wallet-lock-mark \{[^}]*background: color-mix/su, 'the lock mark must use the approved blue accent treatment');
+assert.match(walletCssSource, /\.wallet-gate \{[^}]*width: min\(100%, 565px\)[^}]*border-radius: 24px/su, 'the lock gate must match the approved responsive card proportion');
+assert.match(walletCssSource, /\.wallet-lock-mark \{[^}]*border-radius: 50%[^}]*background: #eaf3ff/su, 'the lock mark must use the approved circular blue accent treatment');
+assert.match(walletSource, /등록한 자료를 안전하게 보려면 4자리 PIN을 입력하세요\./u, 'the final approved PIN explanation must be present');
 assert.match(walletSource, /vault\.lock\(\{preserveSession: true\}\)/u, 'page transitions must preserve the same-tab unlock grant');
 assert.match(walletSource, /window\.addEventListener\('pagehide'/u);
 assert.match(walletSource, /window\.addEventListener\('pageshow'/u);
@@ -213,6 +214,9 @@ assert.doesNotMatch(walletSource, /field\('자료 이름', name\)|field\('뒷면
 assert.match(walletSource, /안전하게 이 기기에만 저장됩니다\./u);
 assert.match(walletSource, /LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다\./u);
 assert.match(walletCssSource, /\.wallet-storage-reassurance\s*\{/u, 'wallet storage reassurance must have a separate layout block');
+assert.match(conversationSource, /wallet: \['Life Wallet', '내 생활자료를 안전하게 보관해요\.'\]/u, 'wallet subtitle must match the approved design');
+assert.match(walletSource, /위아래로 넘겨보세요/u, 'the approved vertical gesture hint must be present');
+assert.doesNotMatch(walletSource, /wallet-card-dots|walletCarouselDot/u, 'unapproved carousel dots must not remain');
 assert.doesNotMatch(walletSource, /예시 신분증은 넣지 않습니다\./u);
 assert.match(walletSource, /사용자가 직접 등록한 실제 자료만 여기에 표시됩니다\./u);
 assert.match(walletSource, /aria-haspopup.*menu/u, 'wallet management must open from an accessible settings menu');

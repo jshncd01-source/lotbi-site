@@ -49,6 +49,7 @@ body.chat-home-page .site-modal-description { font-size: 13px; line-height: 1.7;
 .consumer-feature-note { margin: 14px 0 0; }
 /* Feature entry surfaces share one restrained visual language. */
 body.chat-home-page .consumer-section-panel { width: min(760px, calc(100vw - 32px)); max-height: calc(100svh - 32px); }
+body.chat-home-page .site-modal-backdrop[data-site-route='wallet'] > .consumer-section-panel { width: min(940px, calc(100vw - 32px)); }
 body.chat-home-page .site-modal-backdrop:has(> .consumer-section-panel) { padding: 16px; place-items: center; }
 .consumer-section-panel .site-modal-header { padding: 0 0 16px; }
 .consumer-section-panel .site-modal-description { padding: 0 0 20px; }
