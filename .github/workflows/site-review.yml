@@ -64,11 +64,14 @@ jobs:
       - name: Validate UI/UX Phase 1 contracts
         run: node scripts/validate_uiux_phase1_01.mjs
 
-      - name: 홈 즐겨찾기 기본 진입·편집·렌더링 확인
-        run: node scripts/validate_home_favorites_01.mjs
+      - name: 홈 대화 집중 화면과 제거 범위 확인
+        run: node scripts/validate_home_conversation_only_01.mjs
 
       - name: Validate footer business information is identical across pages
         run: python scripts/sync_footer_business_info.py --check
+
+      - name: 회사정보 메인 화면 전용 노출 확인
+        run: node scripts/validate_footer_business_home_only_01.mjs
 
       - name: Validate Subscribe to Account checkout handoff
         run: node scripts/validate_subscribe_account_checkout_handoff_01.mjs
@@ -306,12 +309,10 @@ jobs:
       - name: Validate shared bottom sheet primitive
         run: node scripts/validate_bottom_sheet_primitive_01.mjs
 
-      # 대표님: "유한회사 알에이디홀딩스 사업자번호만 나오게 하고, 거길 클릭하면
-      # 아래에서 슬라이드로 올라오게 바꿔." 모바일 푸터를 한 줄로 접되, 전자상거래법
-      # 제10조제1항 표시사항은 한 항목도 빠지지 않고 시트 안에 있어야 한다 —
-      # 접는 것과 지우는 것은 다르다. 넓은 화면은 접지 않는다.
-      - name: Validate mobile footer legal sheet
-        run: node scripts/validate_mobile_footer_legal_sheet_01.mjs
+      # 사용자 최종 확인: 회사정보는 메인 하단에서 클릭 없이 바로 보여야 한다.
+      # 360·390·760·1280에서 필수 항목, 단일 DOM, 가로 넘침 0을 확인한다.
+      - name: 회사정보 메인 하단 상시 노출 확인
+        run: node scripts/validate_home_footer_company_visible_01.mjs
 
       - name: Validate common UI polish (QA 01 shared items)
         run: node scripts/validate_common_ui_polish_01.mjs

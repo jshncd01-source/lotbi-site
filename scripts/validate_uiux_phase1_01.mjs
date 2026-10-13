@@ -12,18 +12,11 @@ const about = read('about.html');
 assert.doesNotMatch(index, /한국 생활을 묻고, 찾고, 기록하고, 실행하세요\./u);
 assert.match(index, /<h2>무엇을 도와드릴까요\?<\/h2>/u);
 assert.match(index, /<section class="home-value-proposition" aria-label="LOTBI 활용 안내">/u);
-assert.equal((index.match(/data-home-prompt=/gu) || []).length, 1, 'one approved initial favorite');
-assert.match(index, /data-favorites-count>1\/8<\/span>/u);
-assert.match(index, />이번 주 일정<\/span>/u);
-assert.match(index, /data-favorites-add>\+ 즐겨찾기 추가<\/button>/u);
-assert.match(index, /data-favorites-edit[^>]*>편집<\/button>/u);
-assert.ok((index.match(/data-scam-open/gu) || []).length >= 2, 'existing desktop and mobile scam menu entries preserved');
-// CONVERSATION-ANSWER-UX-01 (QA #6): an example asks at once, like every other
-// one-tap chip - no draft left in the composer, no keyboard.
-const homePromptHandler = read('site-conversation.js').match(/const homePrompt = target\?\.closest\('\[data-home-prompt\]'\);[\s\S]*?\n {6}return;\n {4}\}/u)?.[0] || '';
-assert.ok(homePromptHandler, 'home example handler found');
-assert.match(homePromptHandler, /askWithoutKeyboard\(String\(homePrompt\.dataset\.homePrompt \|\| ''\)\);/u);
-assert.doesNotMatch(homePromptHandler, /prompt\.value =|prompt\.focus\(/u, 'an example is not drafted into the composer');
+assert.equal((index.match(/data-home-prompt=/gu) || []).length, 0, 'home has no favorite prompt');
+assert.doesNotMatch(index, /data-home-favorites|data-favorites-(?:count|add|edit)|내 즐겨찾기/u);
+assert.doesNotMatch(index, /빠른 안전 확인|의심되는 문자 확인/u);
+assert.equal((index.match(/data-scam-open/gu) || []).length, 2, 'desktop and mobile formal scam menu entries preserved');
+assert.doesNotMatch(read('site-conversation.js'), /mountHomeFavorites|homeFavorites|data-home-prompt/u);
 assert.match(homeCss, /\.conversation-active \.home-value-proposition\s*\{\s*display:\s*none;/u, 'value proposition must leave once a conversation starts');
 
 const hiddenInputs = [...index.matchAll(/<input class="sr-only" type="file"[^>]*data-attachment-input="[^"]+"[^>]*>/gu)].map(match => match[0]);

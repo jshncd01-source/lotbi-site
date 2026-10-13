@@ -12,9 +12,9 @@
 // (공통 계층에 2분 남는 값)만 그보다 앞선다 — 그 탭이 지금 위치를 쓰라는 뜻이다.
 // 좌표는 소수 셋째 자리(약 100m)로 반올림해 이 한 번의 요청에만 싣는다. 이 모듈은
 // 아무것도 저장하지 않는다.
-import {getBrowserLocationPermissionState, getRecentBrowserCurrentLocation, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-27ac257f4d8b';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-27ac257f4d8b';
-import {readCalendarManualWeatherRegion, readCalendarWeatherRegionOrigin} from './site-calendar-weather-region.js?v=aset-27ac257f4d8b';
+import {getBrowserLocationPermissionState, getRecentBrowserCurrentLocation, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-799d6b2459ca';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-799d6b2459ca';
+import {readCalendarManualWeatherRegion, readCalendarWeatherRegionOrigin} from './site-calendar-weather-region.js?v=aset-799d6b2459ca';
 
 // JEONBUK-PILOT-01: "근처 전북 맛집" (전북 맛집·음식) is a life public-data lookup too.
 const LIFE_TARGET_RE = /(?:동물\s*병원|애견\s*병원|약국|병원|의원|응급실|응급\s*의료|소아\s*청소년과|소아과|내과|이비인후과|치과|피부과|정형외과|안과|산부인과|달빛\s*어린이|전북[^.?!\n]{0,24}?(?:맛집|음식점|식당|막걸리집))/u;

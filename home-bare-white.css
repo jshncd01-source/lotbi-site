@@ -177,30 +177,6 @@ body.chat-home-page:not(.conversation-active) .home-value-proposition p {
   display: none;
 }
 
-.home-example-prompts {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.home-example-prompts button {
-  min-height: 40px;
-  padding: 8px 14px;
-  border: 1px solid var(--home-skin-line, #e7e9ed);
-  border-radius: 999px;
-  background: var(--home-skin-surface, #fff);
-  color: var(--home-skin-text, #20242a);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.home-example-prompts button:hover,
-.home-example-prompts button:focus-visible {
-  background: var(--home-skin-hover, #f6f7f8);
-}
-
 body.chat-home-page:not(.conversation-active) .chat-composer-stack {
   background: var(--home-skin-bg);
 }
@@ -313,17 +289,6 @@ body.chat-home-page:not(.conversation-active) .chat-home-footer a:focus-visible 
   body.chat-home-page:not(.conversation-active) .home-value-proposition p {
     margin-top: 6px;
     font-size: 14px;
-  }
-
-  .home-example-prompts {
-    gap: 6px;
-    margin-top: 10px;
-  }
-
-  .home-example-prompts button {
-    min-height: 38px;
-    padding: 7px 11px;
-    font-size: 13px;
   }
 
   body.chat-home-page:not(.conversation-active) .chat-composer {

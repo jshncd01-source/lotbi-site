@@ -13,8 +13,6 @@ const index=read('index.html');
 const auth=read('site-auth.js');
 const continuity=read('site-continuity.js');
 const authCss=read('site-auth-continuity.css');
-const footerCss=read('footer-business-info.css');
-const footerJs=read('site-footer-legal.js');
 
 const httpsUpgrade=index.indexOf('SITE-AUTH-HTTPS-ORIGIN-01');
 const firstStylesheet=index.indexOf('<link rel="stylesheet"');
@@ -55,18 +53,12 @@ assert.ok(catchBody.includes('markUnknownAccountUi()'));
 assert.ok(catchBody.includes('scheduleUnknownRetry()'));
 assert.ok(!catchBody.includes('markAnonymousAccountUi()'),'network/timeout/5xx/contract errors must never become false logout');
 
-const details=index.match(/<details\b[^>]*data-footer-legal-disclosure[^>]*>/)?.[0]||'';
-const summary=index.match(/<summary\b[^>]*data-footer-legal-toggle[^>]*>/)?.[0]||'';
-assert.ok(details && summary);
-assert.ok(!/\bopen\b/.test(details),'mobile footer must be compact before any JS executes');
-assert.ok(!/\bhidden\b/.test(summary),'no-JS native disclosure must remain operable');
-assert.ok(footerCss.includes('.footer-legal-disclosure:not([open]) + .footer-legal-panels'));
-assert.ok(footerCss.includes('.footer-legal-disclosure[open] + .footer-legal-panels'));
-assert.ok(!footerCss.includes('body.footer-legal-collapsed'),'hydration-only collapse is the FOUC regression');
-assert.ok(footerJs.includes("list.appendChild(panels)"));
-assert.ok(footerJs.includes("disclosure.insertAdjacentElement('afterend', panels)"));
-assert.ok(!/cloneNode|innerHTML\s*=/.test(footerJs));
+assert.equal((index.match(/class="company-legal"/g)||[]).length,1,'one company information block');
+assert.equal((index.match(/id="footer-legal-panels"/g)||[]).length,1,'one visible footer panel source');
+assert.ok(!index.includes('data-footer-legal-disclosure'),'company information must not be behind a disclosure');
+assert.ok(!index.includes('data-footer-legal-toggle'),'company information must not require a click');
+assert.ok(!index.includes('site-footer-legal.js'),'company information must not move into a sheet');
 
 console.log('SITE-HOME-FIRST-PAINT-STABILITY-01 PASS');
 console.log('SITE-AUTH-UNKNOWN-STATE-01 PASS');
-console.log('SITE-MOBILE-FOOTER-NO-FOUC-01 PASS');
+console.log('SITE-HOME-FOOTER-DIRECT-VISIBILITY-01 PASS');
