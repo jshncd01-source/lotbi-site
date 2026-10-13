@@ -252,9 +252,15 @@ assert.ok(
   !renderListBody.includes('officialRegistrationNumber'),
   'list cards must not expose the official registration number',
 );
-assert.ok(
-  !renderListBody.includes('pet.petId)') || !renderListBody.includes('pet-card-id'),
+assert.doesNotMatch(
+  renderListBody,
+  /el\(\s*['"][^'"]*['"]\s*,\s*['"][^'"]*['"]\s*,\s*(?:pet\.petId|`[^`]*\$\{pet\.petId\}[^`]*`)\s*\)/,
   'list cards must not print the raw Pet ID as user-facing copy',
+);
+assert.doesNotMatch(
+  renderListBody,
+  /(?:textContent|innerText)\s*=\s*(?:pet\.petId|`[^`]*\$\{pet\.petId\}[^`]*`)/,
+  'list cards must not assign the raw Pet ID to visible text',
 );
 
 // Matching consent is opt-in during an active SOS and must say what it covers.
