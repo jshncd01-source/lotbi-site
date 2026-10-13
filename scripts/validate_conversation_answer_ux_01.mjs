@@ -344,14 +344,12 @@ try {
     probe.remove();
   } else if (PHASE === 'home') {
     await shot('home');
-    const examples = [...document.querySelectorAll('.home-favorites-grid [data-home-prompt]')];
-    result.favoriteCount = document.querySelector('[data-favorites-count]')?.textContent;
+    result.favoriteArea = !!document.querySelector('[data-home-favorites], [data-favorites-count], [data-home-prompt]');
+    result.quickSafety = !![...document.querySelectorAll('[data-scam-open]')].find(node => node.closest('.chat-hero'));
     result.scamMenuEntries = document.querySelectorAll('[data-scam-open]').length;
-    result.examples = examples.map(b => ({text: b.textContent.trim(), prompt: b.dataset.homePrompt || '', opens: b.hasAttribute('data-scam-open'), after: getComputedStyle(b, '::after').content}));
-    examples.find(b => b.dataset.homePrompt).click();
-    await wait(() => mine().length >= 1, 'example asked');
-    await settle(1);
-    result.final = snapshot();
+    result.composer = !!document.querySelector('#lotbi-prompt');
+    result.attachment = !!document.querySelector('[data-attachment-trigger]');
+    result.sendDisabled = document.querySelector('.send-button')?.disabled;
   }
   result.theme = document.body.dataset.siteTheme || '';
   out.textContent = JSON.stringify(result);
@@ -563,17 +561,13 @@ try {
           NO_TOOLS_CALENDAR(typed.tools);
         }
 
-        // #6 the approved single home favorite asks at once, without a keyboard.
+        // #6 the approved home stays focused on the composer without shortcut blocks.
         const home = await runPhase(devtools, page('phase=home'), `${label}/home`);
-        console.log(`CAU ${label} home`, JSON.stringify(home.examples));
-        const ask = home.examples.filter(example => example.prompt);
-        assert.equal(ask.length, 1, `${label}: one initial favorite`);
-        assert.equal(ask[0].text, '이번 주 일정');
-        assert.equal(home.favoriteCount, '1/8');
-        assert.deepEqual(home.final.requests.map(item => item.text), [ask[0].prompt], `${label}: an example asks once, at once`);
-        assertQuiet(home.final, `${label}/home`);
-        assert.ok(home.scamMenuEntries >= 2, `${label}: desktop/mobile scam entries stay in the existing menu`);
-        assert.ok(ask.every(example => !/\u203A/u.test(example.after)), `${label}: the asking examples have no chevron`);
+        console.log(`CAU ${label} home`, JSON.stringify(home));
+        assert.equal(home.favoriteArea, false, `${label}: favorite area removed`);
+        assert.equal(home.quickSafety, false, `${label}: fixed quick safety shortcut removed`);
+        assert.equal(home.scamMenuEntries, 2, `${label}: desktop/mobile scam entries stay in the formal menu`);
+        assert.equal(home.composer, true); assert.equal(home.attachment, true); assert.equal(home.sendDisabled, true);
       }
 
       // #9, #8, #11: a place answer.
@@ -614,4 +608,4 @@ try {
 }
 
 for (const line of summary) console.log(`CAU contrast ${line}`);
-console.log('CONVERSATION-ANSWER-UX-01 OK — a "where?" answer offers 현재 위치로 찾기 / 지역 고르기 and asks once more without the keyboard; 캘린더에 추가 only with a schedule; place categories read as their last step; home examples ask at once; Korean words wrap whole (viewport emulation, not a device run)');
+console.log('CONVERSATION-ANSWER-UX-01 OK — a "where?" answer offers 현재 위치로 찾기 / 지역 고르기 and asks once more without the keyboard; 캘린더에 추가 only with a schedule; place categories read as their last step; the home keeps only the conversation entry and formal menus; Korean words wrap whole (viewport emulation, not a device run)');

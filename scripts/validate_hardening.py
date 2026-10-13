@@ -259,10 +259,6 @@ def main() -> int:
         r'<script type="module" src="site-continuity\.js\?v=[^"]+"></script>',
         index,
     )
-    footer_legal_script = re.search(
-        r'<script type="module" src="site-footer-legal\.js\?v=[^"]+"></script>',
-        index,
-    )
     avatar_script = re.search(
         r'<script type="module" src="site-avatar\.js\?v=[^"]+"></script>',
         index,
@@ -275,7 +271,6 @@ def main() -> int:
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
         avatar_script.group(0) if avatar_script else "__missing_avatar_module__",
-        footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
     # +3 for the exact-purpose inline theme, HTTPS-origin and route-marker bootstraps verified below.
     if index.lower().count("<script") != len(approved_scripts) + 3 or any(script not in index for script in approved_scripts):

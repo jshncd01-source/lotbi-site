@@ -50,11 +50,22 @@ body.chat-home-page .composer-button { width: 44px; height: 44px; border: 0; bac
 body.chat-home-page .composer-button:not(:disabled):hover { background: var(--lotbi-surface-hover); }
 body.chat-home-page .composer-button.send-button { background: var(--lotbi-text-primary); color: var(--lotbi-surface-primary); }
 body.chat-home-page .composer-button.send-button:disabled { opacity: .45; }
+body.chat-home-page:not(.conversation-active) .composer-button.send-button:disabled {
+  background: var(--lotbi-border-strong);
+  border-color: transparent;
+  color: #fff;
+  opacity: .55;
+  box-shadow: none;
+}
+body.chat-home-page:not(.conversation-active) .composer-button.send-button:not(:disabled) {
+  background: var(--lotbi-accent, #2454b8);
+  border-color: transparent;
+  color: #fff;
+  opacity: 1;
+  box-shadow: none;
+}
 body.chat-home-page .chat-safety-copy { font-size: 11px; font-weight: 400; color: var(--lotbi-text-secondary); }
 body.chat-home-page:not(.conversation-active) .chat-safety-copy { margin: 12px 0 0; }
-body.chat-home-page:not(.conversation-active) .home-example-prompts { gap: 16px; margin-top: 24px; }
-body.chat-home-page .home-example-prompts button { min-height: 44px; border: 0; background: transparent; color: var(--lotbi-text-secondary); font-size: 12px; font-weight: 400; padding: 8px 2px; border-radius: 6px; }
-body.chat-home-page .home-example-prompts button:hover { color: var(--lotbi-text-primary); background: transparent; text-decoration: underline; text-underline-offset: 4px; }
 /* Promotion is available on demand, not a permanent block in the conversation. */
 .consumer-plan-menu { position: relative; margin-left: auto; color: var(--lotbi-text-secondary); }
 .consumer-plan-menu > summary { display: flex; align-items: center; gap: 5px; min-height: 44px; padding: 8px 10px; border-radius: 8px; list-style: none; cursor: pointer; font-size: 13px; font-weight: 500; }
@@ -205,7 +216,5 @@ body.chat-home-page .scam-status { font-size: 13px; line-height: 1.7; }
   body.chat-home-page .composer-actions .response-grade-control,
   body.chat-home-page .composer-actions .send-button { grid-row: 2; }
   body.chat-home-page .chat-safety-copy { max-width: 260px; align-self: center; margin-inline: auto; }
-  body.chat-home-page:not(.conversation-active) .home-example-prompts { gap: 4px 12px; margin-top: 18px; flex-wrap: wrap; }
-  body.chat-home-page .home-example-prompts button { font-size: 11px; }
   body.chat-home-page .consumer-plan-menu .subscription-plan-banner { top: 68px; }
 }
