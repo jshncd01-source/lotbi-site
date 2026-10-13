@@ -37,7 +37,7 @@ try {
   const rect = node => node.getBoundingClientRect();
   const firstFrontRect = rect(front());
   const stack = [...deck.querySelectorAll('.wallet-deck-card')].filter(card => [1,2,3].includes(Number(card.dataset.depth))).sort((a,b) => Number(a.dataset.depth)-Number(b.dataset.depth)).map(card => ({id:card.dataset.walletDeckCard, depth:Number(card.dataset.depth), top:rect(card).top-firstFrontRect.top, label:card.querySelector('.wallet-deck-peek-label').textContent, z:Number(getComputedStyle(card).zIndex)}));
-  const first = {front:front().dataset.walletDeckCard, position:position(), filters:filters(), stack, touchAction:getComputedStyle(stage).touchAction, imageTransform:getComputedStyle(front().querySelector('img')).transform, categories:Object.fromEntries(cards.map(card => [card.id,walletItemCategory(card)])), dots:deck.querySelectorAll('[data-wallet-carousel-dot]').length};
+  const first = {front:front().dataset.walletDeckCard, position:position(), positionVisible:getComputedStyle(deck.querySelector('.wallet-card-position')).position!=='absolute', hint:deck.querySelector('.wallet-deck-gesture-hint')?.textContent||'', filters:filters(), stack, touchAction:getComputedStyle(stage).touchAction, imageTransform:getComputedStyle(front().querySelector('img')).transform, categories:Object.fromEntries(cards.map(card => [card.id,walletItemCategory(card)])), dots:deck.querySelectorAll('[data-wallet-carousel-dot]').length, detailWidth:Math.round(rect(deck.querySelector('.wallet-deck-open')).width), deckWidth:Math.round(rect(deck).width), detailBackground:getComputedStyle(deck.querySelector('.wallet-deck-open')).backgroundColor, activeFilterBackground:getComputedStyle(deck.querySelector('[aria-pressed="true"]')).backgroundColor};
 
   stage.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true})); await sleep(300);
   const wrapUp = {front:front().dataset.walletDeckCard, position:position(), stack:stack.length};
@@ -53,7 +53,8 @@ try {
 
   deck.querySelector('.wallet-deck-card[data-depth="1"]').click(); await sleep(300);
   const peek = {front:front().dataset.walletDeckCard,opened:opened.join(',')};
-  deck.querySelector('[data-wallet-carousel-dot="4"]').click(); await sleep(300);
+  stage.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
+  stage.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true})); await sleep(300);
   stage.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true})); await sleep(300);
   const lastToFirst = front().dataset.walletDeckCard;
   stage.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true})); await sleep(300);
@@ -93,12 +94,13 @@ try {
   [...root.querySelectorAll('button')].find(button=>button.textContent==='잠그기').click(); const unlock=await wait(()=>root.querySelector('.wallet-unlock-form'),'unlock'); unlock.querySelector('input').value='1357'; unlock.requestSubmit();
   const face=await wait(()=>root.querySelector('.wallet-deck-card[data-depth="0"]'),'restored deck'); await loaded(root);
   const restored={front:face.dataset.walletDeckCard,filter:root.querySelector('[data-wallet-deck-filter][aria-pressed="true"]').dataset.walletDeckFilter};
-  const shell=root.querySelector('.wallet-shell'); const life=root.querySelector('.wallet-life-info'); const order={deckBeforeLife:Boolean(shell.querySelector('.wallet-deck-shell')?.compareDocumentPosition(life)&Node.DOCUMENT_POSITION_FOLLOWING),title:life.querySelector('.wallet-life-info-title')?.textContent||''};
+  const toolbar={add:root.querySelector('.wallet-add-action')?.innerText.trim()||'',lock:root.querySelector('.wallet-toolbar-icon-action')?.textContent.trim()||'',settings:root.querySelector('.wallet-settings > button')?.textContent.trim()||'',icons:root.querySelectorAll('.wallet-toolbar-icon-action svg').length,topShare:root.querySelector('.wallet-toolbar > [data-wallet-share-open]')!==null,visibleStorageCopy:root.querySelector('.wallet-storage-reassurance')?.getClientRects().length>0};
+  const shell=root.querySelector('.wallet-shell'); const life=root.querySelector('.wallet-life-info'); const order={deckBeforeLife:Boolean(shell.querySelector('.wallet-deck-shell')?.compareDocumentPosition(life)&Node.DOCUMENT_POSITION_FOLLOWING),title:life.querySelector('.wallet-life-info-title')?.textContent||'',lifeGap:parseFloat(getComputedStyle(life).marginTop)};
   face.click(); const detail=await wait(()=>root.querySelector('.wallet-detail'),'detail'); const labels=[...detail.querySelectorAll('[data-wallet-category-choice]')].map(button=>button.textContent); detail.querySelector('[data-wallet-category-choice="document"]').click(); await wait(()=>detail.querySelector('.wallet-detail-shape-status').textContent,'category save');
   const saved=(await store.list(accountId)).find(card=>card.id==='second'); const categoryStatus=detail.querySelector('.wallet-detail-shape-status').textContent;
   [...detail.querySelectorAll('button')].find(button=>button.textContent==='목록으로').click(); await wait(()=>root.querySelector('.wallet-deck-shell'),'back');
-  const add=[...root.querySelectorAll('button')].find(button=>button.textContent==='+ 자료 추가'); add.click(); const select=await wait(()=>root.querySelector('select'),'add select'); const options=[...select.options].map(option=>option.textContent);
-  window.__result=JSON.stringify({ok:true,restored,order,labels,savedCategory:saved.category,categoryStatus,options,viewState:JSON.parse(localStorage.getItem(key))});
+  const add=root.querySelector('.wallet-add-action'); add.click(); const select=await wait(()=>root.querySelector('select'),'add select'); const options=[...select.options].map(option=>option.textContent);
+  window.__result=JSON.stringify({ok:true,restored,toolbar,order,labels,savedCategory:saved.category,categoryStatus,options,viewState:JSON.parse(localStorage.getItem(key))});
 } catch(error){window.__result=JSON.stringify({ok:false,error:String(error?.stack||error)});}
 </script></body></html>`;
 
@@ -109,7 +111,9 @@ for(const viewport of [{width:1200,height:900},{width:412,height:900,mobile:true
   assert.equal(result.first.front,'one',text); assert.equal(result.first.position,'1 / 5',text); assert.deepEqual(result.first.filters,expectedFilters,text);
   assert.deepEqual(result.first.categories,{one:'identity',two:'business-card',three:'document',four:'other',five:'identity'},`legacy mapping: ${text}`);
   assert.equal(result.first.stack.length,3,text); result.first.stack.forEach((card,index)=>{assert.ok(card.top<-24*(index+1),text); assert.ok(card.label,text); assert.ok(card.z<5,text);});
-  assert.equal(result.first.touchAction,'pan-x',text); assert.equal(result.first.imageTransform,'none',text); assert.equal(result.first.dots,5,text);
+  assert.equal(result.first.touchAction,'pan-x',text); assert.equal(result.first.imageTransform,'none',text); assert.equal(result.first.dots,0,text);
+  assert.equal(result.first.positionVisible,true,text); assert.equal(result.first.hint,'↕ 위아래로 넘겨보세요',text); assert.ok(Math.abs(result.first.detailWidth-result.first.deckWidth)<=2,text);
+  assert.equal(result.first.detailBackground,result.first.activeFilterBackground,`approved blue is shared by the active filter and detail button: ${text}`);
   assert.deepEqual(result.wrapUp,{front:'five',position:'5 / 5',stack:3},text); assert.equal(result.wrapBack,'one',text);
   assert.equal(result.dragging,true,text); assert.deepEqual(result.drag,{front:'two',position:'2 / 5',opened:''},text); assert.deepEqual(result.peek,{front:'three',opened:''},text);
   assert.equal(result.lastToFirst,'one',text); assert.equal(result.firstToLast,'five',text);
@@ -119,11 +123,14 @@ for(const viewport of [{width:1200,height:900},{width:412,height:900,mobile:true
   assert.equal(result.overflow,false,text);
 }
 
-const integration=await run(integrationFixture,{width:390,height:844,mobile:true},'integration'); assert.equal(integration.ok,true,integration.error); const integrationText=JSON.stringify(integration);
-assert.deepEqual(integration.restored,{front:'second',filter:'business-card'},integrationText);
-assert.deepEqual(integration.order,{deckBeforeLife:true,title:'생활정보'},integrationText);
-assert.deepEqual(integration.labels,['신분증','명함','증명서·문서','기타'],integrationText);
-assert.equal(integration.savedCategory,'document',integrationText); assert.equal(integration.categoryStatus,'증명서·문서로 옮겼습니다.',integrationText);
-assert.deepEqual(integration.options,['신분증','명함','증명서·문서','기타'],integrationText);
-assert.deepEqual(integration.viewState,{filter:'all',selectedId:'second'},`empty restored category safely falls back without losing the selected item: ${integrationText}`);
+for (const [name, viewport, addLabel] of [['mobile',{width:390,height:844,mobile:true},'+ 추가'],['desktop',{width:1200,height:900},'+ 자료 추가']]) {
+  const integration=await run(integrationFixture,viewport,`integration_${name}`); assert.equal(integration.ok,true,integration.error); const integrationText=JSON.stringify(integration);
+  assert.deepEqual(integration.restored,{front:'second',filter:'business-card'},integrationText);
+  assert.deepEqual(integration.toolbar,{add:addLabel,lock:'잠그기',settings:'설정',icons:2,topShare:false,visibleStorageCopy:false},integrationText);
+  assert.deepEqual(integration.order,{deckBeforeLife:true,title:'생활정보',lifeGap:24},integrationText);
+  assert.deepEqual(integration.labels,['신분증','명함','증명서·문서','기타'],integrationText);
+  assert.equal(integration.savedCategory,'document',integrationText); assert.equal(integration.categoryStatus,'증명서·문서로 옮겼습니다.',integrationText);
+  assert.deepEqual(integration.options,['신분증','명함','증명서·문서','기타'],integrationText);
+  assert.deepEqual(integration.viewState,{filter:'all',selectedId:'second'},`empty restored category safely falls back without losing the selected item: ${integrationText}`);
+}
 console.log('LIFE_WALLET_VERTICAL_DECK_01 PASS — desktop/mobile, categories, vertical wrap, local restore, encrypted category');

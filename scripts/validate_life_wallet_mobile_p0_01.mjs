@@ -76,10 +76,10 @@ try {
   // Loaded = complete with a size (image.decode() can stay pending in headless Chrome under load).
   for (let i = 0; i < 400 && ![...deck.querySelectorAll('img')].every(image => image.complete && image.naturalWidth); i += 1) await sleep(25);
   await sleep(400);
-  const dots = [...deck.querySelectorAll('[data-wallet-carousel-dot]')];
+  const stage = deck.querySelector('.wallet-deck');
   const views = [];
-  for (let index = 0; index < dots.length; index += 1) {
-    dots[index].click(); await sleep(600);
+  for (let index = 0; index < 3; index += 1) {
+    if (index) { stage.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', bubbles: true})); await sleep(600); }
     const frame = deck.getBoundingClientRect();
     const card = deck.querySelector('.wallet-deck-card[data-depth="0"]'); const image = card.querySelector('img');
     const c = card.getBoundingClientRect(); const i = image.getBoundingClientRect();

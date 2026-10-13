@@ -74,7 +74,7 @@ const shaped = (width, height, colour) => { const canvas = document.createElemen
 const digest = async text => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('');
 const fingerprint = async cards => (await Promise.all(cards.map(card => digest((card.note || '') + '|' + card.frontDataUrl + '|' + (card.shape || ''))))).sort();
 const buttonNamed = (root, text) => [...root.querySelectorAll('button')].find(button => button.textContent.trim() === text);
-const openSettings = async (root, action) => { buttonNamed(root, '⚙ 설정').click(); const item = await wait(() => root.querySelector('[data-wallet-server-backup="' + action + '"]'), 'settings ' + action); item.click(); };
+const openSettings = async (root, action) => { root.querySelector('.wallet-settings > button').click(); const item = await wait(() => root.querySelector('[data-wallet-server-backup="' + action + '"]'), 'settings ' + action); item.click(); };
 const overflow = () => document.documentElement.scrollWidth > innerWidth + 1;
 `;
 
@@ -119,7 +119,7 @@ try {
   confirmation.value = '${PASSWORD}'; check.checked = true; form.requestSubmit();
   const done = await wait(() => [...root.querySelectorAll('.wallet-message')].map(node => node.textContent).find(text => text.includes('서버에 백업했습니다')), 'backed up');
   const reassuranceAfter = root.querySelector('.wallet-storage-reassurance strong')?.textContent || '';
-  buttonNamed(root, '⚙ 설정').click();
+  root.querySelector('.wallet-settings > button').click();
   const menu = {restore: Boolean(root.querySelector('[data-wallet-server-backup="restore"]')), remove: Boolean(root.querySelector('[data-wallet-server-backup="delete"]')), help: [...root.querySelectorAll('.wallet-settings-help')].map(node => node.textContent).join(' | ')};
   const puts = core.requests.filter(request => request.method === 'PUT');
   window.__result = JSON.stringify({ok: true, noticeWithoutBackup, rules, strength, putsBefore, done, reassuranceBefore, reassuranceAfter, menu, originals, sealed: core.stored, requests: core.requests.map(({method, url, body, authorization, credentials}) => ({method, url, body, authorization, credentials})), puts: puts.length});

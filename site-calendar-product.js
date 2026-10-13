@@ -1,8 +1,8 @@
 // Pure Calendar presentation decisions shared by Week, Month, and Schedule.
 // These labels are derived at read time; no inferred kind or state is stored.
-import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-c0fbcdd9de51';
-import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-c0fbcdd9de51';
-import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-c0fbcdd9de51';
+import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-b895d2ff4742';
+import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-b895d2ff4742';
+import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-b895d2ff4742';
 
 // The approved add UX uses the same Korean 12-hour clock in the editor and
 // every calendar read surface. Stored values remain 24-hour local datetimes.

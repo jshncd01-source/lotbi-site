@@ -56,7 +56,7 @@ try {
   const empty = await wait(() => root.querySelector('.wallet-empty'), 'empty wallet');
   const emptyButtons = buttons(root);
   const lockButton = () => [...root.querySelectorAll('button')].find(button => button.textContent === '잠그기');
-  [...root.querySelectorAll('button')].find(button => button.textContent === '⚙ 설정').click();
+  root.querySelector('.wallet-settings > button').click();
   [...root.querySelectorAll('button')].find(button => button.textContent === 'PIN 변경').click();
   const change = await wait(() => root.querySelector('form.wallet-editor'), 'change form'); await sleep(100);
   const changeFields = [...change.querySelectorAll('input')].map(describe);
@@ -328,7 +328,7 @@ assert.equal(flow.ok, true, flow.error);
   assert.equal(flow.plainBackgroundCleared, true, `going to the background without a chooser still clears the wallet screen: ${detail}`);
   assert.deepEqual(flow.duringTrip, {formKept: true, cameraClicks: 1, saveEnabled: true, saveRefusedWhileHidden: true, stillOnForm: true}, `the add form survives a camera trip, the key does not: ${detail}`);
   assert.deepEqual(flow.afterTrip, {formKept: true, state: 'unlocked'}, detail);
-  assert.ok(flow.afterSave.buttons.includes('+ 자료 추가') && !flow.afterSave.buttons.includes('첫 자료 등록하기'), `with an item, + 자료 추가 is the way to add: ${detail}`);
+  assert.ok(flow.afterSave.buttons.includes('+ 추가') && !flow.afterSave.buttons.includes('첫 자료 등록하기'), `with an item, the mobile +추가 action is the way to add: ${detail}`);
   assert.equal(flow.decrypted, true, `the saved item decrypts after locking and unlocking: ${detail}`);
   assert.deepEqual(flow.removalField, {type: 'text', mask: 'disc', autocomplete: 'off'}, detail);
   assert.equal(flow.wrongPin, '월렛 PIN을 확인해 주세요.', detail);

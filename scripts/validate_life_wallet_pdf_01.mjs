@@ -77,7 +77,29 @@ try {
   await wait(() => broken.element.dataset.scanState === 'error' || broken.element.dataset.scanState === 'review', 'broken pdf outcome');
   const brokenView = {state: broken.element.dataset.scanState, status: broken.element.querySelector('.wallet-scan-status').textContent};
   broken.destroy();
-  window.__result = {ok: true, first, onePage, smallCardView, textless, brokenView};
+  // Full registration path: the same synthetic PDF goes through the add form, automatic
+  // correction, confirmation, PIN-backed encrypted save and a fresh decrypting read.
+  const wallet = await import('/site-life-wallet.js?test=pdf-save-01');
+  const host = document.getElementById('host'); const accountId = 'pdf-save-' + Date.now();
+  const mounted = wallet.mountLifeWallet({root: host, authenticated: true, accountId});
+  const setup = await wait(() => host.querySelector('form.wallet-pin-form:not(.wallet-unlock-form)'), 'wallet setup');
+  const [pin, confirmation] = setup.querySelectorAll('input'); pin.value = '1357'; confirmation.value = '1357'; setup.requestSubmit();
+  const firstAdd = await wait(() => [...host.querySelectorAll('button')].find(button => button.textContent === '첫 자료 등록하기'), 'first add'); firstAdd.click();
+  const addForm = await wait(() => host.querySelector('[data-wallet-view="add"]'), 'add form');
+  addForm.querySelector('select').value = 'document';
+  const pdfInput = addForm.querySelectorAll('.wallet-attach input[type=file]')[1];
+  const transfer = new DataTransfer(); transfer.items.add(new File([buildPdf([form, block])], 'synthetic-contract.pdf', {type: 'application/pdf'})); pdfInput.files = transfer.files; pdfInput.dispatchEvent(new Event('change', {bubbles: true}));
+  const pdfEditor = await wait(() => addForm.querySelector('[data-scan-state="review"]'), 'wallet pdf review');
+  const pdfConfirm = pdfEditor.querySelector('[data-wallet-scan-confirm]');
+  const automaticSaveReady = pdfEditor.dataset.scanMode === 'automatic' && !pdfConfirm.disabled;
+  pdfConfirm.click(); await wait(() => addForm.querySelector('.wallet-attach-zone').dataset.state === 'ready', 'wallet pdf ready');
+  addForm.requestSubmit();
+  await wait(() => host.querySelector('.wallet-deck-card[data-depth="0"]'), 'wallet pdf saved');
+  const repository = new wallet.IndexedDbWalletRepository(); const reader = new wallet.LifeWalletVault(repository); await reader.unlock(accountId, '1357');
+  const savedCards = await reader.list(accountId); const rawCards = await repository.listCards(await wallet.accountScope(accountId)); const rawText = JSON.stringify(rawCards);
+  const integration = {automaticSaveReady, count: savedCards.length, category: savedCards[0]?.category || '', image: savedCards[0]?.frontDataUrl?.startsWith('data:image/jpeg;base64,') || false, encryptedAtRest: rawCards.length === 1 && !rawText.includes('data:image') && !rawText.includes('synthetic-contract')};
+  mounted.dispose();
+  window.__result = {ok: true, first, onePage, smallCardView, textless, brokenView, integration};
 } catch (error) { window.__result = {ok: false, error: String(error?.stack || error)}; }
 </script></body></html>`;
 
@@ -88,7 +110,7 @@ const result = await runFixturePage({
 });
 assert.equal(result.ok, true, result.error);
 {
-  const {first, onePage, smallCardView, textless, brokenView} = result;
+  const {first, onePage, smallCardView, textless, brokenView, integration} = result;
   const detail = JSON.stringify(first);
   assert.equal(first.state, 'review', `the first PDF page must open for review: ${detail}`);
   assert.equal(first.mode, 'automatic', `a PDF page must be cropped automatically: ${detail}`);
@@ -116,5 +138,6 @@ assert.equal(result.ok, true, result.error);
   assert.ok(textless.status.includes('등록할 수 있는 자료로 보이지 않습니다'), `textless PDF message: ${textless.status}`);
   assert.equal(brokenView.state, 'error', `a broken PDF must stop with an explanation: ${JSON.stringify(brokenView)}`);
   assert.ok(brokenView.status.includes('PDF를 열지 못했습니다'), `broken PDF message: ${brokenView.status}`);
-  console.log(`LIFE_WALLET_PDF_01 PASS — first_aspect=${first.aspect.toFixed(3)} source=${first.sourceWidth}x${first.sourceHeight} reason=${first.reason} small_card_aspect=${smallCardView.aspect.toFixed(3)} small_card_reason=${smallCardView.reason}`);
+  assert.deepEqual(integration, {automaticSaveReady: true, count: 1, category: 'document', image: true, encryptedAtRest: true}, `PDF automatic crop to encrypted save: ${JSON.stringify(integration)}`);
+  console.log(`LIFE_WALLET_PDF_01 PASS — first_aspect=${first.aspect.toFixed(3)} source=${first.sourceWidth}x${first.sourceHeight} reason=${first.reason} small_card_aspect=${smallCardView.aspect.toFixed(3)} small_card_reason=${smallCardView.reason} encrypted_save=PASS`);
 }
