@@ -34,7 +34,7 @@ assert.equal(typeof person.putPersonIdentityPhoto, 'function', 'the per-slot PUT
 // The set: three faces and two bodies; ten only recommended.
 assert.equal(bulk.personPhotoSetMessage({complete: false, faceCount: 2, bodyCount: 2}), '얼굴이 잘 보이는 사진 1장이 더 있으면 등록을 마칠 수 있어요.');
 assert.equal(bulk.personPhotoSetMessage({complete: true, faceCount: 3, bodyCount: 2, photoCount: 5}), '필수 사진 5장이 준비됐어요. 이대로 등록할 수 있어요.');
-assert.equal(bulk.PERSON_BULK_ANGLE_GUIDE, '기본 등록에는 얼굴 3장과 상반신·전신 사진 2장이 필요해요.');
+assert.equal(bulk.PERSON_BULK_ANGLE_GUIDE, '최소 5장 권장 · 얼굴 3장 + 상반신·전신 2장');
 assert.equal(bulk.PERSON_BULK_OPTIONAL_GUIDE, '다양한 각도와 상황의 사진을 최대 10장까지 등록하면 인식에 도움이 될 수 있어요.');
 for (const text of [bulk.PERSON_BULK_ANGLE_GUIDE, bulk.personPhotoSetMessage({complete: true, photoCount: 6})]) {
   assert.ok(!/10장을 모두|10장.{0,8}(?:반드시|필수)|(?:반드시|필수).{0,8}10장/.test(text), `ten is never required: ${text}`);

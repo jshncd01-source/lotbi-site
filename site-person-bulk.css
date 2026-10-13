@@ -32,6 +32,10 @@
   grid-column: 1;
 }
 
+.person-photo-form .person-bulk-help {
+  grid-column: 1;
+}
+
 .person-photo-form .person-bulk-pick {
   grid-column: 2;
   grid-row: 1 / span 4;
@@ -76,6 +80,26 @@
 
 .person-bulk-pick[aria-disabled="true"] {
   opacity: .6;
+}
+
+.person-bulk-help {
+  border-top: 1px solid var(--lotbi-border-default, #e2e6ee);
+  padding-top: 8px;
+}
+
+.person-bulk-help > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.person-bulk-help[open] {
+  display: grid;
+  gap: 8px;
 }
 
 .person-bulk-status {

@@ -558,7 +558,7 @@ function innerFixtureHtml() {
     label: tile.querySelector('.pet-slot-label').textContent,
     hint: tile.querySelector('.pet-slot-hint').textContent,
     hasDiagram: Boolean(tile.querySelector('.pet-slot-diagram')),
-    artworkSrc: tile.querySelector('.pet-slot-guide-image')?.getAttribute('src') || '',
+    artworkSrc: tile.querySelector('.pet-slot-guide-image')?.dataset.petApprovedSource || '',
     previewSrc: tile.querySelector('.pet-slot-photo')?.getAttribute('src')?.slice(0, 5) || '',
     stuckLoading: Boolean(tile.querySelector('.pet-slot-loading')),
     inputs: tile.querySelectorAll('input').length,
@@ -705,10 +705,10 @@ function innerFixtureHtml() {
   // PET-PHOTO-GUIDE-DEDUPE-01: the direction map above the tiles is gone, so
   // the species check reads the example picture each empty tile shows.
   const speciesMarks = [...document.querySelectorAll('[data-pet-draft-slot] .pet-slot-guide-image')].map(item => {
-    const src = item.getAttribute('src') || '';
-    return src.startsWith('assets/pet/dog-') ? 'dog' : src.startsWith('assets/pet/cat-') ? 'cat' : src;
+    const src = item.dataset.petApprovedSource || '';
+    return src.includes('approved-pet-dog-') ? 'dog' : src.includes('approved-pet-cat-') ? 'cat' : src;
   });
-  const rearImage = document.querySelector('[data-pet-draft-slot="BACK_REAR"] .pet-slot-guide-image')?.getAttribute('src') || '';
+  const rearImage = document.querySelector('[data-pet-draft-slot="BACK_REAR"] .pet-slot-guide-image')?.dataset.petApprovedSource || '';
 
   // Measure layout before the result sink is filled.
   const scrollWidth = document.documentElement.scrollWidth;
@@ -870,7 +870,7 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
     } else {
       assert.match(
         slot.artworkSrc,
-        /^assets\/pet\/dog-[a-z-]+-v2\.webp$/,
+        /^assets\/family-guardian\/approved-pet-dog-(required|optional)-bichon-20261013\.png$/,
         `${label}: empty slot ${slot.code} must show its dog shooting artwork`,
       );
     }
@@ -943,7 +943,7 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.equal(result.gateBeforeFaceFront.complete, 'false', label);
   assert.equal(result.gateBeforeFaceFront.note, '얼굴 사진 3장과 몸 전체가 보이는 사진 2장이 더 있으면 다음 단계로 넘어갈 수 있어요.', label);
   assert.equal(result.gateBeforeFaceFront.bulkPick, '사진 여러 장 선택', `${label}: the batch is the way in`);
-  assert.equal(result.gateBeforeFaceFront.examples, '아래 10칸은 어떤 사진이 있으면 좋은지 보여 주는 예시예요. 칸을 다 채우지 않아도 돼요.', label);
+  assert.equal(result.gateBeforeFaceFront.examples, '아래는 필수 5장의 촬영 방향을 보여 주는 가상 예시예요.', label);
   assert.deepEqual(result.speciesChoices, ['DOG', 'CAT'], `${label}: the first step must offer dog or cat before photos`);
   assert.equal(result.registrationProgress, '반려동물 등록 2단계 / 4단계 · 사진',
     `${label}: registration must identify the current numbered step`);
@@ -956,7 +956,7 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
     `${label}: the list-level registration/resume action must disappear while its form is open`);
   assert.ok(result.speciesMarks.length > 0 && result.speciesMarks.every(mark => mark === 'dog'),
     `${label}: DOG selection must show only dog photo guides`);
-  assert.equal(result.rearImage, 'assets/pet/dog-back-rear-v2.webp',
+  assert.equal(result.rearImage, 'assets/family-guardian/approved-pet-dog-optional-bichon-20261013.png',
     `${label}: slot 9 must use only the selected dog's color rear-view artwork`);
 }
 

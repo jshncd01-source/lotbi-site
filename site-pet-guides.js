@@ -163,24 +163,44 @@ const GUIDES = Object.freeze({
   },
 });
 
-const PET_SLOT_ARTWORK_NAMES = Object.freeze({
-  FACE_FRONT: 'face-front',
-  FACE_LEFT: 'face-left',
-  FACE_RIGHT: 'face-right',
-  BODY_LEFT: 'body-left',
-  BODY_RIGHT: 'body-right',
-  BACK_REAR: 'back-rear',
-  NOSE_FRONT: 'nose-front',
-  NOSE_LEFT: 'nose-left',
-  NOSE_RIGHT: 'nose-right',
-  DISTINCTIVE: 'distinctive',
+const DOG_REQUIRED_SHEET = 'assets/family-guardian/approved-pet-dog-required-bichon-20261013.png';
+const DOG_OPTIONAL_SHEET = 'assets/family-guardian/approved-pet-dog-optional-bichon-20261013.png';
+const CAT_REQUIRED_SHEET = 'assets/family-guardian/approved-pet-cat-required-20261013.png';
+const CAT_OPTIONAL_SHEET = 'assets/family-guardian/approved-pet-cat-optional-20261013.png';
+
+const approvedExample = (sheet, viewBox) => Object.freeze({
+  sheet,
+  sheetWidth: 1536,
+  sheetHeight: 1024,
+  viewBox,
 });
 
-export const PET_SLOT_ARTWORK = Object.freeze(
-  Object.fromEntries(['DOG', 'CAT'].flatMap(species => Object.entries(PET_SLOT_ARTWORK_NAMES).map(
-    ([slotCode, fileName]) => [`${species}:${slotCode}`, `assets/pet/${species.toLowerCase()}-${fileName}-v2.webp`],
-  ))),
-);
+const approvedSpeciesExamples = (requiredSheet, optionalSheet, requiredCrops = {}) => Object.freeze({
+  FACE_FRONT: approvedExample(requiredSheet, requiredCrops.faceFront || '0 0 505 505'),
+  FACE_LEFT: approvedExample(requiredSheet, requiredCrops.faceLeft || '516 0 505 505'),
+  FACE_RIGHT: approvedExample(requiredSheet, requiredCrops.faceRight || '1031 0 505 505'),
+  BODY_LEFT: approvedExample(requiredSheet, requiredCrops.bodyLeft || '0 516 763 508'),
+  BODY_RIGHT: approvedExample(requiredSheet, requiredCrops.bodyRight || '773 516 763 508'),
+  BACK_REAR: approvedExample(optionalSheet, '0 0 505 505'),
+  NOSE_FRONT: approvedExample(optionalSheet, '516 0 505 505'),
+  NOSE_LEFT: approvedExample(optionalSheet, '1031 0 505 505'),
+  NOSE_RIGHT: approvedExample(optionalSheet, '0 516 763 508'),
+  DISTINCTIVE: approvedExample(optionalSheet, '773 516 763 508'),
+});
+
+// FAMILY-GUARDIAN-APPROVED-PETS-01: the registration examples are realistic
+// virtual pets, never the previous drawn guides. The dog is deliberately a
+// small white Bichon so it reads as an ordinary companion animal at a glance.
+export const PET_APPROVED_EXAMPLE_CROPS = Object.freeze({
+  DOG: approvedSpeciesExamples(DOG_REQUIRED_SHEET, DOG_OPTIONAL_SHEET, {
+    faceFront: '70 0 370 370',
+    faceLeft: '590 0 370 370',
+    faceRight: '1110 0 370 370',
+    bodyLeft: '0 560 763 464',
+    bodyRight: '773 560 763 464',
+  }),
+  CAT: approvedSpeciesExamples(CAT_REQUIRED_SHEET, CAT_OPTIONAL_SHEET),
+});
 
 export const PET_PHOTO_SLOT_LABELS = Object.freeze(
   Object.fromEntries(Object.entries(GUIDES).map(([code, guide]) => [code, guide.label])),
@@ -194,28 +214,21 @@ export function petPhotoSlotHint(slotCode) {
   return GUIDES[slotCode]?.hint || '';
 }
 
-// Finished examples make the required angle immediately legible. Keep the
-// vector diagram as a local, dependency-free fallback if an asset is missing
-// or a stale cache still points at an older deployment.
 export function petPhotoSlotArtwork(slotCode, species) {
   const normalizedSpecies = species === 'CAT' ? 'CAT' : species === 'DOG' ? 'DOG' : '';
-  const src = PET_SLOT_ARTWORK[`${normalizedSpecies}:${slotCode}`];
-  if (!src) return null;
+  const example = PET_APPROVED_EXAMPLE_CROPS[normalizedSpecies]?.[slotCode];
+  if (!example) return null;
 
-  const image = document.createElement('img');
-  image.className = 'pet-slot-guide-image';
-  image.src = src;
-  image.alt = `${petPhotoSlotLabel(slotCode)} 촬영 예시`;
-  // PET-PHOTO-GUIDE-DEDUPE-01: the ten examples are what this step shows and
-  // weigh about 45 KB each, so they load with the step instead of waiting to
-  // be scrolled into view (lazy tiles further down were seen blank).
-  image.loading = 'eager';
-  image.decoding = 'async';
-  image.onerror = () => {
-    const fallback = petPhotoSlotDiagram(slotCode, normalizedSpecies);
-    if (fallback) image.replaceWith(fallback);
-  };
-  return image;
+  const [x, y, width, height] = example.viewBox.split(' ').map(Number);
+  const crop = document.createElement('span');
+  crop.className = 'pet-slot-guide-image';
+  crop.setAttribute('role', 'img');
+  crop.setAttribute('aria-label', `${petPhotoSlotLabel(slotCode)} 가상 반려동물 예시 사진`);
+  crop.dataset.petApprovedSource = example.sheet;
+  crop.style.backgroundImage = `url("${example.sheet}")`;
+  crop.style.backgroundSize = `${(example.sheetWidth / width) * 100}% ${(example.sheetHeight / height) * 100}%`;
+  crop.style.backgroundPosition = `${(x / (example.sheetWidth - width)) * 100}% ${(y / (example.sheetHeight - height)) * 100}%`;
+  return crop;
 }
 
 function shape(tag, attributes) {

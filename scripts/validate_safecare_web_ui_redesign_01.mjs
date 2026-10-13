@@ -936,7 +936,7 @@ async function run() {
           guide: document.querySelector('[data-safecare-guide]')?.dataset.safecareGuide || '',
           artwork: document.querySelector('.safecare-guide-art')?.getAttribute('src') || '',
           guideMap: document.querySelectorAll('.safecare-guide-map, .safecare-guide-title').length,
-          firstTileArt: document.querySelector('[data-pet-draft-slot="FACE_FRONT"] .pet-slot-guide-image')?.getAttribute('src') || '',
+          firstTileArt: document.querySelector('[data-pet-draft-slot="FACE_FRONT"] .pet-slot-guide-image')?.dataset.petApprovedSource || '',
           counter: document.querySelector('[data-safecare-photo-count]')?.textContent || '',
           firstOpen: document.querySelector('[data-pet-draft-slot="FACE_FRONT"]')?.dataset.petDraftSlotLocked,
           tileInputs: document.querySelectorAll('[data-pet-draft-slot] input').length,
@@ -1208,7 +1208,7 @@ for (const [label, r] of Object.entries(results)) {
   // illustration, title or direction map above them.
   assert.equal(r.petRegisterPhotos.artwork, '', `${label}: duplicate guide illustration must be gone`);
   assert.equal(r.petRegisterPhotos.guideMap, 0, `${label}: duplicate guide title/map must be gone`);
-  assert.equal(r.petRegisterPhotos.firstTileArt, 'assets/pet/dog-face-front-v2.webp');
+  assert.equal(r.petRegisterPhotos.firstTileArt, 'assets/family-guardian/approved-pet-dog-required-bichon-20261013.png');
   // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the pet rule is the person rule.
   assert.equal(r.petRegisterPhotos.counter, '얼굴 0/3 · 몸 0/2 · 지금 0장 (10장까지)');
   assert.equal(r.petRegisterPhotos.firstOpen, undefined, `${label}: no tile is locked any more`);

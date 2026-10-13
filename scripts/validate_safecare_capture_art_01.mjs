@@ -32,6 +32,7 @@ class FakeNode {
   constructor(tagName) {
     this.tagName = String(tagName).toUpperCase();
     this.className = '';
+    this.style = {};
     this.dataset = {};
     this.children = [];
   }
@@ -75,27 +76,30 @@ const largeNoseEllipses = noseDiagram.children.filter(child => child.tagName ===
 assert.ok(largeNoseEllipses.length >= 1, 'nose guidance must include a magnified callout');
 assert.ok(largeNoseEllipses.every(child => child.class === 'pet-slot-guide-callout'), 'large callouts must stay outlined instead of becoming solid blobs');
 
-const {PERSON_IDENTITY_SLOTS, personSlotArtwork} = await import('../site-person-guides.js');
+const {PERSON_IDENTITY_SLOTS, PERSON_APPROVED_EXAMPLE_CROPS, personSlotArtwork} = await import('../site-person-guides.js');
 
 const expectedPersonSlotArtwork = [
-  'assets/safecare/person-face-front-v1.png',
-  'assets/safecare/person-face-left-45-v2.png',
-  'assets/safecare/person-face-right-45-v1.png',
-  'assets/safecare/person-face-left-profile-v1.png',
-  'assets/safecare/person-face-right-profile-v1.png',
-  'assets/safecare/person-upper-body-front-v1.png',
-  'assets/safecare/person-full-body-front-v1.png',
-  'assets/safecare/person-face-front-alt-v1.png',
-  'assets/safecare/person-face-left-alt-v1.png',
-  'assets/safecare/person-face-right-alt-v1.png',
+  PERSON_APPROVED_EXAMPLE_CROPS.FACE_FRONT,
+  PERSON_APPROVED_EXAMPLE_CROPS.FACE_LEFT_45,
+  PERSON_APPROVED_EXAMPLE_CROPS.FACE_RIGHT_45,
+  PERSON_APPROVED_EXAMPLE_CROPS.FACE_LEFT_PROFILE,
+  PERSON_APPROVED_EXAMPLE_CROPS.FACE_RIGHT_PROFILE,
+  PERSON_APPROVED_EXAMPLE_CROPS.UPPER_BODY_FRONT,
+  PERSON_APPROVED_EXAMPLE_CROPS.FULL_BODY_FRONT,
+  PERSON_APPROVED_EXAMPLE_CROPS.FACE_FRONT_ALT,
+  PERSON_APPROVED_EXAMPLE_CROPS.FACE_LEFT_ALT,
+  PERSON_APPROVED_EXAMPLE_CROPS.FACE_RIGHT_ALT,
 ];
 for (const [index, slot] of PERSON_IDENTITY_SLOTS.entries()) {
   const artwork = personSlotArtwork(slot);
-  assert.equal(artwork.tagName, 'IMG', `${slot.code} must use a finished image instead of a tiny line icon`);
+  const expectedCrop = expectedPersonSlotArtwork[index];
+  assert.equal(artwork.tagName, 'SPAN', `${slot.code} must crop the approved photo source without illustration fallback`);
   assert.equal(artwork.className, 'person-slot-guide-image');
-  assert.equal(artwork.src, expectedPersonSlotArtwork[index]);
-  assert.equal(artwork.alt, `${slot.label} 촬영 예시`);
-  assert.equal(artwork.decoding, 'async');
+  assert.equal(artwork.role, 'img');
+  assert.equal(artwork['aria-label'], `${slot.label} 사용자 확정 예시 사진`);
+  assert.equal(artwork.style.backgroundImage, `url("${expectedCrop.sheet}")`);
+  assert.match(artwork.style.backgroundSize, /\d+(?:\.\d+)?% \d+(?:\.\d+)?%$/u);
+  assert.match(artwork.style.backgroundPosition, /\d+(?:\.\d+)?% \d+(?:\.\d+)?%$/u);
 }
 
 console.log('SAFECARE-CAPTURE-ART-01 PASS');

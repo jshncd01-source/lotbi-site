@@ -34,8 +34,8 @@ const {PERSON_IDENTITY_SLOTS, PERSON_REQUIRED_EXAMPLE_SLOTS, PERSON_OPTIONAL_EXA
 const bulk = await import(`${pathToFileURL(path.join(ROOT, 'site-person-bulk-photos.js')).href}?contract=bulk-01`);
 const common = await import(`${pathToFileURL(path.join(ROOT, 'site-safecare-common.js')).href}?contract=bulk-01`);
 
-const WARNING = '정확한 비교를 위해 동일한 사람의 사진만 등록해 주세요. 다른 사람이나 동물·사물 사진이 섞이면 등록이 제한될 수 있습니다.';
-const ANGLES = '기본 등록에는 얼굴 3장과 상반신·전신 사진 2장이 필요해요.';
+const WARNING = '같은 사람의 사진만 선택해 주세요. 다른 사람이나 동물·사물 사진은 등록되지 않을 수 있어요.';
+const ANGLES = '최소 5장 권장 · 얼굴 3장 + 상반신·전신 2장';
 const OPTIONAL = '다양한 각도와 상황의 사진을 최대 10장까지 등록하면 인식에 도움이 될 수 있어요.';
 const ANCHOR = '처음 저장된 사진이 다른 사람일 수 있어요. 사진 갱신·관리에서 그 사진을 빼고 다시 올려 주세요.';
 const NEEDS_ALL = '얼굴이 잘 보이는 사진 3장과 상반신·전신 사진 2장이 더 있으면 등록을 마칠 수 있어요.';
@@ -525,6 +525,8 @@ try {
           warning: panel.querySelector('[data-person-bulk-warning]')?.textContent,
           angles: panel.querySelector('[data-person-bulk-angles]')?.textContent,
           pick: panel.querySelector('[data-person-bulk-pick]')?.textContent,
+          helpOpen: panel.querySelector('.person-bulk-help')?.open,
+          pickVisible: (() => { const rect = panel.querySelector('[data-person-bulk-pick]').getBoundingClientRect(); return rect.top >= 0 && rect.bottom <= innerHeight; })(),
           multiple: input.multiple, accept: input.accept, type: input.type,
           beforeGrid: Boolean(panel.compareDocumentPosition(document.querySelector('[data-person-slot-grid]')) & Node.DOCUMENT_POSITION_FOLLOWING),
           tiles: document.querySelectorAll('[data-person-slot-grid] > [data-person-slot]').length,
@@ -541,6 +543,8 @@ try {
       assert.equal(r.warning, WARNING, `${where}: warning verbatim`);
       assert.equal(r.angles, ANGLES, where);
       assert.equal(r.pick, '갤러리에서 여러 장 선택', where);
+      assert.equal(r.helpOpen, false, `${where}: detailed explanation starts collapsed`);
+      assert.equal(r.pickVisible, true, `${where}: photo selection is visible without scrolling`);
       assert.equal(r.multiple, true, where);
       assert.equal(r.accept, 'image/*', where);
       assert.equal(r.beforeGrid, true, `${where}: the panel sits above the tiles`);

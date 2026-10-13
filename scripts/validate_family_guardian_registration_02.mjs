@@ -50,9 +50,16 @@ assert.equal(lotbiPetNumber(pets[0].registrationNumber),'PET-KR 0123 4567 89AB C
 const read = file => readFileSync(new URL(`../${file}`,import.meta.url),'utf8');
 const personUi = read('site-person-ui.js'); const petUi = read('site-pet-ui.js');
 assert.ok((personUi.match(/person\.registrationNumber|item\.registrationNumber/g)||[]).length>=4,'목록·관리·완료·신고 실제 번호 연결');
+assert.ok(personUi.includes("if (view.manage) header.append(el('p', 'person-card-meta', `등록번호 ${person.registrationNumber}`))"), '사진 단계는 등록 완료 후 관리 화면에서만 번호 표시');
+assert.ok(personUi.includes("fact('가족 등록번호', maskedFamilyRegistrationNumber());"), '최종 확인에서는 실제 번호 대신 별표 번호를 표시');
+assert.ok(personUi.includes("el('dt', '', '가족 등록번호'), el('dd', '', maskedFamilyRegistrationNumber())"), '사람 실종 신고에서도 번호를 별표 처리');
+assert.ok(personUi.includes("facts.append(el('dt', '', '등록번호'), el('dd', '', person.registrationNumber))"), '최종 등록 완료 화면에서 번호 표시');
 assert.ok(personUi.includes("fact('출생', person.birthYear"),'확인 단계 출생 연월 표시 보존');
 assert.ok(personUi.includes('변경한 정보가 없습니다.'),'변경 없음·저장을 구분');
 assert.ok(petUi.includes('lotbiPetNumber(pet.registrationNumber)'));
 assert.ok(petUi.includes('lotbiPetNumber(created.registrationNumber)'));
+assert.ok(petUi.includes("add(LOTBI_PET_NUMBER_LABEL, maskedPetRegistrationNumber());"), '반려동물 최종 확인에서도 별표 번호 표시');
+assert.ok(petUi.includes('`${LOTBI_PET_NUMBER_LABEL} ${maskedPetRegistrationNumber()}`'), '반려동물 실종 신고에서도 번호를 별표 처리');
+assert.ok(petUi.includes('등록을 확정한 뒤 롯비 반려동물 번호가 발급됩니다.'), '반려동물도 최종 등록 전 번호 미발급 안내');
 assert.ok(read('.github/workflows/site-review.yml').includes('node scripts/validate_family_guardian_registration_02.mjs'),'신규 검사 gate 등록');
 console.log('FAMILY-GUARDIAN-REGISTRATION-02 PASS — 번호·2000년1월·부분 수정·무변경·실패 보존. 가상 응답 계약, 운영 저장/사진 판정 검증 아님');

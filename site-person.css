@@ -21,6 +21,7 @@
 .person-cancel-sheet{display:grid;gap:12px;color:var(--lotbi-text-primary,#212121)}.person-cancel-title{margin:0;font-size:1.1rem;color:var(--lotbi-text-primary,#212121)}.person-cancel-lead{margin:0;line-height:1.55;color:var(--lotbi-text-primary,#212121)}
 .person-cancel-choices{display:grid;gap:6px}.person-cancel-choices .site-button{width:100%;min-height:48px}.person-cancel-choices .person-field-hint{margin:0 0 8px}
 .person-cancel-sheet .site-button:disabled{opacity:1;cursor:not-allowed;border-style:dashed;background:var(--lotbi-surface-hover,#f0f0f0);color:color-mix(in srgb,var(--lotbi-text-primary,#212121) 72%,var(--lotbi-surface-hover,#f0f0f0))}
+.lotbi-sheet.person-cancel-dialog[data-presentation="SHEET"]{left:50%;right:auto;top:50%;bottom:auto;width:min(calc(100% - 32px),480px);max-height:min(82dvh,680px);padding:22px;border:1px solid var(--lotbi-border-default,#d8dde5);border-radius:18px;box-shadow:0 24px 64px rgb(15 23 42 / 28%);transform:translate(-50%,-50%);touch-action:auto}.lotbi-sheet.person-cancel-dialog .lotbi-sheet-grabber,.lotbi-sheet.person-cancel-dialog>.lotbi-sheet-dismiss{display:none}.lotbi-sheet.person-cancel-dialog[data-presentation="SHEET"] .lotbi-sheet-body{max-height:calc(min(82dvh,680px) - 44px)}
 
 /* SAFECARE-WEB-UI-REDESIGN-01: controls that set display must still honor [hidden]. */
 .person-care-surface [hidden]{display:none!important}
@@ -38,3 +39,13 @@
 @media(max-width:800px){.safecare-slot-grid-required{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:800px){.person-sos-layout{grid-template-columns:1fr}.person-review-photo-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:640px){.person-photo-reference-head{align-items:flex-start;flex-direction:column}.safecare-slot-grid-required{grid-template-columns:repeat(2,minmax(0,1fr))}.person-photo-optional>.safecare-slot-grid{padding:0 12px 12px}.person-field-pair,.person-review-notices{grid-template-columns:1fr}.person-registration-identity,.person-sos-target{align-items:flex-start;grid-template-columns:1fr}.person-registration-identity>div{grid-template-columns:1fr}.person-registration-identity strong{grid-row:auto}.person-danger-zone{grid-template-columns:1fr}.person-review-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.person-form-actions-end .site-button{width:100%;min-width:0}}
+
+@media(max-width:640px){
+  .person-photo-form .safecare-slot-grid-required{
+    display:flex;contain:layout paint inline-size;
+    width:100%;max-width:100%;min-width:0;
+    grid-auto-flow:column;grid-auto-columns:min(42vw,142px);grid-template-columns:none;
+    overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain;scroll-snap-type:x proximity;padding-bottom:6px;
+  }
+  .person-photo-form .safecare-slot-grid-required>*{flex:0 0 min(42vw,142px);scroll-snap-align:start}
+}

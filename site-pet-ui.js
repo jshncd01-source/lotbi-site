@@ -56,21 +56,22 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-c0fbcdd9de51';
+} from './site-pet.js?v=aset-27ac257f4d8b';
 import {
+  PET_APPROVED_EXAMPLE_CROPS,
   petPhotoSlotArtwork,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-c0fbcdd9de51';
+} from './site-pet-guides.js?v=aset-27ac257f4d8b';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-c0fbcdd9de51';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-c0fbcdd9de51';
-import {personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-c0fbcdd9de51';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-c0fbcdd9de51';
+} from './site-pet-gate.js?v=aset-27ac257f4d8b';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-27ac257f4d8b';
+import {personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-27ac257f4d8b';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-27ac257f4d8b';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -79,7 +80,7 @@ import {
   identityPhotoProgress,
   renewalBadge,
   safecareSosSubmitReady,
-} from './site-safecare-common.js?v=aset-c0fbcdd9de51';
+} from './site-safecare-common.js?v=aset-27ac257f4d8b';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -95,6 +96,9 @@ const PET_PHOTO_DISPLAY_ORDER = Object.freeze([
   'NOSE_FRONT', 'NOSE_LEFT', 'NOSE_RIGHT',
   'DISTINCTIVE',
 ]);
+
+const PET_REQUIRED_EXAMPLE_SLOTS = Object.freeze(PET_PHOTO_DISPLAY_ORDER.slice(0, 5));
+const PET_OPTIONAL_EXAMPLE_SLOTS = Object.freeze(PET_PHOTO_DISPLAY_ORDER.slice(5));
 
 // The first photo the owner ever takes is a face, and every closeup guide
 // below assumes the owner already knows what "left" and "right" mean for
@@ -114,6 +118,20 @@ function el(tag, className = '', text = '') {
   if (text) node.textContent = text;
   return node;
 }
+
+function approvedPetSpeciesPhoto(species) {
+  const example = PET_APPROVED_EXAMPLE_CROPS[species]?.FACE_FRONT;
+  const photo = el('span', 'pet-draft-species-photo');
+  photo.setAttribute('aria-hidden', 'true');
+  if (!example) return photo;
+  const [x, y, width, height] = example.viewBox.split(' ').map(Number);
+  photo.style.backgroundImage = `url("${example.sheet}")`;
+  photo.style.backgroundSize = `${(example.sheetWidth / width) * 100}% ${(example.sheetHeight / height) * 100}%`;
+  photo.style.backgroundPosition = `${(x / (example.sheetWidth - width)) * 100}% ${(y / (example.sheetHeight - height)) * 100}%`;
+  return photo;
+}
+
+const maskedPetRegistrationNumber = () => 'PET-****-****';
 
 // SITE-PET-PHOTO-SOURCE-01 — a photo button never sends the owner straight
 // into a single OS photo provider. Mobile Web asks LOTBI's own Camera /
@@ -203,18 +221,15 @@ function openPetPhotoSource(sourceInputs) {
 }
 
 // PET-PHOTO-GUIDE-DEDUPE-01 — each of the ten slot tiles below already shows
-// its own example picture, label and shooting hint, and the gate banner says
-// to start with the face. The guide above the tiles therefore says only what
-// they cannot: why ten directions. The earlier boxed banner (an animal
-// illustration, a "촬영 안내" title and a second ten-item direction map)
-// repeated the tiles and the step title on the same screen.
+// its own example picture, label and shooting hint. Keep only the five-photo
+// recommendation above the upload action; the longer reason lives below it.
 function petPhotoGuide(species) {
   const box = el('section', 'safecare-guide safecare-guide-compact');
   box.dataset.safecareGuide = species === 'CAT' ? 'cat' : 'dog';
   box.appendChild(el(
     'p',
     'safecare-guide-copy',
-    '얼굴 사진 3장과 몸 전체가 보이는 사진 2장이면 등록할 수 있어요. 실종 때 들어오는 발견 사진은 옆모습이나 뒷모습일 때가 많아서, 아래 예시처럼 더 올리면(최대 10장) 찾을 확률을 높일 수 있어요.',
+    '최소 5장 권장 · 얼굴 3장 + 전신 2장',
   ));
   return box;
 }
@@ -659,10 +674,7 @@ export async function mountPetFamilyManager({
   const petBulkPanel = ({key, room, add, done}) => {
     const section = el('section', 'person-bulk pet-bulk');
     section.dataset.petBulk = '';
-    section.append(
-      el('h5', 'person-bulk-title', '사진 여러 장 한 번에 등록'),
-      el('p', 'person-bulk-angles', '휴대폰에 있는 사진을 한 번에 골라 주세요. 얼굴 사진인지 몸 전체 사진인지 확인해서 맞는 칸에 넣어요. 각도는 대충 맞아도 괜찮아요.'),
-    );
+    section.append(el('h5', 'person-bulk-title', '사진 선택'));
     const sourceInputs = buildPetPhotoSourceInputs();
     sourceInputs.gallery.multiple = true;
     sourceInputs.file.multiple = true;
@@ -793,7 +805,13 @@ export async function mountPetFamilyManager({
         if (file && index >= 0) void replaceOne(index, file);
       });
     }
-    section.append(pick, ...sourceInputs.all, ...replaceInputs.all, line, list);
+    const help = el('details', 'person-bulk-help');
+    help.append(
+      el('summary', '', '사진 등록 안내'),
+      el('p', 'person-bulk-angles', '휴대폰에 있는 사진을 한 번에 골라 주세요. 얼굴과 몸 전체가 잘 보이는 사진을 고르면 돼요.'),
+      el('p', 'person-bulk-note', '필수 5장으로 등록할 수 있고, 다양한 각도의 사진을 최대 10장까지 추가하면 실종 시 비교에 도움이 될 수 있어요.'),
+    );
+    section.append(pick, ...sourceInputs.all, ...replaceInputs.all, help, line, list);
     const last = petBatchResults.get(key);
     if (last?.length) line.textContent = summary(last);
     draw();
@@ -1497,7 +1515,7 @@ export async function mountPetFamilyManager({
       // SAFECARE-PHOTO-EASY-UPLOAD-01: what happens today — administrators see the active case and the found reports.
       el('p', 'pet-empty-copy', '실종 상태로 전환하면 가족 지킴이 관리자가 실종 목록에서 확인하고, 들어온 발견 제보도 관리자가 확인합니다. AI가 같은 반려동물이라고 확정하지 않습니다.'),
       el('p', 'pet-empty-copy', '동의한 활성 신고는 담당 관리자에게 접수됩니다. 담당자는 신고 처리에 필요한 등록 사진과 신고 내용을 확인하며, 신고를 종료하면 이 신고를 근거로 한 열람 권한이 회수됩니다.'),
-      el('p', 'pet-number-value', `${LOTBI_PET_NUMBER_LABEL} ${lotbiPetNumber(pet.registrationNumber)}`),
+      el('p', 'pet-number-value', `${LOTBI_PET_NUMBER_LABEL} ${maskedPetRegistrationNumber()}`),
       consent, formError, submit,
     );
 
@@ -2019,14 +2037,14 @@ export async function mountPetFamilyManager({
       const speciesField = el('fieldset', 'pet-choice-field pet-draft-species-field');
       speciesField.appendChild(el('legend', '', '등록할 반려동물'));
       const speciesRow = el('div', 'pet-choice-row');
-      for (const [value, icon, label] of [['DOG', '🐶', '강아지'], ['CAT', '🐱', '고양이']]) {
+      for (const [value, label] of [['DOG', '강아지'], ['CAT', '고양이']]) {
         const choice = el('label', 'pet-choice pet-draft-species-choice');
         const input = el('input');
         input.type = 'radio';
         input.name = 'pet-species';
         input.value = value;
         input.checked = species === value;
-        choice.append(input, el('span', 'pet-draft-species-icon', icon), el('span', '', label));
+        choice.append(input, approvedPetSpeciesPhoto(value), el('span', '', label));
         speciesRow.appendChild(choice);
       }
       speciesField.appendChild(speciesRow);
@@ -2332,7 +2350,7 @@ export async function mountPetFamilyManager({
       queueMicrotask(() => { if (species) nameInput.focus(); });
     };
 
-    // ------------------------------------------------ 2단계 · 사진 10장
+    // ------------------------------------------------ 2단계 · 필수 5장 + 선택 5장
     const renderDraftPhotos = () => {
       body.replaceChildren();
       stepChrome('PHOTOS');
@@ -2355,7 +2373,6 @@ export async function mountPetFamilyManager({
       const progressNote = el('p', 'pet-empty-copy', draftPhotoProgressMessage(progression));
       progressNote.dataset.petDraftPhotoNote = '';
       progressNote.setAttribute('aria-live', 'polite');
-      body.append(count, progressNote);
       body.appendChild(petBulkPanel({
         key: registrationDraft.draftId,
         room: PET_PHOTO_SLOT_CODES.length - registrationDraft.photos.length,
@@ -2367,13 +2384,12 @@ export async function mountPetFamilyManager({
         },
         done: async () => { if (detailSection.isConnected && screenStep === 'PHOTOS') renderDraftPhotos(); },
       }));
-      const examples = el('p', 'pet-empty-copy pet-slot-examples', '아래 10칸은 어떤 사진이 있으면 좋은지 보여 주는 예시예요. 칸을 다 채우지 않아도 돼요.');
+      body.append(count, progressNote);
+      const examples = el('p', 'pet-empty-copy pet-slot-examples', '아래는 필수 5장의 촬영 방향을 보여 주는 가상 예시예요.');
       examples.dataset.petSlotExamples = '';
       body.appendChild(examples);
-      const grid = el('div', 'pet-slot-grid');
-      grid.dataset.petDraftSlotGrid = '';
-
-      PET_PHOTO_DISPLAY_ORDER.forEach((slotCode, index) => {
+      const makeTile = slotCode => {
+        const index = PET_PHOTO_DISPLAY_ORDER.indexOf(slotCode);
         const photo = photosBySlot.get(slotCode);
         const tile = el('figure', 'pet-slot');
         tile.dataset.petDraftSlot = slotCode;
@@ -2432,9 +2448,21 @@ export async function mountPetFamilyManager({
           tile.append(actions);
         }
         tile.appendChild(slotError);
-        grid.appendChild(tile);
-      });
-      body.appendChild(grid);
+        return tile;
+      };
+      const requiredGrid = el('div', 'pet-slot-grid pet-slot-grid-required');
+      requiredGrid.dataset.petDraftSlotGrid = '';
+      PET_REQUIRED_EXAMPLE_SLOTS.forEach(slotCode => requiredGrid.appendChild(makeTile(slotCode)));
+      body.appendChild(requiredGrid);
+
+      const optional = el('details', 'pet-photo-optional');
+      optional.open = PET_OPTIONAL_EXAMPLE_SLOTS.some(slotCode => photosBySlot.has(slotCode));
+      optional.appendChild(el('summary', '', '인식을 돕는 사진 더 추가하기 (선택)'));
+      optional.appendChild(el('p', 'pet-empty-copy', '필수 5장으로 등록할 수 있어요. 뒷모습·코·특징 사진은 원하는 경우에만 확인해 주세요.'));
+      const optionalGrid = el('div', 'pet-slot-grid pet-slot-grid-optional');
+      PET_OPTIONAL_EXAMPLE_SLOTS.forEach(slotCode => optionalGrid.appendChild(makeTile(slotCode)));
+      optional.appendChild(optionalGrid);
+      body.appendChild(optional);
       schedulePoll();
 
       for (const photo of registrationDraft.photos) {
@@ -2506,6 +2534,7 @@ export async function mountPetFamilyManager({
         if (value !== '' && value !== null && value !== undefined) facts.append(el('dt', '', term), el('dd', '', String(value)));
       };
       add('이름', registrationDraft.name);
+      add(LOTBI_PET_NUMBER_LABEL, maskedPetRegistrationNumber());
       add('종', petSpeciesLabel(registrationDraft.species));
       add('성별', petSexLabel(registrationDraft.sex));
       add('품종', catalog.breeds[registrationDraft.species]?.find(item => item.code === registrationDraft.breedCode)?.displayName || registrationDraft.breed);
