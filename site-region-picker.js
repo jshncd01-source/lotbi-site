@@ -6,8 +6,8 @@
 // the pick also carries the list's own coordinates for that 시·군, so a PC
 // can keep it as the person's region (site-location-allow.js decides), and
 // the saved region is chosen when the list opens.
-import {CORE_ORIGIN} from './site-core.js?v=aset-547365c1b736';
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-547365c1b736';
+import {CORE_ORIGIN} from './site-core.js?v=aset-84d34e2ec17f';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-84d34e2ec17f';
 
 const REGION_LIST_TIMEOUT_MS = 8000;
 let regionChoicesRequest = null;
