@@ -19,10 +19,10 @@
 // story is hidden), 오늘 in pages of 20 with 더보기 (Core's order: under 전체
 // sports and photo items come last) and 1주일 as one heading per day with up
 // to ten representative stories.
-import {CORE_ORIGIN} from './site-core.js?v=aset-d3cb8f96c851';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-d3cb8f96c851';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-d3cb8f96c851';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-d3cb8f96c851';
+import {CORE_ORIGIN} from './site-core.js?v=aset-e99b480c964e';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-e99b480c964e';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-e99b480c964e';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-e99b480c964e';
 
 export const NEWS_PROVINCES = Object.freeze([
   '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시', '세종특별자치시',
