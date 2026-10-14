@@ -1,5 +1,5 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-24f66553bd50';
-import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-24f66553bd50';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-130d0e02bf77';
+import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-130d0e02bf77';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;
@@ -124,6 +124,16 @@ function calendarEntryDetails(value = {}) {
   if (!/^[A-Z]{3}$/.test(currency)) {
     throw new SiteCoreError('통화가 올바르지 않습니다.', {code: 'LIFE_ENTRY_CURRENCY_INVALID', status: 422});
   }
+  // CALENDAR-DESIGN-04: 예정 지출(PLANNED)은 월 합계에 넣지 않고, 실제 지출(PAID)만
+  // 더한다. Core와 같은 규칙: 금액이 없으면 상태도 없고, 상태 없이 온 금액(이 값이
+  // 생기기 전의 기록)은 지금까지처럼 실제 지출이다.
+  const statusRaw = value?.expense_status ?? value?.expenseStatus ?? null;
+  let expenseStatus = typeof statusRaw === 'string' && statusRaw ? statusRaw : null;
+  if (expenseStatus !== null && expenseStatus !== 'PLANNED' && expenseStatus !== 'PAID') {
+    throw new SiteCoreError('지출 구분이 올바르지 않습니다.', {code: 'LIFE_ENTRY_EXPENSE_STATUS_INVALID', status: 422});
+  }
+  if (amount === null) expenseStatus = null;
+  else if (expenseStatus === null) expenseStatus = 'PAID';
   // Festival source link (FESTIVAL-EVENT-10/12): mirrors lotbi-core's
   // app.smart_calendar_entry.CalendarEntryDetails pairing rules exactly, so a
   // malformed combination fails the same way on both sides. source_kind is a
@@ -161,6 +171,7 @@ function calendarEntryDetails(value = {}) {
     amount_minor: amount,
     currency,
     expense_category: category,
+    expense_status: expenseStatus,
     memo: optionalText(value?.memo, 2000),
     place: optionalText(value?.place, 240),
     merchant: optionalText(value?.merchant, 240),
@@ -808,6 +819,10 @@ function assertExpenseSummaryResponse(payload) {
         expenseCategory: category.expense_category,
         amountMinor: category.amount_minor,
         entryCount: category.entry_count,
+        // CALENDAR-DESIGN-04: 예정 금액은 실제 합계와 따로 온다. 이 값이 없는
+        // Core(배포 전)에서는 예정이 0원이다.
+        plannedAmountMinor: Number.isInteger(category.planned_amount_minor) ? category.planned_amount_minor : 0,
+        plannedEntryCount: Number.isInteger(category.planned_entry_count) ? category.planned_entry_count : 0,
       };
     });
     return {
@@ -815,6 +830,8 @@ function assertExpenseSummaryResponse(payload) {
       categories,
       totalAmountMinor: row.total_amount_minor,
       entryCount: row.entry_count,
+      plannedAmountMinor: Number.isInteger(row.planned_amount_minor) ? row.planned_amount_minor : 0,
+      plannedEntryCount: Number.isInteger(row.planned_entry_count) ? row.planned_entry_count : 0,
     };
   });
 

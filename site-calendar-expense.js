@@ -82,14 +82,23 @@ export function expenseSummaryFromEntries(entries, {startDate = '', endDate = ''
     const category = EXPENSE_CATEGORY_ORDER.includes(entry.expense_category)
       ? entry.expense_category
       : 'UNCLASSIFIED';
-    if (!byCurrency.has(currency)) byCurrency.set(currency, {categories: new Map(), total: 0, count: 0});
+    if (!byCurrency.has(currency)) byCurrency.set(currency, {categories: new Map(), total: 0, count: 0, plannedTotal: 0, plannedCount: 0});
     const bucket = byCurrency.get(currency);
-    const row = bucket.categories.get(category) || {amountMinor: 0, entryCount: 0};
-    row.amountMinor += amount;
-    row.entryCount += 1;
+    const row = bucket.categories.get(category) || {amountMinor: 0, entryCount: 0, plannedAmountMinor: 0, plannedEntryCount: 0};
+    // CALENDAR-DESIGN-04: 예정 지출은 합계에 넣지 않고 따로 센다(Core와 같은 규칙).
+    // 상태 없이 저장된 예전 금액은 실제 지출이다.
+    if (entry.expense_status === 'PLANNED') {
+      row.plannedAmountMinor += amount;
+      row.plannedEntryCount += 1;
+      bucket.plannedTotal += amount;
+      bucket.plannedCount += 1;
+    } else {
+      row.amountMinor += amount;
+      row.entryCount += 1;
+      bucket.total += amount;
+      bucket.count += 1;
+    }
     bucket.categories.set(category, row);
-    bucket.total += amount;
-    bucket.count += 1;
   }
 
   const currencies = [...byCurrency.entries()].map(([currency, bucket]) => ({
@@ -99,6 +108,8 @@ export function expenseSummaryFromEntries(entries, {startDate = '', endDate = ''
       .map(name => ({expenseCategory: name, ...bucket.categories.get(name)})),
     totalAmountMinor: bucket.total,
     entryCount: bucket.count,
+    plannedAmountMinor: bucket.plannedTotal,
+    plannedEntryCount: bucket.plannedCount,
   }));
 
   return {startDate, endDate, currencies, entriesWithoutAmount};

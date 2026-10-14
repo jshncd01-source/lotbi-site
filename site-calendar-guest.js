@@ -1,4 +1,4 @@
-import {sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-24f66553bd50';
+import {sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-130d0e02bf77';
 
 export const GUEST_CALENDAR_STORAGE_KEY = 'lotbi.guest.calendar.v1';
 const SCHEMA_VERSION = 2;
@@ -73,10 +73,17 @@ function normalizeEntry(input) {
   if (amount !== null && category === null) category = 'UNCLASSIFIED';
   const currency = typeof source.currency === 'string' && source.currency.trim() ? source.currency.trim().toUpperCase() : 'KRW';
   if (!/^[A-Z]{3}$/.test(currency)) throw invalidInput();
+  // CALENDAR-DESIGN-04: 예정/실제 지출. 금액이 없으면 상태도 없고, 상태 없이
+  // 저장된 예전 금액은 실제 지출로 읽는다(Core와 같은 규칙).
+  let expenseStatus = typeof source.expense_status === 'string' && source.expense_status ? source.expense_status : null;
+  if (expenseStatus !== null && expenseStatus !== 'PLANNED' && expenseStatus !== 'PAID') throw invalidInput();
+  if (amount === null) expenseStatus = null;
+  else if (expenseStatus === null) expenseStatus = 'PAID';
   return Object.freeze({
     amount_minor: amount,
     currency,
     expense_category: category,
+    expense_status: expenseStatus,
     memo: optionalText(source.memo, 2000),
     place: optionalText(source.place, 240),
     merchant: optionalText(source.merchant, 240),
