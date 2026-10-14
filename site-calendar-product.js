@@ -1,14 +1,8 @@
 // Pure Calendar presentation decisions shared by Week, Month, and Schedule.
 // These labels are derived at read time; no inferred kind or state is stored.
-<<<<<<< HEAD
-import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-7fa7de3c1d17';
-import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-7fa7de3c1d17';
-import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-7fa7de3c1d17';
-=======
-import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-ac2a98a2ffa1';
-import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-ac2a98a2ffa1';
-import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-ac2a98a2ffa1';
->>>>>>> origin/main
+import {addCivilDays, civilDateParts, groupCalendarEvents, sortCalendarEvents, validCivilDate} from './site-calendar-model.js?v=aset-95f232f1d240';
+import {weatherPrecipitationLabel, weatherTemperatureLabel} from './site-calendar-weather.js?v=aset-95f232f1d240';
+import {expenseCategoryLabel, formatExpenseAmount} from './site-calendar-expense.js?v=aset-95f232f1d240';
 
 // The approved add UX uses the same Korean 12-hour clock in the editor and
 // every calendar read surface. Stored values remain 24-hour local datetimes.

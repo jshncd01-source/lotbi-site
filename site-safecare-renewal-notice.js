@@ -1,9 +1,5 @@
-<<<<<<< HEAD
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-7fa7de3c1d17';
-=======
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-ac2a98a2ffa1';
-import {fgIcon} from './site-family-guardian-ui.js?v=aset-ac2a98a2ffa1';
->>>>>>> origin/main
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-95f232f1d240';
+import {fgIcon} from './site-family-guardian-ui.js?v=aset-95f232f1d240';
 
 const el = (tag, className = '', text = '') => {
   const node = document.createElement(tag);

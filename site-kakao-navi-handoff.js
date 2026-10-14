@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import {CORE_ORIGIN} from './site-core.js?v=aset-7fa7de3c1d17';
-=======
-import {CORE_ORIGIN} from './site-core.js?v=aset-ac2a98a2ffa1';
->>>>>>> origin/main
+import {CORE_ORIGIN} from './site-core.js?v=aset-95f232f1d240';
 
 const status = document.getElementById('status');
 const launch = document.getElementById('launch');

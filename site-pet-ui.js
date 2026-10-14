@@ -55,38 +55,23 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-<<<<<<< HEAD
-} from './site-pet.js?v=aset-7fa7de3c1d17';
-=======
-} from './site-pet.js?v=aset-ac2a98a2ffa1';
->>>>>>> origin/main
+} from './site-pet.js?v=aset-95f232f1d240';
 import {
   PET_APPROVED_EXAMPLE_CROPS,
   petPhotoSlotArtwork,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-<<<<<<< HEAD
-} from './site-pet-guides.js?v=aset-7fa7de3c1d17';
-=======
-} from './site-pet-guides.js?v=aset-ac2a98a2ffa1';
->>>>>>> origin/main
+} from './site-pet-guides.js?v=aset-95f232f1d240';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-<<<<<<< HEAD
-} from './site-pet-gate.js?v=aset-7fa7de3c1d17';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-7fa7de3c1d17';
-import {personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-7fa7de3c1d17';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-7fa7de3c1d17';
-=======
-} from './site-pet-gate.js?v=aset-ac2a98a2ffa1';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-ac2a98a2ffa1';
-import {fgCountTiles, fgIcon, fgIconLine, fgTileTag} from './site-family-guardian-ui.js?v=aset-ac2a98a2ffa1';
-import {personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-ac2a98a2ffa1';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-ac2a98a2ffa1';
->>>>>>> origin/main
+} from './site-pet-gate.js?v=aset-95f232f1d240';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-95f232f1d240';
+import {fgCountTiles, fgIcon, fgIconLine, fgTileTag} from './site-family-guardian-ui.js?v=aset-95f232f1d240';
+import {personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-95f232f1d240';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-95f232f1d240';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -95,11 +80,7 @@ import {
   identityPhotoProgress,
   renewalBadge,
   safecareSosSubmitReady,
-<<<<<<< HEAD
-} from './site-safecare-common.js?v=aset-7fa7de3c1d17';
-=======
-} from './site-safecare-common.js?v=aset-ac2a98a2ffa1';
->>>>>>> origin/main
+} from './site-safecare-common.js?v=aset-95f232f1d240';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';

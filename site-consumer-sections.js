@@ -1,15 +1,8 @@
-<<<<<<< HEAD
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-7fa7de3c1d17';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-7fa7de3c1d17';
-import {chooseRegion} from './site-location-allow.js?v=aset-7fa7de3c1d17';
-import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-7fa7de3c1d17';
-=======
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-ac2a98a2ffa1';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-ac2a98a2ffa1';
-import {chooseRegion} from './site-location-allow.js?v=aset-ac2a98a2ffa1';
-import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-ac2a98a2ffa1';
-import {fgIcon} from './site-family-guardian-ui.js?v=aset-ac2a98a2ffa1';
->>>>>>> origin/main
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-95f232f1d240';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-95f232f1d240';
+import {chooseRegion} from './site-location-allow.js?v=aset-95f232f1d240';
+import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-95f232f1d240';
+import {fgIcon} from './site-family-guardian-ui.js?v=aset-95f232f1d240';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -387,11 +380,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-medical');
       detail.append(host);
       root.replaceChildren(detail); setView('life-medical');
-<<<<<<< HEAD
-      import('./site-life-medical-list.js?v=aset-7fa7de3c1d17').then(({mountMedicalList}) => {
-=======
-      import('./site-life-medical-list.js?v=aset-ac2a98a2ffa1').then(({mountMedicalList}) => {
->>>>>>> origin/main
+      import('./site-life-medical-list.js?v=aset-95f232f1d240').then(({mountMedicalList}) => {
         if (disposed || current !== generation) return null;
         return mountMedicalList({root: host}).then(mounted => {
           if (disposed || current !== generation) { mounted.dispose(); return; }
@@ -413,11 +402,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(host);
       root.replaceChildren(detail); setView('life-news');
-<<<<<<< HEAD
-      import('./site-life-news.js?v=aset-7fa7de3c1d17').then(({mountRegionalNews}) => {
-=======
-      import('./site-life-news.js?v=aset-ac2a98a2ffa1').then(({mountRegionalNews}) => {
->>>>>>> origin/main
+      import('./site-life-news.js?v=aset-95f232f1d240').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -438,11 +423,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(title, host);
       root.replaceChildren(detail); setView('life-education'); title.focus();
-<<<<<<< HEAD
-      import('./site-life-education.js?v=aset-7fa7de3c1d17').then(({mountEducation}) => {
-=======
-      import('./site-life-education.js?v=aset-ac2a98a2ffa1').then(({mountEducation}) => {
->>>>>>> origin/main
+      import('./site-life-education.js?v=aset-95f232f1d240').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {

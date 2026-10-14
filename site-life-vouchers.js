@@ -15,19 +15,11 @@
 // LOTBI does not issue, sell or take payment for any voucher and is not the
 // issuer's partner. The list is the official/staff-checked data, not real-time
 // payment availability.
-<<<<<<< HEAD
-import {CORE_ORIGIN} from './site-core.js?v=aset-7fa7de3c1d17';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-7fa7de3c1d17';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-7fa7de3c1d17';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-7fa7de3c1d17';
-import {mountOnnuriMerchants, readMapPreference, mapPreferenceNote, mapIconName, MAP_ICON_VERSION} from './site-life-onnuri.js?v=aset-7fa7de3c1d17';
-=======
-import {CORE_ORIGIN} from './site-core.js?v=aset-ac2a98a2ffa1';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-ac2a98a2ffa1';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-ac2a98a2ffa1';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-ac2a98a2ffa1';
-import {mountOnnuriMerchants, readMapPreference, mapPreferenceNote, mapIconName, MAP_ICON_VERSION} from './site-life-onnuri.js?v=aset-ac2a98a2ffa1';
->>>>>>> origin/main
+import {CORE_ORIGIN} from './site-core.js?v=aset-95f232f1d240';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-95f232f1d240';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-95f232f1d240';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-95f232f1d240';
+import {mountOnnuriMerchants, readMapPreference, mapPreferenceNote, mapIconName, MAP_ICON_VERSION} from './site-life-onnuri.js?v=aset-95f232f1d240';
 
 export const VOUCHER_HUB_TITLE = '온누리상품권·지역화폐';
 export const VOUCHER_TABS = Object.freeze([['onnuri', '온누리상품권'], ['local', '지역화폐']]);

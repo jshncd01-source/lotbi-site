@@ -9,19 +9,11 @@ import {
   returnHomeFromStaleSiteHandoff,
   siteHandoffReturnPath,
   SiteHandoffClientError,
-<<<<<<< HEAD
-} from './site-auth.js?v=aset-7fa7de3c1d17';
-import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-7fa7de3c1d17';
-import {parseSiteRouteHash} from './site-route.js?v=aset-7fa7de3c1d17';
-import {mountConversation} from './site-conversation.js?v=aset-7fa7de3c1d17';
-import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-7fa7de3c1d17';
-=======
-} from './site-auth.js?v=aset-ac2a98a2ffa1';
-import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-ac2a98a2ffa1';
-import {parseSiteRouteHash} from './site-route.js?v=aset-ac2a98a2ffa1';
-import {mountConversation} from './site-conversation.js?v=aset-ac2a98a2ffa1';
-import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-ac2a98a2ffa1';
->>>>>>> origin/main
+} from './site-auth.js?v=aset-95f232f1d240';
+import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-95f232f1d240';
+import {parseSiteRouteHash} from './site-route.js?v=aset-95f232f1d240';
+import {mountConversation} from './site-conversation.js?v=aset-95f232f1d240';
+import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-95f232f1d240';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
@@ -150,13 +142,8 @@ async function hydrateHomeShell() {
   document.body.replaceWith(nextBody);
   window.dispatchEvent(new CustomEvent('lotbi:home-shell-hydrated'));
   document.title = parsed.title || 'LOTBI | 무엇을 도와드릴까요?';
-<<<<<<< HEAD
-  await loadClassicScript('/home-shell.js?v=aset-7fa7de3c1d17');
-  await loadClassicScript('/mobile-entry.js?v=aset-7fa7de3c1d17');
-=======
-  await loadClassicScript('/home-shell.js?v=aset-ac2a98a2ffa1');
-  await loadClassicScript('/mobile-entry.js?v=aset-ac2a98a2ffa1');
->>>>>>> origin/main
+  await loadClassicScript('/home-shell.js?v=aset-95f232f1d240');
+  await loadClassicScript('/mobile-entry.js?v=aset-95f232f1d240');
 }
 
 async function completeSiteHandoff() {

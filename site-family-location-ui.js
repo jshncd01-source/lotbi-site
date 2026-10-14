@@ -17,20 +17,12 @@ import {
   familyInviteRef, familyMapLinks, familyPlaceCenterFromFix, familyPresenceText, familySosMissingReport, getFamilyOverview, getFamilyRequest,
   getFamilyStatusCheck, listFamilyPlaces, pauseFamilySharing, previewFamilyInvite, putFamilyAlertSettings, reconfirmFamilySharing,
   reportFamilyTracking, resumeFamilySharing, revokeFamilyInvite, sendFamilyLocationOnce, sendFamilySos, updateFamilyPlace,
-<<<<<<< HEAD
-} from './site-family-location.js?v=aset-7fa7de3c1d17';
-import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-7fa7de3c1d17';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-7fa7de3c1d17';
-import {shareWithKakaoTalk} from './site-kakao-share.js?v=aset-7fa7de3c1d17';
-import {takeFamilyInviteIntent} from './site-route.js?v=aset-7fa7de3c1d17';
-=======
-} from './site-family-location.js?v=aset-ac2a98a2ffa1';
-import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-ac2a98a2ffa1';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-ac2a98a2ffa1';
-import {shareWithKakaoTalk} from './site-kakao-share.js?v=aset-ac2a98a2ffa1';
-import {takeFamilyInviteIntent} from './site-route.js?v=aset-ac2a98a2ffa1';
-import {confirmFamilyAction, fgKakaoSymbol} from './site-family-guardian-ui.js?v=aset-ac2a98a2ffa1';
->>>>>>> origin/main
+} from './site-family-location.js?v=aset-95f232f1d240';
+import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-95f232f1d240';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-95f232f1d240';
+import {shareWithKakaoTalk} from './site-kakao-share.js?v=aset-95f232f1d240';
+import {takeFamilyInviteIntent} from './site-route.js?v=aset-95f232f1d240';
+import {confirmFamilyAction, fgKakaoSymbol} from './site-family-guardian-ui.js?v=aset-95f232f1d240';
 
 const SHARER_RELATIONS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모님'], ['SPOUSE', '배우자'], ['FAMILY', '가족']]);
 const RELATION_LABEL = Object.freeze({CHILD: '자녀', PARENT: '부모님', SPOUSE: '배우자', FAMILY: '가족', GUARDIAN: '함께 보는 보호자', OWNER: '가족 주인'});

@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-7fa7de3c1d17';
-import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-7fa7de3c1d17';
-=======
-import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-ac2a98a2ffa1';
-import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-ac2a98a2ffa1';
->>>>>>> origin/main
+import {adoptSiteSession, beginSiteHandoff, clearSiteLogoutSuppression, hasSiteLogoutSuppression, markSiteLogoutSuppression, readAccountSessionStatus, renewSiteSessionSilently, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-95f232f1d240';
+import {prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-95f232f1d240';
 
 export const SITE_SESSION_STATE_EVENT = 'lotbi:site-session-state';
 export const AUTH_STATE_CHECKING = 'checking';
