@@ -24,11 +24,12 @@ assert.match(js, /\['프로필 관리', openProfile\], \['설정', openSettings\
 assert.match(js, /mountConsumerSection/);
 assert.match(js, /workspace: section/);
 const calendarSurface = js.slice(js.indexOf('const openCalendar = async'), js.indexOf('const bindCalendarEntries'));
-assert.match(calendarSurface, /panel\.classList\.add\('site-calendar-modal', 'site-calendar-chat-popup'\)/);
-assert.match(calendarSurface, /installSurfaceBehavior\(backdrop, panel, \{\s*modal: true,/);
-assert.match(calendarSurface, /modal: true,\s*dismissOnBackdrop: false,/,
-  'Calendar chat modal must stay open when its backdrop or blank modal area is clicked');
-assert.doesNotMatch(calendarSurface, /workspace:/, 'Calendar must remain an overlay over the chat');
+assert.match(calendarSurface, /panel\.classList\.add\('site-calendar-modal', 'site-calendar-chat-popup', 'site-calendar-page'\)/,
+  'Calendar must opt into the approved full-page workspace surface');
+assert.match(calendarSurface, /installSurfaceBehavior\(backdrop, panel, \{\s*modal: false,\s*workspace: 'calendar',/,
+  'Calendar must be installed as the calendar workspace, not a modal over the chat');
+assert.match(calendarSurface, /dismissOnBackdrop: false,\s*route: 'calendar',/,
+  'Calendar workspace must stay open on blank-area clicks and own the calendar route');
 assert.match(js, /dismissOnBackdrop = true/,
   'Other surfaces must retain backdrop dismissal unless they explicitly opt out');
 // REGIONAL-INFO-BACK-NAVIGATION-01 (owner report: any blank spot went to the
