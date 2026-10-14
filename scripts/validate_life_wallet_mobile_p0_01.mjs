@@ -4,9 +4,9 @@
 // LIFE-WALLET-PIN-ATTACHMENT-UX-P0), (2) a camera shot takes the same path as a gallery
 // file (EXIF orientation, large photos, header without a size, WebP; HEIC explained where the
 // browser cannot open it) and is recognised even when the card is small in the frame,
-// (3) the wallet card deck shows the front item whole at phone widths (LIFE-WALLET-CARD-DECK-01
-// replaced the one-item strip: peeking cards stay inside the deck), and (4) the PIN keypad
-// does not raise the phone keyboard. All images are synthetic.
+// (3) the saved items show whole at phone widths (LIFE-WALLET-REDESIGN-02 replaced the card
+// deck with a list: one row per item, the blurred picture contained in its thumbnail), and
+// (4) the PIN keypad does not raise the phone keyboard. All images are synthetic.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -65,31 +65,29 @@ try {
 } catch (error) { window.__result = JSON.stringify({ok: false, error: String(error?.stack || error)}); }
 </script></body></html>`;
 
-// The front item whole at phone widths; the cards peeking out behind it stay inside the deck.
+// The saved items whole at phone widths: one row each, inside the list, the picture contained
+// (and blurred) in its thumbnail, the title readable.
 const carouselFixture = head + `<script type="module">
 ${helpers}
 try {
-  const {createWalletCardDeck} = await import('/site-life-wallet.js?test=mobile-p0-deck');
+  const {createWalletItems} = await import('/site-life-wallet.js?test=mobile-p0-list');
   const shaped = (width, height) => { const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const context = canvas.getContext('2d'); context.fillStyle = '#fff'; context.fillRect(0, 0, width, height); context.fillStyle = '#123'; context.fillRect(width * .1, height * .1, width * .8, height * .8); return canvas.toDataURL('image/png'); };
-  const deck = createWalletCardDeck({cards: [{id: 'a', name: 'a', kind: 'document', note: '', updatedAt: '2026-10-01T12:00:00.000Z', frontDataUrl: shaped(1618, 1044)}, {id: 'b', name: 'b', kind: 'document', note: '', updatedAt: '2026-10-01T12:00:00.000Z', frontDataUrl: shaped(1015, 643)}, {id: 'c', name: 'c', kind: 'document', note: '', updatedAt: '2026-10-01T12:00:00.000Z', frontDataUrl: shaped(1467, 2048)}], onOpen: () => {}});
-  document.getElementById('host').append(deck);
+  const host = document.getElementById('host'); host.classList.add('wallet-root');
+  const list = createWalletItems({cards: [{id: 'a', name: '운전면허증', kind: 'document', category: 'identity', note: '', updatedAt: '2026-10-03T12:00:00.000Z', frontDataUrl: shaped(1618, 1044)}, {id: 'b', name: '디자인 회사 명함', kind: 'document', category: 'business-card', note: '', updatedAt: '2026-10-02T12:00:00.000Z', frontDataUrl: shaped(1015, 643)}, {id: 'c', name: '재직증명서', kind: 'document', category: 'document', note: '', updatedAt: '2026-10-01T12:00:00.000Z', frontDataUrl: shaped(1467, 2048)}], onOpen: () => {}});
+  host.append(list);
   // Loaded = complete with a size (image.decode() can stay pending in headless Chrome under load).
-  for (let i = 0; i < 400 && ![...deck.querySelectorAll('img')].every(image => image.complete && image.naturalWidth); i += 1) await sleep(25);
+  for (let i = 0; i < 400 && ![...list.querySelectorAll('img')].every(image => image.complete && image.naturalWidth); i += 1) await sleep(25);
   await sleep(400);
-  const stage = deck.querySelector('.wallet-deck');
-  const views = [];
-  for (let index = 0; index < 3; index += 1) {
-    if (index) { stage.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', bubbles: true})); await sleep(600); }
-    const frame = deck.getBoundingClientRect();
-    const card = deck.querySelector('.wallet-deck-card[data-depth="0"]'); const image = card.querySelector('img');
-    const c = card.getBoundingClientRect(); const i = image.getBoundingClientRect();
-    const others = [...deck.querySelectorAll('.wallet-deck-card')].filter(other => other !== card && getComputedStyle(other).opacity !== '0').map(other => other.getBoundingClientRect());
-    views.push({index, shape: card.dataset.shape, frontOnTop: document.elementFromPoint(c.left + c.width / 2, c.top + c.height / 2)?.closest('.wallet-deck-card') === card,
-      cardInside: c.left >= frame.left - .5 && c.right <= frame.right + .5 && c.top >= frame.top - .5 && c.right <= innerWidth,
-      othersInside: others.every(r => r.left >= frame.left - .5 && r.right <= frame.right + .5 && r.top >= frame.top - .5),
-      imageInside: i.left >= c.left - .5 && i.right <= c.right + .5 && i.top >= c.top - .5 && i.bottom <= c.bottom + .5,
-      objectFit: getComputedStyle(image).objectFit, overflow: document.documentElement.scrollWidth > innerWidth});
-  }
+  const frame = list.getBoundingClientRect();
+  const views = [...list.querySelectorAll('[data-wallet-item]')].map((item, index) => {
+    const r = item.getBoundingClientRect(); const thumb = item.querySelector('.wallet-item-thumb').getBoundingClientRect();
+    const image = item.querySelector('img'); const i = image.getBoundingClientRect(); const title = item.querySelector('.wallet-item-title');
+    return {index, row: getComputedStyle(item).flexDirection,
+      itemInside: r.left >= frame.left - .5 && r.right <= frame.right + .5 && r.right <= innerWidth,
+      imageInside: i.left >= thumb.left - .5 && i.right <= thumb.right + .5 && i.top >= thumb.top - .5 && i.bottom <= thumb.bottom + .5,
+      masked: image.dataset.masked, titleShown: title.getBoundingClientRect().width >= 60 && title.textContent.length > 0,
+      objectFit: getComputedStyle(image).objectFit, overflow: document.documentElement.scrollWidth > innerWidth};
+  });
   window.__result = JSON.stringify({ok: true, width: innerWidth, views});
 } catch (error) { window.__result = JSON.stringify({ok: false, error: String(error?.stack || error)}); }
 </script></body></html>`;
@@ -145,14 +143,14 @@ for (const width of [360, 390, 412]) {
   assert.equal(carousel.views.length, 3, JSON.stringify(carousel));
   for (const view of carousel.views) {
     const detail = `${width}px #${view.index + 1}: ${JSON.stringify(view)}`;
-    assert.equal(view.frontOnTop, true, `the item brought forward is on top: ${detail}`);
-    assert.equal(view.cardInside, true, `the whole front item is visible, nothing cut: ${detail}`);
-    assert.equal(view.othersInside, true, `cards peeking out behind stay inside the deck: ${detail}`);
-    assert.equal(view.imageInside, true, `the photo stays inside its card: ${detail}`);
+    assert.equal(view.row, 'row', `one row per item on a phone: ${detail}`);
+    assert.equal(view.itemInside, true, `the whole item is visible, nothing cut: ${detail}`);
+    assert.equal(view.imageInside, true, `the photo stays inside its thumbnail: ${detail}`);
+    assert.equal(view.masked, 'true', `the list blurs pictures: ${detail}`);
+    assert.equal(view.titleShown, true, `the title is readable beside it: ${detail}`);
     assert.equal(view.objectFit, 'contain', `object-fit contain, the document is not cropped: ${detail}`);
     assert.equal(view.overflow, false, `no sideways scrolling: ${detail}`);
   }
-  assert.deepEqual(carousel.views.map(view => view.shape), ['card', 'card', 'document'], `shape only: two cards and a page: ${JSON.stringify(carousel)}`);
   widths.push(width);
 }
 const pin = await run(pinFixture, {width: 390, height: 844, mobile: true}, 'pin');
@@ -165,4 +163,4 @@ assert.equal(pin.unlock.type, 'text');
 assert.equal(pin.unlock.ariaLabel, '월렛 PIN', 'the field stays labelled for screen readers and hardware keyboards');
 assert.equal(pin.unlock.typed, 4, 'keypad digits fill the PIN');
 assert.equal(pin.unlock.reopened, true, 'the keypad unlocks the wallet');
-console.log(`LIFE_WALLET_MOBILE_P0_01 PASS — camera near/far automatic (decoded ${picker.near.source}), webp automatic, heic explained, card deck front item whole at ${widths.join('/')}px, pin inputmode=none`);
+console.log(`LIFE_WALLET_MOBILE_P0_01 PASS — camera near/far automatic (decoded ${picker.near.source}), webp automatic, heic explained, saved items whole at ${widths.join('/')}px, pin inputmode=none`);

@@ -1,5 +1,5 @@
-import {detectDocumentCorners, framesPrintedItem, rectifyDocument, findLabelCorners} from './site-life-wallet-scan.js?v=aset-7327fad003f1';
-import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-7327fad003f1';
+import {detectDocumentCorners, framesPrintedItem, rectifyDocument, findLabelCorners} from './site-life-wallet-scan.js?v=aset-7fa7de3c1d17';
+import {isPdfFile, openPdfDocument} from './site-life-wallet-pdf.js?v=aset-7fa7de3c1d17';
 
 const CORNER_NAMES = [
   ['topLeft','왼쪽 위 모서리'],
@@ -165,24 +165,36 @@ function detectionPixels(source) {
 // onReplace: a 다시 선택 button only when given (the wallet's own 파일 변경 changes the file instead).
 // purpose 'label': a router's Wi-Fi label (LIFE-WALLET-WIFI-CARD-01) — long labels are fine, and
 // when no label is found the corner adjustment opens at once instead of a refusal.
-export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCancel=()=>{},onReplace=null,purpose='item'}={}) {
+// A small line icon for the embedded tools (회전, 자르기 조정).
+function toolIcon(d){const ns='http://www.w3.org/2000/svg';const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');const path=document.createElementNS(ns,'path');path.setAttribute('d',d);svg.append(path);return svg}
+
+// embedded (LIFE-WALLET-REDESIGN-02): the scanner is the add form's preview frame. It has no
+// 취소/저장 of its own (the form has the one 암호화하여 저장); every finished check is reported
+// through onState({state, ready, dataUrl, shape, pdf, pdfPages, reason}), and 회전 and
+// 자르기 조정 are offered for items too (a hand-placed crop is still saved only when it frames
+// printed text).
+export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCancel=()=>{},onReplace=null,purpose='item',embedded=false,onState=()=>{}}={}) {
   const label=purpose==='label';
+  const tools=label||embedded;
   const shell=node('section','wallet-scan-editor'); shell.dataset.scanState='analysing'; shell.dataset.scanEnhanced='true'; shell.dataset.scanAdjusting='false';
+  if(embedded)shell.dataset.scanEmbedded='true';
   const heading=node('h3',''); heading.hidden=true;
   const status=node('p','wallet-scan-status','확인하고 있습니다'); status.setAttribute('role','status'); status.setAttribute('aria-live','polite');
   const workspace=node('div','wallet-scan-workspace');
-  const sourcePane=node('section','wallet-scan-pane wallet-scan-source-pane'); sourcePane.hidden=true; sourcePane.append(node('h4','', '직접 조정'));
+  const sourcePane=node('section','wallet-scan-pane wallet-scan-source-pane'); sourcePane.hidden=true; sourcePane.append(node('h4','', embedded?'모서리 맞추기':'직접 조정'));
   const stage=node('div','wallet-scan-stage'); const canvas=node('canvas','wallet-scan-source'); const overlay=document.createElementNS('http://www.w3.org/2000/svg','svg'); overlay.classList.add('wallet-scan-outline'); overlay.setAttribute('aria-hidden','true');
   const polygon=document.createElementNS('http://www.w3.org/2000/svg','polygon'); overlay.append(polygon); stage.append(canvas,overlay); sourcePane.append(stage);
   const resultPane=node('section','wallet-scan-pane wallet-scan-result-pane');  const resultImage=node('img','wallet-scan-result-image'); resultImage.alt='배경과 여백을 제거한 자료 미리보기'; resultImage.hidden=true; resultPane.append(resultImage);
   workspace.append(sourcePane,resultPane);
   const warnings=node('div','wallet-scan-warnings'); warnings.setAttribute('role','status'); warnings.setAttribute('aria-live','polite');
   const choices=node('div','wallet-scan-choices');
-  const adjust=node('button','consumer-action wallet-scan-adjust','직접 조정'); adjust.type='button'; adjust.dataset.walletScanAdjust='';
+  const adjustLabel=embedded?'자르기 조정':'직접 조정';
+  const adjust=node('button','consumer-action wallet-scan-adjust',adjustLabel); adjust.type='button'; adjust.dataset.walletScanAdjust='';
   const rotate=node('button','consumer-action wallet-scan-rotate','회전'); rotate.type='button'; rotate.dataset.walletScanRotate=''; rotate.setAttribute('aria-label','오른쪽으로 90도 회전');
-  // Wallet documents are corrected automatically. Corner and rotation controls remain only
-  // for the separate router-label tool, whose purpose is selecting a label inside a device.
-  adjust.hidden=!label; rotate.hidden=!label;
+  if(embedded){rotate.prepend(toolIcon('M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4'));adjust.prepend(toolIcon('M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14'))}
+  // Wallet documents are corrected automatically; the corner and rotation controls are for the
+  // router-label tool and for the add form's preview (embedded).
+  adjust.hidden=!tools; rotate.hidden=!tools;
   choices.append(rotate,adjust);
   const actions=node('div','wallet-scan-actions');
   const cancel=node('button','consumer-action','취소'); cancel.type='button'; const replace=node('button','consumer-action','다시 선택'); replace.type='button'; const confirm=node('button','consumer-action primary','저장'); confirm.type='button'; confirm.disabled=true; confirm.dataset.walletScanConfirm=''; actions.append(cancel,...(typeof onReplace==='function'?[replace]:[]),confirm);
@@ -215,10 +227,21 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
     overlay.setAttribute('viewBox','0 0 100 100');polygon.setAttribute('points',points.join(' '));
   }
 
+  // What the embedding form needs after every check: may it save, and what shape is the result.
+  let resultShape='';
+  function report(){
+    if(!embedded||destroyed)return;
+    const state=shell.dataset.scanState;
+    onState(Object.freeze({state,ready:state==='review'&&!confirm.disabled&&Boolean(latest),dataUrl:latest,shape:resultShape,pdf:pdfSource,pdfPages:Number(shell.dataset.scanPdfPages||0),reason:shell.dataset.scanReason||''}));
+  }
+
   async function renderPreview() {
     if(!source||!corners||destroyed)return; const version=++renderVersion; confirm.disabled=true; status.textContent='확인하고 있습니다';
+    if(embedded){shell.dataset.scanState='analysing';report()}
     try{
       const result=await rectifyDocument(source,corners,{enhance:enhanced,cornerRadius:automaticGeometryKept()?cornerRadius:0,paper:paperPage,rotation,gloss:!pdfSource&&!flatPicture}); shell.dataset.scanRotation=String(rotation); if(destroyed||version!==renderVersion)return;
+      const ratio=result.width&&result.height?result.width/result.height:0;
+      resultShape=paperPage||pdfSource?'document':ratio>=1.25&&ratio<=2.1?'card':ratio?'document':'';
       latest=result.dataUrl; resultImage.src=result.dataUrl; resultImage.hidden=false; shell.dataset.scanEnhanced=String(enhanced);
       const automatic=shell.dataset.scanMode==='automatic';
       // A hand-placed crop is saved only when it frames a printed item (a pet never qualifies).
@@ -243,8 +266,8 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
         :notDocument?'등록할 수 있는 자료로 보이지 않습니다. 다른 사진을 선택해 주세요.'
         :adjusted?'모서리 안에 자료가 보이지 않습니다. 자료가 화면 안에 모두 들어오게 다시 찍어 주세요.'
         :'자료가 화면 안에 모두 들어오도록 다시 찍거나 다른 사진을 선택해 주세요.';
-      confirm.disabled=notDocument||!manualFramesItem||glareCovers; shell.dataset.scanState='review';
-    }catch(error){if(version===renderVersion&&!destroyed){status.textContent=error instanceof Error?error.message:'사진을 보정하지 못했습니다.';shell.dataset.scanState='error'}}
+      confirm.disabled=notDocument||!manualFramesItem||glareCovers; shell.dataset.scanState='review'; report();
+    }catch(error){if(version===renderVersion&&!destroyed){status.textContent=error instanceof Error?error.message:'사진을 보정하지 못했습니다.';shell.dataset.scanState='error';report()}}
   }
 
   function installHandle(name,label) {
@@ -275,7 +298,8 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
     let mode=found.mode; let reason=found.reason||'';
     // A photo without printed text (a pet, a person) is not a wallet item: no adjusting, no saving.
     // A label that was not found is placed by hand instead (its corners open at once).
-    notDocument=!label&&(reason==='not-a-document'||reason==='receipt-like'); adjust.hidden=notDocument||!label; rotate.hidden=notDocument||!label;
+    notDocument=!label&&(reason==='not-a-document'||reason==='receipt-like'); adjust.hidden=notDocument||!tools; rotate.hidden=notDocument||!tools;
+    if(embedded)resultPane.dataset.badge=pdfSource?'PDF · 1쪽':'사진';
     // A card or page found lying on its side is turned upright; the 회전 button corrects it.
     rotation=mode==='automatic'?found.rotation||0:0;
     if(mode==='manual'&&pdfSource&&!notDocument&&reason!=='receipt-like'){
@@ -290,7 +314,7 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
     await renderPreview();
   }
 
-  function showError(error){if(!destroyed){status.textContent=error instanceof Error?error.message:'사진을 분석하지 못했습니다.';shell.dataset.scanState='error'}}
+  function showError(error){if(!destroyed){status.textContent=error instanceof Error?error.message:'사진을 분석하지 못했습니다.';shell.dataset.scanState='error';report()}}
 
   async function initialize() {
     try{
@@ -308,8 +332,9 @@ export function createWalletDocumentScanner({file,kind='',onConfirm=()=>{},onCan
     }catch(error){showError(error)}
   }
 
-  function openAdjustment(){sourcePane.hidden=false;shell.dataset.scanAdjusting='true';adjust.textContent='조정 닫기';handles.get('topLeft')?.focus()}
-  function closeAdjustment(){sourcePane.hidden=true;shell.dataset.scanAdjusting='false';adjust.textContent='직접 조정';resultImage.focus?.()}
+  const adjustText=text=>{const icon=adjust.querySelector('svg');adjust.textContent=text;if(icon)adjust.prepend(icon)};
+  function openAdjustment(){sourcePane.hidden=false;shell.dataset.scanAdjusting='true';adjustText('조정 닫기');handles.get('topLeft')?.focus()}
+  function closeAdjustment(){sourcePane.hidden=true;shell.dataset.scanAdjusting='false';adjustText(adjustLabel);resultImage.focus?.()}
   adjust.addEventListener('click',()=>shell.dataset.scanAdjusting==='true'?closeAdjustment():openAdjustment());
   rotate.addEventListener('click',()=>{if(!source||destroyed)return;rotation=(rotation+90)%360;void renderPreview()});
   confirm.addEventListener('click',()=>{if(!latest||destroyed||notDocument)return;if(!manualFramesItem||glareCovers){confirm.disabled=true;return}onConfirm(latest)});

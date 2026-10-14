@@ -46,9 +46,16 @@ const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const marks = text => (text.match(/dataset\.subviewBack = ''/gu) || []).length;
 await check('each in-screen layer marks its own back / close control, one per layer', () => {
   const wallet = read('site-life-wallet.js');
-  assert.equal(marks(wallet), 3, 'Life Wallet: add-limit, card detail, 통관부호 detail');
-  assert.match(wallet, /function renderDetail\(card\) \{[\s\S]{0,300}?toList\.dataset\.subviewBack = ''/u);
-  assert.match(wallet, /function renderCustomsDetail\(customs\) \{[\s\S]{0,300}?toList\.dataset\.subviewBack = ''/u);
+  // LIFE-WALLET-REDESIGN-02: every sub-screen's back goes through backButton() (자료 추가·정보 수정·
+  // 설정·통관부호 화면), the item page and the add-limit page keep their own, and a dialog's 취소
+  // (종류 바꾸기·자료 삭제) is the last one on the page, so the phone's back closes it first.
+  assert.equal(marks(wallet), 4, 'Life Wallet: backButton, add-limit, item detail, dialog 취소');
+  assert.match(wallet, /function backButton\(label, onBack\) \{[\s\S]{0,300}?back\.dataset\.subviewBack = ''/u);
+  assert.match(wallet, /function renderDetail\(card, title = '', message = ''\) \{[\s\S]{0,600}?toList\.dataset\.subviewBack = ''/u);
+  assert.match(wallet, /function renderCustomsDetail\(customs\) \{[\s\S]{0,300}?const toList = backButton\('목록으로'/u);
+  assert.match(wallet, /function dialogCancel\(close\) \{[\s\S]{0,200}?cancel\.dataset\.subviewBack = ''/u);
+  const wifiScreens = read('site-life-wallet-wifi.js');
+  assert.match(wifiScreens, /function screen\(title, \.\.\.children\) \{[\s\S]{0,500}?back\.dataset\.subviewBack = ''/u, 'Life Wallet Wi-Fi screens go back to 생활정보');
   const person = read('site-person-ui.js');
   assert.equal(marks(person), 2, '안심케어 사람: the back bar and 등록 취소');
   assert.match(person, /const backBar = [^\n]*back\.dataset\.subviewBack = ''/u);
