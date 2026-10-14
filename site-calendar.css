@@ -3297,6 +3297,239 @@ body[data-site-theme="dark"] .calendar-day-empty { background: #171c25; }
   .calendar-day-expense-card { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* CALENDAR-APPROVED-DESIGN-FINAL-03
+   네 플랫폼 확정 시안의 계층과 간격을 Site에도 동일하게 적용한다. */
+@media (min-width: 901px) {
+  .calendar-day-panel[data-presentation='SIDE'] {
+    height: auto;
+    max-height: min(620px, calc(100dvh - 180px));
+  }
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-product-shell {
+  gap: 14px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-toolbar {
+  grid-template-columns: minmax(72px, .7fr) minmax(180px, 4fr) minmax(72px, .7fr) minmax(72px, .8fr);
+  grid-template-rows: 58px 52px;
+  gap: 10px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-toolbar > .calendar-mode-tabs {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  border: 0;
+  gap: 4px;
+  background: var(--lotbi-calendar-week-selected-surface, #f1f5fa);
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-toolbar > .calendar-nav-button[data-calendar-navigation='previous'] { grid-column: 1; grid-row: 2; }
+.consumer-workspace[data-workspace='calendar'] .calendar-toolbar > .calendar-title-button { grid-column: 2; grid-row: 2; }
+.consumer-workspace[data-workspace='calendar'] .calendar-toolbar > .calendar-nav-button[data-calendar-navigation='next'] { grid-column: 4; grid-row: 2; }
+.consumer-workspace[data-workspace='calendar'] .calendar-toolbar > .calendar-today-button { grid-column: 3; grid-row: 2; }
+.consumer-workspace[data-workspace='calendar'] .calendar-toolbar .calendar-mode-tab {
+  min-height: 52px;
+  border-radius: 11px;
+  font-size: 15px;
+  font-weight: 850;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-toolbar .calendar-mode-tab[aria-selected='true'] {
+  background: #0877ea;
+  color: #fff;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-title-button {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: clamp(19px, 2vw, 26px);
+  font-weight: 900;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-nav-button {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 22px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-today-button {
+  border-color: var(--lotbi-calendar-grid-line);
+  background: var(--lotbi-surface-primary, #fff);
+  font-weight: 800;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-month {
+  border-radius: 16px;
+  background: var(--lotbi-surface-primary, #fff);
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-weekdays {
+  font-size: 14px;
+  font-weight: 900;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-weekdays span { padding: 9px 2px 11px; }
+.consumer-workspace[data-workspace='calendar'] .calendar-date-cell {
+  min-height: 72px;
+  padding: 6px 7px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-date-number {
+  font-size: 18px;
+  font-weight: 900;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-month-grid .calendar-event-chip {
+  min-height: 20px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 20px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-month-grid .calendar-event-overflow {
+  min-height: 20px;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 20px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-year-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-year-month {
+  min-height: 190px;
+  padding: 14px;
+  border-color: var(--lotbi-calendar-grid-line);
+  border-radius: 15px;
+  background: var(--lotbi-surface-primary, #fff);
+  text-align: center;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-year-month > strong {
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: 900;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-mini-weekdays { font-size: 10px; font-weight: 800; }
+.consumer-workspace[data-workspace='calendar'] .calendar-mini-grid span { min-height: 20px; font-size: 11px; }
+.consumer-workspace[data-workspace='calendar'] .calendar-year-event-count { color: var(--lotbi-calendar-muted-ink); }
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-overview {
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 16px;
+  background: var(--lotbi-calendar-week-selected-surface, #f5f8fc);
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-head .calendar-amount-line {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-line-label { font-size: 15px; font-weight: 800; }
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-line-amount { font-size: 30px; font-weight: 950; }
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-line-chevron { display: none; }
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-image-button {
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #fff);
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  cursor: pointer;
+  font: inherit;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-categories {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--lotbi-calendar-grid-line);
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-category {
+  min-width: 0;
+  padding: 4px 8px;
+  text-align: center;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-category dt { font-size: 12px; font-weight: 750; }
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-category dd { margin-top: 4px; font-size: 15px; font-weight: 900; }
+.consumer-workspace[data-workspace='calendar'] .calendar-day-detail-backdrop > .calendar-day-panel {
+  border-radius: 24px 24px 0 0;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-day-heading {
+  font-size: 26px;
+  font-weight: 950;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-day-weather-card {
+  min-height: 92px;
+  padding: 16px;
+  border: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 16px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-day-weather-readings strong { font-size: 28px; }
+.consumer-workspace[data-workspace='calendar'] .calendar-day-event.calendar-life-row {
+  min-height: 52px;
+  border-bottom: 1px solid var(--lotbi-calendar-grid-line);
+  border-radius: 0;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-day-expense-card {
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--lotbi-calendar-week-selected-surface, #f5f8fc);
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-day-expense-value { font-size: 26px; font-weight: 950; }
+.consumer-workspace[data-workspace='calendar'] .calendar-day-empty-add {
+  min-height: 54px;
+  font-size: 16px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-editor-dialog {
+  border-radius: 24px 24px 0 0;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-editor-dialog h3 { font-size: 24px; font-weight: 950; }
+.consumer-workspace[data-workspace='calendar'] .calendar-editor-title,
+.consumer-workspace[data-workspace='calendar'] .calendar-editor-date,
+.consumer-workspace[data-workspace='calendar'] .calendar-editor-time,
+.consumer-workspace[data-workspace='calendar'] .calendar-editor-amount,
+.consumer-workspace[data-workspace='calendar'] .calendar-editor-category,
+.consumer-workspace[data-workspace='calendar'] .calendar-editor-memo {
+  min-height: 52px;
+  border-radius: 11px;
+  font-size: 15px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-editor-save {
+  background: #0877ea !important;
+  border-color: #0877ea !important;
+  color: #fff !important;
+}
+
+@media (max-width: 900px) {
+  .consumer-workspace[data-workspace='calendar'] .calendar-toolbar {
+    grid-template-columns: 48px minmax(0, 1fr) 60px 48px;
+  }
+  .consumer-workspace[data-workspace='calendar'] .calendar-title-button { font-size: 18px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-date-cell { min-height: 86px; padding: 3px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-date-number { font-size: 15px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-year-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-year-month { min-height: 154px; padding: 8px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-year-month > strong { font-size: 16px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-mini-grid span { min-height: 16px; font-size: 9px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-amount-overview { padding: 14px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-amount-line-amount { font-size: 24px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-amount-image-button { padding-inline: 10px; font-size: 12px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-amount-categories { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 420px) {
+  .calendar-toolbar .calendar-nav-button {
+    min-width: 0;
+    padding-inline: 0;
+    font-size: 0;
+  }
+  .consumer-workspace[data-workspace='calendar'] .calendar-toolbar { grid-template-rows: 48px 50px; gap: 6px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-toolbar .calendar-mode-tab { min-height: 48px; font-size: 13px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-date-cell { min-height: 78px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-month-grid .calendar-event-chip,
+  .consumer-workspace[data-workspace='calendar'] .calendar-month-grid .calendar-event-overflow { font-size: 9px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-amount-head { align-items: flex-end; }
+}
+
 /* The redesign's tablet rule above restores bounded titled rows up to 900px.
    On phones the date button also keeps its schedule-presence dots. Move those
    below the forecast band so a holiday surface never masks the schedule. */

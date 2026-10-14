@@ -547,14 +547,15 @@ try {
     if (value.lineHeight < 44) fail(`the total control must keep a 44px+ touch target, got ${value.lineHeight}px`);
     if (value.lineCategoryWords.length) fail(`the line must not spell out categories, got ${value.lineCategoryWords.join(',')}`);
     if (JSON.stringify(value.categoryRows) !== JSON.stringify([
+      ['UNCLASSIFIED', '미분류', '0원'],
       ['FOOD', '음식', '40,500원'],
       ['TRAVEL', '여행', '180,000원'],
       ['SHOPPING', '쇼핑', '0원'],
       ['LIVING', '생활비', '94,000원'],
       ['OTHER', '기타', '0원'],
-    ])) fail(`the month must show the five category amounts beneath the total, got ${JSON.stringify(value.categoryRows)}`);
+    ])) fail(`the month must show all six category amounts beneath the total, got ${JSON.stringify(value.categoryRows)}`);
     if (value.categoryPairGaps.some(gap=>gap===null)) fail(`each category must expose both its title and amount, got ${JSON.stringify(value.categoryPairGaps)}`);
-    const expectedColumns=value.viewport.width<=520?2:5;
+    const expectedColumns=value.viewport.width<=900?3:6;
     if (value.categoryColumns !== expectedColumns) fail(`the approved table must use ${expectedColumns} category columns here, got ${value.categoryColumns}`);
     for (const theme of ['Light', 'Dark']) {
       const styles=value['categoryStyles'+theme];
@@ -602,8 +603,8 @@ try {
     }
 
     if (value.emptyLine !== 'ready' || value.emptyAmount !== '0원') fail(`a month with no recorded amount must keep its line at 0원, got "${value.emptyLine}" / "${value.emptyAmount}"`);
-    if (JSON.stringify(value.emptySlots) !== JSON.stringify([['FOOD', '0원'], ['TRAVEL', '0원'], ['SHOPPING', '0원'], ['LIVING', '0원'], ['OTHER', '0원']])) {
-      fail(`a month with no recorded amount must keep the five fixed 0원 slots, got ${JSON.stringify(value.emptySlots)}`);
+    if (JSON.stringify(value.emptySlots) !== JSON.stringify([['UNCLASSIFIED', '0원'], ['FOOD', '0원'], ['TRAVEL', '0원'], ['SHOPPING', '0원'], ['LIVING', '0원'], ['OTHER', '0원']])) {
+      fail(`a month with no recorded amount must keep the six fixed 0원 slots, got ${JSON.stringify(value.emptySlots)}`);
     }
     if (value.emptyForbidden.length) fail(`an empty month must not report excluded entries, got ${value.emptyForbidden.join(',')}`);
 
@@ -627,7 +628,7 @@ try {
     //   미분류 5,000 (an amount with no category) · 금액 없음 1건 · 10월 것은 제외
     if (value.guestAskedCore) fail('guest totals must be computed here, never fetched from Core');
     if (value.guestAmount !== '301,820원') fail(`signed-out total must be 301,820원 (October's entry excluded, no amount never estimated), got ${value.guestAmount}`);
-    if (JSON.stringify(value.guestRows) !== JSON.stringify([['FOOD', '40,500원 2건'], ['TRAVEL', '208,320원 1건'], ['OTHER', '48,000원 1건'], ['UNCLASSIFIED', '5,000원 1건']])) {
+    if (JSON.stringify(value.guestRows) !== JSON.stringify([['UNCLASSIFIED', '5,000원 1건'], ['FOOD', '40,500원 2건'], ['TRAVEL', '208,320원 1건'], ['OTHER', '48,000원 1건']])) {
       fail(`signed-out breakdown is wrong, got ${JSON.stringify(value.guestRows)}`);
     }
     if (value.guestTotal !== '301,820원') fail(`signed-out breakdown total must be 301,820원, got ${value.guestTotal}`);

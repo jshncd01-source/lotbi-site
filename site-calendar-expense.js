@@ -29,15 +29,14 @@ const CATEGORY_LABELS = {
 
 // Fixed order and fixed membership. A category with nothing in it still holds
 // its slot, so a reader's eye lands on the same place every month.
-// 기타 is a kind of spending; 미분류 is the absence of a choice, so it sits last
-// and reads as something still to fill in.
+// 등록 화면과 합계표가 같은 순서를 사용한다.
 export const EXPENSE_CATEGORY_ORDER = Object.freeze([
+  'UNCLASSIFIED',
   'FOOD',
   'TRAVEL',
   'SHOPPING',
   'LIVING',
   'OTHER',
-  'UNCLASSIFIED',
 ]);
 
 // The editor's dropdown, in the same order and the same words. An empty value
@@ -423,12 +422,9 @@ function amountCategoryOverviewNode(summary) {
     const byCategory = new Map((currency.categories || [])
       .filter(row => EXPENSE_CATEGORY_ORDER.includes(row?.expenseCategory))
       .map(row => [row.expenseCategory, row]));
-    const unclassified = byCategory.get('UNCLASSIFIED');
-    const hasUnclassified = (
-      (Number.isInteger(unclassified?.entryCount) && unclassified.entryCount > 0)
-      || (Number.isInteger(unclassified?.amountMinor) && unclassified.amountMinor !== 0)
-    );
-    const visibleCategories = EXPENSE_CATEGORY_ORDER.filter(category => category !== 'UNCLASSIFIED' || hasUnclassified);
+    // 등록 화면과 합계표는 같은 여섯 종류를 항상 보여 준다. 기록이 없는
+    // 종류도 0원으로 남겨 사용자가 합계 기준을 한눈에 확인할 수 있다.
+    const visibleCategories = EXPENSE_CATEGORY_ORDER;
     const list = document.createElement('dl');
     list.className = 'calendar-amount-categories';
     list.dataset.currency = currency.currency;
@@ -460,7 +456,19 @@ export function calendarAmountSummaryBlock(options) {
   block.setAttribute('aria-label', options.periodLabel
     ? `${options.periodLabel} 생활비 합계`
     : Number.isInteger(options.month) ? `${options.month}월 생활비 합계` : '생활비 합계');
-  block.append(line, categories);
+  const head = document.createElement('div');
+  head.className = 'calendar-amount-head';
+  head.appendChild(line);
+  if (typeof options?.onImage === 'function') {
+    const image = document.createElement('button');
+    image.type = 'button';
+    image.className = 'calendar-amount-image-button';
+    image.textContent = '▧ 사진으로 추가';
+    image.setAttribute('aria-label', '사진에서 일정과 금액 추가');
+    image.addEventListener('click', () => options.onImage(image));
+    head.appendChild(image);
+  }
+  block.append(head, categories);
   return block;
 }
 
