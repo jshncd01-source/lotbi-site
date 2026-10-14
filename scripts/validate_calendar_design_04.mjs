@@ -10,6 +10,7 @@
 //   - 편집기: 제목이 먼저, 지출 연결은 접힌 줄, 휴대폰은 머리글 '저장'.
 //   - 사진 확인: 날짜가 같으면 한 건, 다르면 일정·지출 두 건. 등록 전에는 저장하지 않는다.
 //   - 가로 넘침 0, 다크 모드에서 카드가 흰 바탕으로 남지 않는다.
+import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {runFixturePage} from './lib/headless-fixture-result.mjs';
@@ -163,10 +164,15 @@ try {
   // 7) 월: 공휴일 이름, 선택한 날, 넓은 화면은 오른쪽 카드 · 휴대폰은 아래 목록
   await tab('month');
   await until(() => root.querySelector('.c4-mo'), 'month');
+  // 처음 열면 오늘 하나만 골라져 있고, 날짜를 눌러도 입력칸에 커서가 들어가지 않는다(휴대폰 키보드가 뜨지 않게).
+  const picked = [...root.querySelectorAll('.c4-mc[data-selected="true"]')].map(cell => cell.dataset.calendarDateTrigger);
+  if (picked.join(',') !== '2026-10-14') fail('only today is selected on open: ' + picked.join(','));
   const holidayCell = root.querySelector('.c4-mc[data-calendar-date-trigger="2026-10-09"]');
   if (!/한글날/.test(text(holidayCell.querySelector('.c4-mc-hol')))) fail('holiday name in the cell');
   holidayCell.click();
   await until(() => /한글날 · 공휴일/.test(text(strip())), 'holiday name in the strip');
+  if (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) fail('tapping a date moved the caret into ' + document.activeElement.tagName);
+  if (root.querySelectorAll('.c4-mo input, .c4-daycard input, .c4-agenda input').length) fail('no inputs in the month or the selected-day list');
   const dayList = root.querySelector(wide ? '.c4-daycard' : '.c4-agenda');
   if (!visible(dayList) || !/한글날 나들이/.test(text(dayList))) fail('selected day list');
   if (root.querySelector('.calendar-day-detail-backdrop')) fail('no overlay day detail');
@@ -221,6 +227,13 @@ try {
   window.__c4result = JSON.stringify({ok: false, error: String(error?.stack || error), viewport: {width: innerWidth, height: innerHeight}});
 }
 </script></body></html>`;
+
+// 로그인 합계: Core는 include_planned=true를 받을 때만 예정 금액(planned_*)과 예정만
+// 있는 행을 보낸다. 빠지면 로그인 가계부의 '예정'이 늘 0원이 된다.
+const calendarSource = readFileSync(path.join(ROOT, 'site-calendar.js'), 'utf8');
+if (!/\/v2\/life\/expense-summary\?[^`]*&include_planned=true`/.test(calendarSource)) {
+  throw new Error('CALENDAR DESIGN 04 FAIL: the signed-in expense summary must ask for include_planned=true');
+}
 
 const cases = [
   {width: 1440, height: 1000},

@@ -1,5 +1,5 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-130d0e02bf77';
-import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-130d0e02bf77';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-6eaa41c05e8b';
+import {normalizeCalendarWeatherResponse} from './site-calendar-weather.js?v=aset-6eaa41c05e8b';
 
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const LOGICAL_REQUEST_PATTERN = /^[A-Za-z0-9._:-]{8,80}$/;
@@ -848,7 +848,9 @@ export async function getLifeExpenseSummary(sessionToken, {timezone, start, end}
   const startDate = isoDate(start, '시작');
   const endDate = isoDate(end, '종료');
   const payload = await calendarRequest(
-    `/v2/life/expense-summary?timezone=${encodeURIComponent(zone)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`,
+    // include_planned=true: 시안 04 Core는 이때만 예정 금액과 예정만 있는 행
+    // (entry_count 0)을 보낸다. 실제 지출 합계의 뜻은 그대로다.
+    `/v2/life/expense-summary?timezone=${encodeURIComponent(zone)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}&include_planned=true`,
     sessionToken,
     {},
     fetchImpl,

@@ -6,7 +6,7 @@ READY_FOR_DEPLOY=YES
 - 저장소: `lotbi-site`, branch `feature/calendar-design-04-site`
 - 기준: Ncloud main `2047877405928309dd4ed634266e2f4fb2be5b57` 위의 미배포 branch `feature/calendar-approved-design-final-03-site`(e5b0edae, Codex 작업 중지 후 이어받음)
 - 시안: 소유자 확정 캔버스 "LOTBI 캘린더 시안 04"(PC 웹·모바일 웹·iPhone·Android 29장), 소유자 "니가 만든 시안대로 배포 해줘"
-- asset version: `aset-130d0e02bf77`
+- asset version: `aset-6eaa41c05e8b`
 - 선행 배포: **Core `feature/calendar-design-04-core`(예정/실제 지출 · 기상청 초단기실황) 먼저.** Core 이전 버전은 `expense_status`를 버리므로, Site만 먼저 나가면 '예정 지출'이 실제 지출로 저장된다.
 
 ## 바뀐 것 (작업 공간 캘린더에만 적용, 작업 공간 밖 기존 화면은 그대로)
@@ -26,9 +26,9 @@ READY_FOR_DEPLOY=YES
 ## 데이터 계약
 
 - `entry.expense_status`: `PLANNED | PAID | null`. 금액 없으면 null, 상태 없는 옛 금액 = PAID(Core·Guest·Site 같은 규칙). Site 쓰기 경로 `calendarEntryDetails`, Guest `normalizeEntry`, 비로그인 합계 `expenseSummaryFromEntries`(예정 분리).
-- 합계 응답: `planned_amount_minor` / `planned_entry_count`(통화·분류) 선택 필드 — 없으면 0.
+- 합계 요청: `GET /v2/life/expense-summary?...&include_planned=true` — Core는 이 옵션이 있을 때만 `planned_amount_minor` / `planned_entry_count`(통화·분류)와 예정만 있는 행(`entry_count: 0`)을 보낸다. 옛 Core는 옵션을 무시하고 예정 0으로 읽힌다.
 - 날씨 응답: 선택 필드 `current {temperature_c, precipitation_kind, observed_at, source: "KMA_NOWCAST"}` — 모양이 틀리면 무시(null).
-- 사진 초안 `entry.expense_status` 제안 — 모르는 값은 null.
+- 사진 초안 `entry.expense_status` 제안 — 모르는 값은 null. 대화창 `등록` 한 번 저장(`site-calendar-draft-write.js`)과 대화 저장소(`site-conversation.js`)도 이 제안을 그대로 넘긴다(예약 = 예정, 영수증 = 실제, 제안 없으면 보내지 않음 = 예전처럼 실제).
 
 ## 사용자 시나리오 (USER_FIRST)
 
@@ -41,7 +41,7 @@ READY_FOR_DEPLOY=YES
 
 - 새 검사기 `scripts/validate_calendar_design_04.mjs`: 1440·1280·390·360 폭 PASS — 보이는 일정 추가 1개(선택한 날짜 문구)·사진 1개, 날짜 띠(지금/예보·음력·공휴일 이름·기상청), 같은 시간 묶음·빈 시간 접기, 실제만 합계·예정 따로, 실제 지출로 기록 1회 반영, 편집기(제목 먼저·접힌 지출·휴대폰 머리글 저장), 월 겹침 창 없음, 년·일정 목록, 사진 1건/2건, 다크 카드, 가로 넘침 0.
 - 실제 `index.html#calendar`(비로그인, Core 응답은 가짜) 화면 20장: `docs/release-handoff/evidence/calendar-design-04-site/`.
-- `node scripts/asset_cache_version.mjs --check` PASS (`aset-130d0e02bf77`).
+- `node scripts/asset_cache_version.mjs --check` PASS (`aset-6eaa41c05e8b`).
 - 기존 캘린더 검사기 일괄 결과는 아래 「Gate 전 검사」에 적는다.
 
 ## NOT TESTED
