@@ -28,7 +28,7 @@ READY_FOR_DEPLOY=YES
 
 ## 검증 결과
 
-- 전체 `scripts/validate_calendar_*.mjs`: 최종 결과는 `D:/LOTBI-WORK/evidence/calendar-approved-design-final-03-site-validators-final.txt`에 기록.
+- 전체 `scripts/validate_calendar_*.mjs`: 51/51 PASS. 결과는 `D:/LOTBI-WORK/evidence/calendar-approved-design-final-03-site-validators-final.txt`에 기록.
 - 자산 캐시: `ASSET-CACHE-WRITE aset-1ac84bf6095d`, 86 files / 169 targets, coherence 208 refs PASS.
 - 확정 화면 16장: `docs/release-handoff/evidence/calendar-approved-design-final-03-site/`.
 - 데스크톱·모바일 월/년/날짜 팝업/추가/합계, 일정 6개와 `+N개`, 여섯 종류 0원, 날씨·음력·월 경계, 라이트·다크, 키보드 Escape와 터치 시트를 포함한다.
@@ -45,4 +45,5 @@ READY_FOR_DEPLOY=YES
 - Core·DB·환경변수·Secret 변경 없음.
 - rebase·force-push·검사 완화 없음.
 - 배포총괄은 Site Gate, main 병합, Production 반영과 운영 화면 확인을 담당한다.
+
 
