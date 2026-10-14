@@ -328,10 +328,12 @@ function shownCurrencies(summary) {
   return currencies.length ? currencies : [EMPTY_KRW];
 }
 
-export function amountSummaryLinePresentation(summary, {month = null} = {}) {
+export function amountSummaryLinePresentation(summary, {month = null, periodLabel = ''} = {}) {
   const currencies = shownCurrencies(summary);
   return Object.freeze({
-    label: Number.isInteger(month) ? `${month}월 생활비 합계` : '생활비 합계',
+    label: periodLabel
+      ? `${periodLabel} 생활비 합계`
+      : Number.isInteger(month) ? `${month}월 생활비 합계` : '생활비 합계',
     amounts: Object.freeze(currencies.map(line => formatExpenseAmount(line.totalAmountMinor, line.currency))),
   });
 }
@@ -371,13 +373,15 @@ export function amountDetailPresentation(summary, {local = false} = {}) {
  * @param {object} options
  * @param {'loading'|'ready'|'error'} options.state
  */
-export function calendarAmountSummaryLine({state, summary = null, month = null, errorMessage = '', onOpen = null}) {
+export function calendarAmountSummaryLine({state, summary = null, month = null, periodLabel = '', errorMessage = '', onOpen = null}) {
   if (state === 'loading') {
     const loading = document.createElement('p');
     loading.className = 'calendar-amount-line calendar-amount-line-loading';
     loading.dataset.calendarAmountSummary = 'loading';
     loading.setAttribute('role', 'status');
-    loading.textContent = Number.isInteger(month) ? `${month}월 생활비 합계를 불러오는 중…` : '생활비 합계를 불러오는 중…';
+    loading.textContent = periodLabel
+      ? `${periodLabel} 생활비 합계를 불러오는 중…`
+      : Number.isInteger(month) ? `${month}월 생활비 합계를 불러오는 중…` : '생활비 합계를 불러오는 중…';
     return loading;
   }
   if (state === 'error') {
@@ -389,7 +393,7 @@ export function calendarAmountSummaryLine({state, summary = null, month = null, 
     return failed;
   }
   if (state !== 'ready') return null;
-  const presentation = amountSummaryLinePresentation(summary, {month});
+  const presentation = amountSummaryLinePresentation(summary, {month, periodLabel});
   if (!presentation) return null;
   const line = document.createElement('button');
   line.type = 'button';
@@ -453,7 +457,9 @@ export function calendarAmountSummaryBlock(options) {
   if (!categories) return line;
   const block = document.createElement('section');
   block.className = 'calendar-amount-overview';
-  block.setAttribute('aria-label', Number.isInteger(options.month) ? `${options.month}월 생활비 합계` : '생활비 합계');
+  block.setAttribute('aria-label', options.periodLabel
+    ? `${options.periodLabel} 생활비 합계`
+    : Number.isInteger(options.month) ? `${options.month}월 생활비 합계` : '생활비 합계');
   block.append(line, categories);
   return block;
 }

@@ -3574,3 +3574,156 @@ body[data-site-theme="dark"] .calendar-day-empty { background: #171c25; }
   html[data-site-theme-bootstrap="system"] body:not([data-site-theme]) .calendar-day-empty { background: #171c25; }
 }
 /* END GENERATED: system-dark mirror */
+
+/* CALENDAR-APPROVED-FULLPAGE-OVERLAY-02
+   The Calendar is a primary workspace beside LOTBI navigation. The month never
+   gives up columns for a selected day; desktop overlays the right edge and
+   touch widths use the same bottom sheet contract. */
+body.chat-home-page .consumer-workspace[data-workspace='calendar'] {
+  padding: 32px clamp(20px, 3vw, 48px);
+}
+body.chat-home-page .consumer-workspace[data-workspace='calendar'] > .site-modal.site-calendar-page {
+  width: min(100%, 1280px);
+  max-width: 1280px;
+  height: auto;
+  max-height: none;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body.chat-home-page .consumer-workspace[data-workspace='calendar'] .site-calendar-page > .site-modal-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+}
+body.chat-home-page .consumer-workspace[data-workspace='calendar'] .site-calendar-page > .site-modal-header .site-modal-close {
+  grid-column: 1;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+}
+body.chat-home-page .consumer-workspace[data-workspace='calendar'] .site-calendar-page > .site-modal-header h2 {
+  grid-column: 2;
+  font-size: 30px;
+  font-weight: 850;
+}
+body.chat-home-page .consumer-workspace[data-workspace='calendar'] .calendar-modal-actions {
+  grid-column: 3;
+  display: flex;
+}
+body.chat-home-page .consumer-workspace[data-workspace='calendar'] .site-calendar-page > .site-modal-description {
+  margin: 2px 0 18px;
+  padding: 0;
+}
+body.chat-home-page .consumer-workspace[data-workspace='calendar'] .site-calendar-page > .site-modal-content {
+  padding: 0;
+  overflow: visible;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-mode-tabs {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-month-layout {
+  height: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-month {
+  position: relative;
+  min-height: clamp(390px, calc(100dvh - 430px), 520px);
+  height: auto;
+  overflow: hidden;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-month-grid {
+  min-height: clamp(350px, calc(100dvh - 470px), 480px);
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-month > .calendar-day-detail-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: grid;
+  place-items: stretch end;
+  padding: 8px;
+  background: linear-gradient(90deg, transparent 0 55%, rgba(15, 23, 42, .12) 55% 100%);
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-month > .calendar-day-detail-backdrop > .calendar-day-panel[data-presentation='MODAL'] {
+  width: clamp(340px, 42%, 470px);
+  max-height: 100%;
+  border-radius: 16px;
+  background: var(--lotbi-surface-primary, #fff);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, .24);
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-month > .calendar-day-detail-backdrop > .calendar-day-panel[data-presentation='MODAL'] .calendar-day-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-month-layout > .calendar-amount-overview,
+.consumer-workspace[data-workspace='calendar'] .calendar-year-view > .calendar-amount-overview {
+  margin-top: 0;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-year-view {
+  display: grid;
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  body.chat-home-page .consumer-workspace[data-workspace='calendar'] {
+    padding: 14px 12px 0;
+  }
+  body.chat-home-page .consumer-workspace[data-workspace='calendar'] .site-calendar-page > .site-modal-header {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  body.chat-home-page .consumer-workspace[data-workspace='calendar'] .site-calendar-page > .site-modal-header h2 {
+    font-size: 24px;
+  }
+  body.chat-home-page .consumer-workspace[data-workspace='calendar'] .calendar-modal-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  body.chat-home-page .consumer-workspace[data-workspace='calendar'] .calendar-modal-actions .calendar-primary-add-button {
+    flex: 1 1 auto;
+  }
+  body.chat-home-page .consumer-workspace[data-workspace='calendar'] .site-calendar-page > .site-modal-description {
+    margin: 4px 0 12px;
+    font-size: 13px;
+  }
+  .consumer-workspace[data-workspace='calendar'] .calendar-month {
+    min-height: 500px;
+    overflow: visible;
+  }
+  .consumer-workspace[data-workspace='calendar'] .calendar-month-grid {
+    min-height: 500px;
+  }
+  .consumer-workspace[data-workspace='calendar'] .calendar-month > .calendar-day-detail-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: grid;
+    place-items: end center;
+    padding: 0;
+    background: rgba(15, 23, 42, .42);
+  }
+  .consumer-workspace[data-workspace='calendar'] .calendar-month > .calendar-day-detail-backdrop > .calendar-day-panel[data-presentation='SHEET'] {
+    width: min(100%, 560px);
+    max-height: min(82dvh, var(--calendar-day-visual-height, 82dvh));
+  }
+}
+
+@media (max-width: 420px) {
+  body.chat-home-page .consumer-workspace[data-workspace='calendar'] {
+    padding-inline: 8px;
+  }
+  body.chat-home-page .consumer-workspace[data-workspace='calendar'] .site-calendar-page > .site-modal-header h2 {
+    font-size: 22px;
+  }
+  .consumer-workspace[data-workspace='calendar'] .calendar-mode-tab {
+    font-size: 12px;
+  }
+}
