@@ -6,9 +6,10 @@ const {calendarItemActionPolicy, monthGridKeyboardTargetDate, rovingTabTargetInd
 const manager = fs.readFileSync('site-calendar-manager.js', 'utf8');
 const css = fs.readFileSync('site-calendar.css', 'utf8');
 
-// 오늘 returns the active calendar to today. The view controls follow the
-// approved product order 주 · 월 · 목록; 년 still opens from the month title.
+// Embedded callers keep their compact controls; the primary workspace exposes
+// the complete approved 주 · 월 · 년 · 일정 navigation.
 assert.ok(manager.includes("const MODES = Object.freeze([['week', '주'], ['month', '월'], ['agenda', '목록']]);"));
+assert.ok(manager.includes("const WORKSPACE_MODES = Object.freeze([['week', '주'], ['month', '월'], ['year', '년'], ['agenda', '일정']]);"));
 assert.ok(manager.includes("const VIEW_KEYS = Object.freeze(['day', 'month', 'week', 'year', 'agenda']);"));
 assert.ok(manager.includes('function renderWeek(state, actions'));
 // A desk keeps the seven-column hour grid; a touch width lists the days down
@@ -30,10 +31,11 @@ assert.ok(manager.includes("temperature.className = 'calendar-weather-temperatur
 assert.ok(manager.includes('const weatherPresentation = calendarWeatherPresentation(weather)'));
 assert.ok(manager.includes('const temperatureLabel = weatherPresentation.monthLabel'));
 
-// Month always owns one selected-day detail: a rail on desktop and one
-// continuous flow below the grid at touch widths.
+// Embedded callers retain FLOW/SIDE; the primary workspace uses a desktop
+// overlay or mobile sheet so the month never loses columns.
 assert.ok(manager.includes("FLOW: 'FLOW', SIDE: 'SIDE'"));
 assert.ok(manager.includes('usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.FLOW : DAY_DETAIL_PRESENTATION.SIDE'));
+assert.ok(manager.includes('usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.SHEET : DAY_DETAIL_PRESENTATION.MODAL'));
 assert.ok(css.includes('.calendar-day-panel[data-presentation="SIDE"]'));
 assert.ok(css.includes('.calendar-day-panel[data-presentation="FLOW"]'));
 assert.ok(!css.includes('[data-arrow]::before'));
@@ -110,8 +112,8 @@ assert.ok(manager.includes("state.mode === 'month'"));
 assert.ok(manager.includes("panel?.querySelector('.calendar-day-heading')"));
 assert.ok(manager.includes("button('닫기', 'calendar-day-close')"), 'month day detail must have an explicit close control');
 
-// A Fold crossing the product breakpoint swaps SHEET/MODAL immediately.
-assert.ok(manager.includes('let lastDayDetailPresentation = dayDetailPresentation()'));
+// A Fold crossing the product breakpoint swaps the active presentation immediately.
+assert.ok(manager.includes('let lastDayDetailPresentation = dayDetailPresentationFor(state)'));
 assert.ok(manager.includes('nextDayDetailPresentation !== lastDayDetailPresentation'));
 assert.ok(manager.includes("if (state.mode !== 'year') render();"));
 

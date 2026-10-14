@@ -58,9 +58,11 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/site-calendar.css?v=${assetVersion}">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=${assetVersion}">
+<link rel="stylesheet" href="/site-consumer-design.css?v=${assetVersion}">
+<link rel="stylesheet" href="/site-consumer-layout.css?v=${assetVersion}">
 <link rel="stylesheet" href="/site-theme-tokens.css?v=20260923-darklogo1">
-</head><body style="margin:0">
-<div id="calendar-root"></div>
+</head><body class="chat-home-page" style="margin:0">
+<div class="consumer-workspace" data-workspace="calendar"><div id="calendar-root"></div></div>
 <pre id="expense-result">pending</pre>
 <script type="module">
 const out=document.getElementById('expense-result');
@@ -190,27 +192,46 @@ try{
   const toolbar=root.querySelector('.calendar-toolbar');
   const viewport=root.querySelector('.calendar-viewport');
   result.layoutFirstIsMonth=Boolean(layout?.children[0]?.classList.contains('calendar-month'));
-  result.layoutHasDayPanel=Boolean(layout?.querySelector('.calendar-day-panel'));
-  result.lineInsideDayPanel=Boolean(layout?.querySelector('.calendar-day-panel')?.contains(ready));
+  result.layoutHasDayPanelInitially=Boolean(layout?.querySelector('.calendar-day-panel'));
+  result.lineOutsideDayPanel=!Boolean(layout?.querySelector('.calendar-day-panel')?.contains(ready));
   result.topSlotHidden=Boolean(amountSlot?.hidden);
+
+  const calendarBefore=root.querySelector('.calendar-month')?.getBoundingClientRect();
+  root.querySelector('[data-calendar-date-trigger="2026-09-22"]')?.click();
+  await wait(()=>root.querySelector('.calendar-day-panel'),'picked day overlay');
+  const overlayPanel=root.querySelector('.calendar-day-panel');
+  const calendarAfter=root.querySelector('.calendar-month')?.getBoundingClientRect();
+  const overlayBox=overlayPanel?.getBoundingClientRect();
+  result.dayOverlay={
+    presentation:overlayPanel?.dataset.presentation||'',
+    hasBackdrop:Boolean(root.querySelector('[data-calendar-day-detail-backdrop]')),
+    calendarWidthStable:Boolean(calendarBefore&&calendarAfter&&Math.abs(calendarBefore.width-calendarAfter.width)<1),
+    coversApprovedEdge:Boolean(calendarAfter&&overlayBox&&(innerWidth<=900
+      ? Math.abs(innerHeight-overlayBox.bottom)<=2
+      : Math.abs(calendarAfter.right-overlayBox.right)<=10)),
+  };
+  overlayPanel?.querySelector('.calendar-day-close')?.click();
+  await wait(()=>!root.querySelector('.calendar-day-panel'),'day overlay closed');
 
   result.summaryModes=[];
   for(const [label,mode,selector] of [
     ['주','week','[data-calendar-mode="week"]'],
-    ['목록','agenda','[data-calendar-mode="agenda"]'],
+    ['년','year','[data-calendar-mode="year"]'],
+    ['일정','agenda','[data-calendar-mode="agenda"]'],
     ['월','month','[data-calendar-mode="month"]'],
   ]){
     const control=[...root.querySelectorAll(selector)].find(node=>node.textContent.trim()===label)||root.querySelector(selector);
     control?.click();
     await wait(()=>root.dataset.calendarManagerView===mode,label+' view');
-    if(label==='월') await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready',label+' top amount');
+    if(label==='월'||label==='년') await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready',label+' amount');
     else { await waitForDomIdle(root); await new Promise(resolve=>setTimeout(resolve,120)); }
     const activeLine=line(root);
     result.summaryModes.push({
       label,
       view:root.dataset.calendarManagerView===mode,
       shown:Boolean(activeLine),
-      inDayPanel:Boolean(root.querySelector('.calendar-day-panel')?.contains(activeLine)),
+      outsideDayPanel:Boolean(activeLine&&!root.querySelector('.calendar-day-panel')?.contains(activeLine)),
+      amountLabel:activeLine?.querySelector('.calendar-amount-line-label')?.textContent||'',
     });
   }
   ready=line(root);
@@ -493,17 +514,24 @@ try {
     const fail = message => { throw new Error(`${label}: ${message}`); };
 
     if (!value.layoutFirstIsMonth) fail('month layout child 0 must stay the month grid');
-    if (!value.layoutHasDayPanel) fail('Month must mount the selected-day detail rail/flow');
-    if (!value.lineInsideDayPanel || !value.topSlotHidden) {
-      fail('the amount summary must appear once, inside the selected-day detail');
+    if (value.layoutHasDayPanelInitially) fail('Month must open at full width without an unsolicited day panel');
+    if (!value.lineOutsideDayPanel || !value.topSlotHidden) {
+      fail('the amount summary must appear once below the month, outside day detail');
+    }
+    const expectedPresentation=value.viewport.width<=900?'SHEET':'MODAL';
+    if(value.dayOverlay.presentation!==expectedPresentation||!value.dayOverlay.hasBackdrop
+      ||!value.dayOverlay.calendarWidthStable||!value.dayOverlay.coversApprovedEdge){
+      fail(`picked date must overlay the unchanged month at its right/bottom edge, got ${JSON.stringify(value.dayOverlay)}`);
     }
     const monthMode = value.summaryModes.find(mode=>mode.label==='월');
-    if (value.summaryModes.length!==3 || value.summaryModes.some(mode=>!mode.view)
-      || !monthMode?.shown || !monthMode.inDayPanel) {
-      fail(`Month must keep the amount summary in its detail, got ${JSON.stringify(value.summaryModes)}`);
+    const yearMode = value.summaryModes.find(mode=>mode.label==='년');
+    if (value.summaryModes.length!==4 || value.summaryModes.some(mode=>!mode.view)
+      || !monthMode?.shown || !monthMode.outsideDayPanel || monthMode.amountLabel!=='9월 생활비 합계'
+      || !yearMode?.shown || !yearMode.outsideDayPanel || yearMode.amountLabel!=='2026년 생활비 합계') {
+      fail(`Month and Year must each keep one real-data total below the calendar, got ${JSON.stringify(value.summaryModes)}`);
     }
-    if (value.summaryModes.some(mode=>mode.label!=='월' && mode.shown)) {
-      fail(`Week and List must not duplicate the month total, got ${JSON.stringify(value.summaryModes)}`);
+    if (value.summaryModes.some(mode=>!['월','년'].includes(mode.label) && mode.shown)) {
+      fail(`Week and Schedule must not duplicate period totals, got ${JSON.stringify(value.summaryModes)}`);
     }
 
     // One quiet line.
@@ -536,17 +564,20 @@ try {
       if (styles.some(item=>item.labelContrast<4.5)) fail(`${theme} category title colours must hold WCAG AA 4.5:1, got ${JSON.stringify(styles)}`);
     }
     if (value.forbidden.length) fail(`ledger words must not appear on the month, got ${value.forbidden.join(',')}`);
-    if (value.viewport.width > 900 && !value.aboveTheFold) fail(`the desktop amount line must be visible in the rail — line bottom ${value.barBottom}px vs viewport ${value.viewport.height}px`);
+    if (value.viewport.width > 900 && !value.aboveTheFold) fail(`the desktop month amount line must be visible below the calendar — line bottom ${value.barBottom}px vs viewport ${value.viewport.height}px`);
     if (!value.noHorizontalOverflow) fail('the amount line must not cause horizontal overflow');
     for (const theme of ['Light', 'Dark']) {
       const c = value['contrast' + theme];
       if (!(c.label >= 4.5) || !(c.amount >= 4.5)) fail(`${theme} line text must hold WCAG AA 4.5:1, got ${JSON.stringify(c)}`);
     }
 
-    // The calendar month, not the 42-cell grid window.
-    if (value.expenseCalls.length !== 1) fail(`expected one expense read, got ${value.expenseCalls.length}`);
-    if (!value.expenseCalls[0].includes('start=2026-09-01') || !value.expenseCalls[0].includes('end=2026-09-30')) {
-      fail(`expense window must be the calendar month, got ${value.expenseCalls[0]}`);
+    // Month reads the civil month; Year reads the civil year. Returning to
+    // Month deliberately refreshes once, so no stale annual total survives.
+    if (value.expenseCalls.length !== 3) fail(`expected month/year/month expense reads, got ${value.expenseCalls.length}`);
+    if (!value.expenseCalls[0].includes('start=2026-09-01') || !value.expenseCalls[0].includes('end=2026-09-30')
+      || !value.expenseCalls[1].includes('start=2026-01-01') || !value.expenseCalls[1].includes('end=2026-12-31')
+      || !value.expenseCalls[2].includes('start=2026-09-01') || !value.expenseCalls[2].includes('end=2026-09-30')) {
+      fail(`expense windows must follow month/year/month exactly, got ${JSON.stringify(value.expenseCalls)}`);
     }
 
     // The breakdown.

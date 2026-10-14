@@ -164,12 +164,12 @@ try{
   const grid=modal.querySelector('.calendar-month-grid');
   const layout=modal.querySelector('.calendar-month-layout');
   const today=modal.querySelector('.calendar-today-button');
-  // 오늘 is a separate day control; the remaining tabs are 주 / 월 / 목록.
-  const agendaTab=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='목록');
+  // 오늘 is separate; the workspace keeps all four approved views visible.
+  const agendaTab=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='일정');
   const modeTabLabels=[...modal.querySelectorAll('.calendar-mode-tab')].map(n=>n.textContent);
   const calendar=layout?.children?.[0], detail=layout?.querySelector('.calendar-day-panel');
   if(!grid||!layout||!today||!agendaTab||!calendar)throw new Error('month chrome missing');
-  if(modeTabLabels.join('/')!=='주/월/목록')throw new Error('mode tabs must be 주/월/목록, got '+modeTabLabels.join('/'));
+  if(modeTabLabels.join('/')!=='주/월/년/일정')throw new Error('mode tabs must be 주/월/년/일정, got '+modeTabLabels.join('/'));
   const modalRect=modal.getBoundingClientRect(), contentRect=content.getBoundingClientRect(), layoutRect=layout.getBoundingClientRect();
   const gridRect=grid.getBoundingClientRect(), calRect=calendar.getBoundingClientRect(), detailRect=detail?.getBoundingClientRect();
   const contentStyle=getComputedStyle(content);
@@ -274,14 +274,9 @@ try{
   result.density=density;
 
   if(desktop){
-    if(modalRect.width<1050)throw new Error('desktop modal too narrow '+modalRect.width);
-    if(modalRect.height<Math.min(820,innerHeight-60))throw new Error('desktop modal too short '+modalRect.height);
-    if(result.modal.overflowY!=='hidden')throw new Error('desktop modal must not scroll');
-    if(result.content.overflowY!=='hidden')throw new Error('desktop month content must not scroll');
-    if(result.calendar.widthRatio<0.58)throw new Error('desktop Month rail leaves too little calendar width '+result.calendar.widthRatio);
-    if(!result.detail.present||result.detail.hidden||result.detail.presentation!=='SIDE'||result.detail.backdrop)throw new Error('desktop Calendar must mount one inline selected-day rail');
-    if(gridRect.bottom>contentRect.bottom+2)throw new Error('desktop month rows not initially visible');
-    if(result.content.unusedBottom>8)throw new Error('desktop month leaves unused lower space '+result.content.unusedBottom+'px '+JSON.stringify(geometryDebug));
+    if(modalRect.width<900)throw new Error('desktop calendar workspace too narrow '+modalRect.width);
+    if(result.calendar.widthRatio<0.95)throw new Error('desktop Month must keep the full workspace width '+result.calendar.widthRatio);
+    if(result.detail.present)throw new Error('desktop Month must not open an unsolicited selected-day overlay');
 
     const eventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
     const eventButton=eventCell?.querySelector('.calendar-event-chip');
@@ -331,8 +326,8 @@ try{
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
-    if(!result.detail.present||result.detail.hidden||result.detail.presentation!=='FLOW'||result.detail.backdrop)throw new Error('touch Calendar must mount one inline selected-day flow');
-    // Tap a date and verify the same in-flow panel follows it.
+    if(result.detail.present)throw new Error('touch Calendar must open full width without an unsolicited day sheet');
+    // Tap a date and verify a bottom sheet opens over the unchanged month.
     const entryCell=grid.querySelector('.calendar-date-cell[data-selected="true"]')
       ||grid.querySelector('.calendar-date-cell[data-current-month="true"]');
     click(entryCell);
@@ -371,11 +366,11 @@ try{
         gridBottom:grid.getBoundingClientRect().bottom,
       };
     }
-    // Mobile detail stays in the page's single vertical flow.
+    // Mobile detail is a dismissible bottom sheet.
     if(result.detail.hidden)throw new Error('a tap on a date must open the selected-day surface');
-    if(result.detail.presentation!=='FLOW')throw new Error('touch selected-day surface must stay in flow');
-    if(result.detail.position==='fixed')throw new Error('touch selected-day panel must not detach from the document');
-    if(result.detail.backdrop)throw new Error('touch selected-day panel must not own a dismiss layer');
+    if(result.detail.presentation!=='SHEET')throw new Error('touch selected-day surface must be a bottom sheet');
+    if(result.detail.position!=='fixed')throw new Error('touch selected-day panel must attach to the viewport');
+    if(!result.detail.backdrop)throw new Error('touch selected-day panel must own a dismiss layer');
     if(result.detail.left<-1||result.detail.right>innerWidth+1)throw new Error('touch selected-day panel horizontal overflow');
 
     const mobileEventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
@@ -423,17 +418,14 @@ try{
 
   const waitCalendarIdle=label=>wait(()=>content.getAttribute('aria-busy')!=='true',label+' idle');
   const mode=async name=>{
-    // 년 is the month title's job; the tabs are 월 / 주 / 목록.
-    const button=name==='년'
-      ?modal.querySelector('.calendar-title-button')
-      :[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);
+    const button=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent===name);
     click(button);
-    await wait(()=>content.dataset.calendarManagerView===({주:'week',년:'year',목록:'agenda',월:'month'}[name]),name);
+    await wait(()=>content.dataset.calendarManagerView===({주:'week',년:'year',일정:'agenda',월:'month'}[name]),name);
     await waitCalendarIdle(name);
   };
   await mode('주');
   await mode('년');
-  await mode('목록');
+  await mode('일정');
   await wait(()=>modal.querySelector('.calendar-unscheduled-group'),'Agenda unscheduled group');
   const unscheduledGroup=modal.querySelector('.calendar-unscheduled-group');
   if(unscheduledGroup?.querySelector('h3')?.textContent!=='날짜 미정')throw new Error('unscheduled heading missing');
@@ -483,14 +475,13 @@ try{
   if(!modal.querySelector('.calendar-day-panel'))throw new Error('Settings Escape also closed the underlying day detail');
   await wait(()=>document.activeElement===settingsButton,'Settings Escape focus restore');
   result.settingsModalContained=true;
-  // Escape on the inline selected-day detail restores the selected date focus
-  // without removing the persistent rail/flow.
+  // Escape closes only the selected-day overlay and restores date focus.
   const dayHeading=modal.querySelector('.calendar-day-panel .calendar-day-heading');
   dayHeading.focus();
   dayHeading.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
   await wait(()=>document.activeElement?.dataset.calendarDateTrigger===selectedDate,'selected-day Escape focus restore');
   if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('day-detail Escape closed the Calendar modal');
-  if(!modal.querySelector('.calendar-day-panel'))throw new Error('day-detail Escape removed the persistent detail');
+  if(modal.querySelector('.calendar-day-panel'))throw new Error('day-detail Escape did not close the overlay');
   result.escapeContained=true;
   click(modal.querySelector('.calendar-today-button'));
   await wait(()=>content.dataset.calendarManagerView==='month','today');

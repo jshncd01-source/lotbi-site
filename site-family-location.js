@@ -2,7 +2,7 @@
 // Everything answers 404 FAMILY_LOCATION_NOT_ENABLED until the owner turns Core's switch on;
 // the care tab is not even shown then. Coordinates are only ever read from Core's answer for a
 // person this account may see; nothing here keeps them (no storage, no URL query, no log).
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-7327fad003f1';
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-7716ed079ed5';
 
 // Owner decision 2026-10-11 (A안): short and true ("연결된 가족": a second guardian joins with the owner's approval).
 export const FAMILY_PRIVACY_NOTICE = '내 위치는 연결된 가족만 봐요. 광고·AI 학습에 쓰지 않아요.';

@@ -157,16 +157,15 @@ try{
   await new Promise(r=>setTimeout(r,50));
   await wait(()=>modal.querySelector('.calendar-month')?.getBoundingClientRect().width>0,'month geometry');
 
-  // The approved Month opens with one persistent selected-day detail: beside
-  // the grid on desktop and directly after it in touch document flow.
+  // The approved Month opens at full width. A selected day is mounted only
+  // after a date is picked, as a desktop overlay or touch bottom sheet.
   const layoutNode=()=>modal.querySelector('.calendar-month-layout');
   const childOrderOk=()=>{
     const layout=layoutNode();
     if(!layout)return false;
-    return layout.children.length===2
+    return layout.children.length>=2
       &&layout.children[0]?.classList.contains('calendar-month')
-      &&layout.children[1]?.classList.contains('calendar-day-panel')
-      &&!layout.children[1]?.hidden
+      &&!layout.querySelector('.calendar-day-panel')
       &&!layout.querySelector('[data-calendar-day-detail-backdrop]');
   };
   const titleOf=()=>modal.querySelector('.calendar-title-button')?.textContent||'';
@@ -194,7 +193,7 @@ try{
   result.verticalScrollSafe=titleOf()===baseTitle&&!verticalPrevented;
 
   if(desktop){
-    // Desktop keeps the inline side detail and must gain no swipe behaviour.
+    // Desktop keeps swipe inert and overlays the picked day over the right edge.
     const swiped=drag(monthNode(),rightX,midY,leftX,midY);
     await new Promise(r=>setTimeout(r,30));
     result.desktopSwipeInert=titleOf()===baseTitle&&!swiped;
@@ -373,7 +372,7 @@ try {
     const label = `${value.viewport.width}x${value.viewport.height}`;
     if (!value.tapPreserved) throw new Error(`${label}: tap-sized movement must not navigate months`);
     if (!value.verticalScrollSafe) throw new Error(`${label}: vertical drag must not navigate or block scrolling`);
-    if (!value.childOrder) throw new Error(`${label}: Month must open with the calendar followed by one persistent selected-day detail`);
+    if (!value.childOrder) throw new Error(`${label}: Month must open full width with no unsolicited selected-day overlay`);
   }
 
   const desktops = results.filter(value => value.desktop);
@@ -383,11 +382,10 @@ try {
   for (const value of desktops) {
     const label = `${value.viewport.width}x${value.viewport.height}`;
     if (!value.desktopSwipeInert) throw new Error(`${label}: desktop must not gain swipe month navigation`);
-    if (value.desktopPresentation !== 'SIDE') throw new Error(`${label}: desktop must keep the selected-day side rail`);
-    if (value.desktopPosition !== 'relative' && value.desktopPosition !== 'sticky') throw new Error(`${label}: desktop detail must stay in the Month layout`);
-    if (value.desktopBackdrop) throw new Error(`${label}: desktop side detail must not render a dismiss backdrop`);
-    if (value.desktopClose) throw new Error(`${label}: persistent desktop detail must not render a close control`);
-    if (value.desktopActionsInPanel !== 2) throw new Error(`${label}: desktop side detail keeps its two record actions in the DOM (got ${value.desktopActionsInPanel})`);
+    if (value.desktopPresentation !== 'MODAL') throw new Error(`${label}: desktop must open the selected day as a right overlay`);
+    if (!value.desktopBackdrop) throw new Error(`${label}: desktop overlay must render a dismiss layer`);
+    if (!value.desktopClose) throw new Error(`${label}: desktop overlay must carry a close control`);
+    if (value.desktopActionsInPanel !== 2) throw new Error(`${label}: desktop overlay keeps its two record actions in the DOM (got ${value.desktopActionsInPanel})`);
   }
 
   for (const value of mobiles) {
@@ -398,14 +396,14 @@ try {
     if (!value.buttonsPreserved) throw new Error(`${label}: 이전/다음 buttons must keep working`);
 
     const sheet = value.sheet || {};
-    if (sheet.presentation !== 'FLOW') throw new Error(`${label}: touch day detail must stay in document flow (got ${sheet.presentation})`);
-    if (sheet.position === 'fixed' || sheet.position === 'absolute') throw new Error(`${label}: the touch detail must not detach from document flow`);
-    if (sheet.backdrop) throw new Error(`${label}: the touch detail must not have a dismiss backdrop`);
-    if (sheet.top < sheet.gridBottom - 2) throw new Error(`${label}: the touch detail must follow the month grid`);
+    if (sheet.presentation !== 'SHEET') throw new Error(`${label}: touch day detail must be a bottom sheet (got ${sheet.presentation})`);
+    if (sheet.position !== 'fixed') throw new Error(`${label}: the touch detail must attach to the viewport bottom`);
+    if (!sheet.backdrop) throw new Error(`${label}: the touch detail must have a dismiss backdrop`);
+    if (Math.abs(sheet.bottom-value.viewport.height)>2) throw new Error(`${label}: the touch detail must meet the viewport bottom`);
     if (sheet.left < -1 || sheet.right > value.viewport.width + 1) throw new Error(`${label}: day panel horizontal overflow`);
     if (!sheet.heading) throw new Error(`${label}: the day panel must show the date heading`);
     if (!sheet.listOrEmpty) throw new Error(`${label}: the day panel must show the entry list or the empty message`);
-    if (sheet.close) throw new Error(`${label}: persistent touch detail must not carry a close control`);
+    if (!sheet.close) throw new Error(`${label}: touch sheet must carry a close control`);
     // The approved persistent panel owns the two record actions in the DOM;
     // the Month must not duplicate them in a separate pinned action bar.
     const actions = value.actions || {};
@@ -421,7 +419,7 @@ try {
     if (!value.escapeKeepsCalendar) throw new Error(`${label}: Escape must leave the Calendar modal open`);
     if (!value.escapeBackdropCleared) throw new Error(`${label}: Escape must leave no dismiss layer behind`);
     if (!value.escapeFocusRestore) throw new Error(`${label}: Escape must restore focus to the selected date`);
-    if (!value.escapeDetailStays) throw new Error(`${label}: Escape must preserve the persistent day detail`);
+    if (value.escapeDetailStays) throw new Error(`${label}: Escape must close the day sheet`);
   }
 
   for (const value of results) {
@@ -430,8 +428,8 @@ try {
   }
   if (animated.reducedMotion) throw new Error('motion-enabled case unexpectedly reported reduced motion');
   if (animated.sheet.reducedMotion !== 'false') throw new Error('motion-enabled sheet must record prefers-reduced-motion=false');
-  if (animated.sheet.presentation !== 'FLOW' || animated.sheet.position === 'fixed' || animated.sheet.backdrop) {
-    throw new Error('motion-enabled day panel must still render as persistent in-flow detail');
+  if (animated.sheet.presentation !== 'SHEET' || animated.sheet.position !== 'fixed' || !animated.sheet.backdrop) {
+    throw new Error('motion-enabled day panel must still render as a bottom sheet');
   }
   if (!animated.swipeNext || !animated.swipePrevious || !animated.burstNoSkip) {
     throw new Error('motion-enabled swipe navigation regressed');
