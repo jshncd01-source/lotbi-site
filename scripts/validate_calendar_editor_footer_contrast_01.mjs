@@ -31,7 +31,8 @@ const KEYBOARD = 336;
 // --- 1. source contract --------------------------------------------------------
 const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8').replace(/\r\n/g, '\n');
 const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8').replace(/\r\n/g, '\n');
-assert.match(manager, /const refreshSave = \(\) => \{ save\.disabled = saveInFlight \|\| !titleInput\.value\.trim\(\); \};/,
+// CALENDAR-DESIGN-04: the phone header's 저장 mirrors the footer one exactly.
+assert.match(manager, /const refreshSave = \(\) => \{ save\.disabled = saveInFlight \|\| !titleInput\.value\.trim\(\);(?: if \(saveTop\) saveTop\.disabled = save\.disabled;)? \};/,
   '저장 is enabled only by a non-blank title and never during a save in flight');
 assert.match(manager, /titleInput\.addEventListener\('input', refreshSave\);\n\s*refreshSave\(\);/,
   'the title input drives 저장 from the moment the editor opens');

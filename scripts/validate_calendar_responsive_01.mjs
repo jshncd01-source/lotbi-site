@@ -106,7 +106,9 @@ assert.ok(manager.includes("root.addEventListener('keydown'"), 'Calendar root Es
 // LIFE UX 01: the day panel is part of the page; Escape inside it steps back to
 // its date, and it still yields to any open editor or dialog.
 assert.ok(manager.includes("|| root.querySelector('.calendar-editor-dialog')"), 'Calendar detail Escape must defer to the editor');
-assert.ok(manager.includes("|| !document.activeElement?.closest?.('.calendar-day-panel')"), 'Calendar day-panel Escape must only act inside the panel');
+// CALENDAR-DESIGN-04: the selected-day card (desk), the list under the month
+// (phone) and the week's day column are the same part of the page.
+assert.ok(manager.includes("|| !document.activeElement?.closest?.('.calendar-day-panel, .c4-daycard, .c4-agenda, .c4-dayv')"), 'Calendar day-panel Escape must only act inside the selected-day surfaces');
 assert.ok(manager.includes('event.stopPropagation();'), 'Calendar Escape surfaces must stop outer modal propagation');
 assert.ok(manager.includes('let refreshGeneration = 0;'), 'Calendar Manager stale-response generation guard missing');
 assert.ok(manager.includes('const requestGeneration = ++refreshGeneration;'), 'Calendar Manager must version each refresh');

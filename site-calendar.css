@@ -4333,6 +4333,7 @@ body.chat-home-page .consumer-workspace[data-workspace='calendar'] .site-calenda
 .site-calendar-page[data-calendar-design="c4"] .c4-dock-k{ display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--c4-ink3); }
 .site-calendar-page[data-calendar-design="c4"] .c4-dock-k .c4-ico{ width: 14px; height: 14px; }
 .site-calendar-page[data-calendar-design="c4"] .c4-dock-v{ font-size: 19px; font-weight: 800; letter-spacing: -.4px; }
+.site-calendar-page[data-calendar-design="c4"] .c4-dock-msg{ font-size: 13.5px; font-weight: 600; line-height: 1.35; color: var(--c4-ink2); }
 
 /* 겹침 창 */
 body.c4-dialog-open { overflow: hidden; }
@@ -4675,7 +4676,9 @@ body.c4-dialog-open { overflow: hidden; }
     bottom: 0;
     z-index: 5;
     display: block;
-    margin: 0 -16px;
+    /* 캘린더 내용 칸은 좌우 여백이 0이다. 음수 여백을 주면 줄이 16px 삐져나와
+       내용이 옆으로 밀린다(2026-10-14 실측). */
+    margin: 0;
     padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--c4-line);
     background: var(--c4-card);

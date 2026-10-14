@@ -98,7 +98,13 @@ try {
   const result = {viewport: {width: innerWidth, height: innerHeight}, wide};
   const visibleAll = selector => [...document.querySelectorAll(selector)].filter(visible);
   const tab = async mode => { root.querySelector('.calendar-mode-tab[data-calendar-mode="' + mode + '"]').click(); await sleep(250); };
-  const overflow = () => document.documentElement.scrollWidth - document.documentElement.clientWidth;
+  // The page itself, and every scroll box inside the Calendar: a child wider than
+  // its box lets a sideways swipe pan the content even when the page does not.
+  const overflow = () => Math.max(
+    document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    ...[root, root.closest('.site-modal-content'), ...root.querySelectorAll('.c4-cols, .c4-cal, .c4-dock-slot')]
+      .filter(Boolean).map(node => node.scrollWidth - node.clientWidth),
+  );
 
   // 1) 같은 역할 버튼은 하나
   const adds = visibleAll('[data-calendar-add]');

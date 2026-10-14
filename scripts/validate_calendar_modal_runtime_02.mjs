@@ -29,6 +29,12 @@ const fixture = `<!doctype html><html lang="ko"><head>
      totals bar renders unstyled and the month geometry is measured against a
      layout the product never shows. -->
 <link rel="stylesheet" href="/site-calendar-expense.css">
+<link rel="stylesheet" href="/site-calendar-weather.css">
+<link rel="stylesheet" href="/site-theme-tokens.css">
+<link rel="stylesheet" href="/site-conversation.css">
+<link rel="stylesheet" href="/site-consumer-design.css">
+<link rel="stylesheet" href="/site-consumer-layout.css">
+<link rel="stylesheet" href="/site-consumer-detail.css">
 </head><body class="chat-home-page" data-site-auth-state="unauthenticated">
 <aside class="chat-sidebar chat-sidebar-desktop">
   <button type="button" data-calendar-view="all">캘린더</button>
@@ -137,105 +143,51 @@ try{
   const modal=document.querySelector('.site-modal.site-calendar-modal');
   const content=modal.querySelector('.site-modal-content');
   await wait(()=>content?.dataset.calendarManagerView==='month','month view');
+  // CALENDAR-DESIGN-04: the workspace Calendar is the approved design 04. The
+  // same promises as before are kept on its own markup: a bounded month cell,
+  // a selected day that is part of the page, event detail → edit / delete with
+  // a contained confirmation, Escape that closes only the top dialog, and the
+  // four views with the undated list reachable.
   await wait(
-    ()=>content?.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]')?.querySelectorAll('.calendar-event-chip').length===1,
+    ()=>content?.querySelector('.c4-mc[data-calendar-date="'+fixtureDates[1]+'"]')?.querySelectorAll('.c4-mc-ev').length===1,
     'guest Calendar local-first render',
   );
-  await wait(
-    ()=>content?.getAttribute('aria-busy')!=='true',
-    'guest Calendar holiday decoration complete',
-  );
-  await wait(()=>{
-    const candidate=modal.querySelector('.calendar-month-layout');
-    const candidateCalendar=candidate?.children?.[0];
-    return Boolean(
-      candidate?.isConnected
-      && candidateCalendar
-      && candidate.getBoundingClientRect().width>0
-      && candidateCalendar.getBoundingClientRect().width>0
-    );
-  },'month geometry');
+  await wait(()=>content?.getAttribute('aria-busy')!=='true','guest Calendar holiday decoration complete');
+  await wait(()=>modal.querySelector('.c4-mo-g')?.getBoundingClientRect().width>0,'month geometry');
   await wait(()=>content?.getAttribute('aria-busy')!=='true','guest Calendar async decoration idle');
   // setTimeout rather than requestAnimationFrame: under --virtual-time-budget an
-  // idle page may never produce another animation frame, and the double rAF then
-  // never settles — the run ends as a mute "wrapper timeout" with no stage named.
-  // validate_calendar_touch_monthnav_daysheet_01 already carries this fix.
+  // idle page may never produce another animation frame.
   await new Promise(resolve=>setTimeout(resolve,50));
-  const grid=modal.querySelector('.calendar-month-grid');
-  const layout=modal.querySelector('.calendar-month-layout');
+  const shown=node=>Boolean(node&&node.getClientRects().length&&getComputedStyle(node).display!=='none'&&getComputedStyle(node).visibility!=='hidden');
+  const grid=modal.querySelector('.c4-mo-g');
   const today=modal.querySelector('.calendar-today-button');
-  // 오늘 is separate; the workspace keeps all four approved views visible.
   const agendaTab=[...modal.querySelectorAll('.calendar-mode-tab')].find(n=>n.textContent==='일정');
   const modeTabLabels=[...modal.querySelectorAll('.calendar-mode-tab')].map(n=>n.textContent);
-  const calendar=layout?.children?.[0], detail=layout?.querySelector('.calendar-day-panel');
-  if(!grid||!layout||!today||!agendaTab||!calendar)throw new Error('month chrome missing');
+  if(!grid||!today||!agendaTab)throw new Error('month chrome missing');
+  if(modal.dataset.calendarDesign!=='c4')throw new Error('the workspace Calendar must be the approved design 04, got '+(modal.dataset.calendarDesign||'none'));
   if(modeTabLabels.join('/')!=='주/월/년/일정')throw new Error('mode tabs must be 주/월/년/일정, got '+modeTabLabels.join('/'));
-  const modalRect=modal.getBoundingClientRect(), contentRect=content.getBoundingClientRect(), layoutRect=layout.getBoundingClientRect();
-  const gridRect=grid.getBoundingClientRect(), calRect=calendar.getBoundingClientRect(), detailRect=detail?.getBoundingClientRect();
-  const contentStyle=getComputedStyle(content);
-  // No space under the month grid may be wasted. The expense totals bar owns a
-  // row beneath the grid, so when it shows, the boundary is its top edge less
-  // the shell's row gap — that gap is deliberate spacing, not slack.
-  const expenseSlot=content.querySelector('.calendar-expense-slot:not([hidden])');
-  const shellRowGap=expenseSlot
-    ?(parseFloat(getComputedStyle(content.querySelector('.calendar-product-shell')).rowGap)||0)
-    :0;
-  const contentInnerBottom=expenseSlot
-    ?expenseSlot.getBoundingClientRect().top-shellRowGap
-    :contentRect.bottom-(parseFloat(contentStyle.paddingBottom)||0);
-  const unusedBottom=Math.max(0,Math.round(contentInnerBottom-gridRect.bottom));
-  const shell=modal.querySelector('.calendar-product-shell');
-  const viewport=modal.querySelector('.calendar-viewport');
-  const weekdays=modal.querySelector('.calendar-weekdays');
-  const geometryDebug=Object.fromEntries([
-    ['content',content],['shell',shell],['viewport',viewport],['layout',layout],
-    ['calendar',calendar],['weekdays',weekdays],['grid',grid],
-  ].map(([name,node])=>{
-    const rect=node?.getBoundingClientRect();
-    const style=node?getComputedStyle(node):null;
-    return [name,{top:rect?.top||0,bottom:rect?.bottom||0,height:rect?.height||0,display:style?.display||'',cssHeight:style?.height||'',minHeight:style?.minHeight||'',flex:style?.flex||'',gridRows:style?.gridTemplateRows||''}];
-  }));
+  const modalRect=modal.getBoundingClientRect();
   const toolbar=modal.querySelector('.calendar-toolbar');
   const desktop=innerWidth>900;
-  const cellHeights=[...grid.querySelectorAll('.calendar-date-cell')].map(node=>node.getBoundingClientRect().height);
+  const cellNodes=[...grid.querySelectorAll('.c4-mc')];
+  const cellHeights=cellNodes.map(node=>node.getBoundingClientRect().height);
   const rowHeightSpread=cellHeights.length?Math.max(...cellHeights)-Math.min(...cellHeights):0;
+  const dayList=()=>[...modal.querySelectorAll('.c4-daycard,.c4-agenda')].find(shown)||null;
+  const overlayOpen=()=>Boolean(document.querySelector('.c4-dlg-backdrop,.calendar-day-panel,[data-calendar-day-detail-backdrop],.calendar-day-sheet-backdrop'));
   const result={
     ok:true,
     viewport:{width:innerWidth,height:innerHeight},
     bound:true,
     guest:content.dataset.calendarAccess,
-    modal:{width:modalRect.width,height:modalRect.height,overflowY:getComputedStyle(modal).overflowY,noX:noX(modal)},
-    content:{overflowY:getComputedStyle(content).overflowY,scrollHeight:content.scrollHeight,clientHeight:content.clientHeight,noX:noX(content),unusedBottom},
-    grid:{
-      cells:grid.querySelectorAll('.calendar-date-cell').length,
-      weekCount:Number(grid.dataset.weekCount||0),
-      noX:noX(grid),
-      bottom:gridRect.bottom,
-      contentBottom:contentRect.bottom,
-      rowHeightSpread
-    },
+    modal:{width:modalRect.width,height:modalRect.height,noX:noX(modal)},
+    content:{noX:noX(content)},
+    grid:{cells:cellNodes.length,weekCount:Number(grid.dataset.weekCount||0),noX:noX(grid),rowHeightSpread},
     toolbar:{todayOneLine:oneLine(today),agendaOneLine:oneLine(agendaTab),modeTabLabels,scrollWidth:toolbar.scrollWidth,clientWidth:toolbar.clientWidth,noX:noX(toolbar)},
-    calendar:{width:calRect.width,layoutWidth:layoutRect.width,widthRatio:layoutRect.width>0?calRect.width/layoutRect.width:0},
-    detail:{
-      present:Boolean(detail),
-      hidden:detail?.hidden??true,
-      position:detail?getComputedStyle(detail).position:'',
-      overflowY:detail?getComputedStyle(detail).overflowY:'',
-      scrollHeight:detail?.scrollHeight||0,
-      clientHeight:detail?.clientHeight||0,
-      top:detailRect?.top||0,
-      bottom:detailRect?.bottom||0,
-      left:detailRect?.left||0,
-      right:detailRect?.right||0,
-      presentation:detail?.dataset.presentation||'',
-      selectedDate:detail?.dataset.selectedDate||'',
-      todayDate:grid.querySelector('.calendar-date-cell[data-today="true"]')?.dataset.calendarDate||'',
-      width:detailRect?.width||0,
-      gridRight:gridRect.right,
-      gridBottom:gridRect.bottom,
-      backdrop:Boolean(layout.querySelector('[data-calendar-day-detail-backdrop]')),
-      viewportHeight:innerHeight,
-      viewportWidth:innerWidth
+    mount:{
+      listDate:dayList()?.dataset.selectedDate||'',
+      todayDate:grid.querySelector('.c4-mc[data-today="true"]')?.dataset.calendarDate||'',
+      selected:[...grid.querySelectorAll('.c4-mc[data-selected="true"]')].map(n=>n.dataset.calendarDate),
+      overlay:overlayOpen(),
     },
     desktop
   };
@@ -243,175 +195,160 @@ try{
   if(result.grid.weekCount!==result.grid.cells/7)throw new Error('week count metadata mismatch');
   if(result.grid.rowHeightSpread>2)throw new Error('month row heights diverged '+result.grid.rowHeightSpread);
   if(!result.toolbar.todayOneLine||!result.toolbar.agendaOneLine)throw new Error('toolbar label wrapped');
-  if(!result.modal.noX||!result.content.noX||!result.grid.noX)throw new Error('horizontal overflow');
+  if(!result.modal.noX||!result.content.noX||!result.grid.noX)throw new Error('horizontal overflow '+JSON.stringify({modal:[modal.scrollWidth,modal.clientWidth],content:[content.scrollWidth,content.clientWidth],grid:[grid.scrollWidth,grid.clientWidth],vw:innerWidth,wide:[...modal.querySelectorAll('*')].filter(n=>n.getBoundingClientRect().right>modal.getBoundingClientRect().right+1).slice(0,6).map(n=>n.tagName+'.'+String(n.className).slice(0,60)+':'+Math.round(n.getBoundingClientRect().right))}));
   if(result.guest!=='guest')throw new Error('guest calendar contract');
+  if(result.mount.overlay)throw new Error('the Calendar must open without a window over the month');
+  if(result.mount.selected.join(',')!==result.mount.todayDate||result.mount.listDate!==result.mount.todayDate)throw new Error('the Calendar must open with today selected and listed, got '+result.mount.selected.join(',')+' / '+result.mount.listDate);
 
+  // A month cell names at most three records, then "+N개 더" (wide) or the
+  // same count as dots (phone). It never scrolls inside itself.
   const density=[];
   fixtureCounts.forEach((expected,index)=>{
-    const cell=grid.querySelector('[data-calendar-date="'+fixtureDates[index]+'"]');
+    const cell=grid.querySelector('.c4-mc[data-calendar-date="'+fixtureDates[index]+'"]');
     if(!cell)throw new Error('fixture date missing '+fixtureDates[index]);
-    const rows=[...cell.querySelectorAll('.calendar-event-chip')];
+    const rows=[...cell.querySelectorAll('.c4-mc-ev')];
     const expectedRows=Math.min(expected,3);
     if(rows.length!==expectedRows)throw new Error('Month must mount at most three rows '+fixtureDates[index]+' '+rows.length+' expected '+expectedRows);
-    const dots=cell.querySelector('.calendar-record-dots');
-    const dotCount=Number(dots?.dataset.recordCount||0);
-    const dotNodes=dots?dots.querySelectorAll('.calendar-record-dot').length:0;
-    const more=cell.querySelector('.calendar-event-overflow');
-    const visible=rows.filter(row=>!row.hidden&&getComputedStyle(row).display!=='none').length;
-    const overflowVisible=Boolean(more&&!more.hidden&&getComputedStyle(more).display!=='none');
     const hiddenCount=Math.max(0,expected-rows.length);
-    const cellHeight=cell.getBoundingClientRect().height;
-    if(visible!==expectedRows)throw new Error('representative rows must actually be visible '+fixtureDates[index]+' '+visible+' expected '+expectedRows);
-    if(rows.length+hiddenCount!==expected)throw new Error('density count mismatch '+fixtureDates[index]+' mounted '+rows.length+' hidden '+hiddenCount+' expected '+expected);
-    if(hiddenCount>0&&!overflowVisible)throw new Error('overflow summary must actually be visible '+fixtureDates[index]);
-    if(hiddenCount>0&&more.textContent!=='+'+hiddenCount+'개 더')throw new Error('overflow copy mismatch '+fixtureDates[index]);
-    if(hiddenCount===0&&overflowVisible)throw new Error('zero overflow must stay hidden '+fixtureDates[index]);
-    const stack=cell.querySelector('.calendar-event-stack');
-    if(getComputedStyle(stack).overflowY==='auto'||getComputedStyle(stack).overflowY==='scroll')throw new Error('cell inner scrollbar '+fixtureDates[index]);
-    if(rows.length>3)throw new Error('Month mounted unbounded event detail '+fixtureDates[index]);
-    density.push({date:fixtureDates[index],expected,visible,hiddenCount,overflowVisible,cellHeight});
+    if(rows.length+hiddenCount!==expected)throw new Error('density count mismatch '+fixtureDates[index]);
+    const more=cell.querySelector('.c4-mc-more');
+    if(hiddenCount>0&&more?.textContent!=='+'+hiddenCount+'개 더')throw new Error('overflow copy mismatch '+fixtureDates[index]+' '+(more?.textContent||'(none)'));
+    if(hiddenCount===0&&more)throw new Error('zero overflow must not render a "더" line '+fixtureDates[index]);
+    const dots=cell.querySelector('.c4-mc-dots');
+    const dotCount=dots?dots.querySelectorAll('i').length:0;
+    if(dotCount!==expectedRows)throw new Error('dot count mismatch '+fixtureDates[index]+' '+dotCount+' expected '+expectedRows);
+    if(Boolean(dots?.querySelector('b'))!==(hiddenCount>0))throw new Error('dot overflow mark mismatch '+fixtureDates[index]);
+    const stack=cell.querySelector('.c4-mc-evs');
+    if(['auto','scroll'].includes(getComputedStyle(stack).overflowY))throw new Error('cell inner scrollbar '+fixtureDates[index]);
+    const cellRect=cell.getBoundingClientRect();
+    let visible=0,overflowVisible=false;
+    if(desktop){
+      visible=rows.filter(shown).length;
+      if(visible!==expectedRows)throw new Error('representative rows must actually be visible '+fixtureDates[index]+' '+visible+' expected '+expectedRows);
+      overflowVisible=shown(more);
+      if(hiddenCount>0&&!overflowVisible)throw new Error('overflow summary must actually be visible '+fixtureDates[index]);
+      if(hiddenCount>0&&more.getBoundingClientRect().bottom>cellRect.bottom+1)throw new Error('overflow summary is cut off by the cell '+fixtureDates[index]);
+      if(shown(dots))throw new Error('wide cells name records instead of dots '+fixtureDates[index]);
+    }else{
+      if(rows.some(shown))throw new Error('phone cells show dots, not record names '+fixtureDates[index]);
+      if(expected>0&&!shown(dots))throw new Error('phone cells must show their record dots '+fixtureDates[index]);
+    }
+    density.push({date:fixtureDates[index],expected,visible,hiddenCount,overflowVisible,cellHeight:cellRect.height});
   });
   result.density=density;
 
+  const openDayAndFirstRow=async date=>{
+    click(grid.querySelector('.c4-mc[data-calendar-date="'+date+'"]'));
+    await wait(()=>dayList()?.dataset.selectedDate===date,'day list follows '+date);
+    await wait(()=>dayList()?.querySelector('.c4-dc-ev'),'day list row '+date);
+    return dayList().querySelector('.c4-dc-ev');
+  };
+
   if(desktop){
     if(modalRect.width<900)throw new Error('desktop calendar workspace too narrow '+modalRect.width);
-    if(result.calendar.widthRatio<0.95)throw new Error('desktop Month must keep the full workspace width '+result.calendar.widthRatio);
-    if(result.detail.present)throw new Error('desktop Month must not open an unsolicited selected-day overlay');
+    const side=modal.querySelector('.c4-side');
+    if(!shown(side)||side.getBoundingClientRect().left<grid.getBoundingClientRect().right-1)throw new Error('desktop keeps the selected day and the ledger beside the month');
 
-    const eventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
-    const eventButton=eventCell?.querySelector('.calendar-event-chip');
+    const eventButton=await openDayAndFirstRow(fixtureDates[1]);
     if(!(eventButton instanceof HTMLButtonElement))throw new Error('event click target missing');
     eventButton.focus();
     click(eventButton);
-    await wait(()=>modal.querySelector('.calendar-editor-dialog'),'event editor');
-    if(modal.querySelector('.calendar-editor-dialog h3')?.textContent!=='일정 수정')throw new Error('event click opened wrong surface');
-    const editorTitle=modal.querySelector('.calendar-editor-title');
-    const deleteButton=modal.querySelector('.calendar-editor-delete');
-    if(!(editorTitle instanceof HTMLInputElement)||!(deleteButton instanceof HTMLButtonElement))throw new Error('event delete controls missing');
-    editorTitle.value='임시 수정값 보존';
+    await wait(()=>document.querySelector('.c4-detail'),'event detail');
+    const detail=document.querySelector('.c4-detail');
+    if(detail.querySelector('#c4-detail-heading')?.textContent!=='치과')throw new Error('event click opened the wrong record');
+    const deleteButton=detail.querySelector('[data-calendar-detail-delete]');
+    const editButton=detail.querySelector('[data-calendar-detail-edit]');
+    if(!(deleteButton instanceof HTMLButtonElement)||!(editButton instanceof HTMLButtonElement))throw new Error('event detail edit/delete controls missing');
     for(let i=0;i<5;i+=1)click(deleteButton);
-    await wait(()=>modal.querySelector('.calendar-delete-confirm-dialog'),'delete confirmation dialog');
-    if(modal.querySelectorAll('.calendar-delete-confirm-dialog').length!==1)throw new Error('duplicate delete confirmation dialog');
-    const deleteDialog=modal.querySelector('.calendar-delete-confirm-dialog');
+    await wait(()=>document.querySelector('.calendar-delete-confirm-dialog'),'delete confirmation dialog');
+    if(document.querySelectorAll('.calendar-delete-confirm-dialog').length!==1)throw new Error('duplicate delete confirmation dialog');
+    const deleteDialog=document.querySelector('.calendar-delete-confirm-dialog');
     if(deleteDialog.getAttribute('role')!=='dialog'||deleteDialog.getAttribute('aria-modal')!=='true')throw new Error('delete dialog semantics');
     if(deleteDialog.querySelector('h4')?.textContent!=='이 일정을 삭제하시겠습니까?')throw new Error('delete dialog title');
-    if(deleteDialog.querySelector('#calendar-delete-confirm-description')?.textContent!=='삭제한 일정은 복구할 수 없습니다.')throw new Error('delete dialog description');
+    if(deleteDialog.querySelector('p')?.textContent!=='삭제한 일정은 복구할 수 없습니다.')throw new Error('delete dialog description');
     const cancelDelete=deleteDialog.querySelector('.calendar-delete-confirm-cancel');
     if(!(cancelDelete instanceof HTMLButtonElement))throw new Error('delete cancel missing');
     await wait(()=>document.activeElement===cancelDelete,'safe delete focus');
     click(cancelDelete);
-    await wait(()=>!modal.querySelector('.calendar-delete-confirm-dialog'),'delete confirmation cancel');
-    if(!modal.querySelector('.calendar-editor-dialog'))throw new Error('delete cancel closed editor');
-    if(editorTitle.value!=='임시 수정값 보존')throw new Error('delete cancel lost editor draft');
+    await wait(()=>!document.querySelector('.calendar-delete-confirm-dialog'),'delete confirmation cancel');
+    if(!document.querySelector('.c4-detail'))throw new Error('delete cancel closed the detail');
     await wait(()=>document.activeElement===deleteButton,'delete focus restore');
 
     click(deleteButton);
-    await wait(()=>modal.querySelector('.calendar-delete-confirm-dialog'),'delete confirmation reopen');
-    const reopenedDelete=modal.querySelector('.calendar-delete-confirm-dialog');
-    reopenedDelete.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-    await wait(()=>!modal.querySelector('.calendar-delete-confirm-dialog'),'delete confirmation Escape');
-    if(!modal.querySelector('.calendar-editor-dialog'))throw new Error('delete Escape closed editor');
-    if(editorTitle.value!=='임시 수정값 보존')throw new Error('delete Escape lost editor draft');
+    await wait(()=>document.querySelector('.calendar-delete-confirm-dialog'),'delete confirmation reopen');
+    document.querySelector('.calendar-delete-confirm-dialog').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+    await wait(()=>!document.querySelector('.calendar-delete-confirm-dialog'),'delete confirmation Escape');
+    if(!document.querySelector('.c4-detail'))throw new Error('delete Escape closed the detail');
+    if(!grid.isConnected&&!modal.querySelector('.c4-mo-g'))throw new Error('delete Escape rebuilt the Calendar');
 
+    detail.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+    await wait(()=>!document.querySelector('.c4-detail'),'event detail Escape close');
+    if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('detail Escape closed the Calendar');
+    await wait(()=>document.activeElement?.dataset.calendarEventId===eventButton.dataset.calendarEventId,'event focus restore');
+
+    // 상세 → 수정: the editor opens on the record, and Escape closes only it.
+    click([...dayList().querySelectorAll('.c4-dc-ev')][0]);
+    await wait(()=>document.querySelector('.c4-detail [data-calendar-detail-edit]'),'event detail again');
+    click(document.querySelector('.c4-detail [data-calendar-detail-edit]'));
+    await wait(()=>document.querySelector('.c4-editor'),'event editor');
+    const editor=document.querySelector('.c4-editor');
+    if(editor.querySelector('#calendar-editor-heading')?.textContent!=='일정 수정')throw new Error('수정 opened the wrong surface');
+    if(document.querySelector('.c4-detail'))throw new Error('the editor must replace the detail, not stack over it');
+    const editorTitle=editor.querySelector('.calendar-editor-title');
+    if(!(editorTitle instanceof HTMLInputElement)||editorTitle.value!=='치과')throw new Error('editor title not prefilled');
     editorTitle.focus();
     editorTitle.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-    await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'event editor Escape close');
-    if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('editor Escape closed the Calendar modal');
-    await wait(()=>document.activeElement?.dataset.calendarEventId===eventButton.dataset.calendarEventId,'event focus restore');
-    if(modal.querySelector('.calendar-delete-confirm-dialog'))throw new Error('delete state leaked after editor close');
+    await wait(()=>!document.querySelector('.c4-editor'),'event editor Escape close');
+    if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('editor Escape closed the Calendar');
+    if(document.body.classList.contains('calendar-editor-open'))throw new Error('editor background lock leaked');
     result.eventSelection=true;
     result.editorEscapeContained=true;
     result.deleteConfirmation=true;
-
   }else{
     if(modalRect.width>innerWidth+1)throw new Error('responsive modal wider than viewport');
     if(!result.toolbar.noX)throw new Error('responsive toolbar must not rely on horizontal scrolling');
-    if(result.detail.present)throw new Error('touch Calendar must open full width without an unsolicited day sheet');
-    // Tap a date and verify a bottom sheet opens over the unchanged month.
-    const entryCell=grid.querySelector('.calendar-date-cell[data-selected="true"]')
-      ||grid.querySelector('.calendar-date-cell[data-current-month="true"]');
-    click(entryCell);
-    await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'touch selected-day panel opens on a tap');
-    {
-      // The panel rises into place; geometry is only meaningful once it stops.
-      // A background render (weather, holidays, the amount line) rebuilds the
-      // panel, so it is read afresh each time rather than through a reference
-      // that may since have left the document.
-      const livePanel=()=>modal.querySelector('.calendar-day-panel');
-      let previous=null,stable=0;
-      for(let i=0;i<120;i+=1){
-        const current=livePanel().getBoundingClientRect().bottom;
-        if(previous!==null&&Math.abs(current-previous)<0.5){stable+=1;if(stable>=3)break}else stable=0;
-        previous=current;
-        await new Promise(resolve=>setTimeout(resolve,20));
-      }
-      const opened=livePanel();
-      const openedRect=opened.getBoundingClientRect();
-      result.detail={
-        ...result.detail,
-        hidden:opened.hidden,
-        position:getComputedStyle(opened).position,
-        overflowY:getComputedStyle(opened).overflowY,
-        scrollHeight:opened.scrollHeight,
-        clientHeight:opened.clientHeight,
-        top:openedRect.top,
-        bottom:openedRect.bottom,
-        left:openedRect.left,
-        right:openedRect.right,
-        presentation:opened.dataset.presentation||'',
-        backdrop:Boolean(modal.querySelector('[data-calendar-day-detail-backdrop]')),
-        // Opening a FLOW detail may scroll the Calendar content so its actions
-        // are immediately reachable. Compare against the grid's position after
-        // that scroll, not the DOMRect cached before the user tapped the date.
-        gridBottom:grid.getBoundingClientRect().bottom,
-      };
-    }
-    // Mobile detail is a dismissible bottom sheet.
-    if(result.detail.hidden)throw new Error('a tap on a date must open the selected-day surface');
-    if(result.detail.presentation!=='SHEET')throw new Error('touch selected-day surface must be a bottom sheet');
-    if(result.detail.position!=='fixed')throw new Error('touch selected-day panel must attach to the viewport');
-    if(!result.detail.backdrop)throw new Error('touch selected-day panel must own a dismiss layer');
-    if(result.detail.left<-1||result.detail.right>innerWidth+1)throw new Error('touch selected-day panel horizontal overflow');
-
-    const mobileEventCell=grid.querySelector('[data-calendar-date="'+fixtureDates[1]+'"]');
-    if(!mobileEventCell)throw new Error('mobile event cell missing');
-    click(mobileEventCell);
-    await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===fixtureDates[1],'mobile event day');
-    await wait(()=>modal.querySelector('.calendar-day-panel .calendar-day-event'),'mobile event row');
-    const mobileEventButton=modal.querySelector('.calendar-day-panel .calendar-day-event');
+    // A tap on a date lists that day under the month; nothing slides over it.
+    const mobileEventButton=await openDayAndFirstRow(fixtureDates[1]);
+    if(overlayOpen())throw new Error('a tap on a date must not open a sheet over the month');
+    const listRect=dayList().getBoundingClientRect();
+    if(listRect.top<grid.getBoundingClientRect().bottom-1)throw new Error('the phone day list must sit under the month');
+    if(listRect.left<-1||listRect.right>innerWidth+1)throw new Error('phone day list horizontal overflow');
     click(mobileEventButton);
-    await wait(()=>modal.querySelector('.calendar-editor-dialog'),'mobile event editor');
-    const mobileEditor=modal.querySelector('.calendar-editor-dialog');
-    const mobileEditorBody=modal.querySelector('.calendar-editor-body');
-    const mobileEditorActions=modal.querySelector('.calendar-editor-actions');
-    if(!(mobileEditor instanceof HTMLElement)||!(mobileEditorBody instanceof HTMLElement)||!(mobileEditorActions instanceof HTMLElement))throw new Error('mobile event editor shell missing');
+    await wait(()=>document.querySelector('.c4-detail'),'mobile event detail');
+    const detailBackdrop=document.querySelector('.c4-detail-backdrop');
+    const detailRect=document.querySelector('.c4-detail').getBoundingClientRect();
+    if(detailBackdrop.dataset.editorPresentation!=='SHEET')throw new Error('phone event detail must be a bottom sheet');
+    if(detailRect.left<-1||detailRect.right>innerWidth+1||detailRect.top<-1)throw new Error('phone event detail escapes the viewport');
+    if(Math.abs(detailRect.bottom-innerHeight)>2)throw new Error('phone event detail must rest on the bottom of the viewport ('+detailRect.bottom+' vs '+innerHeight+')');
+    click(document.querySelector('.c4-detail [data-calendar-detail-edit]'));
+    await wait(()=>document.querySelector('.c4-editor'),'mobile event editor');
+    const mobileEditor=document.querySelector('.c4-editor');
+    const mobileEditorBody=mobileEditor.querySelector('.calendar-editor-body');
+    const topSave=mobileEditor.querySelector('[data-calendar-editor-save-top]');
+    if(!(mobileEditorBody instanceof HTMLElement)||!(topSave instanceof HTMLButtonElement))throw new Error('mobile event editor shell missing');
     const mobileEditorRect=mobileEditor.getBoundingClientRect();
-    const mobileBodyStyle=getComputedStyle(mobileEditorBody);
-    const mobileActionsRect=mobileEditorActions.getBoundingClientRect();
     if(mobileEditorRect.left<-1||mobileEditorRect.right>innerWidth+1)throw new Error('mobile editor horizontal overflow');
     if(mobileEditorRect.top<-1||mobileEditorRect.bottom>innerHeight+1)throw new Error('mobile editor escapes viewport');
-    if(mobileBodyStyle.overflowY!=='auto')throw new Error('mobile editor body must own vertical scroll');
+    if(getComputedStyle(mobileEditorBody).overflowY!=='auto')throw new Error('mobile editor body must own vertical scroll');
     if(getComputedStyle(document.body).overflow!=='hidden')throw new Error('mobile editor must lock background scroll');
-    if(mobileActionsRect.bottom>mobileEditorRect.bottom+1)throw new Error('mobile editor action footer unreachable');
-    // A bottom sheet: it rests on the bottom of the visual viewport.
     if(Math.abs(mobileEditorRect.bottom-innerHeight)>2)throw new Error('touch editor sheet must rest on the bottom of the visual viewport ('+mobileEditorRect.bottom+' vs '+innerHeight+')');
+    // Save stays in the header, so an open keyboard never hides it.
+    const topSaveRect=topSave.getBoundingClientRect();
+    if(!shown(topSave)||topSaveRect.top<mobileEditorRect.top-1||topSaveRect.bottom>mobileEditorBody.getBoundingClientRect().top+1)throw new Error('mobile editor save must sit in the header above the body');
     const moreChip=mobileEditor.querySelector('[data-editor-chip="more"]');
     const moreSection=mobileEditor.querySelector('[data-editor-section="more"]');
     if(!(moreChip instanceof HTMLButtonElement)||!(moreSection instanceof HTMLElement))throw new Error('mobile optional details chip missing');
     click(moreChip);
     await wait(()=>!moreSection.hidden,'mobile optional details open');
-    const merchant=modal.querySelector('.calendar-editor-merchant');
+    const merchant=mobileEditor.querySelector('.calendar-editor-merchant');
     if(!(merchant instanceof HTMLInputElement))throw new Error('mobile lower field missing');
     merchant.focus();
     await new Promise(resolve=>setTimeout(resolve,40));
     const merchantRect=merchant.getBoundingClientRect();
     const mobileBodyRect=mobileEditorBody.getBoundingClientRect();
     if(merchantRect.top<mobileBodyRect.top-2||merchantRect.bottom>mobileBodyRect.bottom+2)throw new Error('mobile lower field focus did not scroll into the editor body');
-    if(mobileBodyRect.bottom>mobileActionsRect.top+2)throw new Error('mobile editor body overlaps fixed actions');
-    const mobileClose=modal.querySelector('.calendar-editor-close');
-    if(!(mobileClose instanceof HTMLButtonElement))throw new Error('mobile editor close control missing');
-    click(mobileClose);
-    await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'mobile editor close');
+    click(mobileEditor.querySelector('.c4-top-cancel')||mobileEditor.querySelector('.calendar-editor-close'));
+    await wait(()=>!document.querySelector('.c4-editor'),'mobile editor close');
     if(document.body.classList.contains('calendar-editor-open'))throw new Error('mobile editor background lock leaked');
     result.mobileEditor=true;
   }
@@ -426,16 +363,22 @@ try{
   await mode('주');
   await mode('년');
   await mode('일정');
+  // 날짜 미정 has its own chip, with its count, and its records open like any other.
+  const undatedChip=modal.querySelector('[data-agenda-scope="unscheduled"]');
+  if(!(undatedChip instanceof HTMLButtonElement)||!/날짜 미정\s*1/.test(undatedChip.textContent))throw new Error('Agenda 날짜 미정 chip must show its count, got '+(undatedChip?.textContent||'(none)'));
+  click(undatedChip);
   await wait(()=>modal.querySelector('.calendar-unscheduled-group'),'Agenda unscheduled group');
   const unscheduledGroup=modal.querySelector('.calendar-unscheduled-group');
-  if(unscheduledGroup?.querySelector('h3')?.textContent!=='날짜 미정')throw new Error('unscheduled heading missing');
-  const unscheduledEvent=[...unscheduledGroup.querySelectorAll('.calendar-day-event')].find(node=>node.textContent.includes('날짜 미정 할 일'));
+  if(!/^날짜 미정/.test(unscheduledGroup?.querySelector('.c4-lg-hd')?.textContent||''))throw new Error('unscheduled heading missing');
+  const unscheduledEvent=[...unscheduledGroup.querySelectorAll('.c4-lr')].find(node=>node.textContent.includes('날짜 미정 할 일'));
   if(!(unscheduledEvent instanceof HTMLElement))throw new Error('unscheduled event missing');
   click(unscheduledEvent);
-  await wait(()=>modal.querySelector('.calendar-editor-dialog'),'unscheduled editor');
-  if(modal.querySelector('.calendar-editor-date')?.value!=='')throw new Error('unscheduled editor invented a date');
-  modal.querySelector('.calendar-editor-title')?.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-  await wait(()=>!modal.querySelector('.calendar-editor-dialog'),'unscheduled editor Escape close');
+  await wait(()=>document.querySelector('.c4-detail [data-calendar-detail-edit]'),'unscheduled detail');
+  click(document.querySelector('.c4-detail [data-calendar-detail-edit]'));
+  await wait(()=>document.querySelector('.c4-editor'),'unscheduled editor');
+  if(document.querySelector('.c4-editor .calendar-editor-date')?.value!=='')throw new Error('unscheduled editor invented a date');
+  document.querySelector('.c4-editor .calendar-editor-title')?.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  await wait(()=>!document.querySelector('.c4-editor'),'unscheduled editor Escape close');
   result.unscheduledReachable=true;
   const upcomingRange=modal.querySelector('[data-agenda-scope="upcoming"]');
   if(!(upcomingRange instanceof HTMLButtonElement))throw new Error('Agenda upcoming control missing');
@@ -450,11 +393,11 @@ try{
   click(modal.querySelectorAll('.calendar-nav-button')[1]);
   await wait(()=>modal.querySelector('.calendar-title-button').textContent===title,'next');
   await waitCalendarIdle('next');
-  const ordinary=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(n=>n.dataset.selected!=='true');
+  const ordinary=[...modal.querySelectorAll('.c4-mc[data-current-month="true"]')].find(n=>n.dataset.selected!=='true');
   const selectedDate=ordinary?.dataset.calendarDate;
   click(ordinary);
-  await wait(()=>modal.querySelector('[data-calendar-date="'+selectedDate+'"]')?.dataset.selected==='true','date selection');
-  await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===selectedDate&&!modal.querySelector('.calendar-day-panel')?.hidden,'selected-day detail follows');
+  await wait(()=>modal.querySelector('.c4-mc[data-calendar-date="'+selectedDate+'"]')?.dataset.selected==='true','date selection');
+  await wait(()=>dayList()?.dataset.selectedDate===selectedDate,'selected-day list follows');
   const settingsButton=modal.querySelector('.calendar-settings-button');
   if(!(settingsButton instanceof HTMLButtonElement))throw new Error('Settings opener missing');
   settingsButton.focus();
@@ -472,20 +415,15 @@ try{
   if(document.activeElement!==lastSettingsControl)throw new Error('Settings backward Tab escaped the dialog');
   lastSettingsControl.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
   await wait(()=>!modal.querySelector('.calendar-settings-dialog'),'Settings Escape close');
-  if(!modal.querySelector('.calendar-day-panel'))throw new Error('Settings Escape also closed the underlying day detail');
+  if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('Settings Escape closed the Calendar');
+  if(dayList()?.dataset.selectedDate!==selectedDate)throw new Error('Settings Escape lost the selected day');
   await wait(()=>document.activeElement===settingsButton,'Settings Escape focus restore');
   result.settingsModalContained=true;
-  // Escape closes only the selected-day overlay and restores date focus.
-  const dayHeading=modal.querySelector('.calendar-day-panel .calendar-day-heading');
-  dayHeading.focus();
-  dayHeading.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-  await wait(()=>document.activeElement?.dataset.calendarDateTrigger===selectedDate,'selected-day Escape focus restore');
-  if(!document.querySelector('.site-modal.site-calendar-modal'))throw new Error('day-detail Escape closed the Calendar modal');
-  if(modal.querySelector('.calendar-day-panel'))throw new Error('day-detail Escape did not close the overlay');
   result.escapeContained=true;
   click(modal.querySelector('.calendar-today-button'));
   await wait(()=>content.dataset.calendarManagerView==='month','today');
   await waitCalendarIdle('today');
+  await wait(()=>dayList()?.dataset.selectedDate===result.mount.todayDate,'today button selects today');
   result.controls=true;result.dateSelection=true;
 
   click(modal.querySelector('.site-modal-close'));

@@ -173,7 +173,8 @@ const openViaFooter=async label=>{
   await wait(()=>document.querySelector('.site-modal.site-calendar-modal'),label+': calendar modal opened');
   await new Promise(r=>setTimeout(r,600));
   return {
-    editor: document.querySelector('.calendar-editor-dialog'),
+    // The workspace Calendar (design 04) draws its editor as .c4-editor.
+    editor: document.querySelector('.calendar-editor-dialog, .c4-editor'),
     modal: document.querySelector('.site-modal.site-calendar-modal'),
   };
 };
@@ -252,7 +253,7 @@ try{
   // confirmation dialog it must not disappear when the user taps blank space.
   // Close the nested editor first so the clicks exercise the Calendar shell.
   document.querySelector('.calendar-editor-close')?.click();
-  await wait(()=>!document.querySelector('.calendar-editor-dialog'),'plain editor closed');
+  await wait(()=>!document.querySelector('.calendar-editor-dialog, .c4-editor'),'plain editor closed');
   const conversationBeforeBackdrop=document.getElementById('conversation-thread').textContent;
   click(plain.modal);
   await new Promise(r=>setTimeout(r,50));
@@ -345,12 +346,15 @@ try {
     if (v.answerCopied.length !== 1 || !v.answerCopied[0].startsWith('오늘은 대체로 맑고')) throw new Error(`${label}: ordinary answer copy regressed, got ${JSON.stringify(v.answerCopied)}`);
     // LOTBI-KAKAO-SHARE-ACTUAL-01: KakaoTalk comes first once Share is ready.
     assertList(v.shareMenuItems, kakao === 'configured' ? ['카카오톡 공유하기', '링크 복사'] : ['링크 복사'], `${label}: share menu`);
-    if (v.calendarRole !== 'dialog' || v.calendarAriaModal !== 'true') throw new Error(`${label}: Calendar must be an accessible modal dialog`);
-    if (v.calendarIsWorkspace || v.bodyWorkspaceOpen) throw new Error(`${label}: Calendar must not replace chat as a workspace`);
-    if (!v.bodyOverlayOpen || !v.chatRemainsVisible || v.chatIsInert) throw new Error(`${label}: chat must remain mounted and visible behind Calendar`);
+    // The owner-approved Calendar is a full-page workspace (approved full-page
+    // calendar, then design 04): a named region that takes the place of the
+    // chat while it is open and gives it back untouched when it closes.
+    if (v.calendarRole !== 'region') throw new Error(`${label}: the Calendar workspace must be a named region, got role "${v.calendarRole}"`);
+    if (!v.calendarIsWorkspace || !v.bodyWorkspaceOpen || v.bodyOverlayOpen) throw new Error(`${label}: Calendar must open as the full-page workspace`);
+    if (!v.chatIsInert) throw new Error(`${label}: the chat behind the Calendar workspace must be inert`);
     if (!v.calendarStayedAfterInnerBlankClick) throw new Error(`${label}: Calendar must stay open after a blank area inside the modal is clicked`);
     if (!v.calendarStayedAfterBackdropClick) throw new Error(`${label}: Calendar must stay open after its outer backdrop is clicked`);
-    if (v.calendarCloseButtonLabel !== '캘린더 닫기') throw new Error(`${label}: Calendar modal close button contract changed, got "${v.calendarCloseButtonLabel}"`);
+    if (v.calendarCloseButtonLabel !== '대화로 돌아가기') throw new Error(`${label}: the workspace back control must say where it goes, got "${v.calendarCloseButtonLabel}"`);
     if (!v.calendarClosedByCloseButton) throw new Error(`${label}: Calendar close button must still close the modal`);
     if (!v.conversationPreservedAfterClose) throw new Error(`${label}: closing Calendar must preserve the conversation`);
     if (!v.calendarClosedByEscape) throw new Error(`${label}: Escape must still close the Calendar modal`);
@@ -376,7 +380,7 @@ try {
       kakao: v.kakaoFeedback,
     }));
   }
-  console.log('MESSAGE CALENDAR FOOTER EDITOR 01 PASS — a real draft opens the editor pre-filled ("일정 초안 확인"), an answer with no schedule offers no 캘린더에 추가, and the Calendar stays a modal over the conversation');
+  console.log('MESSAGE CALENDAR FOOTER EDITOR 01 PASS — a real draft opens the editor pre-filled ("일정 초안 확인"), an answer with no schedule offers no 캘린더에 추가, and the Calendar opens as the full-page workspace and gives the conversation back');
 } finally {
   server.kill();
   try { fs.unlinkSync(INNER); } catch {}

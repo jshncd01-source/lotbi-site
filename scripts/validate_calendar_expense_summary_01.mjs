@@ -1,36 +1,35 @@
-// Locks the Calendar month amount line (LIFE UX 01).
+// Locks the Calendar ledger (LIFE UX 01, updated for the owner-approved
+// calendar design 04 on 2026-10-14).
 //
-// A month's recorded amounts keep one clear total line at the top of Month,
-// with the five user-facing categories visible immediately beneath it. The
-// month total belongs to Month only: Today and Week show no month total (the
-// owner's decision in CALENDAR P0 mobile week vertical 01). The detailed
-// currency/count view still opens from the total line.
+// The month's recorded amounts are one clear total -- the ledger card beside
+// the calendar on a desk, the folded line at the bottom on a phone -- with the
+// six fixed categories beneath it on the desk card. Planned (not yet paid)
+// amounts are shown apart and never added to the total.
 //
 // Covered contracts:
-//   - the summary sits directly below the toolbar and before the view in
-//     Month, so scrolling the schedule does not hide it first; Today and Week
-//     draw no month total
-//   - one line: label, total and chevron share a row; a real button with a
-//     44px touch target; no category name and no ledger words on the line
-//   - a month with no recorded amount keeps its line at 0원 and the five
-//     fixed 0원 slots (owner decision 2026-10-10: the 10-06 redesign had hidden
-//     the line, which read as "가계부 표시가 사라졌다")
-//   - pressing it opens the breakdown -- a sheet on a phone, a side panel on
-//     a desk -- listing only the categories that hold an amount, in the fixed
-//     order, with the total; Escape closes it and focus returns to the line
-//   - loading, error and guest are distinguishable: loading draws nothing
-//     (never another month's total), an error is a status line (401 offers
-//     signing in again, 403 never does), a guest's total is computed in this
-//     browser and never fetched from Core
-//   - no amount is invented: an entry without an amount is not counted, and an
-//     editor opened on one shows an empty box, never a placeholder 0, while
-//     keeping (and saving) the category it was recorded with
-//   - the month window is the calendar month, not the 42-cell grid
-//   - currencies are never merged: KRW reads 원 without the letters KRW, any
-//     other currency keeps its code
+//   - one total control: a real 44px+ button naming the period, the total and
+//     that it opens; no category name on the phone line
+//   - the desk card lists all six categories in the fixed order with their
+//     own colour, legible (WCAG AA) in Light and Dark; planned money is a
+//     separate "예정" line that says it is not in the total
+//   - the period follows the view: Week, Month and 일정 read the civil month,
+//     Year reads the civil year -- never the 42-cell grid; the signed-in read
+//     asks Core for the planned amounts (include_planned=true)
+//   - pressing the total opens the breakdown (a sheet on a phone, a centred
+//     dialog on a desk) with 실제 / 예정 kept apart; Escape closes it and focus
+//     returns to the total
+//   - a month change never shows another month's total
+//   - a month with no amount reads 0원 and keeps the six 0원 slots
+//   - a refused read is a status line: 401 offers signing in again, 403 never
+//     does, and the month grid stays standing
+//   - a guest's total is computed in this browser and never fetched; planned
+//     guest amounts stay out of it; the breakdown says where the records live
+//   - no amount is invented: an entry without an amount is not counted, and
+//     its editor shows an empty box and keeps (and saves) its category
+//   - currencies are never merged: KRW reads 원, any other currency keeps its
+//     code and is reported apart
 //   - the editor and the breakdown call every category the same thing
-//   - a refused read or a broken guest store never takes the month down
-//   - legible in Light and Dark; no horizontal overflow at any width
+//   - a broken guest store never takes the month down; no horizontal overflow
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
@@ -56,18 +55,27 @@ function browserPath() {
 
 const fixture = `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/styles.css?v=${assetVersion}">
+<link rel="stylesheet" href="/home-chat.css?v=${assetVersion}">
 <link rel="stylesheet" href="/site-calendar.css?v=${assetVersion}">
 <link rel="stylesheet" href="/site-calendar-expense.css?v=${assetVersion}">
+<link rel="stylesheet" href="/site-calendar-weather.css?v=${assetVersion}">
+<link rel="stylesheet" href="/site-theme-tokens.css?v=${assetVersion}">
+<link rel="stylesheet" href="/site-conversation.css?v=${assetVersion}">
 <link rel="stylesheet" href="/site-consumer-design.css?v=${assetVersion}">
 <link rel="stylesheet" href="/site-consumer-layout.css?v=${assetVersion}">
-<link rel="stylesheet" href="/site-theme-tokens.css?v=20260923-darklogo1">
-</head><body class="chat-home-page" style="margin:0">
-<div class="consumer-workspace" data-workspace="calendar"><div id="calendar-root"></div></div>
+<link rel="stylesheet" href="/site-consumer-detail.css?v=${assetVersion}">
+</head><body class="chat-home-page site-workspace-open" data-site-theme="light" style="margin:0">
+<div class="consumer-workspace" data-workspace="calendar">
+  <section class="site-modal site-calendar-modal site-calendar-chat-popup site-calendar-page" role="region">
+    <div class="site-modal-content" id="calendar-root"></div>
+  </section>
+</div>
 <pre id="expense-result">pending</pre>
 <script type="module">
 const out=document.getElementById('expense-result');
 let stage='init';
-setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage})}},45000);
+setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage})}},50000);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const wait=async(fn,label)=>{stage=label;for(let i=0;i<250;i+=1){if(fn())return true;await sleep(20)}throw new Error('timeout '+label)};
 const waitForDomIdle=(node,quietMs=120)=>new Promise(resolve=>{
@@ -78,9 +86,11 @@ const waitForDomIdle=(node,quietMs=120)=>new Promise(resolve=>{
   observer.observe(node,{subtree:true,childList:true,characterData:true,attributes:true});
   settle();
 });
+const shown=node=>Boolean(node&&node.getClientRects().length&&getComputedStyle(node).display!=='none'&&getComputedStyle(node).visibility!=='hidden');
+const text=node=>(node?.textContent||'').replace(/\\s+/g,' ').trim();
 
 // The fixture answers Core itself so the assertions measure rendering, not the
-// network. Only the routes the month view touches are served.
+// network. Only the routes the Calendar touches are served.
 function stubFetch({expense, expenseStatus=200, agendaItems=[]}){
   const json=body=>Promise.resolve(new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}}));
   const calls=[];
@@ -105,6 +115,9 @@ function stubFetch({expense, expenseStatus=200, agendaItems=[]}){
       return json({view:'ATTENTION',as_of:'2026-09-22T00:00:00+00:00',timezone:'Asia/Seoul',
         coverage:'PERSONAL_ACTIVITY_ONLY',items:[],ai_calls:0,provider_api_calls:0});
     }
+    if(parsed.pathname==='/v2/life/unscheduled'){
+      return json({view:'UNSCHEDULED',items:[],ai_calls:0,provider_api_calls:0});
+    }
     if(parsed.pathname==='/v2/life/holidays'){
       return json({year:2026,country:'KR',coverage_status:'VERIFIED',snapshot_version:'x',supported_years:[2026],items:[],ai_calls:0,provider_api_calls:0});
     }
@@ -114,33 +127,38 @@ function stubFetch({expense, expenseStatus=200, agendaItems=[]}){
   return impl;
 }
 
+// Spent (PAID) money only in the totals; 28,000원 of 음식 is planned.
 const KRW_SUMMARY={currencies:[{currency:'KRW',categories:[
-  {expense_category:'FOOD',amount_minor:40500,entry_count:2},
-  {expense_category:'TRAVEL',amount_minor:180000,entry_count:1},
-  {expense_category:'LIVING',amount_minor:94000,entry_count:1}],
-  total_amount_minor:314500,entry_count:4}],entries_without_amount:2};
+  {expense_category:'FOOD',amount_minor:40500,entry_count:2,planned_amount_minor:28000,planned_entry_count:1},
+  {expense_category:'TRAVEL',amount_minor:180000,entry_count:1,planned_amount_minor:0,planned_entry_count:0},
+  {expense_category:'LIVING',amount_minor:94000,entry_count:1,planned_amount_minor:0,planned_entry_count:0}],
+  total_amount_minor:314500,entry_count:4,planned_amount_minor:28000,planned_entry_count:1}],entries_without_amount:2};
 
-function line(root){return root.querySelector('[data-calendar-amount-summary]')}
 const FORBIDDEN=['쓴 돈','가계부','금액 없는 일정','건 제외'];
-const forbiddenIn=text=>FORBIDDEN.filter(word=>String(text||'').includes(word));
+const forbiddenIn=value=>FORBIDDEN.filter(word=>String(value||'').includes(word));
+// The ledger the owner can see: the desk card, or the phone's bottom line.
+const ledger=root=>[...root.querySelectorAll('.c4-ledger,.c4-dock')].find(shown)||null;
+const totalControl=root=>ledger(root)?.querySelector('[data-calendar-amount-open]')||null;
+const totalText=root=>text(ledger(root)?.querySelector('.c4-lc-num,.c4-dock-v'));
+const captionText=root=>text(ledger(root)?.querySelector('.c4-lc-cap,.c4-dock-k'));
 
 // A guest repository the fixture controls directly, with the same surface the
 // real localStorage one exposes to the manager. Writes are recorded.
 function makeGuestRepo(events){
   const rows=events.map((e,i)=>({id:'guest_'+String(i).padStart(8,'0')+'-0000-4000-8000-000000000000',
     title:'항목 '+i,local_datetime:null,all_day:true,
-    entry:{amount_minor:null,currency:'KRW',expense_category:null,memo:null,place:null,merchant:null},
-    ...e,entry:{amount_minor:null,currency:'KRW',expense_category:null,memo:null,place:null,merchant:null,...(e.entry||{})}}));
+    ...e,entry:{amount_minor:null,currency:'KRW',expense_category:null,expense_status:null,memo:null,place:null,merchant:null,...(e.entry||{})}}));
   const writes=[];
   return {list:()=>rows,create(...args){writes.push(['create',...args])},update(...args){writes.push(['update',...args])},remove(){},writes};
 }
 
 async function mountCase(manager,{sessionToken,fetchImpl,guestRepository}){
-  document.querySelectorAll('.calendar-amount-backdrop,.calendar-editor-backdrop').forEach(node=>node.remove());
+  document.querySelectorAll('.c4-dlg-backdrop,.calendar-editor-backdrop').forEach(node=>node.remove());
   const root=document.getElementById('calendar-root');
   root.replaceChildren();
   manager.mountLifeCalendarManager({
     root,sessionToken,timezone:'Asia/Seoul',
+    initialView:'month',
     now:()=>new Date('2026-09-22T03:00:00+09:00'),
     fetchImpl,guestRepository,
     settingsStorage:{getItem:()=>JSON.stringify({showKoreaHolidays:false}),setItem(){}},
@@ -148,11 +166,11 @@ async function mountCase(manager,{sessionToken,fetchImpl,guestRepository}){
   return root;
 }
 
-// Settled = the expense read went out and the Calendar is no longer busy.
+// Settled = the month is drawn, the expense read went out and nothing is busy.
 async function settled(root,fetchImpl,label){
-  await wait(()=>root.querySelector('.calendar-month-grid'),label+' month');
+  await wait(()=>root.querySelector('.c4-mo-g'),label+' month');
   if(fetchImpl)await wait(()=>fetchImpl.calls.some(value=>value.startsWith('/v2/life/expense-summary')),label+' expense read');
-  await wait(()=>!root.hasAttribute('aria-busy'),label+' idle');
+  await wait(()=>!root.hasAttribute('aria-busy')||root.getAttribute('aria-busy')!=='true',label+' idle');
   await sleep(200);
 }
 
@@ -160,11 +178,12 @@ const rgb=value=>(String(value).match(/[0-9.]+/g)||[]).slice(0,3).map(Number);
 const lum=c=>{const [r,g,b]=c.map(v=>{const x=v/255;return x<=0.03928?x/12.92:((x+0.055)/1.055)**2.4});
   return 0.2126*r+0.7152*g+0.0722*b};
 const contrast=(a,b)=>{const l1=lum(a),l2=lum(b);return Number(((Math.max(l1,l2)+0.05)/(Math.min(l1,l2)+0.05)).toFixed(2))};
-// The line's own background is transparent; what matters is what paints behind it.
 const paintedBg=node=>{for(let n=node;n;n=n.parentElement){
   const parts=(String(getComputedStyle(n).backgroundColor).match(/[0-9.]+/g)||[]).map(Number);
   if(parts.length>=3&&(parts.length<4||parts[3]>0))return parts.slice(0,3)}
   return document.body.dataset.siteTheme==='dark'?[18,18,18]:[255,255,255]};
+const overflowX=root=>Math.max(document.documentElement.scrollWidth-document.documentElement.clientWidth,
+  ...[root,root.querySelector('.c4-cols'),root.querySelector('.c4-dock-slot')].filter(Boolean).map(node=>node.scrollWidth-node.clientWidth));
 
 try{
   localStorage.clear();
@@ -174,142 +193,91 @@ try{
   }});
   const manager=await import('/site-calendar-manager.js?v=${assetVersion}');
   const expense=await import('/site-calendar-expense.js?v=${assetVersion}');
-  const result={ok:true,viewport:{width:innerWidth,height:innerHeight}};
+  const desk=innerWidth>900;
+  const result={ok:true,viewport:{width:innerWidth,height:innerHeight},desk,
+    expectedRows:expense.EXPENSE_CATEGORY_ORDER.map(category=>[category,expense.expenseCategoryLabel(category)]),
+    choiceLabels:expense.EXPENSE_CATEGORY_CHOICES.map(([,label])=>label)};
 
-  // --- populated month -------------------------------------------------
+  // --- populated month (signed in) -------------------------------------
   const populatedFetch=stubFetch({expense:KRW_SUMMARY});
   let root=await mountCase(manager,{sessionToken:'tok_expense_fixture',fetchImpl:populatedFetch});
-  await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready','ready line');
-  // The amount read can settle before the other initial Calendar reads. Wait
-  // until their fixture-driven renders are quiet; otherwise a late render can
-  // replace the focused amount line while focus return is being measured.
+  await wait(()=>ledger(root)?.dataset.calendarAmountSummary==='ready','ready ledger');
   await waitForDomIdle(root);
-  let ready=line(root);
-
-  const layout=root.querySelector('.calendar-month-layout');
-  const shell=root.querySelector('.calendar-product-shell');
-  const amountSlot=root.querySelector('.calendar-amount-slot');
-  const toolbar=root.querySelector('.calendar-toolbar');
-  const viewport=root.querySelector('.calendar-viewport');
-  result.layoutFirstIsMonth=Boolean(layout?.children[0]?.classList.contains('calendar-month'));
-  result.layoutHasDayPanelInitially=Boolean(layout?.querySelector('.calendar-day-panel'));
-  result.lineOutsideDayPanel=!Boolean(layout?.querySelector('.calendar-day-panel')?.contains(ready));
-  result.topSlotHidden=Boolean(amountSlot?.hidden);
-
-  const calendarBefore=root.querySelector('.calendar-month')?.getBoundingClientRect();
-  root.querySelector('[data-calendar-date-trigger="2026-09-22"]')?.click();
-  await wait(()=>root.querySelector('.calendar-day-panel'),'picked day overlay');
-  const overlayPanel=root.querySelector('.calendar-day-panel');
-  const calendarAfter=root.querySelector('.calendar-month')?.getBoundingClientRect();
-  const overlayBox=overlayPanel?.getBoundingClientRect();
-  result.dayOverlay={
-    presentation:overlayPanel?.dataset.presentation||'',
-    hasBackdrop:Boolean(root.querySelector('[data-calendar-day-detail-backdrop]')),
-    calendarWidthStable:Boolean(calendarBefore&&calendarAfter&&Math.abs(calendarBefore.width-calendarAfter.width)<1),
-    coversApprovedEdge:Boolean(calendarAfter&&overlayBox&&(innerWidth<=900
-      ? Math.abs(innerHeight-overlayBox.bottom)<=2
-      : Math.abs(calendarAfter.right-overlayBox.right)<=10)),
+  let control=totalControl(root);
+  result.design=root.dataset.calendarDesign||'';
+  result.ledgerKind=ledger(root)?.classList.contains('c4-ledger')?'card':ledger(root)?.classList.contains('c4-dock')?'dock':'none';
+  result.visibleLedgers=[...root.querySelectorAll('.c4-ledger,.c4-dock')].filter(shown).length;
+  result.controlTag=control?.tagName||'';
+  result.controlType=control?.getAttribute('type')||'';
+  result.controlHeight=Math.round(control?.getBoundingClientRect().height||0);
+  result.caption=captionText(root);
+  result.total=totalText(root);
+  result.ariaLabel=control?.getAttribute('aria-label')||'';
+  result.lineCategoryWords=desk?[]:['음식','여행','쇼핑','기타','미분류','생활비'].filter(word=>text(ledger(root)).includes(word));
+  const categoryCells=()=>[...root.querySelectorAll('.c4-ledger .c4-lc-i')];
+  result.categoryRows=desk?categoryCells().map(cell=>[cell.dataset.expenseCategory,text(cell.querySelector('.c4-lc-l')),text(cell.querySelector('.c4-lc-a'))]):[];
+  result.planned=desk?text(root.querySelector('.c4-ledger .c4-lc-plan')):'';
+  const readCategoryStyles=()=>categoryCells().map(cell=>{
+    const label=cell.querySelector('.c4-lc-l');
+    const dot=cell.querySelector('.c4-dot');
+    return {category:cell.dataset.expenseCategory,dot:getComputedStyle(dot).backgroundColor,
+      labelContrast:contrast(rgb(getComputedStyle(label).color),paintedBg(cell))};
+  });
+  const readContrast=()=>{
+    const cap=ledger(root).querySelector('.c4-lc-cap,.c4-dock-k');
+    const num=ledger(root).querySelector('.c4-lc-num,.c4-dock-v');
+    return {caption:contrast(rgb(getComputedStyle(cap).color),paintedBg(cap)),total:contrast(rgb(getComputedStyle(num).color),paintedBg(num))};
   };
-  overlayPanel?.querySelector('.calendar-day-close')?.click();
-  await wait(()=>!root.querySelector('.calendar-day-panel'),'day overlay closed');
-
-  result.summaryModes=[];
-  for(const [label,mode,selector] of [
-    ['주','week','[data-calendar-mode="week"]'],
-    ['년','year','[data-calendar-mode="year"]'],
-    ['일정','agenda','[data-calendar-mode="agenda"]'],
-    ['월','month','[data-calendar-mode="month"]'],
-  ]){
-    const control=[...root.querySelectorAll(selector)].find(node=>node.textContent.trim()===label)||root.querySelector(selector);
-    control?.click();
-    await wait(()=>root.dataset.calendarManagerView===mode,label+' view');
-    if(label==='월'||label==='년') await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready',label+' amount');
-    else { await waitForDomIdle(root); await new Promise(resolve=>setTimeout(resolve,120)); }
-    const activeLine=line(root);
-    result.summaryModes.push({
-      label,
-      view:root.dataset.calendarManagerView===mode,
-      shown:Boolean(activeLine),
-      outsideDayPanel:Boolean(activeLine&&!root.querySelector('.calendar-day-panel')?.contains(activeLine)),
-      amountLabel:activeLine?.querySelector('.calendar-amount-line-label')?.textContent||'',
-    });
-  }
-  ready=line(root);
-
-  result.lineTag=ready.tagName;
-  result.lineType=ready.getAttribute('type');
-  result.label=ready.querySelector('.calendar-amount-line-label')?.textContent||'';
-  result.amount=ready.querySelector('.calendar-amount-line-amount')?.textContent||'';
-  result.chevronHidden=ready.querySelector('.calendar-amount-line-chevron')?.getAttribute('aria-hidden');
-  result.ariaLabel=ready.getAttribute('aria-label')||'';
-  const box=ready.getBoundingClientRect();
-  result.lineHeight=Math.round(box.height);
-  const centre=node=>{const r=node.getBoundingClientRect();return r.top+r.height/2};
-  result.oneRow=Math.abs(centre(ready.querySelector('.calendar-amount-line-label'))-centre(ready.querySelector('.calendar-amount-line-amount')))<3;
-  const totalLabelRect=ready.querySelector('.calendar-amount-line-label')?.getBoundingClientRect();
-  const totalAmountRect=ready.querySelector('.calendar-amount-line-amount')?.getBoundingClientRect();
-  result.totalPairGap=totalLabelRect&&totalAmountRect ? Math.round((totalAmountRect.left-totalLabelRect.right)*100)/100 : null;
-  result.lineCategoryWords=['음식','여행','쇼핑','기타','미분류'].filter(word=>ready.textContent.includes(word));
-  const categoryList=root.querySelector('.calendar-amount-categories');
-  result.categoryRows=[...(categoryList?.querySelectorAll('.calendar-amount-category')||[])].map(row=>[
-    row.dataset.expenseCategory,
-    row.querySelector('dt')?.textContent||'',
-    row.querySelector('dd')?.textContent||'',
-  ]);
-  result.categoryPairGaps=[...(categoryList?.querySelectorAll('.calendar-amount-category')||[])].map(row=>{
-    const label=row.querySelector('dt')?.getBoundingClientRect();
-    const amount=row.querySelector('dd')?.getBoundingClientRect();
-    return amount&&label ? Math.round((amount.left-label.right)*100)/100 : null;
-  });
-  result.categoryColumns=categoryList ? getComputedStyle(categoryList).gridTemplateColumns.split(/\\s+/).filter(Boolean).length : 0;
-  const readCategoryStyles=()=>[...(categoryList?.querySelectorAll('.calendar-amount-category')||[])].map(row=>{
-    const itemStyle=getComputedStyle(row);
-    const label=row.querySelector('dt');
-    return {
-      category:row.dataset.expenseCategory,
-      border:[itemStyle.borderTopWidth,itemStyle.borderRightWidth,itemStyle.borderBottomWidth,itemStyle.borderLeftWidth],
-      background:itemStyle.backgroundColor,
-      labelColor:getComputedStyle(label).color,
-      labelContrast:contrast(rgb(getComputedStyle(label).color),paintedBg(row)),
-    };
-  });
-  result.categoryStylesLight=readCategoryStyles();
-  result.forbidden=forbiddenIn(root.textContent);
-  result.aboveTheFold=box.bottom<=innerHeight;
-  result.barBottom=Math.round(box.bottom);
-  result.expenseCalls=populatedFetch.calls.filter(value=>value.startsWith('/v2/life/expense-summary'));
-  result.noHorizontalOverflow=document.documentElement.scrollWidth<=document.documentElement.clientWidth+1;
-
-  // Legibility in both themes.
-  const readContrast=()=>({
-    label:contrast(rgb(getComputedStyle(ready.querySelector('.calendar-amount-line-label')).color),paintedBg(ready)),
-    amount:contrast(rgb(getComputedStyle(ready.querySelector('.calendar-amount-line-amount')).color),paintedBg(ready)),
-  });
+  result.categoryStylesLight=desk?readCategoryStyles():[];
   result.contrastLight=readContrast();
   document.body.dataset.siteTheme='dark';
+  await sleep(30);
+  result.categoryStylesDark=desk?readCategoryStyles():[];
   result.contrastDark=readContrast();
-  result.categoryStylesDark=readCategoryStyles();
-  delete document.body.dataset.siteTheme;
+  document.body.dataset.siteTheme='light';
+  result.forbidden=forbiddenIn(text(ledger(root)));
+  result.overflow=overflowX(root);
+
+  // --- the period follows the view ---------------------------------------
+  result.modes=[];
+  for(const [label,mode] of [['주','week'],['년','year'],['일정','agenda'],['월','month']]){
+    const before=populatedFetch.calls.length;
+    root.querySelector('[data-calendar-mode="'+mode+'"]').click();
+    await wait(()=>root.dataset.calendarManagerView===mode,label+' view');
+    try{await wait(()=>populatedFetch.calls.slice(before).some(value=>value.startsWith('/v2/life/expense-summary')),label+' expense read');}
+    catch(error){throw new Error(error.message+' '+JSON.stringify({calls:populatedFetch.calls.slice(before),view:root.dataset.calendarManagerView,ledger:ledger(root)?.dataset.calendarAmountSummary,caption:captionText(root)}));}
+    await wait(()=>ledger(root)?.dataset.calendarAmountSummary==='ready',label+' ledger ready');
+    await waitForDomIdle(root);
+    result.modes.push({label,caption:captionText(root),
+      calls:populatedFetch.calls.slice(before).filter(value=>value.startsWith('/v2/life/expense-summary'))});
+  }
+  result.firstCall=populatedFetch.calls.find(value=>value.startsWith('/v2/life/expense-summary'))||'';
 
   // --- the breakdown, on request ------------------------------------------
-  ready.click();
-  await wait(()=>root.querySelector('.calendar-amount-dialog'),'amount detail');
-  const dialog=root.querySelector('.calendar-amount-dialog');
-  await sleep(30);
-  result.detail={
-    presentation:root.querySelector('.calendar-amount-backdrop')?.dataset.editorPresentation||'',
-    heading:dialog.querySelector('#calendar-amount-heading')?.textContent||'',
-    total:dialog.querySelector('.calendar-amount-detail-total strong')?.textContent||'',
-    rows:[...dialog.querySelectorAll('.calendar-amount-detail-row')].map(row=>[row.dataset.expenseCategory,row.querySelector('dt')?.textContent||'',row.querySelector('dd')?.textContent||'']),
-    scope:dialog.querySelector('.calendar-amount-detail-scope')?.textContent||'',
-    focusInside:dialog.contains(document.activeElement),
-    fits:dialog.getBoundingClientRect().right<=innerWidth+1&&dialog.getBoundingClientRect().left>=-1,
-    forbidden:forbiddenIn(dialog.textContent),
-  };
-  dialog.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-  await sleep(20);
-  result.detail.closedByEscape=!root.querySelector('.calendar-amount-dialog');
-  result.detail.focusBack=document.activeElement===line(root);
+  control=totalControl(root);
+  control.focus();
+  control.click();
+  await wait(()=>root.querySelector('.c4-ledger-dlg'),'breakdown');
+  {
+    const dialog=root.querySelector('.c4-ledger-dlg');
+    await sleep(30);
+    const box=dialog.getBoundingClientRect();
+    result.detail={
+      presentation:root.querySelector('.c4-ledger-backdrop')?.dataset.editorPresentation||'',
+      heading:text(dialog.querySelector('#c4-ledger-heading')),
+      total:text(dialog.querySelector('.c4-lsum .c4-lc-num')),
+      tabs:[...dialog.querySelectorAll('[data-ledger-tab]')].map(tab=>[tab.dataset.ledgerTab,text(tab.querySelector('.c4-tab2-v'))]),
+      rows:[...dialog.querySelectorAll('.c4-lsum .c4-lc-i')].map(cell=>[text(cell.querySelector('.c4-lc-l')),text(cell.querySelector('.c4-lc-a'))]),
+      chips:[...dialog.querySelectorAll('[data-ledger-category]')].map(chip=>text(chip)),
+      focusInside:dialog.contains(document.activeElement),
+      fits:box.right<=innerWidth+1&&box.left>=-1,
+      forbidden:forbiddenIn(text(dialog)),
+    };
+    dialog.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+    await sleep(30);
+    result.detail.closedByEscape=!root.querySelector('.c4-ledger-dlg');
+    result.detail.focusBack=document.activeElement===totalControl(root);
+  }
 
   // --- month change must never show another month's total --------------
   const OCT_SUMMARY={currencies:[{currency:'KRW',categories:[
@@ -317,50 +285,54 @@ try{
     total_amount_minor:7000,entry_count:1}],entries_without_amount:0};
   const monthlyFetch=stubFetch({expense:start=>start.startsWith('2026-10')?OCT_SUMMARY:KRW_SUMMARY});
   root=await mountCase(manager,{sessionToken:'tok_expense_fixture',fetchImpl:monthlyFetch});
-  await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready','ready before month change');
+  await wait(()=>ledger(root)?.dataset.calendarAmountSummary==='ready','ready before month change');
   let staleSeen=false;
   const watchStale=()=>{
     const title=root.querySelector('.calendar-title-button')?.textContent||'';
-    if(title.includes('10월')&&(line(root)?.textContent||'').includes('314,500'))staleSeen=true;
+    if(title.includes('10월')&&totalText(root).includes('314,500'))staleSeen=true;
   };
   const observer=new MutationObserver(watchStale);
   observer.observe(root,{subtree:true,childList:true,characterData:true});
   const nextMonth=[...root.querySelectorAll('.calendar-nav-button')].find(node=>node.getAttribute('aria-label')==='다음 달');
   nextMonth.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
   watchStale();
-  await wait(()=>(line(root)?.textContent||'').includes('7,000원'),'october total');
+  await wait(()=>totalText(root)==='7,000원','october total');
   observer.disconnect();
   result.staleSeen=staleSeen;
-  result.octoberLabel=line(root).querySelector('.calendar-amount-line-label')?.textContent||'';
-  result.octoberAria=line(root).getAttribute('aria-label')||'';
+  result.octoberCaption=captionText(root);
+  result.octoberAria=totalControl(root)?.getAttribute('aria-label')||'';
 
-  // --- empty month: the line stays, at 0원 ----------------------------------
+  // --- empty month: 0원, and the six fixed slots ---------------------------
   {
     const emptyFetch=stubFetch({expense:{currencies:[],entries_without_amount:3}});
     root=await mountCase(manager,{sessionToken:'tok_expense_fixture',fetchImpl:emptyFetch});
     await settled(root,emptyFetch,'empty');
-    result.emptyLine=line(root)?.dataset.calendarAmountSummary||'absent';
-    result.emptyAmount=line(root)?.querySelector('.calendar-amount-line-amount')?.textContent||'';
-    result.emptySlots=[...root.querySelectorAll('.calendar-amount-category')].map(n=>[n.dataset.expenseCategory,n.querySelector('dd')?.textContent||'']);
-    result.emptyForbidden=forbiddenIn(root.textContent);
+    await wait(()=>ledger(root)?.dataset.calendarAmountSummary==='ready','empty ready');
+    result.emptyTotal=totalText(root);
+    result.emptySlots=desk?categoryCells().map(cell=>[cell.dataset.expenseCategory,text(cell.querySelector('.c4-lc-a'))]):[];
+    result.emptyPlanned=Boolean(root.querySelector('.c4-ledger .c4-lc-plan'));
+    result.emptyForbidden=forbiddenIn(text(ledger(root)));
   }
 
-  // --- Core refuses the read (the 403 that caused the outage) ----------
+  // --- Core refuses the read -------------------------------------------
   for(const status of [401,403]){
-    root=await mountCase(manager,{sessionToken:'tok_expense_fixture',
-      fetchImpl:stubFetch({expense:null,expenseStatus:status})});
-    await wait(()=>line(root)?.dataset.calendarAmountSummary==='error','error line '+status);
-    const failed=line(root);
+    root=await mountCase(manager,{sessionToken:'tok_expense_fixture',fetchImpl:stubFetch({expense:null,expenseStatus:status})});
+    await wait(()=>ledger(root)?.dataset.calendarAmountSummary==='error','error ledger '+status);
+    const line=ledger(root).querySelector('[role="status"]');
     result['error'+status]={
-      text:failed.textContent||'',
-      role:failed.getAttribute('role'),
-      // The refusal must not have taken the Calendar with it.
-      monthStillRendered:Boolean(root.querySelector('.calendar-month-grid')),
+      text:text(line),
+      hasStatus:Boolean(line)&&shown(line),
+      totalButtonOffered:[...ledger(root).querySelectorAll('[data-calendar-amount-open]')].some(node=>shown(node)&&!node.disabled),
+      ariaNamesFailure:desk?/불러오지 못했|다시 로그인/.test(ledger(root).querySelector('[data-calendar-amount-open]')?.getAttribute('aria-label')||''):true,
+      monthStillRendered:Boolean(root.querySelector('.c4-mo-g')),
       rootVisible:root.hidden!==true&&root.childElementCount>0,
     };
   }
 
   // --- guest: totals from this browser, no Core call ---------------------
+  //   음식 32,000 + 8,500 = 40,500 · 여행 208,320 · 기타 48,000 · 미분류 5,000
+  //   = 301,820원. 음식 20,000 is planned (not in the total), one entry has no
+  //   amount, and October's entry is another month.
   const guestFetch=stubFetch({expense:KRW_SUMMARY});
   const guestRepo=makeGuestRepo([
     {local_date:'2026-09-03',entry:{amount_minor:32000,currency:'KRW',expense_category:'FOOD'}},
@@ -368,50 +340,55 @@ try{
     {local_date:'2026-09-14',entry:{amount_minor:208320,currency:'KRW',expense_category:'TRAVEL'}},
     {local_date:'2026-09-20',entry:{amount_minor:48000,currency:'KRW',expense_category:'OTHER'}},
     {local_date:'2026-09-22',entry:{amount_minor:5000,currency:'KRW',expense_category:null}},
+    {local_date:'2026-09-24',entry:{amount_minor:20000,currency:'KRW',expense_category:'FOOD',expense_status:'PLANNED'}},
     {local_date:'2026-09-25',entry:{amount_minor:null}},
-    // Another month: it must not land in September's total.
     {local_date:'2026-10-02',entry:{amount_minor:999000,currency:'KRW',expense_category:'SHOPPING'}},
   ]);
   root=await mountCase(manager,{sessionToken:'',fetchImpl:guestFetch,guestRepository:guestRepo});
-  await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready','guest ready line');
-  result.guestAskedCore=guestFetch.calls.length>0;
-  result.guestAmount=line(root).querySelector('.calendar-amount-line-amount')?.textContent||'';
-  line(root).click();
-  await wait(()=>root.querySelector('.calendar-amount-dialog'),'guest detail');
+  await wait(()=>ledger(root)?.dataset.calendarAmountSummary==='ready','guest ready ledger');
+  result.guestAskedCore=guestFetch.calls.some(value=>value.startsWith('/v2/life/expense-summary'));
+  result.guestTotal=totalText(root);
+  totalControl(root).click();
+  await wait(()=>root.querySelector('.c4-ledger-dlg'),'guest breakdown');
   {
-    const guestDialog=root.querySelector('.calendar-amount-dialog');
-    result.guestRows=[...guestDialog.querySelectorAll('.calendar-amount-detail-row')].map(row=>[row.dataset.expenseCategory,row.querySelector('dd')?.textContent||'']);
-    result.guestTotal=guestDialog.querySelector('.calendar-amount-detail-total strong')?.textContent||'';
-    result.guestStorage=guestDialog.querySelector('.calendar-amount-detail-storage')?.textContent||'';
-    result.guestForbidden=forbiddenIn(guestDialog.textContent);
+    const dialog=root.querySelector('.c4-ledger-dlg');
+    result.guestTabs=[...dialog.querySelectorAll('[data-ledger-tab]')].map(tab=>[tab.dataset.ledgerTab,text(tab.querySelector('.c4-tab2-v'))]);
+    result.guestRows=[...dialog.querySelectorAll('.c4-lsum .c4-lc-i')].map(cell=>[text(cell.querySelector('.c4-lc-l')),text(cell.querySelector('.c4-lc-a'))]);
+    result.guestPaidItems=dialog.querySelectorAll('.c4-led-r').length;
+    dialog.querySelector('[data-ledger-tab="planned"]').click();
+    await sleep(20);
+    result.guestPlannedItems=[...dialog.querySelectorAll('.c4-led-r .c4-led-a')].map(node=>text(node));
+    result.guestStorage=text(dialog.querySelector('.c4-lc-local'));
+    result.guestForbidden=forbiddenIn(text(dialog));
     // The breakdown and the editor call every category the same thing.
-    const choiceLabels=expense.EXPENSE_CATEGORY_CHOICES.map(([,text])=>text);
-    result.labelParity=[...guestDialog.querySelectorAll('.calendar-amount-detail-row dt')].every(node=>choiceLabels.includes(node.textContent));
-    guestDialog.querySelector('.calendar-amount-done').click();
+    result.labelParity=[...dialog.querySelectorAll('[data-ledger-category]')].filter(chip=>chip.dataset.ledgerCategory).every(chip=>result.choiceLabels.includes(text(chip)));
+    dialog.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+    await wait(()=>!root.querySelector('.c4-ledger-dlg'),'guest breakdown closed');
   }
 
   // --- an entry with no amount must not look like a saved 0 --------------
-  // 대표 read a blank 여행 entry as "0원 저장됨" because the box carried a grey
-  // placeholder 0. An entry without an amount is not zero spent, and its 여행
-  // must survive an edit that never touches the amount.
   {
     const blankRepo=makeGuestRepo([{local_date:'2026-09-14',title:'제주 숙소 알아보기',
       entry:{amount_minor:null,currency:'KRW',expense_category:'TRAVEL'}}]);
     root=await mountCase(manager,{sessionToken:'',fetchImpl:stubFetch({expense:KRW_SUMMARY}),guestRepository:blankRepo});
     await settled(root,null,'blank');
-    result.blankLine=line(root)?.dataset.calendarAmountSummary||'absent';
-    result.blankLineAmount=line(root)?.querySelector('.calendar-amount-line-amount')?.textContent||'';
-    root.querySelector('[data-calendar-date-trigger="2026-09-14"]').click();
-    await wait(()=>root.querySelector('.calendar-day-panel [data-calendar-event-id]'),'event row');
-    root.querySelector('.calendar-day-panel [data-calendar-event-id]').click();
-    await wait(()=>document.querySelector('.calendar-editor-amount'),'editor');
-    const editor=document.querySelector('.calendar-editor-dialog');
+    await wait(()=>ledger(root)?.dataset.calendarAmountSummary==='ready','blank ready');
+    result.blankTotal=totalText(root);
+    root.querySelector('.c4-mc[data-calendar-date-trigger="2026-09-14"]').click();
+    const visibleRow=()=>[...root.querySelectorAll('.c4-daycard .c4-dc-ev,.c4-agenda .c4-dc-ev')].find(shown);
+    await wait(visibleRow,'event row');
+    visibleRow().click();
+    await wait(()=>root.querySelector('.c4-detail [data-calendar-detail-edit]'),'detail');
+    root.querySelector('.c4-detail [data-calendar-detail-edit]').click();
+    await wait(()=>root.querySelector('.c4-editor .calendar-editor-amount'),'editor');
+    const editor=root.querySelector('.c4-editor');
     const amountBox=editor.querySelector('.calendar-editor-amount');
     result.blankAmountValue=amountBox.value;
     result.blankAmountPlaceholder=amountBox.placeholder;
     result.blankAmountCategory=editor.querySelector('.calendar-editor-category')?.value||null;
-    result.blankAmountChip=editor.querySelector('[data-editor-chip="amount"]')?.textContent||'';
-    result.editorLabels=[...editor.querySelectorAll('[data-category]')].map(node=>node.textContent);
+    result.blankAmountChip=text(editor.querySelector('[data-editor-chip="amount"] .c4-opt-v'));
+    result.blankStatus=editor.querySelector('.calendar-editor-expense-status [aria-pressed="true"]')?.dataset.expenseStatus??null;
+    result.editorLabels=[...editor.querySelectorAll('[data-category]')].map(node=>text(node));
     editor.querySelector('form').requestSubmit();
     await wait(()=>blankRepo.writes.length>0,'blank save');
     const written=JSON.stringify(blankRepo.writes);
@@ -424,33 +401,31 @@ try{
     guestRepository:makeGuestRepo([
       {local_date:'2026-09-05',entry:{amount_minor:50000,currency:'KRW',expense_category:'FOOD'}},
       {local_date:'2026-09-06',entry:{amount_minor:1200,currency:'USD',expense_category:'SHOPPING'}}])});
-  await wait(()=>line(root)?.dataset.calendarAmountSummary==='ready','two-currency line');
-  result.currencyLine=line(root).querySelector('.calendar-amount-line-amount')?.textContent||'';
-  line(root).click();
-  await wait(()=>root.querySelector('.calendar-amount-dialog'),'two-currency detail');
-  result.currencyTotals=[...root.querySelectorAll('.calendar-amount-detail-currency')].map(group=>({
-    currency:group.dataset.currency,
-    label:group.querySelector('.calendar-amount-detail-total span')?.textContent||'',
-    amount:group.querySelector('.calendar-amount-detail-total strong')?.textContent||'',
-  }));
-  root.querySelector('.calendar-amount-done').click();
+  await wait(()=>ledger(root)?.dataset.calendarAmountSummary==='ready','two-currency ledger');
+  result.currencyTotal=totalText(root);
+  result.currencyLedgerText=desk?text(root.querySelector('.c4-ledger')):'';
+  totalControl(root).click();
+  await wait(()=>root.querySelector('.c4-ledger-dlg'),'two-currency breakdown');
+  result.currencyDialogText=text(root.querySelector('.c4-ledger-dlg .c4-lsum'));
+  root.querySelector('.c4-ledger-dlg').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  await wait(()=>!root.querySelector('.c4-ledger-dlg'),'two-currency breakdown closed');
 
-  // --- guest, empty month: a 0원 line, never a login prompt ----------------
+  // --- guest, empty month: a 0원 total, never a login prompt ----------------
   root=await mountCase(manager,{sessionToken:'',fetchImpl:stubFetch({expense:KRW_SUMMARY}),guestRepository:makeGuestRepo([])});
   await settled(root,null,'guest empty');
-  result.guestEmptyLine=line(root)?.dataset.calendarAmountSummary||'absent';
-  result.guestEmptyAmount=line(root)?.querySelector('.calendar-amount-line-amount')?.textContent||'';
-  result.guestEmptyLogin=(root.querySelector('.calendar-month')?.textContent||'').includes('로그인');
+  await wait(()=>ledger(root)?.dataset.calendarAmountSummary==='ready','guest empty ready');
+  result.guestEmptyTotal=totalText(root);
+  result.guestEmptyLogin=text(ledger(root)).includes('로그인')||text(root.querySelector('.c4-mo')).includes('로그인');
 
   // --- guest, a repository that throws: the Calendar must outlive it ------
   root=await mountCase(manager,{sessionToken:'',fetchImpl:stubFetch({expense:KRW_SUMMARY}),
     guestRepository:{list(){throw new Error('storage is gone')},create(){},update(){},remove(){}}});
-  await sleep(600);
-  result.brokenRepoMonthStanding=Boolean(root.querySelector('.calendar-month'));
-  result.brokenRepoLineState=line(root)?.dataset.calendarAmountSummary||'absent';
+  await sleep(700);
+  result.brokenRepoMonthStanding=Boolean(root.querySelector('.c4-mo-g'));
+  result.brokenRepoLedgerState=ledger(root)?.dataset.calendarAmountSummary||'absent';
 
   out.textContent=JSON.stringify(result);
-}catch(e){const r=document.getElementById('calendar-root');out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),diag:{line:r?.querySelector('[data-calendar-amount-summary]')?.dataset.calendarAmountSummary||null,status:r?.querySelector('.calendar-status')?.textContent||''},viewport:{width:innerWidth,height:innerHeight}})}
+}catch(e){const r=document.getElementById('calendar-root');out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e),diag:{ledger:[...(r?.querySelectorAll('.c4-ledger,.c4-dock')||[])].map(n=>n.className+':'+n.dataset.calendarAmountSummary),stage},viewport:{width:innerWidth,height:innerHeight}})}
 </script></body></html>`;
 
 function waitServer() {
@@ -466,13 +441,13 @@ function wrapperMarkup(w, h) {
   return `<!doctype html><html><body style="margin:0"><iframe id="case-frame" src="/${INNER_REL}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
   const frame=document.getElementById('case-frame'),out=document.getElementById('result');
   const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('expense-result');if(child&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e)});clearInterval(timer)}},25);
-  setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},55000);
+  setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},60000);
   <\/script></body></html>`;
 }
 
 function run(browser, w, h) {
   fs.writeFileSync(WRAPPER, wrapperMarkup(w, h), 'utf8');
-  const r = spawnSync(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--window-size=1600,1000', '--force-device-scale-factor=1', '--force-prefers-reduced-motion=reduce', '--virtual-time-budget=60000', '--dump-dom', ORIGIN + '/' + WRAPPER_REL], {encoding: 'utf8', timeout: 120000, maxBuffer: 12 * 1024 * 1024});
+  const r = spawnSync(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--window-size=1600,1000', '--force-device-scale-factor=1', '--force-prefers-reduced-motion=reduce', '--virtual-time-budget=65000', '--dump-dom', ORIGIN + '/' + WRAPPER_REL], {encoding: 'utf8', timeout: 130000, maxBuffer: 12 * 1024 * 1024});
   if (r.error) throw r.error;
   if (r.status !== 0) throw new Error('browser ' + r.status + ' ' + r.stderr);
   const a = '<pre id="result">', b = '</pre>';
@@ -480,7 +455,7 @@ function run(browser, w, h) {
   if (i < 0 || j < 0) throw new Error('result missing');
   const raw = r.stdout.slice(i + a.length, j).replaceAll('&quot;', '"').replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>');
   const v = JSON.parse(raw);
-  if (!v.ok) throw new Error(`${w}x${h}: ${v.error} ${JSON.stringify(v.diag||{})}`);
+  if (!v.ok) throw new Error(`${w}x${h}: ${v.error} ${JSON.stringify(v.diag || {})}`);
   return v;
 }
 
@@ -488,7 +463,7 @@ function run(browser, w, h) {
 // the labels again. It drifted once -- "기타 / 생활비" in the editor against
 // "생활비" in the bar -- and a static check is what keeps a second copy away.
 {
-  const manager = fs.readFileSync('site-calendar-manager.js', 'utf8');
+  const manager = fs.readFileSync(path.join(ROOT, 'site-calendar-manager.js'), 'utf8');
   if (!manager.includes('EXPENSE_CATEGORY_CHOICES')) {
     throw new Error('the entry editor must build its category choices from EXPENSE_CATEGORY_CHOICES');
   }
@@ -497,9 +472,8 @@ function run(browser, w, h) {
       throw new Error(`site-calendar-manager.js must not spell a category label itself (${label}) — it reads them from site-calendar-expense.js`);
     }
   }
-  // One line, not the six-slot strip.
   if (/calendarExpenseSummaryNode\s*\(/.test(manager)) {
-    throw new Error('the Calendar must not mount the six-slot expense strip; the month shows one amount line');
+    throw new Error('the Calendar must not mount the six-slot expense strip; the ledger card owns the categories');
   }
 }
 
@@ -512,164 +486,116 @@ try {
     const value = run(browser, w, h);
     const label = `${w}x${h}`;
     const fail = message => { throw new Error(`${label}: ${message}`); };
+    const desk = value.desk;
 
-    if (!value.layoutFirstIsMonth) fail('month layout child 0 must stay the month grid');
-    if (value.layoutHasDayPanelInitially) fail('Month must open at full width without an unsolicited day panel');
-    if (!value.lineOutsideDayPanel || !value.topSlotHidden) {
-      fail('the amount summary must appear once below the month, outside day detail');
-    }
-    const expectedPresentation=value.viewport.width<=900?'SHEET':'MODAL';
-    if(value.dayOverlay.presentation!==expectedPresentation||!value.dayOverlay.hasBackdrop
-      ||!value.dayOverlay.calendarWidthStable||!value.dayOverlay.coversApprovedEdge){
-      fail(`picked date must overlay the unchanged month at its right/bottom edge, got ${JSON.stringify(value.dayOverlay)}`);
-    }
-    const monthMode = value.summaryModes.find(mode=>mode.label==='월');
-    const weekMode = value.summaryModes.find(mode=>mode.label==='주');
-    const yearMode = value.summaryModes.find(mode=>mode.label==='년');
-    const scheduleMode = value.summaryModes.find(mode=>mode.label==='일정');
-    if (value.summaryModes.length!==4 || value.summaryModes.some(mode=>!mode.view)
-      || !monthMode?.shown || !monthMode.outsideDayPanel || monthMode.amountLabel!=='9월 생활비 합계'
-      || !weekMode?.shown || !weekMode.outsideDayPanel || weekMode.amountLabel!=='9월 생활비 합계'
-      || !yearMode?.shown || !yearMode.outsideDayPanel || yearMode.amountLabel!=='2026년 생활비 합계') {
-      fail(`Week, Month, and Year must each keep one real-data total in their calendar chrome, got ${JSON.stringify(value.summaryModes)}`);
-    }
-    if (scheduleMode?.shown) {
-      fail(`Schedule must not duplicate a period total, got ${JSON.stringify(value.summaryModes)}`);
+    if (value.design !== 'c4') fail(`the workspace Calendar must be the approved design 04, got "${value.design}"`);
+    if (value.ledgerKind !== (desk ? 'card' : 'dock') || value.visibleLedgers !== 1) {
+      fail(`exactly one ledger must show -- the card on a desk, the bottom line on a phone; got ${value.ledgerKind} x${value.visibleLedgers}`);
     }
 
-    // One quiet line.
-    if (value.lineTag !== 'BUTTON' || value.lineType !== 'button') fail(`the amount line must be a real button, got ${value.lineTag}/${value.lineType}`);
-    if (value.label !== '9월 생활비 합계') fail(`the line must read "9월 생활비 합계", got "${value.label}"`);
-    if (value.amount !== '314,500원') fail(`the line must carry the total Core returned, got "${value.amount}"`);
-    if (value.chevronHidden !== 'true') fail('the chevron is decoration and must be hidden from assistive technology');
-    if (!value.ariaLabel.includes('9월 생활비 합계') || !value.ariaLabel.includes('314,500원') || !value.ariaLabel.includes('자세히 보기')) {
-      fail(`the line's accessible name must say what it is, the total and that it opens, got "${value.ariaLabel}"`);
+    // One total control.
+    if (value.controlTag !== 'BUTTON' || value.controlType !== 'button') fail(`the total must be a real button, got ${value.controlTag}/${value.controlType}`);
+    if (value.controlHeight < 44) fail(`the total control must keep a 44px+ touch target, got ${value.controlHeight}px`);
+    if (value.caption !== '9월 지출') fail(`the total must name its month, got "${value.caption}"`);
+    if (value.total !== '314,500원') fail(`the total must be the spent money Core returned (planned excluded), got "${value.total}"`);
+    if (!value.ariaLabel.includes('9월') || !value.ariaLabel.includes('314,500원') || !/보기/.test(value.ariaLabel)) {
+      fail(`the total's accessible name must say the period, the total and that it opens, got "${value.ariaLabel}"`);
     }
-    if (!value.oneRow) fail('label and total must share one row');
-    if (value.totalPairGap===null||value.totalPairGap<0||value.totalPairGap>8) fail(`the total amount must sit directly beside its label, got gap ${value.totalPairGap}`);
-    if (value.lineHeight < 44) fail(`the total control must keep a 44px+ touch target, got ${value.lineHeight}px`);
-    if (value.lineCategoryWords.length) fail(`the line must not spell out categories, got ${value.lineCategoryWords.join(',')}`);
-    if (JSON.stringify(value.categoryRows) !== JSON.stringify([
-      ['UNCLASSIFIED', '미분류', '0원'],
-      ['FOOD', '음식', '40,500원'],
-      ['TRAVEL', '여행', '180,000원'],
-      ['SHOPPING', '쇼핑', '0원'],
-      ['LIVING', '생활비', '94,000원'],
-      ['OTHER', '기타', '0원'],
-    ])) fail(`the month must show all six category amounts beneath the total, got ${JSON.stringify(value.categoryRows)}`);
-    if (value.categoryPairGaps.some(gap=>gap===null)) fail(`each category must expose both its title and amount, got ${JSON.stringify(value.categoryPairGaps)}`);
-    const expectedColumns=value.viewport.width<=900?3:6;
-    if (value.categoryColumns !== expectedColumns) fail(`the approved table must use ${expectedColumns} category columns here, got ${value.categoryColumns}`);
-    for (const theme of ['Light', 'Dark']) {
-      const styles=value['categoryStyles'+theme];
-      if (styles.some(item=>item.border.some(width=>width!=='0px'))) fail(`${theme} category labels must not have box borders, got ${JSON.stringify(styles)}`);
-      if (styles.some(item=>item.background!=='rgba(0, 0, 0, 0)')) fail(`${theme} category labels must have no box background, got ${JSON.stringify(styles)}`);
-      if (new Set(styles.map(item=>item.labelColor)).size!==styles.length) fail(`${theme} category titles must each have a distinct colour, got ${JSON.stringify(styles)}`);
-      if (styles.some(item=>item.labelContrast<4.5)) fail(`${theme} category title colours must hold WCAG AA 4.5:1, got ${JSON.stringify(styles)}`);
+    if (value.lineCategoryWords.length) fail(`the phone line must not spell out categories, got ${value.lineCategoryWords.join(',')}`);
+    if (desk) {
+      const expected = value.expectedRows.map(([category, name]) => [category, name, {FOOD: '40,500원', TRAVEL: '180,000원', LIVING: '94,000원'}[category] || '0원']);
+      if (JSON.stringify(value.categoryRows) !== JSON.stringify(expected)) fail(`the card must show all six categories in the fixed order, got ${JSON.stringify(value.categoryRows)}`);
+      if (!value.planned.includes('28,000원') || !value.planned.includes('합계에 넣지 않음')) fail(`planned money must be a separate line that says it is not in the total, got "${value.planned}"`);
+      for (const theme of ['Light', 'Dark']) {
+        const styles = value['categoryStyles' + theme];
+        if (new Set(styles.map(item => item.dot)).size !== styles.length) fail(`${theme} categories must each have their own colour, got ${JSON.stringify(styles)}`);
+        if (styles.some(item => item.labelContrast < 4.5)) fail(`${theme} category labels must hold WCAG AA 4.5:1, got ${JSON.stringify(styles)}`);
+      }
     }
-    if (value.forbidden.length) fail(`ledger words must not appear on the month, got ${value.forbidden.join(',')}`);
-    if (value.viewport.width > 900 && !value.aboveTheFold) fail(`the desktop month amount line must be visible below the calendar — line bottom ${value.barBottom}px vs viewport ${value.viewport.height}px`);
-    if (!value.noHorizontalOverflow) fail('the amount line must not cause horizontal overflow');
     for (const theme of ['Light', 'Dark']) {
       const c = value['contrast' + theme];
-      if (!(c.label >= 4.5) || !(c.amount >= 4.5)) fail(`${theme} line text must hold WCAG AA 4.5:1, got ${JSON.stringify(c)}`);
+      if (!(c.caption >= 4.5) || !(c.total >= 4.5)) fail(`${theme} total text must hold WCAG AA 4.5:1, got ${JSON.stringify(c)}`);
     }
+    if (value.forbidden.length) fail(`ledger words must not appear, got ${value.forbidden.join(',')}`);
+    if (value.overflow > 1) fail(`the ledger must not cause horizontal overflow (${value.overflow}px)`);
 
-    // Month and Week both read the selected civil month; Year reads the civil
-    // year. Returning to Month deliberately refreshes once, so no stale annual
-    // total survives.
-    if (value.expenseCalls.length !== 4) fail(`expected month/week/year/month expense reads, got ${value.expenseCalls.length}`);
-    if (!value.expenseCalls[0].includes('start=2026-09-01') || !value.expenseCalls[0].includes('end=2026-09-30')
-      || !value.expenseCalls[1].includes('start=2026-09-01') || !value.expenseCalls[1].includes('end=2026-09-30')
-      || !value.expenseCalls[2].includes('start=2026-01-01') || !value.expenseCalls[2].includes('end=2026-12-31')
-      || !value.expenseCalls[3].includes('start=2026-09-01') || !value.expenseCalls[3].includes('end=2026-09-30')) {
-      fail(`expense windows must follow month/week/year/month exactly, got ${JSON.stringify(value.expenseCalls)}`);
+    // The period follows the view; the signed-in read asks for planned money.
+    if (!value.firstCall.includes('start=2026-09-01') || !value.firstCall.includes('end=2026-09-30') || !value.firstCall.includes('include_planned=true')) {
+      fail(`the month read must cover the civil month and ask for planned amounts, got "${value.firstCall}"`);
+    }
+    const byMode = Object.fromEntries(value.modes.map(mode => [mode.label, mode]));
+    for (const [mode, caption, start, end] of [['주', '9월 지출', '2026-09-01', '2026-09-30'], ['년', '2026년 지출', '2026-01-01', '2026-12-31'], ['일정', '9월 지출', '2026-09-01', '2026-09-30'], ['월', '9월 지출', '2026-09-01', '2026-09-30']]) {
+      const seen = byMode[mode];
+      if (!seen || seen.caption !== caption) fail(`${mode} must show the ${caption} total, got ${JSON.stringify(seen)}`);
+      if (!seen.calls.some(call => call.includes(`start=${start}`) && call.includes(`end=${end}`))) fail(`${mode} must read ${start}..${end}, got ${JSON.stringify(seen.calls)}`);
     }
 
     // The breakdown.
     const detail = value.detail;
-    const wantPresentation = value.viewport.width <= 900 ? 'SHEET' : 'SIDE';
-    if (detail.presentation !== wantPresentation) fail(`the breakdown must open as ${wantPresentation}, got "${detail.presentation}"`);
-    if (detail.heading !== '2026년 9월 생활비 합계') fail(`the breakdown must name its month, got "${detail.heading}"`);
-    if (detail.total !== '314,500원') fail(`the breakdown total must be Core's, got "${detail.total}"`);
-    if (JSON.stringify(detail.rows) !== JSON.stringify([['FOOD', '음식', '40,500원 2건'], ['TRAVEL', '여행', '180,000원 1건'], ['LIVING', '생활비', '94,000원 1건']])) {
-      fail(`the breakdown must list only the recorded categories in fixed order, got ${JSON.stringify(detail.rows)}`);
-    }
-    if (detail.scope !== '캘린더 일정에 입력한 금액을 더한 값이에요.') fail(`the breakdown must say what the number is, got "${detail.scope}"`);
+    if (detail.presentation !== (desk ? 'CENTER' : 'SHEET')) fail(`the breakdown must open as ${desk ? 'a centred dialog' : 'a sheet'}, got "${detail.presentation}"`);
+    if (detail.heading !== '2026년 9월 지출 내역') fail(`the breakdown must name its month, got "${detail.heading}"`);
+    if (detail.total !== '314,500원') fail(`the breakdown total must be Core's spent total, got "${detail.total}"`);
+    if (JSON.stringify(detail.tabs) !== JSON.stringify([['paid', '314,500원'], ['planned', '28,000원']])) fail(`실제 and 예정 must stay apart in the breakdown, got ${JSON.stringify(detail.tabs)}`);
+    if (detail.rows.length !== 6) fail(`the breakdown must keep the six category amounts, got ${JSON.stringify(detail.rows)}`);
+    if (detail.chips[0] !== '전체' || detail.chips.length !== 7) fail(`the breakdown filters by 전체 and the six categories, got ${JSON.stringify(detail.chips)}`);
     if (detail.forbidden.length) fail(`ledger words must not appear in the breakdown, got ${detail.forbidden.join(',')}`);
     if (!detail.focusInside) fail('opening the breakdown must move focus into it');
     if (!detail.fits) fail('the breakdown must fit the screen width');
     if (!detail.closedByEscape) fail('Escape must close the breakdown');
-    if (!detail.focusBack) fail('closing the breakdown must return focus to the amount line');
+    if (!detail.focusBack) fail('closing the breakdown must return focus to the total');
 
     if (value.staleSeen) fail("the previous month's total must not survive a month change");
-    if (value.octoberLabel !== '10월 생활비 합계' || !value.octoberAria.includes('10월')) {
-      fail(`the line must follow the displayed month, got "${value.octoberLabel}" / "${value.octoberAria}"`);
-    }
+    if (value.octoberCaption !== '10월 지출' || !value.octoberAria.includes('10월')) fail(`the total must follow the displayed month, got "${value.octoberCaption}" / "${value.octoberAria}"`);
 
-    if (value.emptyLine !== 'ready' || value.emptyAmount !== '0원') fail(`a month with no recorded amount must keep its line at 0원, got "${value.emptyLine}" / "${value.emptyAmount}"`);
-    if (JSON.stringify(value.emptySlots) !== JSON.stringify([['UNCLASSIFIED', '0원'], ['FOOD', '0원'], ['TRAVEL', '0원'], ['SHOPPING', '0원'], ['LIVING', '0원'], ['OTHER', '0원']])) {
-      fail(`a month with no recorded amount must keep the six fixed 0원 slots, got ${JSON.stringify(value.emptySlots)}`);
+    if (value.emptyTotal !== '0원') fail(`a month with no recorded amount must read 0원, got "${value.emptyTotal}"`);
+    if (desk && JSON.stringify(value.emptySlots) !== JSON.stringify(value.expectedRows.map(([category]) => [category, '0원']))) {
+      fail(`a month with no recorded amount must keep the six 0원 slots, got ${JSON.stringify(value.emptySlots)}`);
     }
+    if (value.emptyPlanned) fail('a month with no planned money must not show a 예정 line');
     if (value.emptyForbidden.length) fail(`an empty month must not report excluded entries, got ${value.emptyForbidden.join(',')}`);
 
     for (const status of [401, 403]) {
       const state = value['error' + status];
-      if (state.role !== 'status') fail(`a ${status} must be announced as a status line`);
-      // The regression this locks: a refused auxiliary read used to tear the
-      // Calendar down and drop the user back on Home.
+      if (!state.hasStatus) fail(`a ${status} must be announced as a visible status line`);
+      if (state.totalButtonOffered) fail(`a ${status} must not leave a total button to press`);
+      if (!state.ariaNamesFailure) fail(`a ${status} must not be named as still calculating`);
       if (!state.monthStillRendered) fail(`a ${status} on the expense read must leave the month grid standing`);
       if (!state.rootVisible) fail(`a ${status} on the expense read must not empty the Calendar root`);
     }
-    // 401 means the session really expired; 403 means the server refused the
-    // route, which signing in again does not fix.
     if (!value.error401.text.includes('다시 로그인')) fail(`a 401 must offer signing in again, got "${value.error401.text}"`);
-    if (value.error403.text.includes('로그인') || !value.error403.text.includes('불러오지 못했')) {
-      fail(`a 403 must not tell the user to sign in again, got "${value.error403.text}"`);
-    }
+    if (value.error403.text.includes('로그인') || !value.error403.text.includes('불러오지 못했')) fail(`a 403 must not tell the user to sign in again, got "${value.error403.text}"`);
 
-    // The arithmetic, on entries this browser holds.
-    //   음식 32,000 + 8,500 = 40,500 · 여행 208,320 · 기타 48,000
-    //   미분류 5,000 (an amount with no category) · 금액 없음 1건 · 10월 것은 제외
     if (value.guestAskedCore) fail('guest totals must be computed here, never fetched from Core');
-    if (value.guestAmount !== '301,820원') fail(`signed-out total must be 301,820원 (October's entry excluded, no amount never estimated), got ${value.guestAmount}`);
-    if (JSON.stringify(value.guestRows) !== JSON.stringify([['UNCLASSIFIED', '5,000원 1건'], ['FOOD', '40,500원 2건'], ['TRAVEL', '208,320원 1건'], ['OTHER', '48,000원 1건']])) {
-      fail(`signed-out breakdown is wrong, got ${JSON.stringify(value.guestRows)}`);
-    }
-    if (value.guestTotal !== '301,820원') fail(`signed-out breakdown total must be 301,820원, got ${value.guestTotal}`);
-    if (value.guestStorage !== '이 기기에 저장된 일정 기준이에요.') fail(`the signed-out breakdown must say where the records live, got "${value.guestStorage}"`);
+    if (value.guestTotal !== '301,820원') fail(`signed-out total must be 301,820원 (planned, no-amount and October excluded), got ${value.guestTotal}`);
+    if (JSON.stringify(value.guestTabs) !== JSON.stringify([['paid', '301,820원'], ['planned', '20,000원']])) fail(`signed-out 실제/예정 are wrong, got ${JSON.stringify(value.guestTabs)}`);
+    const guestExpected = value.expectedRows.map(([, name]) => [name, ({'미분류': '5,000원', '음식': '40,500원', '여행': '208,320원', '기타': '48,000원'})[name] || '0원']);
+    if (JSON.stringify(value.guestRows) !== JSON.stringify(guestExpected)) fail(`signed-out category amounts are wrong, got ${JSON.stringify(value.guestRows)}`);
+    if (value.guestPaidItems !== 5) fail(`signed-out breakdown must list the five spent records, got ${value.guestPaidItems}`);
+    if (JSON.stringify(value.guestPlannedItems) !== JSON.stringify(['20,000원'])) fail(`signed-out planned tab must list the planned record, got ${JSON.stringify(value.guestPlannedItems)}`);
+    if (value.guestStorage !== '이 기기에 저장한 일정의 금액이에요.') fail(`the signed-out breakdown must say where the records live, got "${value.guestStorage}"`);
     if (value.guestForbidden.length) fail(`ledger words must not appear in the signed-out breakdown, got ${value.guestForbidden.join(',')}`);
     if (!value.labelParity) fail('the breakdown and the editor must call every category the same thing');
 
-    // An entry with no amount must not wear a 0 that looks saved.
-    if (value.blankLine !== 'ready' || value.blankLineAmount !== '0원') fail(`a month whose only entry has no amount must read 0원 (the entry is not counted), got "${value.blankLine}" / "${value.blankLineAmount}"`);
+    if (value.blankTotal !== '0원') fail(`a month whose only entry has no amount must read 0원, got "${value.blankTotal}"`);
     if (value.blankAmountValue !== '') fail(`an entry with no amount must open with an empty box, got "${value.blankAmountValue}"`);
     if (/^\s*0\s*$/.test(value.blankAmountPlaceholder || '')) fail('the amount box must not show a placeholder 0');
     if (value.blankAmountCategory !== 'TRAVEL') fail(`the saved category must survive, got ${value.blankAmountCategory}`);
-    if (value.blankAmountChip !== '여행') fail(`the amount chip must show the category the record holds, got "${value.blankAmountChip}"`);
+    if (value.blankAmountChip !== '여행') fail(`the 지출 연결 row must show the category the record holds, got "${value.blankAmountChip}"`);
+    if (value.blankStatus !== '') fail(`an entry with no amount starts on 지출 없음, got ${JSON.stringify(value.blankStatus)}`);
     if (!value.blankSavedCategory || !value.blankSavedNoAmount) fail('saving without touching the amount must keep 여행 and invent no amount');
-    const choiceLabels = ['음식', '여행', '쇼핑', '생활비', '기타', '미분류'];
-    if (JSON.stringify([...value.editorLabels].sort()) !== JSON.stringify([...choiceLabels].sort())) {
-      fail(`the editor must offer the shared six labels, got ${JSON.stringify(value.editorLabels)}`);
-    }
+    if (JSON.stringify([...value.editorLabels].sort()) !== JSON.stringify([...value.choiceLabels].sort())) fail(`the editor must offer the shared six labels, got ${JSON.stringify(value.editorLabels)}`);
 
-    // Every total names its currency: KRW uses 원, others keep their code.
-    if (/\bKRW\b/.test(value.currencyLine) || !value.currencyLine.includes('50,000원') || !value.currencyLine.includes('USD')) {
-      fail(`two currencies must stay apart on the line, got "${value.currencyLine}"`);
-    }
-    if (JSON.stringify(value.currencyTotals) !== JSON.stringify([
-      {currency: 'KRW', label: '합계', amount: '50,000원'},
-      {currency: 'USD', label: '합계 (USD)', amount: '1,200 USD'},
-    ])) fail(`each currency must keep its own total, got ${JSON.stringify(value.currencyTotals)}`);
+    if (value.currencyTotal !== '50,000원' || /\bKRW\b/.test(value.currencyTotal)) fail(`the won total must read 50,000원 and never merge USD, got "${value.currencyTotal}"`);
+    if (!/USD/.test(value.currencyDialogText) || /\bKRW\b/.test(value.currencyDialogText)) fail(`the breakdown must report USD apart from the won total, got "${value.currencyDialogText}"`);
+    if (desk && !/USD/.test(value.currencyLedgerText)) fail(`the desk card must report USD apart, got "${value.currencyLedgerText}"`);
 
-    if (value.guestEmptyLine !== 'ready' || value.guestEmptyAmount !== '0원') fail(`a signed-out empty month must keep its line at 0원, got "${value.guestEmptyLine}" / "${value.guestEmptyAmount}"`);
+    if (value.guestEmptyTotal !== '0원') fail(`a signed-out empty month must read 0원, got "${value.guestEmptyTotal}"`);
     if (value.guestEmptyLogin) fail('a signed-out empty month must not read as a login wall');
 
-    // The Calendar went down over this bar once. It must not again.
     if (!value.brokenRepoMonthStanding) fail('a guest repository that throws must leave the month grid standing');
-    if (value.brokenRepoLineState === 'loading') fail('a guest repository that throws must not leave the amount line loading forever');
+    if (value.brokenRepoLedgerState === 'loading') fail('a guest repository that throws must not leave the total loading forever');
   }
-  console.log('validate_calendar_expense_summary_01: PASS');
+  console.log('validate_calendar_expense_summary_01: PASS (design 04 ledger)');
 } finally {
   server.kill();
   for (const file of [INNER, WRAPPER]) {

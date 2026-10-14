@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-6eaa41c05e8b';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-6eaa41c05e8b';
-import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-6eaa41c05e8b';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-27f4f09b0a9a';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-27f4f09b0a9a';
+import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-27f4f09b0a9a';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -10,16 +10,16 @@ import {
   groupCalendarEvents,
   monthGridRange,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-6eaa41c05e8b';
-import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseCategoryLabel, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, EXPENSE_CATEGORY_ORDER, formatExpenseAmount} from './site-calendar-expense.js?v=aset-6eaa41c05e8b';
+} from './site-calendar-model.js?v=aset-27f4f09b0a9a';
+import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseCategoryLabel, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, EXPENSE_CATEGORY_ORDER, formatExpenseAmount} from './site-calendar-expense.js?v=aset-27f4f09b0a9a';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-6eaa41c05e8b';
-import {calendarDraftLogicalRequestId} from './site-calendar-draft-write.js?v=aset-6eaa41c05e8b';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-6eaa41c05e8b';
-import {lunarDateLabel, solarToLunar, lunarDateCompactLabel} from './site-calendar-lunar.js?v=aset-6eaa41c05e8b';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-27f4f09b0a9a';
+import {calendarDraftLogicalRequestId} from './site-calendar-draft-write.js?v=aset-27f4f09b0a9a';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-27f4f09b0a9a';
+import {lunarDateLabel, solarToLunar, lunarDateCompactLabel} from './site-calendar-lunar.js?v=aset-27f4f09b0a9a';
 import {
   calendarEventPresentation,
   calendarItemEndDate,
@@ -34,14 +34,14 @@ import {
   lifeTimelineForDate,
   lifeTimelineGroup,
   monthSpanSegments,
-} from './site-calendar-product.js?v=aset-6eaa41c05e8b';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-6eaa41c05e8b';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-6eaa41c05e8b';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-6eaa41c05e8b';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-6eaa41c05e8b';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-6eaa41c05e8b';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-6eaa41c05e8b';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-6eaa41c05e8b';
+} from './site-calendar-product.js?v=aset-27f4f09b0a9a';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-27f4f09b0a9a';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-27f4f09b0a9a';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-27f4f09b0a9a';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-27f4f09b0a9a';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-27f4f09b0a9a';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-27f4f09b0a9a';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-27f4f09b0a9a';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -3708,7 +3708,8 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, dr
           const digitsNow = amountDigits(amountInput.value);
           const kind = expenseStatus === 'PLANNED' ? '예정' : '실제';
           const categoryNow = categoryInput.value ? EXPENSE_CATEGORY_CHOICES.find(([value]) => value === categoryInput.value)?.[1] : '';
-          if (!expenseStatus) return '';
+          // 금액 없이 분류만 남은 기록도 그 분류를 보여 준다: 수정하다 사라진 줄 알지 않게.
+          if (!expenseStatus) return categoryNow || '';
           return digitsNow ? [`${kind} ${formatExpenseAmount(Number(digitsNow), currency)}`, categoryNow].filter(Boolean).join(' · ') : `${kind} 지출`;
         }
         const digits = amountDigits(amountInput.value);
@@ -5296,6 +5297,24 @@ function c4LedgerFigures(state) {
   return {period, status, total, planned, rows, others, message: settled ? state.expense.message : '', local: state.expense.local === true};
 }
 
+function c4LedgerError(figures) {
+  return figures.message || '지출 합계를 불러오지 못했어요.';
+}
+
+// 합계 단추의 이름: 준비됨 = 금액과 여는 동작, 실패 = 실패 이유, 그 밖 = 계산 중.
+function c4LedgerAria(figures, openWords) {
+  if (figures.status === 'ready') return `${figures.period.label} 실제 지출 ${formatExpenseAmount(figures.total, 'KRW')}, ${openWords}`;
+  if (figures.status === 'error') return `${figures.period.label} 지출 합계: ${c4LedgerError(figures)}`;
+  return `${figures.period.label} 지출 합계를 계산하는 중`;
+}
+
+// 원화 합계에 더하지 않는 다른 통화와, 비로그인 기록의 출처를 알리는 줄.
+function c4LedgerNotes(figures) {
+  const notes = figures.others.map(other => c4El('p', 'c4-lc-msg', `${other.currency} ${formatExpenseAmount(other.totalAmountMinor, other.currency)}는 원화 합계와 따로 있어요.`));
+  if (figures.local) notes.push(c4El('p', 'c4-lc-msg c4-lc-local', '이 기기에 저장한 일정의 금액이에요.'));
+  return notes;
+}
+
 function c4PhotoButton(state, actions, className) {
   const target = validCivilDate(state.selectedDate) ? state.selectedDate : state.todayDate;
   const control = c4Button('사진으로 추가', `c4-btn c4-sec ${className}`, 'camera');
@@ -5318,14 +5337,14 @@ function c4LedgerCard(state, actions) {
   const number = c4El('strong', 'c4-lc-num', figures.status === 'ready' ? formatExpenseAmount(figures.total, 'KRW') : figures.status === 'error' ? '—' : '…');
   total.append(caption, number);
   total.disabled = figures.status !== 'ready';
-  total.setAttribute('aria-label', figures.status === 'ready'
-    ? `${figures.period.label} 실제 지출 ${formatExpenseAmount(figures.total, 'KRW')}, 내역 보기`
-    : `${figures.period.label} 지출 합계를 계산하는 중`);
+  total.setAttribute('aria-label', c4LedgerAria(figures, '내역 보기'));
   total.addEventListener('click', event => actions.openAmountDetail?.(event.currentTarget));
   head.append(total, c4PhotoButton(state, actions, 'c4-lc-photo'));
   card.appendChild(head);
   if (figures.status === 'error') {
-    card.appendChild(c4El('p', 'c4-lc-msg', figures.message || '지출 합계를 불러오지 못했어요.'));
+    const message = c4El('p', 'c4-lc-msg', c4LedgerError(figures));
+    message.setAttribute('role', 'status');
+    card.appendChild(message);
     return card;
   }
   if (figures.status !== 'ready') {
@@ -5356,8 +5375,7 @@ function c4LedgerCard(state, actions) {
     plan.append(c4El('span', 'c4-tag plan', '예정'), c4El('span', '', '결제 전 '), c4El('strong', '', formatExpenseAmount(figures.planned, 'KRW')), c4El('span', 'c4-lc-plan-note', '합계에 넣지 않음'));
     card.appendChild(plan);
   }
-  for (const other of figures.others) card.appendChild(c4El('p', 'c4-lc-msg', `${other.currency} ${formatExpenseAmount(other.totalAmountMinor, other.currency)}는 원화 합계와 따로 있어요.`));
-  if (figures.local) card.appendChild(c4El('p', 'c4-lc-msg', '이 기기에 저장한 일정의 금액이에요.'));
+  card.append(...c4LedgerNotes(figures));
   const link = button('', 'c4-lc-link');
   link.append(c4El('span', '', `${figures.period.label} 지출 내역 보기`), c4Icon('right'));
   link.addEventListener('click', event => actions.openAmountDetail?.(event.currentTarget));
@@ -5370,15 +5388,21 @@ function c4Dock(state, actions) {
   const figures = c4LedgerFigures(state);
   const dock = c4El('div', 'c4-dock');
   dock.dataset.calendarAmountSummary = figures.status;
+  if (figures.status === 'error') {
+    // 못 불러왔으면 누를 것이 없다: 단추 대신 이유를 읽어 주는 상태 줄.
+    const failed = c4El('div', 'c4-dock-sum c4-dock-err');
+    failed.setAttribute('role', 'status');
+    failed.append(c4El('span', 'c4-dock-k', `${figures.period.label} 지출`), c4El('span', 'c4-dock-msg', c4LedgerError(figures)));
+    dock.append(failed, c4PhotoButton(state, actions, 'c4-dock-photo'));
+    return dock;
+  }
   const sum = button('', 'c4-dock-sum');
   sum.dataset.calendarAmountOpen = '';
   const caption = c4El('span', 'c4-dock-k', `${figures.period.label} 지출`);
   caption.appendChild(c4Icon('up'));
-  sum.append(caption, c4El('strong', 'c4-dock-v', figures.status === 'ready' ? formatExpenseAmount(figures.total, 'KRW') : figures.status === 'error' ? '—' : '…'));
+  sum.append(caption, c4El('strong', 'c4-dock-v', figures.status === 'ready' ? formatExpenseAmount(figures.total, 'KRW') : '…'));
   sum.disabled = figures.status !== 'ready';
-  sum.setAttribute('aria-label', figures.status === 'ready'
-    ? `${figures.period.label} 실제 지출 ${formatExpenseAmount(figures.total, 'KRW')}, 눌러서 자세히 보기`
-    : `${figures.period.label} 지출 합계를 계산하는 중`);
+  sum.setAttribute('aria-label', c4LedgerAria(figures, '눌러서 자세히 보기'));
   sum.addEventListener('click', event => actions.openAmountDetail?.(event.currentTarget));
   dock.append(sum, c4PhotoButton(state, actions, 'c4-dock-photo'));
   return dock;
@@ -5668,7 +5692,10 @@ function c4LedgerDialog({root, state, onSelectItem, opener = null}) {
   const dismiss = () => {
     backdrop.remove();
     document.body.classList.remove('c4-dialog-open');
-    const target = opener instanceof HTMLElement && opener.isConnected ? opener : root.querySelector('[data-calendar-amount-open]');
+    // 여는 단추가 다시 그려졌으면, 지금 보이는 합계 단추(넓은 화면 카드 / 휴대폰 아래 줄)로.
+    const target = opener instanceof HTMLElement && opener.isConnected && opener.getClientRects().length
+      ? opener
+      : [...root.querySelectorAll('[data-calendar-amount-open]')].find(node => node.getClientRects().length);
     target?.focus?.();
   };
   const {head} = c4DialogHeader({id: 'c4-ledger-heading', title: `${period.detailLabel} 지출 내역`, subtitle: '일정에 적은 금액을 모아 보여 줘요', onClose: dismiss});
@@ -5696,7 +5723,7 @@ function c4LedgerDialog({root, state, onSelectItem, opener = null}) {
     cell.append(label, c4El('span', `c4-lc-a${row.amount ? '' : ' zero'}`, formatExpenseAmount(row.amount, 'KRW')));
     grid.appendChild(cell);
   }
-  summary.append(bar, grid);
+  summary.append(bar, grid, ...c4LedgerNotes(figures));
   const tabs = c4El('div', 'c4-tabs2');
   tabs.setAttribute('role', 'group');
   tabs.setAttribute('aria-label', '지출 구분');
@@ -5919,10 +5946,12 @@ export function c4PhotoConfirmDialog({root, draft, previewUrl = '', fallbackDate
 
   const foot = c4El('div', 'c4-dlg-ft');
   const countLabel = c4El('span', 'c4-ft-l c4-ft-note');
-  const cancel = c4Button('취소', 'c4-btn c4-ghost');
+  // 사진 확인의 취소는 등록 중에만 잠근다: 일정·지출 두 건 중 하나만 남는 일을 막는다.
+  // (일정 편집기의 취소는 언제나 눌린다 -- validate_calendar_editor_footer_contrast_01.)
+  const photoCancel = c4Button('취소', 'c4-btn c4-ghost');
   const save = c4Button('등록', 'c4-btn c4-pri');
   save.dataset.calendarPhotoSave = '';
-  foot.append(countLabel, cancel, save);
+  foot.append(countLabel, photoCancel, save);
   dialog.append(head, body, foot);
 
   const plan = () => {
@@ -5976,7 +6005,7 @@ export function c4PhotoConfirmDialog({root, draft, previewUrl = '', fallbackDate
       return;
     }
     save.disabled = true;
-    cancel.disabled = true;
+    photoCancel.disabled = true;
     error.textContent = '';
     const baseId = calendarDraftLogicalRequestId(draft);
     const amountMinor = next.digits ? Number(next.digits) : '';
@@ -6026,11 +6055,11 @@ export function c4PhotoConfirmDialog({root, draft, previewUrl = '', fallbackDate
       await onSaved(next.eventOn ? next.eventDate : next.expenseDate);
     } catch (caught) {
       error.textContent = caught instanceof Error && caught.message ? caught.message : '등록하지 못했어요. 다시 시도해 주세요.';
-      cancel.disabled = false;
+      photoCancel.disabled = false;
       refresh();
     }
   });
-  cancel.addEventListener('click', () => dismiss());
+  photoCancel.addEventListener('click', () => dismiss());
   backdrop.addEventListener('click', event => { if (event.target === backdrop) dismiss(); });
   c4TrapFocus(dialog, () => dismiss());
   document.body.classList.add('c4-dialog-open');
@@ -6483,7 +6512,8 @@ export async function mountLifeCalendarManager({
       || root.querySelector('.calendar-editor-dialog')
       || root.querySelector('.c4-dlg')
       || root.querySelector('.calendar-photo-confirm-dialog, .calendar-amount-dialog, .calendar-readonly-dialog')
-      || !document.activeElement?.closest?.('.calendar-day-panel')
+      // 시안 04: 선택한 날 카드(넓은 화면)·달력 아래 목록(휴대폰)·주의 하루 칸도 같다.
+      || !document.activeElement?.closest?.('.calendar-day-panel, .c4-daycard, .c4-agenda, .c4-dayv')
     ) return;
     event.preventDefault();
     event.stopPropagation();
@@ -7321,8 +7351,10 @@ export async function mountLifeCalendarManager({
     queueMicrotask(() => {
       if (!isCurrent()) return;
       const eventId = item?.id || item?.activity_id || '';
+      // 시안 04는 같은 일정이 숨은 휴대폰 목록과 보이는 카드에 함께 있을 수 있다.
+      // 보이는 쪽으로 돌아간다.
       const eventCandidate = eventId
-        ? root.querySelector(`[data-calendar-event-id="${eventId}"]`)
+        ? ([...root.querySelectorAll(`[data-calendar-event-id="${eventId}"]`)].find(node => node.getClientRects().length) || null)
         : null;
       const dateTarget = origin.mode === 'month'
         ? (origin.detailOpen

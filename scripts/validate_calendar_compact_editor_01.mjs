@@ -85,7 +85,9 @@ const response = {
   activity_revision: 3, occurrence_revision: 4, title: '회의', activity_state: 'ACTIVE',
   temporal: {kind: 'TIME_WINDOW', window_start: `${day}T09:00:00`, window_end: `${day}T12:00:00`, timezone_name: zone},
   entry: {
-    amount_minor: 12000, currency: 'KRW', expense_category: 'FOOD', memo: '메모', place: '서울', merchant: '가게',
+    // CALENDAR-DESIGN-04: an amount always carries PAID or PLANNED; an amount
+    // saved without choosing one is money already spent.
+    amount_minor: 12000, currency: 'KRW', expense_category: 'FOOD', expense_status: 'PAID', memo: '메모', place: '서울', merchant: '가게',
     source_kind: null, source_ref: null, visit_scope: null, visit_date: null,
   },
   temporal_semantics: 'USER_PLANNED_TIME', busy: 'UNKNOWN', confirmation_level: 'USER_ATTESTED', provider_verified: false, read_your_writes: true,
@@ -105,6 +107,12 @@ for (const request of requests) {
 }
 assert.equal(requests[0].method, 'POST');
 assert.equal(requests[1].method, 'PATCH');
+// A planned amount is sent as planned, and no amount means no status at all.
+await auth.create({...details, expenseStatus: 'PLANNED'});
+assert.equal(requests[2].body.entry.expense_status, 'PLANNED');
+await auth.create({...details, amountMinor: '', expenseStatus: 'PLANNED'});
+assert.equal(requests[3].body.entry.expense_status, null);
+requests.length = 2;
 assert.match(requests[1].url, /\/entry$/);
 assert.equal(requests[1].body.expected_activity_revision, 3);
 assert.equal(requests[1].body.expected_occurrence_revision, 4);
@@ -122,8 +130,9 @@ const validatorSource = fs.readFileSync(fileURLToPath(import.meta.url), 'utf8');
 assert.doesNotMatch(validatorSource, /\bmanager\.mountLifeCalendarManager\(/,
   'Auth browser fixture must call its actual imported mount binding');
 // Month and Week both show the selected month's total. The approved full-page
-// workspace also reads the Year total while its Year view is active.
-assert.match(refreshSource, /let expenseRefresh = null;[\s\S]*if \(state\.mode === 'month' \|\| state\.mode === 'week' \|\| \(state\.approvedWorkspace && state\.mode === 'year'\)\) expenseRefresh = refreshExpenseSummary\(\);[\s\S]*if \(settleExpense && authenticated && expenseRefresh\) await expenseRefresh;/,
+// workspace also reads the Year total, and (design 04) keeps the ledger bar
+// filled on the 일정 list too.
+assert.match(refreshSource, /let expenseRefresh = null;[\s\S]*if \(state\.mode === 'month' \|\| state\.mode === 'week' \|\| \(state\.approvedWorkspace && \(state\.mode === 'year' \|\| state\.mode === 'agenda'\)\)\) expenseRefresh = refreshExpenseSummary\(\);[\s\S]*if \(settleExpense && authenticated && expenseRefresh\) await expenseRefresh;/,
   'Auth Month, Week, and approved-workspace Year refreshes must start the expense render, and callers requesting final focus must be able to await it');
 assert.match(savedSource, /await refresh\(\{settleExpense: authenticated && \(origin\.mode === 'month' \|\| origin\.mode === 'week'\)\}\)/,
   'editor save must request the settled Month or Week render before restoring focus');
