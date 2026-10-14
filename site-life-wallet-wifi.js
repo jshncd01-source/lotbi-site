@@ -14,11 +14,18 @@
 //   inside its edges (LABEL_INSET) so no desk, keyboard or router body survives. Only that label
 //   image is sealed with the entry, so the letters can be checked later.
 // * Using it: the password stays masked until 비밀번호 보기 (30 seconds), 비밀번호 복사 works only
+<<<<<<< HEAD
 //   while the wallet is open, and QR 보여 주기 shows the standard WIFI: code (drawn on this device
 //   by site-qr-encode.js) for a guest's phone camera; a new entry opens on it right after saving.
 //   Changing or deleting asks for the PIN.
 import {encodeQr, qrSvgElement} from './site-qr-encode.js?v=aset-7fa7de3c1d17';
 import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-7fa7de3c1d17';
+=======
+//   while the wallet is open, and 와이파이 QR shows the standard WIFI: code (drawn on this device
+//   by site-qr-encode.js) for a guest's phone camera. Changing or deleting asks for the PIN.
+import {encodeQr, qrSvgElement} from './site-qr-encode.js?v=aset-ac2a98a2ffa1';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-ac2a98a2ffa1';
+>>>>>>> origin/main
 
 export const WIFI_REVEAL_MS = 30_000;
 export const WIFI_QR_SHOW_MS = 60_000;

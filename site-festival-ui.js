@@ -63,21 +63,35 @@ import {
   listFestivalRegions,
   resolveCurrentRegionLabel,
   selectInitialProgramDate,
+<<<<<<< HEAD
 } from './site-festival-client.js?v=aset-7fa7de3c1d17';
 import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-7fa7de3c1d17';
+=======
+} from './site-festival-client.js?v=aset-ac2a98a2ffa1';
+import {SHEET_PRESENTATION, createBottomSheet, defaultPresentation} from './site-bottom-sheet.js?v=aset-ac2a98a2ffa1';
+>>>>>>> origin/main
 import {
   BrowserLocationError,
   LOCATION_PERMISSION,
   getBrowserLocationPermissionState,
   getRecentBrowserCurrentLocation,
   acquireSharedBrowserCurrentLocation,
+<<<<<<< HEAD
 } from './site-current-location.js?v=aset-7fa7de3c1d17';
 import {isLocationUsageEnabled, LOCATION_USAGE_EVENT, readDefaultMapProvider} from './site-location-preference.js?v=aset-7fa7de3c1d17';
+=======
+} from './site-current-location.js?v=aset-ac2a98a2ffa1';
+import {isLocationUsageEnabled, LOCATION_USAGE_EVENT, readDefaultMapProvider} from './site-location-preference.js?v=aset-ac2a98a2ffa1';
+>>>>>>> origin/main
 // The visit-date picker inside "일정 등록" is a compact month grid, not a
 // custom date engine -- calendarMonthGrid() is the exact same pure cell
 // generator (leading/trailing days, leap years, week length) the main
 // Calendar view itself uses, reused here read-only.
+<<<<<<< HEAD
 import {calendarMonthGrid} from './site-calendar-model.js?v=aset-7fa7de3c1d17';
+=======
+import {calendarMonthGrid} from './site-calendar-model.js?v=aset-ac2a98a2ffa1';
+>>>>>>> origin/main
 // FESTIVAL-EVENT-10: "내 캘린더에 추가" reuses the existing LOTBI Calendar
 // end to end (createLifeActivity() for authenticated users, the Guest
 // Calendar repository's idempotency contract for signed-out visitors) — see
@@ -87,23 +101,40 @@ import {
   VISIT_SCOPE,
   addFestivalVisitToCalendar,
   festivalVisitDateOptions,
+<<<<<<< HEAD
 } from './site-festival-calendar.js?v=aset-7fa7de3c1d17';
 import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-7fa7de3c1d17';
 // Reuses the exact same default-map builders the chat Place Card and the
 // 온누리 card use — one link in the 지도앱 chosen in Settings (네이버지도 when
 // none is saved), no new API key, no SDK, no re-derived URL scheme.
 import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-7fa7de3c1d17';
+=======
+} from './site-festival-calendar.js?v=aset-ac2a98a2ffa1';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-ac2a98a2ffa1';
+// Reuses the exact same default-map builders the chat Place Card and the
+// 온누리 card use — one link in the 지도앱 chosen in Settings (네이버지도 when
+// none is saved), no new API key, no SDK, no re-derived URL scheme.
+import {buildDefaultMapHref, defaultMapProviderPresentation} from './site-navigation.js?v=aset-ac2a98a2ffa1';
+>>>>>>> origin/main
 // FESTIVAL-EVENT-09 already shipped venue-coordinate program-date weather on
 // main (PR #337) against the previous flat program list; this reuses that
 // same orchestration helper and the existing Calendar weather presentation
 // helpers unchanged, now folded into this room's date tabs instead of a
 // per-date-group heading. No new HTTP client, no re-normalization here.
+<<<<<<< HEAD
 import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-7fa7de3c1d17';
+=======
+import {getFestivalProgramWeather} from './site-festival-weather.js?v=aset-ac2a98a2ffa1';
+>>>>>>> origin/main
 import {
   calendarWeatherAttribution,
   calendarWeatherIconNode,
   weatherTemperatureLabel,
+<<<<<<< HEAD
 } from './site-calendar-weather.js?v=aset-7fa7de3c1d17';
+=======
+} from './site-calendar-weather.js?v=aset-ac2a98a2ffa1';
+>>>>>>> origin/main
 
 const PAGE_SIZE = 20;
 

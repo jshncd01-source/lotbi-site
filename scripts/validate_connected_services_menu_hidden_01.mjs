@@ -1,12 +1,9 @@
-// SITE-CONNECTED-SERVICES-HIDE-01 — 소유자 결정 2026-10-11 (USER_FIRST 13).
+// SITE-CONNECTED-SERVICES-RESTORE-01 — 소유자 결정 2026-10-14.
 //
-// 연결 서비스's three partners are all still being prepared, so a visitor must not
-// be sent to a page of things that are not ready. The three entry points (the
-// desktop drawer and phone drawer) are hidden by ONE constant,
-// and Account's own /connected-services page is left alone. This gate holds that
-// the entries really are out of sight AND out of the keyboard's reach, that the
-// neighbouring entries are not collateral, and that flipping the constant brings
-// every one of them back — a switch that cannot be flipped back is a deletion.
+// 연결서비스와 기존 세 코너가 준비돼 있으므로 Site의 데스크톱·모바일 메뉴는
+// 기본적으로 표시한다. 노출 여부는 여전히 ONE constant로 제어하고 Account의
+// 기존 /connected-services 화면과 링크는 그대로 재사용한다. 이 gate는 기본값이
+// 표시이며, 필요할 때 스위치를 끄면 두 메뉴가 함께 안전하게 숨겨지는지 확인한다.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,9 +19,9 @@ const index = read('index.html');
 const conversation = read('site-conversation.js');
 const nav = read('site-sidebar-nav.css');
 
-check('one constant, defined once, defaults to hidden', () => {
+check('one constant, defined once, defaults to visible', () => {
   assert.equal((conversation.match(/const CONNECTED_SERVICES_MENU_VISIBLE = (true|false);/g) || []).length, 1);
-  assert.match(conversation, /const CONNECTED_SERVICES_MENU_VISIBLE = false;/);
+  assert.match(conversation, /const CONNECTED_SERVICES_MENU_VISIBLE = true;/);
   assert.match(conversation, /for \(const entry of document\.querySelectorAll\('\[data-consumer-section="mall"\]'\)\) entry\.hidden = !CONNECTED_SERVICES_MENU_VISIBLE;/);
   const menu = conversation.slice(conversation.indexOf('const openProfileMenu = trigger =>'), conversation.indexOf('let responseGradeOpen'));
   assert.doesNotMatch(menu, /connectedServices|연결 서비스/, 'approved compact profile menu omits this shortcut');
@@ -55,7 +52,7 @@ function browserPath() {
   throw new Error('Chrome/Chromium is required for the SITE-CONNECTED-SERVICES-HIDE-01 validation.');
 }
 
-// `visible` = serve site-conversation.js with the constant flipped, to prove the switch works.
+// `visible=false` flips the production default off to prove the rollback switch still works.
 function startServer(visible) {
   const serverCode = `
     const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
@@ -68,7 +65,7 @@ function startServer(visible) {
       if(!target.startsWith(root)){res.writeHead(403);res.end();return;}
       fs.readFile(target,(error,data)=>{
         if(error){res.writeHead(404);res.end();return;}
-        if(visible&&path.basename(target)==='site-conversation.js'){data=Buffer.from(String(data).replace('const CONNECTED_SERVICES_MENU_VISIBLE = false;','const CONNECTED_SERVICES_MENU_VISIBLE = true;'));}
+        if(!visible&&path.basename(target)==='site-conversation.js'){data=Buffer.from(String(data).replace('const CONNECTED_SERVICES_MENU_VISIBLE = true;','const CONNECTED_SERVICES_MENU_VISIBLE = false;'));}
         res.writeHead(200,{'Content-Type':types[path.extname(target)]||'application/octet-stream'});res.end(data);
       });
     });
@@ -209,4 +206,4 @@ try {
   }
 }
 
-console.log(`SITE-CONNECTED-SERVICES-HIDE-01 PASS (${passed} checks; viewport emulation, generic hidden menu row probe)`);
+console.log(`SITE-CONNECTED-SERVICES-RESTORE-01 PASS (${passed} checks; viewport emulation, rollback switch probe)`);

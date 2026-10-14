@@ -1,7 +1,14 @@
+<<<<<<< HEAD
 import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-7fa7de3c1d17';
 import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-7fa7de3c1d17';
 import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-7fa7de3c1d17';
 import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-7fa7de3c1d17';
+=======
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-ac2a98a2ffa1';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-ac2a98a2ffa1';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-ac2a98a2ffa1';
+import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-ac2a98a2ffa1';
+>>>>>>> origin/main
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -1500,7 +1507,11 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
+<<<<<<< HEAD
   const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-7fa7de3c1d17') : null;
+=======
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-ac2a98a2ffa1') : null;
+>>>>>>> origin/main
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;

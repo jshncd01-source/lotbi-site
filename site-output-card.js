@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import {createSafeMessageBody} from './site-message-body.js?v=aset-7fa7de3c1d17';
+=======
+import {createSafeMessageBody} from './site-message-body.js?v=aset-ac2a98a2ffa1';
+>>>>>>> origin/main
 
 const SWIPE_THRESHOLD = 44;
 const EDGE_GUARD = 28;

@@ -1,5 +1,9 @@
 import {Euler,Quaternion,Vector3} from 'three';
+<<<<<<< HEAD
 import {validateControls,eyeWeights,zero} from './animation.mjs?v=aset-7fa7de3c1d17';
+=======
+import {validateControls,eyeWeights,zero} from './animation.mjs?v=aset-ac2a98a2ffa1';
+>>>>>>> origin/main
 
 // The CP4 glTF bones have identity local rest rotations. Preserve imported rest
 // transforms; Blender XYZ evaluates as Rz*Ry*Rx = Three's intrinsic ZYX.
