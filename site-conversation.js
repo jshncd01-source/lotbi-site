@@ -196,7 +196,7 @@ const PROFILE_PHOTO_SOURCE_OPTIONS = Object.freeze([
 // stay in the markup and the account menu; this one constant shows or hides all three of them
 // (drawer on desktop, drawer on phones, account menu). Account's /connected-services page itself
 // is untouched. Set to true when a partner opens.
-const CONNECTED_SERVICES_MENU_VISIBLE = false;
+const CONNECTED_SERVICES_MENU_VISIBLE = true;
 for (const entry of document.querySelectorAll('[data-consumer-section="mall"]')) entry.hidden = !CONNECTED_SERVICES_MENU_VISIBLE;
 const COLOR_OPTIONS = Object.freeze([
   ['default', '기본'], ['blue', '파랑'], ['purple', '보라'], ['green', '초록'],
