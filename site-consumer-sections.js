@@ -1,7 +1,8 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-27f4f09b0a9a';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-27f4f09b0a9a';
-import {chooseRegion} from './site-location-allow.js?v=aset-27f4f09b0a9a';
-import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-27f4f09b0a9a';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-ebc2f6773899';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-ebc2f6773899';
+import {chooseRegion} from './site-location-allow.js?v=aset-ebc2f6773899';
+import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-ebc2f6773899';
+import {fgIcon} from './site-family-guardian-ui.js?v=aset-ebc2f6773899';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -379,7 +380,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-medical');
       detail.append(host);
       root.replaceChildren(detail); setView('life-medical');
-      import('./site-life-medical-list.js?v=aset-27f4f09b0a9a').then(({mountMedicalList}) => {
+      import('./site-life-medical-list.js?v=aset-ebc2f6773899').then(({mountMedicalList}) => {
         if (disposed || current !== generation) return null;
         return mountMedicalList({root: host}).then(mounted => {
           if (disposed || current !== generation) { mounted.dispose(); return; }
@@ -401,7 +402,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(host);
       root.replaceChildren(detail); setView('life-news');
-      import('./site-life-news.js?v=aset-27f4f09b0a9a').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-ebc2f6773899').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -422,7 +423,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(title, host);
       root.replaceChildren(detail); setView('life-education'); title.focus();
-      import('./site-life-education.js?v=aset-27f4f09b0a9a').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-ebc2f6773899').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -490,7 +491,19 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
   } else if (section === 'wallet') {
     releaseWallet = mountLifeWallet({root, authenticated, accountId, sessionExpiresAt, sessionToken, subscription});
   } else if (section === 'care') {
-    const tabs = node('div', 'consumer-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '보호 대상');
+    const tabs = node('div', 'consumer-tabs fg-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '보호 대상');
+    // FAMILY-GUARDIAN-DESIGN-UNIFY-01: icon + name + count pill. The text stays "사람 · 4"
+    // (the separator is visually hidden), so readers and existing contracts see the same words.
+    const careTabFace = (button, glyph, label) => {
+      const count = node('span', 'fg-tab-count');
+      button.replaceChildren(fgIcon(glyph), node('span', 'fg-tab-label', label), node('span', 'fg-tab-sep'), count);
+      return count;
+    };
+    const setCareTabCount = (button, value) => {
+      const count = button.querySelector('.fg-tab-count'); const sep = button.querySelector('.fg-tab-sep');
+      if (!count || !sep) return;
+      sep.textContent = ' · '; count.textContent = String(value);
+    };
     const body = node('div', 'consumer-care-body'); body.setAttribute('role', 'tabpanel');
     const panelId = `${root.parentElement.getAttribute('aria-labelledby') || 'consumer-care'}-targets`; body.id = panelId;
     // FAMILY-LOCATION-01: with the 「가족 위치」 tab present (Core's switch on), the arrow keys move
@@ -503,6 +516,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     };
     const buttons = ['people', 'pets'].map((value, index) => {
       const button = node('button', '', index ? '반려동물' : '사람'); button.type = 'button';
+      careTabFace(button, index ? 'paw' : 'user', index ? '반려동물' : '사람');
       button.setAttribute('role', 'tab'); button.id = `${panelId}-${value}`;
       button.setAttribute('aria-controls', panelId); button.dataset.careTab = value;
       button.addEventListener('click', () => { void selectTab(value); onCareTab?.(value); });
@@ -517,8 +531,8 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     tabs.append(...buttons);
     const applyCounts = counts => {
       if (disposed || !authenticated || !counts) return;
-      if (Number.isInteger(counts.people)) buttons[0].textContent = `사람 · ${counts.people}`;
-      if (Number.isInteger(counts.pets)) buttons[1].textContent = `반려동물 · ${counts.pets}`;
+      if (Number.isInteger(counts.people)) setCareTabCount(buttons[0], counts.people);
+      if (Number.isInteger(counts.pets)) setCareTabCount(buttons[1], counts.pets);
     };
     async function selectTab(value, initialSurface = 'pets', missingPrefill = null) {
       const current = ++generation;
@@ -533,7 +547,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       // The signed-out category is useful without loading private target APIs.
       if (!authenticated) {
         body.removeAttribute('aria-busy');
-        const welcome = node('section', 'family-guardian-welcome');
+        const welcome = node('section', 'family-guardian-welcome fg-ui');
         welcome.dataset.familyGuardianWelcome = value;
         const heading = node('h3', '', value === 'pets' ? '반려동물을 함께 지켜요' : '소중한 가족을 함께 지켜요');
         const copy = node('p', '', '로그인하면 보호 대상을 등록하고 사진을 관리할 수 있어요. 실종 시에는 별도 동의 후 관리자에게 신고가 접수됩니다.');
@@ -594,6 +608,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       void Promise.resolve(checkFamily()).then(available => {
         if (disposed || available !== true) return;
         const button = node('button', '', '가족 위치'); button.type = 'button';
+        careTabFace(button, 'pin', '가족 위치');
         button.setAttribute('role', 'tab'); button.id = `${panelId}-family`;
         button.setAttribute('aria-controls', panelId); button.dataset.careTab = 'family';
         button.setAttribute('aria-selected', 'false'); button.tabIndex = -1;

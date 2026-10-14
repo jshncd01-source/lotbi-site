@@ -166,6 +166,7 @@ const FIXTURE_HTML = String.raw`<!doctype html><html lang="ko"><head><meta chars
 <link rel="stylesheet" href="/site-family-guardian.css" />
 <link rel="stylesheet" href="/site-consumer-design.css" />
 <link rel="stylesheet" href="/site-bottom-sheet.css" />
+<link rel="stylesheet" href="/site-family-guardian-ds.css" />
 <style>html,body{margin:0;background:var(--lotbi-bg-primary,#fff)}body{min-height:100vh}#host{box-sizing:border-box;max-width:960px;margin:0 auto;padding:16px}</style>
 <script>
   globalThis.__calls = [];
@@ -1118,7 +1119,7 @@ for (const [label, r] of Object.entries(results)) {
   assert.deepEqual(r.personRenewalNotice.renewalNotice.openAfterUsage, ['usage'], `${label}: opening usage details must close renewal details`);
   assert.equal(r.personRenewalNotice.renewalNotice.usageLabel, '위 내용에 동의합니다 (필수)');
   assert.equal(r.personRenewalNotice.renewalNotice.disabledAfterUsage, true, `${label}: guardian consent must still be required`);
-  assert.equal(r.personRenewalNotice.renewalNotice.privacyLabel, '🔒 사진은 비공개로 안전하게 보관되며, 분실·발견 시 후보 비교를 위해 사용됩니다. (필수)');
+  assert.equal(r.personRenewalNotice.renewalNotice.privacyLabel, '사진은 비공개로 안전하게 보관되며, 분실·발견 시 후보 비교를 위해 사용됩니다. (필수)');
   assert.equal(r.personRenewalNotice.renewalNotice.disabledAfterPrivacy, true, `${label}: guardian consent must remain required after privacy consent`);
   assert.equal(r.personRenewalNotice.renewalNotice.guardianLabel, '법정대리인임을 확인하고 동의합니다 (필수)');
   assert.equal(r.personRenewalNotice.renewalNotice.confirmEnabledAfterRequiredConsents, true, `${label}: all required consent enables registration`);
@@ -1193,13 +1194,13 @@ for (const [label, r] of Object.entries(results)) {
   assert.equal(r.petResume.listHidden, true);
   assert.deepEqual(r.petRegister.ageModes, ['BIRTH_DATE', 'ESTIMATED', 'UNKNOWN']);
   assert.equal(r.petRegister.family, true, `${label}: 가족이 된 날 is stored by Core's draft and must be offered`);
-  assert.equal(r.petRegisterPhotos.label, '반려동물 등록 2단계 / 4단계 · 사진');
+  assert.equal(r.petRegisterPhotos.label, '반려동물 등록 2단계 / 4단계 · 식별 사진');
   assert.equal(r.petRenewalNotice.renewalNotice?.title, '식별 사진 갱신 안내', `${label}: pet renewal notice must open before photos`);
   assert.equal(r.petRenewalNotice.renewalNotice.photosVisibleBeforeConfirm, false, `${label}: pet photos must wait for renewal notice confirmation`);
   assert.equal(r.petRenewalNotice.renewalNotice.guardianVisible, false, `${label}: pet registration must not ask for legal guardian confirmation`);
   assert.equal(r.petRenewalNotice.renewalNotice.confirmDisabledInitially, true, `${label}: pet registration must wait for privacy consent`);
   assert.deepEqual(r.petRenewalNotice.renewalNotice.missingPress, {text: '필수 동의가 빠졌어요: 사진 보관·이용 동의. 체크한 뒤 다시 눌러 주세요.', photos: false}, `${label}: a pet press without consent names it and opens nothing`);
-  assert.equal(r.petRenewalNotice.renewalNotice.privacyLabel, '🔒 사진은 비공개로 안전하게 보관되며, 분실·발견 시 후보 비교를 위해 사용됩니다. (필수)');
+  assert.equal(r.petRenewalNotice.renewalNotice.privacyLabel, '사진은 비공개로 안전하게 보관되며, 분실·발견 시 후보 비교를 위해 사용됩니다. (필수)');
   assert.equal(r.petRenewalNotice.renewalNotice.confirmEnabledAfterPrivacy, true, `${label}: pet privacy consent enables photo registration`);
   assert.ok(r.petRenewalNotice.renewalNotice.text.includes('나이와 관계없이 · 6개월(180일)마다'));
   assert.ok(r.petRenewalNotice.renewalNotice.text.includes('만료 30일·7일·1일 전'));
