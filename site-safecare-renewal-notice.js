@@ -1,4 +1,5 @@
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-7327fad003f1';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-7cde7deaaed5';
+import {fgIcon} from './site-family-guardian-ui.js?v=aset-7cde7deaaed5';
 
 const el = (tag, className = '', text = '') => {
   const node = document.createElement(tag);
@@ -15,13 +16,26 @@ export function requiresGuardianConsent({relationship, birthYear, birthMonth} = 
   return age < 14;
 }
 
+// FAMILY-GUARDIAN-DESIGN-UNIFY-01: line icons instead of the ⏱ and lock emoji; the consent words stay.
+const PRIVACY_CONSENT_LABEL = '사진은 비공개로 안전하게 보관되며, 분실·발견 시 후보 비교를 위해 사용됩니다. (필수)';
+function renewalIcon() {
+  const mark = el('span', 'safecare-renewal-icon');
+  mark.append(fgIcon('clock'));
+  return mark;
+}
+function lockedLabel(text) {
+  const label = el('span', 'safecare-consent-label');
+  label.append(fgIcon('lock'), document.createTextNode(text));
+  return label;
+}
+
 export function openSafeCareRenewalNotice({kind, relationship, birthYear, birthMonth, onConfirm} = {}) {
   const pet = kind === 'pet';
   const guardianRequired = !pet && requiresGuardianConsent({relationship, birthYear, birthMonth});
   const content = el('section', 'safecare-renewal-dialog');
   content.dataset.safecareRenewalDialog = pet ? 'pet' : 'person';
   content.append(
-    el('span', 'safecare-renewal-icon', '⏱'),
+    renewalIcon(),
     el('h3', 'safecare-renewal-title', pet ? '식별 사진 갱신 안내' : '식별 사진 등록 안내'),
     el(
       'p',
@@ -40,7 +54,7 @@ export function openSafeCareRenewalNotice({kind, relationship, birthYear, birthM
     privacyCheckbox.type = 'checkbox';
     privacyCheckbox.dataset.safecareConsent = 'privacy';
     privacyCheckbox.dataset.safecareConsentTitle = '사진 보관·이용 동의';
-    privacy.append(privacyCheckbox, el('span', '', '🔒 사진은 비공개로 안전하게 보관되며, 분실·발견 시 후보 비교를 위해 사용됩니다. (필수)'));
+    privacy.append(privacyCheckbox, lockedLabel(PRIVACY_CONSENT_LABEL));
     content.append(rules, el('p', 'safecare-renewal-reminder', '만료 30일·7일·1일 전에 알려드립니다.'), privacy);
   } else {
     const sections = el('div', 'safecare-notice-sections');
@@ -68,7 +82,7 @@ export function openSafeCareRenewalNotice({kind, relationship, birthYear, birthM
         checkbox.type = 'checkbox';
         checkbox.dataset.safecareConsent = consentKey;
         checkbox.dataset.safecareConsentTitle = title;
-        consent.append(checkbox, el('span', '', label));
+        consent.append(checkbox, consentKey === 'privacy' ? lockedLabel(label) : el('span', '', label));
         consentRows.append(consent);
       });
       toggle.addEventListener('click', () => {
@@ -116,7 +130,7 @@ export function openSafeCareRenewalNotice({kind, relationship, birthYear, birthM
       )),
       consents: [
         {key: 'usage', label: '위 내용에 동의합니다 (필수)'},
-        {key: 'privacy', label: '🔒 사진은 비공개로 안전하게 보관되며, 분실·발견 시 후보 비교를 위해 사용됩니다. (필수)'},
+        {key: 'privacy', label: PRIVACY_CONSENT_LABEL},
       ],
     });
     if (guardianRequired) {
@@ -179,7 +193,7 @@ export function openSafeCareRenewalNotice({kind, relationship, birthYear, birthM
     closeOnBackdrop: false,
     dismissLabel: '취소',
   });
-  sheet.element.classList.add('safecare-renewal-sheet');
+  sheet.element.classList.add('safecare-renewal-sheet', 'fg-ui');
   confirm.addEventListener('click', async () => {
     if (confirm.disabled) return;
     const unticked = missing();
