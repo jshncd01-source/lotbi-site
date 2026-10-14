@@ -22,14 +22,14 @@
 // TODO(site-location-allow.js): the 대화·답변 UX room's shared 위치 허용/지역 선택
 // part is not in main yet. This screen implements the same rules itself (the EV
 // charger screen's); replace it with the shared part when that lands.
-import {CORE_ORIGIN} from './site-core.js?v=aset-7327fad003f1';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-7327fad003f1';
-import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-7327fad003f1';
-import {buildDefaultMapHref, buildNaverPlaceSearchUrl, buildVerifiedPhoneHref, formatDistanceMeters, normalizePlaceResult} from './site-navigation.js?v=aset-7327fad003f1';
-import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-7327fad003f1';
-import {savedRegionLabel} from './site-life-location.js?v=aset-7327fad003f1';
-import {medicalStatusLines} from './site-life-medical.js?v=aset-7327fad003f1';
-import {EV_MAP_ICON_BASE, EV_MAP_ICON_VERSION, evMapIcon} from './site-life-ev-chargers.js?v=aset-7327fad003f1';
+import {CORE_ORIGIN} from './site-core.js?v=aset-373a2a1768a6';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-373a2a1768a6';
+import {isLocationUsageEnabled, readDefaultMapProvider} from './site-location-preference.js?v=aset-373a2a1768a6';
+import {buildDefaultMapHref, buildNaverPlaceSearchUrl, buildVerifiedPhoneHref, formatDistanceMeters, normalizePlaceResult} from './site-navigation.js?v=aset-373a2a1768a6';
+import {readCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-373a2a1768a6';
+import {savedRegionLabel} from './site-life-location.js?v=aset-373a2a1768a6';
+import {medicalStatusLines} from './site-life-medical.js?v=aset-373a2a1768a6';
+import {EV_MAP_ICON_BASE, EV_MAP_ICON_VERSION, evMapIcon} from './site-life-ev-chargers.js?v=aset-373a2a1768a6';
 
 export const MEDICAL_MENU_LABEL = '병원·응급실·약국';
 export const MEDICAL_CONTRACT_ID = 'CORE-LIFE-MEDICAL-NEARBY-01';
@@ -223,15 +223,73 @@ function institutionGlyph(place) {
   return '✚';
 }
 
+// REGIONAL-INFO-UNIFY-01 — one badge set for 병원·약국 (the 지역정보 design):
+// 「진료 시간 중」 says it is the registered hours, not a live check; the
+// emergency room shows its bed report instead of an hours badge.
+function closingTime(status) {
+  return /[~∼–-]\s*(\d{1,2}:\d{2})\s*$/u.exec(text(status?.hoursLabel))?.[1] || '';
+}
+
 function medicalBadges(place) {
   const status = place.medicalStatus;
-  if (!status) return [{state: 'UNKNOWN', label: '운영시간 확인 필요'}];
+  if (!status) return place.emergencyStatus ? [] : [{state: 'UNKNOWN', label: '운영시간 확인 필요'}];
+  const pharmacy = status.kind === 'PHARMACY';
   const out = [];
-  if (status.openState === 'OPEN') out.push({state: 'OPEN', label: status.kind === 'PHARMACY' ? '영업 중' : '진료 중'});
+  if (status.openState === 'OPEN') out.push({state: 'OPEN', label: pharmacy ? '영업 시간 중' : '진료 시간 중'});
+  else if (status.openState === 'CLOSED') out.push({state: 'CLOSED', label: pharmacy ? '오늘 영업 끝남' : '오늘 진료 끝남'});
   else if (status.openState === 'NOT_LISTED') out.push({state: 'UNKNOWN', label: '운영시간 확인 필요'});
-  const labels = {NIGHT: '야간진료', HOLIDAY: '휴일진료', ALL_DAY: '24시간', CLOSING_SOON: '곧 마감'};
+  const closeAt = closingTime(status);
+  const labels = {
+    NIGHT: pharmacy ? '야간 운영' : '야간 진료', HOLIDAY: pharmacy ? '휴일 운영' : '휴일 진료', ALL_DAY: '24시간',
+    CLOSING_SOON: closeAt ? `곧 마감 · ${closeAt}` : '곧 마감',
+  };
   for (const state of status.badges || []) if (labels[state]) out.push({state, label: labels[state]});
   return out;
+}
+
+// Korean particle after a word (을/를, 이/가): the noun may be a 진료과 name.
+export function withParticle(word, pair) {
+  const value = text(word);
+  const last = value.charCodeAt(value.length - 1);
+  const batchim = last >= 0xac00 && last <= 0xd7a3 && (last - 0xac00) % 28 !== 0;
+  const [consonant, vowel] = pair === '이' ? ['이', '가'] : ['을', '를'];
+  return `${value}${batchim ? consonant : vowel}`;
+}
+
+
+// The emergency room's own block: the bed report big, its time, the hospital's notice in its own words.
+function emergencyBlock(place, documentRef) {
+  const emergency = place.emergencyStatus;
+  if (!emergency) return null;
+  const block = el('div', 'medical-place-beds', '', documentRef);
+  const er = emergency.beds.find(item => item.label === '응급실');
+  let value = '정보 없음';
+  let sub = '응급실에 전화로 확인';
+  let state = 'NONE';
+  if (emergency.realtimeState === 'FRESH') {
+    sub = emergency.updatedAtLabel ? `${emergency.updatedAtLabel} 보고` : '실시간 보고';
+    if (er && er.available > 0) { value = String(er.available); state = 'AVAILABLE'; }
+    else if (er) { value = '병상 없음'; state = 'FULL'; sub = `${sub} · 보고값 ${er.available}`; }
+    else { value = '보고 있음'; state = 'REPORTED'; }
+  } else if (emergency.realtimeState === 'STALE') {
+    value = '최근 보고 없음'; state = 'STALE';
+    sub = emergency.updatedAtLabel ? `마지막 보고 ${emergency.updatedAtLabel}` : '오래된 보고';
+  }
+  block.dataset.medicalBeds = state;
+  block.append(
+    el('span', 'medical-place-beds-label', '응급실 가용 병상', documentRef),
+    el('strong', 'medical-place-beds-value', value, documentRef),
+    el('span', 'medical-place-beds-time', sub, documentRef),
+  );
+  const wrap = el('div', 'medical-place-er', '', documentRef);
+  wrap.append(block);
+  if (emergency.messages[0]) {
+    const notice = el('p', 'medical-place-notice', '', documentRef);
+    notice.append(el('strong', '', '병원 공지', documentRef), el('span', 'medical-place-notice-origin', ' (병원이 쓴 그대로)', documentRef),
+      el('span', 'medical-place-notice-text', emergency.messages[0], documentRef));
+    wrap.append(notice);
+  }
+  return wrap;
 }
 
 // One place, the way a conversation place card says it: name (opens the NAVER
@@ -267,6 +325,11 @@ export function medicalPlaceItem(place, {query = '', partial = false, mapProvide
   nameLink.setAttribute('aria-label', `네이버에서 ${place.name} 검색`);
   heading.append(nameLink);
   head.append(heading);
+  if (Number.isInteger(place.distanceMeters)) {
+    const tag = el('span', 'medical-place-distance-tag', formatDistanceMeters(place.distanceMeters), documentRef);
+    tag.title = fromRegion ? `${fromRegion} 중심에서 직선거리` : '직선거리';
+    head.append(tag);
+  }
   item.append(head);
   const categoryRow = el('div', 'medical-place-category-row', '', documentRef);
   if (place.category) categoryRow.append(el('p', 'medical-place-category', place.category, documentRef));
@@ -276,15 +339,26 @@ export function medicalPlaceItem(place, {query = '', partial = false, mapProvide
     categoryRow.append(node);
   }
   if (categoryRow.childElementCount) item.append(categoryRow);
+  const er = emergencyBlock(place, documentRef);
+  if (er) item.append(er);
+  if (place.medicalStatus) {
+    const hoursLine = el('p', 'medical-place-hours', '', documentRef);
+    const clock = el('span', 'medical-line-icon', '', documentRef);
+    clock.setAttribute('aria-hidden', 'true');
+    const noHours = place.medicalStatus.kind === 'PHARMACY' ? '등록된 영업 시간이 없어요' : '등록된 진료 시간이 없어요';
+    hoursLine.append(clock, el('span', '', text(place.medicalStatus.hoursLabel) || noHours, documentRef));
+    hoursLine.dataset.medicalHours = place.medicalStatus.openState || 'UNKNOWN';
+    item.append(hoursLine);
+  }
   if (place.address) item.append(el('p', 'medical-place-address', place.address, documentRef));
-  const lines = medicalStatusLines(place, {partial});
+  // The registered-hours limit and 「전화로 확인」 are said once above the list
+  // (medical-legend) and the bed report is the block above; what stays here is
+  // what only this place has (전북 등록정보).
+  const lines = medicalStatusLines(place, {partial}).filter(line => !['OPEN', 'CLOSED', 'CONFIRM', 'REALTIME_FRESH', 'REALTIME_STALE', 'REALTIME_NONE', 'NOTICE'].includes(line.state)
+    && !(line.state === place.medicalStatus?.openState && line.text === place.medicalStatus?.hoursLabel));
   const hours = el('div', 'medical-place-lines', '', documentRef);
   for (const [index, line] of lines.entries()) {
-    const distance = index === 0 && Number.isInteger(place.distanceMeters)
-      ? `${fromRegion ? `${fromRegion} 중심에서 ` : ''}직선 ${formatDistanceMeters(place.distanceMeters)}`
-      : '';
     const node = el('p', index === 0 && ['OPEN', 'CLOSED'].includes(line.state) ? 'medical-place-state' : 'medical-place-note', line.text, documentRef);
-    if (distance) node.append(documentRef.createTextNode(' · '), el('span', 'medical-place-distance', distance, documentRef));
     node.dataset.medicalState = line.state;
     hours.append(node);
   }
@@ -316,7 +390,7 @@ export function medicalPlaceItem(place, {query = '', partial = false, mapProvide
     map.dataset.mapIcon = icon;
     map.setAttribute('aria-label', `${place.name} 길찾기 (${label})`);
     map.title = `${label}에서 길찾기`;
-    map.append(actionIcon(icon, documentRef), el('span', 'medical-action-label', '길찾기', documentRef));
+    map.append(actionIcon(icon, documentRef), el('span', 'medical-action-label', label, documentRef));
     actions.append(map);
   }
   if (actions.childElementCount) item.append(actions);
@@ -426,7 +500,6 @@ export async function mountMedicalList({
   statusCheckbox.checked = state.statusOnly;
   const statusFilterText = el('span', 'medical-status-filter-text', '지금 진료 중만', documentRef);
   statusFilter.append(statusCheckbox, statusFilterText);
-  specialtySection.append(statusFilter);
   const emergency = el('div', 'medical-emergency', '', documentRef);
   emergency.dataset.medicalEmergency = 'true';
   const emergencyText = el('span', 'medical-emergency-text', EMERGENCY_NOTICE_FALLBACK, documentRef);
@@ -437,7 +510,7 @@ export async function mountMedicalList({
   const whereRow = el('div', 'medical-where-row', '', documentRef);
   const locate = el('button', 'consumer-action medical-locate', '위치 허용하고 찾기', documentRef);
   locate.type = 'button'; locate.dataset.medicalLocate = 'true';
-  const regionToggle = el('button', 'consumer-action consumer-action-secondary medical-region-toggle', '지역 고르기', documentRef);
+  const regionToggle = el('button', 'consumer-action consumer-action-secondary medical-region-toggle', '지역 변경', documentRef);
   regionToggle.type = 'button'; regionToggle.dataset.medicalRegionToggle = 'true'; regionToggle.setAttribute('aria-pressed', 'false');
   whereRow.append(locate, regionToggle);
   const locationNote = el('p', 'consumer-feature-note medical-location-note', '', documentRef);
@@ -455,12 +528,13 @@ export async function mountMedicalList({
   const basis = el('p', 'medical-basis', '', documentRef);
   const status = el('p', 'medical-status', '', documentRef); status.setAttribute('role', 'status');
   const notice = el('p', 'consumer-feature-note medical-notice', '', documentRef); notice.hidden = true;
+  const legend = el('p', 'medical-legend', '', documentRef); legend.hidden = true;
   const error = el('div', 'medical-error', '', documentRef); error.setAttribute('role', 'alert'); error.hidden = true;
   const list = el('ol', 'medical-results', '', documentRef);
   const more = el('button', 'consumer-action consumer-action-secondary medical-more', '더 보기', documentRef);
   more.type = 'button'; more.hidden = true; more.dataset.medicalMore = 'true';
   const source = el('p', 'consumer-feature-note medical-source', '', documentRef);
-  root.replaceChildren(...(showTitle ? [title] : []), kindRow, whereRow, locationNote, specialtySection, emergency, regionRow, basis, status, notice, error, list, more, source);
+  root.replaceChildren(...(showTitle ? [title] : []), kindRow, whereRow, locationNote, specialtySection, statusFilter, emergency, regionRow, basis, status, notice, legend, error, list, more, source);
 
   const kind = () => kindOf(state.kind);
   const regionLabel = () => (state.mode === 'region' && state.region ? state.region.label : '');
@@ -470,7 +544,8 @@ export async function mountMedicalList({
     for (const [id, button] of kindButtons) button.setAttribute('aria-pressed', String(id === state.kind));
     for (const [id, button] of specialtyButtons) button.setAttribute('aria-pressed', String(id === state.specialty));
     specialtySection.hidden = state.kind !== 'hospital';
-    statusFilterText.textContent = state.kind === 'pharmacy' ? '지금 영업 중만' : state.kind === 'emergency' ? '현재 진료 가능 우선' : '지금 진료 중만';
+    statusFilterText.textContent = state.kind === 'pharmacy' ? '영업 시간인 곳만' : state.kind === 'emergency' ? '병상 보고 있는 곳 먼저' : '진료 시간인 곳만';
+    statusFilter.dataset.medicalFilterKind = state.kind;
     emergency.hidden = state.kind !== 'emergency';
   }
 
@@ -485,8 +560,8 @@ export async function mountMedicalList({
     locate.textContent = state.mode === 'none'
       || (state.mode === 'location' && !state.location)
       || (state.mode === 'region' && !state.region)
-      ? '📍 내 위치 찾기'
-      : `📍 현재 위치${area && area !== '현재 위치' ? ` · ${area}` : ''}`;
+      ? '내 위치 찾기'
+      : `현재 위치${area && area !== '현재 위치' ? ` · ${area}` : ''}`;
     locate.classList.add('consumer-action-secondary');
     basis.textContent = where ? `${where} 기준` : '';
     basis.hidden = !where;
@@ -498,7 +573,7 @@ export async function mountMedicalList({
   }
 
   function clearResults() {
-    list.replaceChildren(); more.hidden = true; error.hidden = true; notice.hidden = true; source.textContent = '';
+    list.replaceChildren(); more.hidden = true; error.hidden = true; notice.hidden = true; legend.hidden = true; source.textContent = '';
     delete status.dataset.medicalReady;
     state.places = []; state.allPlaces = []; state.shown = 0;
   }
@@ -586,14 +661,14 @@ export async function mountMedicalList({
     const target = point();
     if (!target) {
       clearResults();
-      status.textContent = `내 위치나 지역을 알려 주시면 가까운 ${kind().noun}을 바로 보여 드려요.`;
+      status.textContent = `내 위치나 지역을 알려 주시면 가까운 ${withParticle(kind().noun, '을')} 바로 보여 드려요.`;
       return;
     }
     if (reset) clearResults();
     state.basisLabel = '';
     renderWhere();
     delete status.dataset.medicalReady;
-    status.textContent = `${kind().noun}을 찾는 중…`;
+    status.textContent = `${withParticle(kind().noun, '을')} 찾는 중…`;
     let url;
     try {
       url = medicalNearbyUrl({
@@ -630,7 +705,7 @@ export async function mountMedicalList({
     if (result.status === 'UNAVAILABLE') {
       // "No result" and "could not check" are told apart: Core's words say the
       // second is not the first.
-      showProblem(`공공데이터 ${noun} 정보를 지금 확인하지 못했어요. 가까운 ${noun}이 없다는 뜻은 아니에요. 잠시 후 다시 시도해 주세요.${help}`);
+      showProblem(`공공데이터 ${noun} 정보를 지금 확인하지 못했어요. 가까운 ${withParticle(noun, '이')} 없다는 뜻은 아니에요. 잠시 후 다시 시도해 주세요.${help}`);
       return;
     }
     if (result.status === 'EMPTY' || !result.places.length) {
@@ -639,7 +714,7 @@ export async function mountMedicalList({
         return;
       }
       const where = state.mode === 'location' ? '내 주변' : state.region?.label || '이 지역';
-      showProblem(`${where}에서 ${noun}을 찾지 못했어요. 다른 지역을 골라 보세요.${help}`, {retry: false});
+      showProblem(`${where}에서 ${withParticle(noun, '을')} 찾지 못했어요. 다른 지역을 골라 보세요.${help}`, {retry: false});
       return;
     }
     state.allPlaces = [...result.places]; state.places = [...result.places]; state.shown = 0;
@@ -647,10 +722,16 @@ export async function mountMedicalList({
     renderWhere();
     const notes = [];
     if (result.sortBasis) notes.push(state.kind === 'emergency'
-      ? (state.mode === 'location' ? '현재 진료 가능 우선 · 가까운 순' : '이름 순')
-      : `${state.kind === 'pharmacy' ? '영업' : '진료'} 중 우선 · ${state.mode === 'location' ? '가까운 순' : '이름 순'}`);
+      ? (state.mode === 'location' ? '병상 보고 우선 · 가까운 순' : '이름 순')
+      : `${state.kind === 'pharmacy' ? '영업' : '진료'} 시간 우선 · ${state.mode === 'location' ? '가까운 순' : '이름 순'}`);
     if (result.partial) notes.push('일부 기관만 확인');
-    if (notes.length) { notice.textContent = notes.join(' '); notice.hidden = false; }
+    if (notes.length) { notice.textContent = notes.join(' · '); notice.hidden = false; }
+    legend.textContent = state.kind === 'emergency'
+      ? '병상 수는 병원이 보고한 숫자예요. 받을 수 있는지는 출발 전에 응급실로 전화해 확인하세요.'
+      : state.kind === 'pharmacy'
+        ? '영업 시간은 약국이 등록한 시간이에요. 휴무일은 반영되지 않으니 가기 전에 전화로 확인하세요.'
+        : `진료 시간은 병원이 등록한 시간이에요. 점심시간·임시 휴진은 반영되지 않으니 가기 전에 전화로 확인하세요.${result.places.some(place => place.medicalStatus?.holidayUnverified) ? ' 공휴일은 반영되지 않았어요.' : ''}`;
+    legend.hidden = false;
     applyStatusFilter();
   }
 
@@ -708,7 +789,7 @@ export async function mountMedicalList({
       if (catalogError) {
         // The 지역 목록 came back: the message about it goes, the picker is the way on.
         catalogError = false; error.hidden = true;
-        status.textContent = `시·도와 시·군을 고르면 그곳의 ${kind().noun}을 보여 드려요.`;
+        status.textContent = `시·도와 시·군을 고르면 그곳의 ${withParticle(kind().noun, '을')} 보여 드려요.`;
       }
       return true;
     }
@@ -730,7 +811,7 @@ export async function mountMedicalList({
     const listed = await openRegionPicker();
     if (disposed) return;
     if (state.region) await search({reset: true});
-    else if (listed) { clearResults(); renderKinds(); renderWhere(); status.textContent = `시·도와 시·군을 고르면 그곳의 ${kind().noun}을 보여 드려요.`; }
+    else if (listed) { clearResults(); renderKinds(); renderWhere(); status.textContent = `시·도와 시·군을 고르면 그곳의 ${withParticle(kind().noun, '을')} 보여 드려요.`; }
   }
 
   async function useCurrentLocation({prompt = true} = {}) {

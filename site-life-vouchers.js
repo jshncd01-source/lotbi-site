@@ -15,11 +15,11 @@
 // LOTBI does not issue, sell or take payment for any voucher and is not the
 // issuer's partner. The list is the official/staff-checked data, not real-time
 // payment availability.
-import {CORE_ORIGIN} from './site-core.js?v=aset-7327fad003f1';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-7327fad003f1';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-7327fad003f1';
-import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-7327fad003f1';
-import {mountOnnuriMerchants, readMapPreference, mapPreferenceNote, mapIconName, MAP_ICON_VERSION} from './site-life-onnuri.js?v=aset-7327fad003f1';
+import {CORE_ORIGIN} from './site-core.js?v=aset-373a2a1768a6';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-373a2a1768a6';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-373a2a1768a6';
+import {buildDefaultMapHref, defaultMapProviderPresentation, formatDistanceMeters} from './site-navigation.js?v=aset-373a2a1768a6';
+import {mountOnnuriMerchants, readMapPreference, mapPreferenceNote, mapIconName, MAP_ICON_VERSION} from './site-life-onnuri.js?v=aset-373a2a1768a6';
 
 export const VOUCHER_HUB_TITLE = '온누리상품권·지역화폐';
 export const VOUCHER_TABS = Object.freeze([['onnuri', '온누리상품권'], ['local', '지역화폐']]);
@@ -407,7 +407,13 @@ export async function mountLocalVoucherMerchants({
   intro.append(el('strong', 'voucher-intro-title', '지역화폐(지역사랑상품권) 가맹점 찾기'));
   const notice = el('p', 'consumer-feature-note voucher-notice', VOUCHER_DEFAULT_NOTICE);
   notice.setAttribute('data-voucher-notice', '');
-  intro.append(notice, el('p', 'consumer-feature-note voucher-not-partner', VOUCHER_NOT_PARTNER));
+  // REGIONAL-INFO-UNIFY-01: the long notice folds to one line + 「안내 자세히」,
+  // the way the 온누리 tab beside it does.
+  const noticeBox = el('details', 'voucher-notice-box');
+  const noticeSummary = el('summary', 'consumer-feature-note voucher-notice-summary');
+  noticeSummary.append(el('span', '', '공공데이터 기준 안내예요. 방문 전 가맹점에 확인해 주세요.'), el('span', 'voucher-notice-more', '안내 자세히'));
+  noticeBox.append(noticeSummary, notice, el('p', 'consumer-feature-note voucher-not-partner', VOUCHER_NOT_PARTNER));
+  intro.append(noticeBox);
 
   const regionRow = el('div', 'voucher-region-row');
   const selects = {}; const fields = {};

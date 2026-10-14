@@ -170,7 +170,7 @@ const PROBE = `(() => {
     freeQuery: /어떤 생활정보가 필요하세요|롯비에게 물어보기/u.test(workspace?.textContent || ''), footer: Boolean(workspace?.querySelector('.consumer-section-footer')),
     homeChildren: [...(workspace?.querySelector('[data-consumer-surface]')?.children || [])].map(child => child.className),
     header: box(panel?.querySelector('.site-modal-header')), description: box(panel?.querySelector('.site-modal-description')), label: box(workspace?.querySelector('.consumer-section-label')),
-    location: box(workspace?.querySelector('.consumer-life-location')), locationText: workspace?.querySelector('.consumer-life-location-label')?.textContent || '', regionChange: box(workspace?.querySelector('.consumer-life-region-change')),
+    location: box(workspace?.querySelector('.consumer-life-location')), locationText: workspace?.querySelector('.consumer-life-location-label')?.textContent || '', locationTag: workspace?.querySelector('.consumer-life-location-tag:not([hidden])')?.textContent || '', locationNote: box(workspace?.querySelector('.consumer-life-location-note')), locationNoteText: workspace?.querySelector('.consumer-life-location-note')?.textContent || '', labelHeight: workspace?.querySelector('.consumer-section-label')?.getBoundingClientRect().height ?? -1, regionChange: box(workspace?.querySelector('.consumer-life-region-change')),
     focusedShortcut: document.activeElement?.dataset?.lifeShortcut || '',
     shortcuts,
     detail: detail ? {id: detail.dataset.lifeDetail || '', title: detail.querySelector('h3')?.textContent || '', box: box(detail), back: box([...detail.querySelectorAll('.consumer-action')].find(b => b.textContent === '지역정보로 돌아가기')),
@@ -367,12 +367,22 @@ async function runCase(browser, origin, dir, testCase) {
     assert.deepEqual(main.homeChildren, ['consumer-life-home'], `${testCase.label}: the main is isolated in one location + label + cards wrapper`);
     assert.ok(main.header.y >= 0, `${testCase.label}: header inside the viewport (${main.header.y})`);
     const descriptionToLocation = main.location.y - main.description.bottom;
-    const locationToLabel = main.label.y - main.location.bottom;
-    const labelToList = main.shortcuts[0].box.y - main.label.bottom;
+    // REGIONAL-INFO-UNIFY-01: region bar → one note line → the cards; 생활에 필요한 정보 stays as the
+    // list's heading for screen readers only (the design shows no label above the cards).
+    const locationToNote = main.locationNote.y - main.location.bottom;
+    const noteToList = main.shortcuts[0].box.y - main.locationNote.bottom;
     assert.ok(descriptionToLocation >= 8 && descriptionToLocation <= 32, `${testCase.label}: description → location ${descriptionToLocation}px`);
-    assert.ok(locationToLabel >= 4 && locationToLabel <= 24, `${testCase.label}: location → 생활에 필요한 정보 ${locationToLabel}px`);
-    assert.ok(labelToList >= 4 && labelToList <= 16, `${testCase.label}: label → first category ${labelToList}px`);
-    assert.match(main.locationText, /^현재 위치 · /u, `${testCase.label}: current region is named`);
+    assert.ok(locationToNote >= 4 && locationToNote <= 16, `${testCase.label}: location → note ${locationToNote}px`);
+    assert.ok(noteToList >= 12 && noteToList <= 32, `${testCase.label}: note → first category ${noteToList}px`);
+    assert.ok(main.labelHeight <= 1, `${testCase.label}: the list heading is for screen readers only (${main.labelHeight})`);
+    assert.ok(main.locationText.length > 0 && !/^현재 위치/u.test(main.locationText), `${testCase.label}: the saved region is named, not called the current position (${main.locationText})`);
+    if (main.locationText === '내 지역을 정해 주세요') {
+      assert.equal(main.locationTag, '', `${testCase.label}: nothing saved → no 「내가 정한 지역」 tag`);
+      assert.equal(main.locationNoteText, '한 번 정하면 병원·뉴스·축제가 그 지역부터 나와요.');
+    } else {
+      assert.equal(main.locationTag, '내가 정한 지역', `${testCase.label}: the saved region says it is the one the reader chose`);
+      assert.equal(main.locationNoteText, '아래 정보는 이 지역부터 보여 드려요. 화면 안에서 「현재 위치」로 바꿀 수 있어요.');
+    }
     assert.ok(main.regionChange.h >= 44 && main.regionChange.w >= 44, `${testCase.label}: region change has a 44px target`);
     if (!testCase.mobile) assert.ok(main.shortcuts.at(-1).box.bottom <= main.viewport.h, `${testCase.label}: desktop shows both rows without page clipping`);
     assert.ok(main.pageOverflowX <= 0, `${testCase.label}: no horizontal page scroll (${main.pageOverflowX})`);

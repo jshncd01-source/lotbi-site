@@ -42,7 +42,7 @@ await check('지역정보: signed out, 내 아이 학교·유치원 links 로그
   const card = sections.LIFE_SHORTCUTS.find(entry => entry.id === 'my-child');
   assert.ok(card && card.children === undefined && !card.prompt);
   assert.equal(card.label, '내 아이 학교·유치원');
-  assert.equal(card.description, '가까운 교육시설과 정보');
+  assert.equal(card.description, '급식·알레르기·학사일정');
   assert.equal(sections.LIFE_VIEW_PARENT['life-education'], 'life-my-child');
   const source = read('site-consumer-sections.js');
   assert.match(source, /import\('\.\/site-life-education\.js\?v=aset-[0-9a-f]{12}'\)/u);
@@ -413,8 +413,8 @@ try {
     const label = testCase.label;
     await check(`${label}: 유치원·학교 opens 학교 / 유치원 tabs, 유치원 first`, () => {
       assert.equal(r.shortcut.title, '내 아이 학교·유치원');
-      assert.equal(r.shortcut.description, '가까운 교육시설과 정보');
-      assert.equal(r.shortcut.accessibleName, '내 아이 학교·유치원. 가까운 교육시설과 정보');
+      assert.equal(r.shortcut.description, '급식·알레르기·학사일정');
+      assert.equal(r.shortcut.accessibleName, '내 아이 학교·유치원. 급식·알레르기·학사일정');
       assert.equal(r.choice.label, '로그인 없이 학교·유치원 찾기');
       assert.ok(r.choice.h >= 44, `choice touch target ${r.choice.h}`);
       assert.deepEqual(r.tabs.map(tab => [tab.id, tab.selected]), [['school', 'false'], ['kindergarten', 'true']]);
