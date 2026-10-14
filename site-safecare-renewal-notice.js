@@ -1,5 +1,5 @@
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-7cde7deaaed5';
-import {fgIcon} from './site-family-guardian-ui.js?v=aset-7cde7deaaed5';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-fa1edc708c44';
+import {fgIcon} from './site-family-guardian-ui.js?v=aset-fa1edc708c44';
 
 const el = (tag, className = '', text = '') => {
   const node = document.createElement(tag);
