@@ -17,11 +17,12 @@ import {
   familyInviteRef, familyMapLinks, familyPlaceCenterFromFix, familyPresenceText, familySosMissingReport, getFamilyOverview, getFamilyRequest,
   getFamilyStatusCheck, listFamilyPlaces, pauseFamilySharing, previewFamilyInvite, putFamilyAlertSettings, reconfirmFamilySharing,
   reportFamilyTracking, resumeFamilySharing, revokeFamilyInvite, sendFamilyLocationOnce, sendFamilySos, updateFamilyPlace,
-} from './site-family-location.js?v=aset-525f17f4541b';
-import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-525f17f4541b';
-import {readDefaultMapProvider} from './site-location-preference.js?v=aset-525f17f4541b';
-import {shareWithKakaoTalk} from './site-kakao-share.js?v=aset-525f17f4541b';
-import {takeFamilyInviteIntent} from './site-route.js?v=aset-525f17f4541b';
+} from './site-family-location.js?v=aset-3a339843649e';
+import {resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-3a339843649e';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-3a339843649e';
+import {shareWithKakaoTalk} from './site-kakao-share.js?v=aset-3a339843649e';
+import {takeFamilyInviteIntent} from './site-route.js?v=aset-3a339843649e';
+import {confirmFamilyAction, fgKakaoSymbol} from './site-family-guardian-ui.js?v=aset-3a339843649e';
 
 const SHARER_RELATIONS = Object.freeze([['CHILD', '자녀'], ['PARENT', '부모님'], ['SPOUSE', '배우자'], ['FAMILY', '가족']]);
 const RELATION_LABEL = Object.freeze({CHILD: '자녀', PARENT: '부모님', SPOUSE: '배우자', FAMILY: '가족', GUARDIAN: '함께 보는 보호자', OWNER: '가족 주인'});
@@ -94,11 +95,32 @@ function toolLink(label, glyph, href) {
   return node;
 }
 
+// Kakao's own yellow and speech-bubble symbol, apart from LOTBI's blue buttons.
+function kakaoButton(onClick) {
+  const node = el('button', 'family-loc-button family-loc-kakao', '카카오톡으로 보내기');
+  node.type = 'button'; node.dataset.familyAction = 'share-kakao';
+  node.prepend(fgKakaoSymbol());
+  node.addEventListener('click', onClick);
+  return node;
+}
+function inviteSteps(active) {
+  const list = el('ol', 'safecare-steps family-loc-steps'); list.setAttribute('aria-label', '가족 연결 순서');
+  ['초대 만들기', '코드·링크 보내기', '상대가 직접 수락', '연결 완료'].forEach((name, index) => {
+    const number = index + 1;
+    const item = el('li', 'safecare-step');
+    item.dataset.safecareStepState = number < active ? 'done' : number === active ? 'active' : 'todo';
+    if (number === active) item.setAttribute('aria-current', 'step');
+    item.append(el('span', 'safecare-step-number', number < active ? '✓' : String(number)), el('span', 'safecare-step-name', name));
+    list.append(item);
+  });
+  return list;
+}
+
 /**
  * @param {{sessionToken: string, root: HTMLElement, onMissingReport?: (prefill: {lastSeenAt: string, lastSeenSummary: string}) => void}} options
  */
 export async function mountFamilyLocation({sessionToken, root, onMissingReport} = {}) {
-  const surface = el('div', 'family-loc-surface'); surface.dataset.familyLocationSurface = '';
+  const surface = el('div', 'family-loc-surface fg-ui'); surface.dataset.familyLocationSurface = '';
   root.replaceChildren(surface);
   const notice = withIcon(el('p', 'family-loc-privacy'), 'lock');
   notice.append(el('span', '', FAMILY_PRIVACY_NOTICE));
@@ -268,7 +290,7 @@ export async function mountFamilyLocation({sessionToken, root, onMissingReport} 
   }
 
   async function removeMember(member) {
-    if (!globalThis.confirm?.(`${member.name} 연결을 해제할까요? 저장된 위치도 바로 지워져요.`)) return;
+    if (!await confirmFamilyAction({title: `${member.name} 연결을 해제할까요?`, body: '저장된 위치도 바로 지워져요.', confirmLabel: '연결 해제', testId: 'remove'})) return;
     if (await act(() => endFamilyMember(sessionToken, member.id), '연결을 해제하지 못했어요.')) { say(`${member.name} 연결을 해제했어요.`); await refresh(); }
   }
 
@@ -382,7 +404,7 @@ export async function mountFamilyLocation({sessionToken, root, onMissingReport} 
   }
 
   async function removePlace(member, place) {
-    if (!globalThis.confirm?.(`${place.name} 장소를 지울까요?`)) return;
+    if (!await confirmFamilyAction({title: `${place.name} 장소를 지울까요?`, confirmLabel: '장소 지우기', testId: 'place-delete'})) return;
     if (await act(() => deleteFamilyPlace(sessionToken, place.id), '장소를 지우지 못했어요.')) say(`${place.name} 장소를 지웠어요.`);
     await loadPlaces(member);
   }
@@ -505,11 +527,11 @@ export async function mountFamilyLocation({sessionToken, root, onMissingReport} 
     if (await act(() => resumeFamilySharing(sessionToken), '다시 켜지 못했어요.')) await refresh();
   }
   async function leave(memberId) {
-    if (!globalThis.confirm?.('이 가족에게 위치 공유를 끌까요? 저장된 위치도 바로 지워져요.')) return;
+    if (!await confirmFamilyAction({title: '이 가족에게 위치 공유를 끌까요?', body: '저장된 위치도 바로 지워져요.', confirmLabel: '공유 끄기', testId: 'leave'})) return;
     if (await act(() => endFamilyMember(sessionToken, memberId), '공유를 끄지 못했어요.')) { say('위치 공유를 껐어요.'); await refresh(); }
   }
   async function reportTracking(memberId) {
-    if (!globalThis.confirm?.('연결을 바로 끊고 LOTBI에 신고할까요? 상대에게는 \'연결 해제\'로만 보이고, 이 가족은 다시 초대할 수 없어요.')) return;
+    if (!await confirmFamilyAction({title: '연결을 바로 끊고 LOTBI에 신고할까요?', body: '상대에게는 \'연결 해제\'로만 보이고, 이 가족은 다시 초대할 수 없어요.', confirmLabel: '끊고 신고하기', testId: 'report'})) return;
     const result = await act(() => reportFamilyTracking(sessionToken, memberId), '신고하지 못했어요.');
     if (result) { say(result.message || '연결을 끊고 신고했어요.'); await refresh(); }
   }
@@ -564,13 +586,18 @@ export async function mountFamilyLocation({sessionToken, root, onMissingReport} 
   function createdInviteCard(invite) {
     const card = el('article', 'family-loc-card family-loc-created'); card.dataset.familyCreatedInvite = '';
     card.append(withIcon(el('strong', 'family-loc-form-title', '초대를 만들었어요'), 'check'));
-    const code = el('p', 'family-loc-code', invite.code); code.setAttribute('aria-label', `초대 코드 ${invite.code.split('').join(' ')}`);
+    const code = el('p', 'family-loc-code'); code.setAttribute('aria-label', `초대 코드 ${invite.code.split('').join(' ')}`);
+    for (const digit of String(invite.code)) code.append(el('b', '', digit));
     card.append(el('p', 'family-loc-note', `상대 폰의 LOTBI에서 이 코드를 넣어 주세요(${clock(invite.invite.code_expires_at)}까지, 1번만).`), code,
       el('p', 'family-loc-note', `또는 링크(${clock(invite.invite.expires_at)}까지)를 보내세요. 상대가 직접 수락해야 연결돼요.`));
     const actions = el('div', 'family-loc-actions');
     actions.append(
-      button('카카오톡으로 보내기', () => { void shareWithKakaoTalk({text: 'LOTBI 가족 위치 초대예요. 링크를 열고 수락해 주세요.', url: invite.invite_url}).catch(() => say('카카오톡을 열지 못했어요. 링크를 복사해 보내 주세요.', true)); }, {primary: true, testId: 'share-kakao', glyph: 'send'}),
-      button('링크 복사', () => { void globalThis.navigator?.clipboard?.writeText(invite.invite_url).then(() => say('링크를 복사했어요.'), () => say('복사하지 못했어요.', true)); }, {testId: 'copy-link'}),
+      kakaoButton(() => { void shareWithKakaoTalk({text: 'LOTBI 가족 위치 초대예요. 링크를 열고 수락해 주세요.', url: invite.invite_url}).catch(() => say('카카오톡을 열지 못했어요. 링크를 복사해 보내 주세요.', true)); }),
+      button('링크 복사', () => {
+        const clipboard = globalThis.navigator?.clipboard;
+        if (!clipboard?.writeText) { say('복사하지 못했어요.', true); return; }
+        void clipboard.writeText(invite.invite_url).then(() => say('링크를 복사했어요.'), () => say('복사하지 못했어요.', true));
+      }, {testId: 'copy-link'}),
       button('다른 사람 초대하기', () => { createdInvite = null; render(); }, {quiet: true, testId: 'invite-another'}),
     );
     card.append(actions);
@@ -579,7 +606,7 @@ export async function mountFamilyLocation({sessionToken, root, onMissingReport} 
 
   function inviteView(families) {
     const box = el('section', 'family-loc-view'); box.dataset.familyView = 'invite';
-    box.append(viewHeader('가족 초대하기'), el('p', 'family-loc-note', '초대한 사람이 자기 폰에서 직접 수락해야 연결돼요. 만 14세 미만 아이는 법정대리인 동의가 필요해요.'));
+    box.append(viewHeader('가족 초대하기'), el('p', 'family-loc-note', '초대한 사람이 자기 폰에서 직접 수락해야 연결돼요. 만 14세 미만 아이는 법정대리인 동의가 필요해요.'), inviteSteps(createdInvite ? 2 : 1));
     // One job at a time: the result alone, then [다른 사람 초대하기] brings the form back.
     if (createdInvite) box.append(createdInviteCard(createdInvite));
     else { inviteNode ||= inviteForm(); box.append(inviteNode); }
@@ -732,8 +759,14 @@ export async function mountFamilyLocation({sessionToken, root, onMissingReport} 
         [button('가족 초대하기', () => go('invite'), {primary: true, glyph: 'userPlus'}), button('초대 코드 입력', () => go('accept'), {glyph: 'key'})]));
       return parts;
     }
-    parts.push(navTiles(families.some(family => family.members.some(member => member.role === 'SHARER'))));
-    return parts;
+    // FAMILY-GUARDIAN-DESIGN-UNIFY-01: SOS and my sharing stay on top; the family list and the
+    // menu sit side by side on a wide screen.
+    const top = parts.filter(part => part.matches?.('.family-loc-sos, .family-loc-sharing'));
+    const columns = el('div', 'family-loc-columns');
+    const main = el('div', 'family-loc-main'); main.append(...parts.filter(part => !top.includes(part)));
+    const side = el('div', 'family-loc-side'); side.append(navTiles(families.some(family => family.members.some(member => member.role === 'SHARER'))));
+    columns.append(main, side);
+    return [...top, columns];
   }
 
   function render() {

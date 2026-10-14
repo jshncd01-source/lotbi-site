@@ -55,22 +55,23 @@ import {
   uploadPetRegistrationDraftPhoto,
   updatePetRegistrationDraft,
   updatePetProfilePreferences,
-} from './site-pet.js?v=aset-525f17f4541b';
+} from './site-pet.js?v=aset-3a339843649e';
 import {
   PET_APPROVED_EXAMPLE_CROPS,
   petPhotoSlotArtwork,
   petPhotoSlotHint,
   petPhotoSlotLabel,
-} from './site-pet-guides.js?v=aset-525f17f4541b';
+} from './site-pet-guides.js?v=aset-3a339843649e';
 import {
   petFeatureState,
   petGateNotice,
   petNavLockHint,
   petNavLockLabel,
-} from './site-pet-gate.js?v=aset-525f17f4541b';
-import {createBottomSheet} from './site-bottom-sheet.js?v=aset-525f17f4541b';
-import {personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-525f17f4541b';
-import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-525f17f4541b';
+} from './site-pet-gate.js?v=aset-3a339843649e';
+import {createBottomSheet} from './site-bottom-sheet.js?v=aset-3a339843649e';
+import {fgCountTiles, fgIcon, fgIconLine, fgTileTag} from './site-family-guardian-ui.js?v=aset-3a339843649e';
+import {personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-3a339843649e';
+import {openSafeCareRenewalNotice} from './site-safecare-renewal-notice.js?v=aset-3a339843649e';
 import {
   FOUND_REPORT_MAX_PHOTOS,
   formatDate,
@@ -79,7 +80,7 @@ import {
   identityPhotoProgress,
   renewalBadge,
   safecareSosSubmitReady,
-} from './site-safecare-common.js?v=aset-525f17f4541b';
+} from './site-safecare-common.js?v=aset-3a339843649e';
 
 const MATCHING_CONSENT_COPY = '등록 사진은 비공개로 암호화 저장되며, 실종 SOS를 켤 때 별도로 동의한 기간에만 후보 검색에 사용됩니다. 자동 알림이나 연락처 중개는 하지 않습니다.';
 const NON_ASSERTION_NOTICE = '공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다. LOTBI가 "찾았다"거나 "100% 일치"로 표시하지 않습니다.';
@@ -118,6 +119,25 @@ function el(tag, className = '', text = '') {
   return node;
 }
 
+// FAMILY-GUARDIAN-DESIGN-UNIFY-01: the three count tiles (the sentence stays for readers).
+function petCountTiles(present, face, body) {
+  const tiles = fgCountTiles([
+    {icon: 'photos', value: present, suffix: '장', label: '등록한 사진'},
+    {icon: 'face', value: Math.min(face, PET_PHOTO_FACE_MINIMUM), total: PET_PHOTO_FACE_MINIMUM, label: '얼굴 사진', done: face >= PET_PHOTO_FACE_MINIMUM},
+    {icon: 'paw', value: Math.min(body, PET_PHOTO_BODY_MINIMUM), total: PET_PHOTO_BODY_MINIMUM, label: '몸 전체 사진', done: body >= PET_PHOTO_BODY_MINIMUM},
+  ]);
+  tiles.setAttribute('aria-hidden', 'true');
+  return tiles;
+}
+
+function draftTileTag(photo) {
+  if (!photo) return fgTileTag('example');
+  const state = String(photo.inspectionState || '').toUpperCase();
+  if (state === 'ACCEPTED') return fgTileTag('filled', '✓ 확인됨');
+  if (state === 'REJECTED') return fgTileTag('rejected', '다시 골라 주세요');
+  return fgTileTag('pending', '확인 중');
+}
+
 function approvedPetSpeciesPhoto(species) {
   const example = PET_APPROVED_EXAMPLE_CROPS[species]?.FACE_FRONT;
   const photo = el('span', 'pet-draft-species-photo');
@@ -131,6 +151,9 @@ function approvedPetSpeciesPhoto(species) {
 }
 
 const maskedPetRegistrationNumber = () => 'PET-****-****';
+// 받침 decides the particle: 보리가 / 별이가 → 별이 돌아왔어요 needs 이, 와/과 likewise.
+const hasFinalConsonant = word => { const code = String(word || '').trim().slice(-1).charCodeAt(0) - 0xAC00; return code >= 0 && code <= 11171 && code % 28 !== 0; };
+const particle = (word, withFinal, withoutFinal) => (hasFinalConsonant(word) ? withFinal : withoutFinal);
 
 // SITE-PET-PHOTO-SOURCE-01 — a photo button never sends the owner straight
 // into a single OS photo provider. Mobile Web asks LOTBI's own Camera /
@@ -199,17 +222,20 @@ function openPetPhotoSource(sourceInputs) {
   body.setAttribute('role', 'menu');
   body.setAttribute('aria-label', '사진 가져오기');
   const sheet = createBottomSheet({label: '사진 가져오기', content: body});
+  sheet.element.classList.add('fg-ui');
   const options = [
-    ['camera', '카메라', '📷', sourceInputs.camera],
-    ['gallery', petPhotoGalleryLabel(), '🖼️', sourceInputs.gallery],
-    ['file', '파일', '📁', sourceInputs.file],
+    ['camera', '카메라', 'camera', sourceInputs.camera],
+    ['gallery', petPhotoGalleryLabel(), 'image', sourceInputs.gallery],
+    ['file', '파일', 'file', sourceInputs.file],
   ];
   for (const [key, label, icon, input] of options) {
     const option = el('button', 'pet-photo-source-option');
     option.type = 'button';
     option.setAttribute('role', 'menuitem');
     option.dataset.petPhotoSourceOption = key;
-    option.append(el('span', 'pet-photo-source-icon', icon), el('span', 'pet-photo-source-label', label));
+    const iconBox = el('span', 'pet-photo-source-icon');
+    iconBox.append(fgIcon(icon));
+    option.append(iconBox, el('span', 'pet-photo-source-label', label));
     option.addEventListener('click', () => {
       sheet.close();
       input.click();
@@ -228,7 +254,7 @@ function petPhotoGuide(species) {
   box.appendChild(el(
     'p',
     'safecare-guide-copy',
-    '최소 5장 권장 · 얼굴 3장 + 전신 2장',
+    '얼굴 3장(정면·왼쪽·오른쪽)과 몸 2장(왼쪽·오른쪽)이면 돼요. 최대 10장까지 올릴 수 있어요.',
   ));
   return box;
 }
@@ -247,7 +273,7 @@ function draftPhotoProgressMessage(summary, {manage = false} = {}) {
   if (summary.ready) {
     return summary.presentCount >= PET_PHOTO_SLOT_CODES.length
       ? '등록에 필요한 사진이 모두 있어요.'
-      : `${goal}. 사진을 더 올리면(최대 10장) 찾을 확률을 높일 수 있어요.`;
+      : `${goal}. 사진을 더 올리면(최대 10장) 비교에 도움이 될 수 있어요.`;
   }
   const needFace = Math.max(0, summary.faceMinimum - summary.faceAccepted);
   const needBody = Math.max(0, summary.bodyMinimum - summary.bodyAccepted);
@@ -301,7 +327,7 @@ export async function mountPetFamilyManager({
   // 등록은 게이트와 무관하게 언제나 허용됩니다.
   const gate = petFeatureState(subscription, {search});
 
-  const surface = el('div', 'pet-family-surface');
+  const surface = el('div', 'pet-family-surface fg-ui');
   surface.dataset.petFamilySurface = '';
   root.replaceChildren(surface);
 
@@ -357,7 +383,9 @@ export async function mountPetFamilyManager({
   const foundCtaButton = el('button', 'site-button site-button-secondary safecare-found-cta-button', '발견 제보하기');
   foundCtaButton.type = 'button';
   foundCtaButton.dataset.petFoundOpen = '';
-  foundCta.append(foundCtaCopy, foundCtaButton);
+  const foundCtaIcon = el('span', 'fg-cta-icon');
+  foundCtaIcon.append(fgIcon('search'));
+  foundCta.append(foundCtaIcon, foundCtaCopy, foundCtaButton);
 
   const notice = el('p', 'pet-notice', NON_ASSERTION_NOTICE);
 
@@ -510,9 +538,16 @@ export async function mountPetFamilyManager({
     listBody.replaceChildren();
     if (pets.length === 0) {
       const empty = el('div', 'pet-empty');
+      const emptyIcon = el('span', 'fg-state-icon');
+      emptyIcon.append(fgIcon('paw'));
+      const emptyAction = el('button', 'site-button site-button-primary', addButton.textContent);
+      emptyAction.type = 'button';
+      emptyAction.addEventListener('click', () => addButton.click());
       empty.append(
+        emptyIcon,
         el('p', 'pet-empty-title', '등록된 반려동물이 없습니다.'),
         el('p', 'pet-empty-copy', '기본정보를 입력하고 얼굴 사진 3장과 몸 전체가 보이는 사진 2장을 등록하면, 실종 시 바로 실종 상태로 전환할 수 있습니다.'),
+        emptyAction,
       );
       listBody.appendChild(empty);
       return;
@@ -556,7 +591,12 @@ export async function mountPetFamilyManager({
       } else identity.appendChild(el('div', 'pet-profile-thumbnail pet-profile-thumbnail-empty', '사진'));
 
       const head = el('div', 'pet-card-head');
-      identity.append(el('h4', 'pet-card-name', `${pet.name}${profile?.isPrimary ? ' ⭐' : ''}`));
+      identity.append(el('h4', 'pet-card-name', pet.name));
+      if (profile?.isPrimary) {
+        const primary = el('span', 'fg-primary-chip', '대표');
+        primary.prepend(fgIcon('star'));
+        identity.append(primary);
+      }
       head.append(identity);
       head.appendChild(el('span', 'pet-card-species', petSpeciesLabel(pet.species)));
       if (profile) {
@@ -580,22 +620,21 @@ export async function mountPetFamilyManager({
       if (profile) {
         card.appendChild(el('p', 'pet-profile-age', `${pet.name} · ${profile.ageLabel}`));
         if (profile.familyLabel) card.appendChild(el('p', 'pet-profile-family', profile.familyLabel));
-        const identity = profile.photoCount >= profile.photoTotal && profile.visualStatus === 'READY'
-          ? `✓ ${profile.visualLabel}`
-          : `📷 식별사진 ${profile.photoCount}장`;
-        card.appendChild(el('p', 'pet-profile-identity', identity));
+        const identityReady = profile.photoCount >= profile.photoTotal && profile.visualStatus === 'READY';
+        card.appendChild(fgIconLine('p', 'pet-profile-identity', identityReady ? 'check' : 'photos',
+          identityReady ? profile.visualLabel : `식별사진 ${profile.photoCount}장`));
         if (profile.activeSos) {
-          card.appendChild(el('p', 'pet-profile-sos', `🔴 ${pet.name} 실종 상태 활성화 중`));
+          card.appendChild(fgIconLine('p', 'pet-profile-sos', 'alert', `${pet.name} 실종 상태 활성화 중`));
         } else if (profile.recentlyResolved) {
-          card.appendChild(el('p', 'pet-profile-resolved', `❤️ ${pet.name}가 돌아왔어요`));
+          card.appendChild(fgIconLine('p', 'pet-profile-resolved', 'heart', `${pet.name}${particle(pet.name, '이', '가')} 돌아왔어요`));
         }
         if (profile.birthday?.reminderDue) {
           const birthdayCopy = profile.birthday.state === 'TODAY'
-            ? `🎉 오늘은 ${pet.name} 생일이에요!`
+            ? `오늘은 ${pet.name} 생일이에요!`
             : (profile.birthday.state === 'D1'
-              ? `🎂 ${pet.name} 생일이 내일이에요`
-              : `🎂 ${pet.name} 생일까지 7일`);
-          card.appendChild(el('p', 'pet-profile-birthday', birthdayCopy));
+              ? `${pet.name} 생일이 내일이에요`
+              : `${pet.name} 생일까지 7일`);
+          card.appendChild(fgIconLine('p', 'pet-profile-birthday', 'cake', birthdayCopy));
         }
         // The renewal badge and Core date above already say how long is left;
         // only an expired set needs the extra instruction.
@@ -603,7 +642,9 @@ export async function mountPetFamilyManager({
           card.appendChild(el('p', 'pet-profile-birthday', '식별사진 유효기간이 지났어요 · 실종 상태 전환 전에 갱신해 주세요'));
         }
         if (profile.candidateNoticeCount > 0) {
-          const candidate = el('button', 'pet-candidate-cta', `🟠 ${pet.name}와 유사한 발견 제보가 있어요 · 확인하기 ›`);
+          const candidate = el('button', 'pet-candidate-cta', `${pet.name}${particle(pet.name, '과', '와')} 유사한 발견 제보가 있어요 · 확인하기`);
+          candidate.prepend(fgIcon('bell'));
+          candidate.append(fgIcon('chevronRight'));
           candidate.type = 'button';
           candidate.dataset.petOpen = pet.petId;
           candidate.dataset.petCandidateOpen = pet.petId;
@@ -656,7 +697,7 @@ export async function mountPetFamilyManager({
       open.type = 'button'; open.dataset.petOpen = pet.petId;
       actions.append(open);
       if (!activeCase) {
-        const missing = el('button', 'site-button site-button-primary', '실종 상태로 전환');
+        const missing = el('button', 'site-button site-button-secondary fg-danger-line', '실종 상태로 전환');
         missing.type = 'button'; missing.dataset.petSosTarget = pet.petId;
         actions.append(missing);
       }
@@ -691,6 +732,7 @@ export async function mountPetFamilyManager({
     let replaceIndex = -1;
     const pick = el('button', 'site-button site-button-primary person-bulk-pick', '사진 여러 장 선택');
     pick.type = 'button';
+    pick.prepend(fgIcon('image'));
     pick.dataset.petBulkPick = '';
     const line = el('p', 'person-bulk-status');
     line.setAttribute('role', 'status');
@@ -811,13 +853,15 @@ export async function mountPetFamilyManager({
         if (file && index >= 0) void replaceOne(index, file);
       });
     }
+    // FAMILY-GUARDIAN-DESIGN-UNIFY-01: the one-line guide sits under the button (as for a person);
+    // the longer note stays folded.
+    const guide = el('p', 'person-bulk-angles fg-note-blue', '휴대폰에 있는 사진을 한 번에 골라 주세요. 얼굴과 몸 전체가 잘 보이는 사진을 고르면 돼요.');
     const help = el('details', 'person-bulk-help');
     help.append(
       el('summary', '', '사진 등록 안내'),
-      el('p', 'person-bulk-angles', '휴대폰에 있는 사진을 한 번에 골라 주세요. 얼굴과 몸 전체가 잘 보이는 사진을 고르면 돼요.'),
       el('p', 'person-bulk-note', '필수 5장으로 등록할 수 있고, 다양한 각도의 사진을 최대 10장까지 추가하면 실종 시 비교에 도움이 될 수 있어요.'),
     );
-    section.append(pick, ...sourceInputs.all, ...replaceInputs.all, help, line, list);
+    section.append(pick, guide, ...sourceInputs.all, ...replaceInputs.all, help, line, list);
     const last = petBatchResults.get(key);
     if (last?.length) line.textContent = summary(last);
     draw();
@@ -834,8 +878,10 @@ export async function mountPetFamilyManager({
     const count = el('span', 'pet-photo-count safecare-photo-counter', `얼굴 ${Math.min(set.faceCount, PET_PHOTO_FACE_MINIMUM)}/${PET_PHOTO_FACE_MINIMUM} · 몸 ${Math.min(set.bodyCount, PET_PHOTO_BODY_MINIMUM)}/${PET_PHOTO_BODY_MINIMUM} · 지금 ${filled.size}장`);
     count.dataset.safecarePhotoCount = String(filled.size);
     count.dataset.safecarePhotoComplete = set.complete ? 'true' : 'false';
+    count.classList.add('fg-sr-only');
     header.appendChild(count);
     host.appendChild(header);
+    host.appendChild(petCountTiles(filled.size, set.faceCount, set.bodyCount));
     const profile = petProfiles.get(pet.petId);
     if (profile?.identityPhotoExpiresAt) {
       host.appendChild(el(
@@ -904,11 +950,12 @@ export async function mountPetFamilyManager({
         image.src = preview;
         image.alt = `${pet.name} ${petPhotoSlotLabel(slotCode)} 사진`;
         image.decoding = 'async';
-        media.appendChild(image);
+        media.append(image, fgTileTag('filled'));
       } else {
         const artwork = petPhotoSlotArtwork(slotCode, pet.species);
         if (artwork) media.appendChild(artwork);
         if (filled.has(slotCode)) media.appendChild(el('span', 'pet-slot-loading', '불러오는 중'));
+        media.appendChild(fgTileTag(filled.has(slotCode) ? 'filled' : 'example'));
       }
       tile.appendChild(media);
 
@@ -984,7 +1031,7 @@ export async function mountPetFamilyManager({
           image.src = url;
           image.alt = `${pet.name} ${petPhotoSlotLabel(slotCode)} 사진`;
           image.decoding = 'async';
-          tile.replaceChildren(image);
+          tile.replaceChildren(image, fgTileTag('filled'));
         } catch {
           // A preview that cannot load must not leave the tile claiming to be
           // loading forever: keep the schematic and say so once.
@@ -1145,7 +1192,7 @@ export async function mountPetFamilyManager({
       const profileControls = el('section', 'pet-profile-controls');
       profileControls.appendChild(el('h4', 'pet-profile-controls-title', '프로필 설정'));
       for (const [field, label, checked] of [
-        ['is_primary', '대표 반려동물 ⭐', profile.isPrimary],
+        ['is_primary', '대표 반려동물', profile.isPrimary],
         ['birthday_reminders_enabled', '정확한 생일 알림', profile.birthdayRemindersEnabled],
         ['family_anniversary_reminders_enabled', '가족이 된 날 알림', profile.familyAnniversaryRemindersEnabled],
       ]) {
@@ -1595,7 +1642,7 @@ export async function mountPetFamilyManager({
     const speciesField = el('fieldset', 'pet-choice-field');
     speciesField.appendChild(el('legend', '', '발견한 동물'));
     const speciesRow = el('div', 'pet-choice-row');
-    for (const [value, icon] of [['DOG', '🐶'], ['CAT', '🐱']]) {
+    for (const value of ['DOG', 'CAT']) {
       const choice = el('label', 'pet-choice pet-draft-species-choice');
       const input = el('input');
       input.type = 'radio';
@@ -1603,7 +1650,7 @@ export async function mountPetFamilyManager({
       input.value = value;
       input.checked = composer.species === value;
       input.disabled = locked;
-      choice.append(input, el('span', 'pet-draft-species-icon', icon), el('span', '', petSpeciesLabel(value)));
+      choice.append(input, approvedPetSpeciesPhoto(value), el('span', '', petSpeciesLabel(value)));
       speciesRow.appendChild(choice);
     }
     speciesRow.addEventListener('change', () => {
@@ -1933,7 +1980,7 @@ export async function mountPetFamilyManager({
     }
 
     const stepCodes = Object.freeze(['BASIC', 'PHOTOS', 'REVIEW', 'DONE']);
-    const stepNames = Object.freeze({BASIC: '기본정보', PHOTOS: '사진', REVIEW: '최종 확인', DONE: '등록 완료'});
+    const stepNames = Object.freeze({BASIC: '기본정보', PHOTOS: '식별 사진', REVIEW: '최종 확인', DONE: '등록 완료'});
     let screenStep = 'BASIC';
     let finalizeRequestId = '';
     let autosaveTimer = 0;
@@ -2009,7 +2056,7 @@ export async function mountPetFamilyManager({
         );
         progress.appendChild(item);
       });
-      const stepper = el('div', 'safecare-stepper');
+      const stepper = el('div', 'safecare-stepper fg-stepper-card');
       stepper.append(label, progress);
       body.appendChild(stepper);
     };
@@ -2360,10 +2407,16 @@ export async function mountPetFamilyManager({
     const renderDraftPhotos = () => {
       body.replaceChildren();
       stepChrome('PHOTOS');
-      body.append(
-        el('h4', 'pet-draft-title', `${petSpeciesLabel(registrationDraft.species)} 식별 사진을 올려 주세요`),
+      const photoIntro = el('div', 'person-screen-intro');
+      const eyebrow = [registrationDraft.name, petSpeciesLabel(registrationDraft.species)].filter(Boolean).join(' · ');
+      if (eyebrow) photoIntro.append(el('p', 'person-screen-eyebrow', eyebrow));
+      photoIntro.append(
+        el('h4', 'pet-draft-title', `${petSpeciesLabel(registrationDraft.species)} 식별 사진을 골라 주세요`),
         petPhotoGuide(registrationDraft.species),
       );
+      const photoHead = el('div', 'fg-photo-head');
+      photoHead.appendChild(photoIntro);
+      body.appendChild(photoHead);
       const photosBySlot = new Map(registrationDraft.photos.map(photo => [photo.slotCode, photo]));
       const progression = petDraftPhotoProgression(registrationDraft);
       // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the same one-step upload as a
@@ -2376,10 +2429,11 @@ export async function mountPetFamilyManager({
       );
       count.dataset.safecarePhotoCount = String(progression.presentCount);
       count.dataset.safecarePhotoComplete = progression.ready ? 'true' : 'false';
+      count.classList.add('fg-sr-only');
       const progressNote = el('p', 'pet-empty-copy', draftPhotoProgressMessage(progression));
       progressNote.dataset.petDraftPhotoNote = '';
       progressNote.setAttribute('aria-live', 'polite');
-      body.appendChild(petBulkPanel({
+      photoHead.appendChild(petBulkPanel({
         key: registrationDraft.draftId,
         room: PET_PHOTO_SLOT_CODES.length - registrationDraft.photos.length,
         add: async file => {
@@ -2390,7 +2444,6 @@ export async function mountPetFamilyManager({
         },
         done: async () => { if (detailSection.isConnected && screenStep === 'PHOTOS') renderDraftPhotos(); },
       }));
-      body.append(count, progressNote);
       const examples = el('p', 'pet-empty-copy pet-slot-examples', '아래는 필수 5장의 촬영 방향을 보여 주는 가상 예시예요.');
       examples.dataset.petSlotExamples = '';
       body.appendChild(examples);
@@ -2413,6 +2466,7 @@ export async function mountPetFamilyManager({
           const artwork = petPhotoSlotArtwork(slotCode, registrationDraft.species);
           if (artwork) media.appendChild(artwork);
         }
+        media.appendChild(draftTileTag(photo));
         tile.appendChild(media);
         const caption = el('figcaption', 'pet-slot-caption');
         caption.append(el('span', 'pet-slot-index', photo ? '✓' : String(index + 1)), el('span', 'pet-slot-label', petPhotoSlotLabel(slotCode)));
@@ -2460,6 +2514,7 @@ export async function mountPetFamilyManager({
       requiredGrid.dataset.petDraftSlotGrid = '';
       PET_REQUIRED_EXAMPLE_SLOTS.forEach(slotCode => requiredGrid.appendChild(makeTile(slotCode)));
       body.appendChild(requiredGrid);
+      body.append(count, petCountTiles(progression.presentCount, progression.faceAccepted, progression.bodyAccepted), progressNote);
 
       const optional = el('details', 'pet-photo-optional');
       optional.open = PET_OPTIONAL_EXAMPLE_SLOTS.some(slotCode => photosBySlot.has(slotCode));
@@ -2469,6 +2524,7 @@ export async function mountPetFamilyManager({
       PET_OPTIONAL_EXAMPLE_SLOTS.forEach(slotCode => optionalGrid.appendChild(makeTile(slotCode)));
       optional.appendChild(optionalGrid);
       body.appendChild(optional);
+      body.appendChild(el('p', 'pet-photo-limits person-consent fg-lockline', 'JPG 또는 PNG, 한 장에 10MB까지. 사진은 계정에 비공개로 저장되고 공개 링크가 만들어지지 않습니다.'));
       schedulePoll();
 
       for (const photo of registrationDraft.photos) {
@@ -2654,7 +2710,9 @@ export async function mountPetFamilyManager({
       const profile = petProfiles.get(created.petId);
       const done = el('section', 'pet-draft-done');
       done.dataset.petRegisterDone = created.petId;
-      done.appendChild(el('h4', 'pet-draft-title', `${created.name} 등록이 완료되었습니다`));
+      const doneMark = el('span', 'fg-done-mark');
+      doneMark.append(fgIcon('check'));
+      done.append(doneMark, el('h4', 'pet-draft-title', `${created.name} 등록이 완료되었습니다`));
       const facts = el('dl', 'pet-facts');
       facts.append(el('dt', '', LOTBI_PET_NUMBER_LABEL), el('dd', 'pet-number-value', maskedPetRegistrationNumber()));
       facts.append(

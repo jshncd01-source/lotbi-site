@@ -56,7 +56,7 @@ assert.match(ui, /center = familyPlaceCenterFromFix\(fix\);/u);
 assert.match(ui, /const placesSupported = \(\) => \(overview\?\.settings\?\.kinds \|\| \[\]\)\.includes\('PLACE'\);/u, 'places only when Core has them');
 
 // ── browser ───────────────────────────────────────────────────────────────────
-const head = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/site-theme-tokens.css"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-consumer-design.css"><link rel="stylesheet" href="/site-safecare.css"><link rel="stylesheet" href="/site-family-location.css"><style>body{margin:0;padding:12px;background:var(--lotbi-bg-primary,#fff)}#host{max-width:720px;margin:auto}</style></head>';
+const head = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/site-theme-tokens.css"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-consumer-design.css"><link rel="stylesheet" href="/site-safecare.css"><link rel="stylesheet" href="/site-person.css"><link rel="stylesheet" href="/site-bottom-sheet.css"><link rel="stylesheet" href="/site-family-location.css"><link rel="stylesheet" href="/site-family-guardian-ds.css"><style>body{margin:0;padding:12px;background:var(--lotbi-bg-primary,#fff)}#host{max-width:720px;margin:auto}</style></head>';
 
 const shared = `
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -90,7 +90,9 @@ window.fetch = async (input, init = {}) => {
 // Request polling waits 3 s and the SOS arm 8 s; run them at once here.
 const realSetTimeout = window.setTimeout.bind(window);
 window.setTimeout = (fn, ms, ...rest) => realSetTimeout(fn, ms === 3000 ? 5 : ms, ...rest);
-window.confirm = () => true;
+// FAMILY-GUARDIAN-DESIGN-UNIFY-01: 가족 위치 asks with the common dialog, never the browser's confirm().
+window.confirm = () => { throw new Error('browser confirm() must not be used'); };
+const confirmDialog = async id => { const ok = await wait(() => document.querySelector('[data-fg-confirm="' + id + '"] [data-fg-confirm-ok]'), 'common confirm dialog ' + id); ok.click(); };
 `;
 
 const flow = `${head}<body><div aria-labelledby="care-title"><main id="host"></main></div><script type="module">
@@ -254,6 +256,7 @@ try {
   const patchAt = calls.findIndex(call => call.key === 'PATCH /places/flp_0123456789abcdef0123');
   await wait(() => calls.slice(patchAt).some(call => call.key === 'GET /members/flm_0123456789abcdef0123/places'), 'reload after patch');
   (await wait(() => q('[data-family-place="flp_0123456789abcdef0123"] [data-family-action="place-delete"]'), 'delete button')).click();
+  await confirmDialog('place-delete');
   await wait(() => !q('[data-family-place="flp_0123456789abcdef0123"]') && calls.some(call => call.key === 'DELETE /places/flp_0123456789abcdef0123'), 'place deleted');
   results.placeDeleted = true;
   q('[data-family-nav="home"]').click();
@@ -286,6 +289,7 @@ try {
   const pauseAt = calls.findIndex(call => call.key === 'POST /sharing/pause');
   await wait(() => calls.slice(pauseAt).some(call => call.key === 'GET /overview'), 'reload after pause');
   q('[data-family-sharing] [data-family-action="report"]').click();
+  await confirmDialog('report');
   await wait(() => calls.some(call => call.key === 'POST /members/flm_0123456789abcdef0123/report'), 'report');
   results.report = true;
   results.sosButton = !!q('[data-family-sharing] [data-family-action="sos"]');
