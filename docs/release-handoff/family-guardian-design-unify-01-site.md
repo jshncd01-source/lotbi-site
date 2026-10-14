@@ -24,5 +24,6 @@
 - `validate_safecare_web_ui_redesign_01` / `validate_pet_family_web_01` / `validate_safecare_pet_photo_easy_upload_01`: 단계 이름 "식별 사진", 동의 문장 이모지 제거, "비교에 도움이 될 수 있어요".
 
 ## 확인 상태
+- 로컬 관련 검사 221개: 215 PASS. `validate_safecare_person_dark_cancel_01`이 다크 모드 완료 단계 원(✓) 대비 3.14로 실패 → 글자색 `--fg-blue-text`로 고쳐 PASS(4.5 이상). 나머지 5개는 이 변경과 무관한 Windows 로컬 기존 실패(CRLF 정규식 4·카카오 공유 메뉴 시간 초과 1, main에서도 같음).
 - 로컬: 위 검사기 PASS, 화면 촬영(사람 12·반려동물 11·가족 위치 13 상태, Desktop·Mobile, 라이트·다크) — 합성 데이터.
 - 운영 실제 화면·실제 흐름: 배포 후 확인 (NOT_TESTED until deployed).

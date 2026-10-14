@@ -264,7 +264,7 @@ body.chat-home-page .consumer-workspace[data-workspace="care"] > .site-modal.con
   position: relative; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; margin: 0;
   background: var(--fg-sub); color: var(--fg-text-3); font-size: 14px; font-weight: 700; border: 0; clip: auto; overflow: visible;
 }
-.fg-ui:not(#fg) .safecare-step[data-safecare-step-state="done"] .safecare-step-number { background: var(--fg-blue-soft); color: var(--fg-blue); }
+.fg-ui:not(#fg) .safecare-step[data-safecare-step-state="done"] .safecare-step-number { background: var(--fg-blue-soft); color: var(--fg-blue-text); }
 .fg-ui:not(#fg) .safecare-step[data-safecare-step-state="active"] .safecare-step-number { background: var(--fg-blue); color: #fff; box-shadow: 0 0 0 4px var(--fg-blue-soft); }
 .fg-ui:not(#fg) .safecare-step-name { font-size: 14px; line-height: 1.3; color: var(--fg-text-3); font-weight: 500; }
 .fg-ui:not(#fg) .safecare-step[data-safecare-step-state="done"] .safecare-step-name { color: var(--fg-text-2); }
