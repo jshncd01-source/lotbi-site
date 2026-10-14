@@ -736,7 +736,11 @@ async function runCase(browser, origin, workDir, testCase) {
     await settled('', 'home for conversation');
     await evaluate(`(() => { const prompt = document.getElementById('lotbi-prompt'); prompt.value = '새로고침 경로 테스트 질문'; prompt.dispatchEvent(new Event('input', {bubbles: true})); return true; })()`);
     await tapSelector('.send-button');
-    state = await waitFor(async () => { const s = await snapshot(); return s.thread.some(text => text.includes('경로 테스트 답변')) ? s : {ok: false, s}; }, 'guest answer');
+    // A synthetic touch on a loaded 2-CPU gate runner is sometimes dropped; tap again only
+    // while the question is still sitting unsent in the composer (never a double send).
+    const asked = await waitFor(async () => { const s = await snapshot(); return s.thread.some(text => text.includes('새로고침 경로 테스트 질문')) ? s : {ok: false, s}; }, 'guest question shown', 5000).catch(() => null);
+    if (!asked && String(await evaluate("document.getElementById('lotbi-prompt')?.value || ''")).includes('새로고침 경로 테스트 질문')) await tapSelector('.send-button');
+    state = await waitFor(async () => { const s = await snapshot(); return s.thread.some(text => text.includes('경로 테스트 답변')) ? s : {ok: false, s}; }, 'guest answer', 30000);
     await reload();
     state = await waitFor(async () => { const s = await snapshot(); return s.ready && s.thread.some(text => text.includes('새로고침 경로 테스트 질문')) ? s : {ok: false, s}; }, 'conversation after reload');
     check('F conversation reload → same conversation', state.url === '/' && state.thread.some(text => text.includes('경로 테스트 답변')), state);
