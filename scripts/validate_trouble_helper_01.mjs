@@ -77,7 +77,9 @@ await check('dialog: header LOTBI 분쟁·사고 도우미 / “막막할 때 �
   // No question flow any more, so no "질문 n/m" line in the dialog header.
   assert.doesNotMatch(dialog, /data-trouble-progress|trouble-progress/u);
   assert.doesNotMatch(dialog, /login|로그인/u, 'no login gate');
-  assert.ok(index.indexOf('<dialog class="trouble-dialog"') > index.indexOf('<dialog class="scam-dialog"'));
+  // 사기·피싱 확인 is its own page now (SCAM-PHISHING-REDESIGN-02), not a dialog before this one.
+  assert.ok(index.indexOf('<dialog class="trouble-dialog"') > 0);
+  assert.equal(index.indexOf('<dialog class="scam-dialog"'), -1);
   for (const [name, html] of [['index.html', index], ['auth/callback/index.html', callback]]) {
     const scam = html.indexOf('site-scam-shield.css?v=');
     const mine = html.indexOf('site-trouble-helper.css?v=');
@@ -892,7 +894,7 @@ async function runFlow(browser, origin, dir, testCase) {
     await shoot('wage-help');
 
     // 처음부터 다시 takes two presses; a saved situation opens on 할 일 with its
-    // answers kept; then 사기·피싱 확인 link closes this dialog.
+    // answers kept; then 사기·피싱 확인 link closes this dialog and opens that page.
     r.reset = await evaluate(`(async () => {
       const first = __th.click('[data-trouble-reset]');
       const armed = first.textContent;
@@ -906,10 +908,10 @@ async function runFlow(browser, origin, dir, testCase) {
       await __th.answer('paid', 'not_yet');
       await __th.wait(() => __th.view().querySelector('[data-trouble-scam-shield]'), 'scam link');
       __th.click('[data-trouble-scam-shield]');
-      await __th.wait(() => !__th.dialog().open && document.querySelector('[data-scam-dialog]')?.open, 'scam opened');
-      const scamOpen = document.querySelector('[data-scam-dialog]').open;
-      document.querySelector('[data-scam-dialog] [data-scam-close]').click();
-      await __th.wait(() => !document.querySelector('[data-scam-dialog]').open, 'scam closed', 5000);
+      await __th.wait(() => !__th.dialog().open && document.querySelector('[data-site-route="scam"] .scam-page'), 'scam opened');
+      const scamOpen = location.hash === '#scam' && Boolean(document.querySelector('.consumer-workspace[data-workspace="scam"]'));
+      document.querySelector('[data-site-route="scam"] .site-modal-close').click();
+      await __th.wait(() => !document.querySelector('[data-site-route="scam"]'), 'scam closed', 5000);
       return {armed, stillHere, wageGone: !stored.cases.WAGE_ARREARS, carKept: Boolean(stored.cases.CAR_ACCIDENT), scamOpen, reopenedOn, keptAnswers,
         flag: sessionStorage.getItem('lotbi.trouble-helper.open.v1'), views: [...new Set(window.__thViews)],
         troubleRequests: globalThis.__thRequests.filter(item => item.trouble).map(item => [item.path, item.credentials, item.authorization])};

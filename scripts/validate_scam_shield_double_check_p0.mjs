@@ -1,91 +1,87 @@
-// SCAM-SHIELD-DOUBLE-CHECK-P0 — 진위확인 shows Core's second, independent check.
+// SCAM-SHIELD-DOUBLE-CHECK-P0 (SCAM-PHISHING-REDESIGN-02) — 사기·피싱 확인 shows
+// Core's second, independent check on the workspace page (route #scam).
 //
-// Core now answers with `summary`, `double_check`, `official_sources` and
-// `police_statistics`. Real Chrome renders the real dialog; each analysis is
-// answered with a Core-shaped JSON body that goes through the real
-// site-core.js analyzeScamShield() normalization, then site-scam-shield.js.
+// Core answers with `summary`, `double_check`, `official_sources` and
+// `police_statistics`. Real Chrome opens the real page through the real form;
+// each analysis is answered with a Core-shaped JSON body that goes through the
+// real site-core.js analyzeScamShield() normalization, then site-scam-shield.js.
 //
-// Checks: the three-line 2단계 확인 결과 sits right under 결론; only https
-// .go.kr/.or.kr pages become links (a forged source is shown as text only);
-// police statistics are folded away and dropped when Core does not mark them
-// as background-only; an older Core answer without these fields still renders;
-// a failed second check says so; WCAG AA contrast in light and dark; no
-// sideways overflow at 390px. Viewport emulation only, not a device run.
+// Checks: the verdict (결론) comes first and the 발견된 위험 신호 section (what the
+// 2단계 확인 re-confirmed; first-pass-only rows left out) is the first section
+// and the only one open; 공식 근거 · 아직 확인되지 않은 내용 · 추가 확인 방법 render;
+// only https URLs whose exact host is in SCAM_OFFICIAL_LINK_HOSTS become links
+// (forged, lookalike, unlisted .go.kr, http, port and userinfo sources stay
+// plain text; stale ones are labelled); the checked address — even on an
+// allowlisted host — is never a link anywhere on the page; police statistics
+// are a folded, last, reference-only section and are dropped when Core does
+// not mark them background-only; an older Core answer without these fields
+// still renders; a failed second check says so; 확인된 위험 신호 없음 always
+// carries the no-guarantee sentence and no bare 위험 신호 없음 appears; WCAG AA
+// (4.5:1) for the verdict, section and source text in light, dark and
+// system+dark; no sideways overflow at 390px. Static: the exact-host allowlist
+// export and scamOfficialUrl (https only, no userinfo/port, exact host) replace
+// the old .go.kr/.or.kr regex. Viewport emulation only, not a device run.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {spawn, spawnSync} from 'node:child_process';
-import {fileURLToPath} from 'node:url';
+import {SCAM_OFFICIAL_LINK_HOSTS, scamOfficialUrl, analyzeScamShield} from '../site-core.js';
+import {ROOT, browserPath, makeWorkDir, removeDir, startServer, openPage, BASE_MOCK, freshInput, CONTRAST_FN, THEMES, waitTheme, waitFor, sleep} from './scam_shield_page_harness.mjs';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SHOTS = process.env.SCAM_DOUBLE_CHECK_SHOTS || '';
 const ui = fs.readFileSync(path.join(ROOT, 'site-scam-shield.js'), 'utf8');
 const core = fs.readFileSync(path.join(ROOT, 'site-core.js'), 'utf8');
+const SAFETY = '다만 안전하다는 보증은 아니에요.';
+const SAFETY_SENTENCE = `확인한 범위에서 위험 신호는 찾지 못했어요. ${SAFETY}`;
 
-// Static: copy that must not claim more than the check did.
+// ---------- static: copy and the official-link allowlist ----------
+// Copy that must not claim more than the check did.
 assert.doesNotMatch(ui, /안전합니다|안전해요|사기 아님|진짜 기관입니다/u);
-assert.match(ui, /2단계 확인 결과/u);
+assert.match(ui, /2단계 확인/u);
 assert.match(ui, /공식 근거/u);
-assert.match(core, /SCAM_OFFICIAL_LINK_HOST = \/\(\?:\^\|\\\.\)\(\?:go\|or\)\\\.kr\$\/u/u);
+assert.match(ui, /'확인된 위험 신호 없음'/u);
+assert.doesNotMatch(ui, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/u, 'every node is built with textContent');
+assert.match(ui, /import \{scamOfficialUrl\} from '\.\/site-core\.js/u, 'the page links only through scamOfficialUrl');
 assert.match(core, /value\.affects_risk_level !== false/u, 'statistics render only when Core marks them background-only');
-
-function browserPath() {
-  const candidates = [
-    process.env.CHROME_BIN,
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    '/opt/pw-browsers/chromium',
-    'google-chrome-stable',
-    'google-chrome',
-    'chromium',
-    'chromium-browser',
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) return candidate;
-    const lookup = process.platform === 'win32' ? 'where.exe' : 'which';
-    const found = spawnSync(lookup, [candidate], {encoding: 'utf8'});
-    if (found.status === 0 && found.stdout.trim()) return found.stdout.trim().split(/\r?\n/)[0];
-  }
-  throw new Error('Chrome/Chromium is required for the 진위확인 double-check validation.');
+// The old suffix regex (any *.go.kr / *.or.kr) is gone; an exact-host list replaced it.
+assert.doesNotMatch(core, /SCAM_OFFICIAL_LINK_HOST\s*=\s*\//u, 'old .go.kr/.or.kr regex removed');
+assert.match(core, /export const SCAM_OFFICIAL_LINK_HOSTS = Object\.freeze\(\[/u);
+assert.match(core, /export function scamOfficialUrl\(value\)/u);
+assert.ok(Array.isArray(SCAM_OFFICIAL_LINK_HOSTS) && Object.isFrozen(SCAM_OFFICIAL_LINK_HOSTS) && SCAM_OFFICIAL_LINK_HOSTS.length > 0, 'allowlist is a frozen array');
+assert.equal(new Set(SCAM_OFFICIAL_LINK_HOSTS).size, SCAM_OFFICIAL_LINK_HOSTS.length, 'allowlist has no duplicates');
+for (const host of SCAM_OFFICIAL_LINK_HOSTS) {
+  assert.match(host, /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/u, `${host}: a bare lowercase host (no scheme, port, path or wildcard)`);
+  assert.match(host, /\.(?:go|or)\.kr$|(?:^|\.)gov\.kr$/u, `${host}: a Korean public-sector host`);
+  assert.equal(scamOfficialUrl(`https://${host}/`), `https://${host}/`, `${host}: allowed`);
 }
+// The page's own channel buttons are on the list (else they would silently vanish).
+const contactUrls = [...ui.matchAll(/url: '(https:\/\/[^']+)'/gu)].map(match => match[1]);
+assert.ok(contactUrls.length >= 3, `channel URLs found in site-scam-shield.js (${contactUrls})`);
+for (const url of contactUrls) assert.equal(scamOfficialUrl(url), new URL(url).href, `${url}: channel host on the allowlist`);
+const URL_CASES = [
+  ['https://www.spo.go.kr', 'https://www.spo.go.kr/'],
+  ['https://WWW.FSC.GO.KR/x', 'https://www.fsc.go.kr/x'],
+  ['http://www.fsc.go.kr/x', ''],
+  ['https://fss-or-kr.example/notice', ''],
+  ['https://fake-gov.go.kr.example/notice', ''],
+  ['https://www.unlisted.go.kr/page', ''],
+  ['https://go.kr/', ''],
+  ['https://sub.www.fsc.go.kr/x', ''],
+  ['https://www.fsc.go.kr./x', ''],
+  ['https://www.fsc.go.kr:8443/x', ''],
+  ['https://user:pw@www.fsc.go.kr/x', ''],
+  ['https://user@www.fsc.go.kr/x', ''],
+  ['https://www.fsc.go.kr@evil.example/x', ''],
+  ['javascript:alert(1)', ''],
+  ['data:text/html,x', ''],
+  ['//www.fsc.go.kr/x', ''],
+  ['www.fsc.go.kr', ''],
+  ['', ''],
+  [null, ''],
+  [42, ''],
+];
+for (const [input, expected] of URL_CASES) assert.equal(scamOfficialUrl(input), expected, `scamOfficialUrl(${JSON.stringify(input)})`);
 
-function startServer() {
-  const serverCode = `
-    const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
-    const root=${JSON.stringify(ROOT)};
-    const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.woff2':'font/woff2','.ico':'image/x-icon','.webmanifest':'application/manifest+json'};
-    const send=(res,file)=>fs.readFile(file,(error,data)=>{if(error){res.writeHead(404,{'Content-Type':'text/plain'});res.end('404');return;}res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','Cache-Control':'no-store'});res.end(data);});
-    const server=http.createServer((req,res)=>{
-      const pathname=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname);
-      const target=path.resolve(root,'.'+pathname);
-      if(!target.startsWith(root)){res.writeHead(403);res.end();return;}
-      fs.stat(target,(error,stat)=>send(res,!error&&stat.isDirectory()?path.join(target,'index.html'):target));
-    });
-    server.listen(0,'127.0.0.1',()=>process.stdout.write(String(server.address().port)+'\\n'));
-  `;
-  return spawn(process.execPath, ['-e', serverCode], {cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit']});
-}
-
-async function serverPort(server) {
-  return await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('local server start timeout')), 5000);
-    server.once('error', reject);
-    server.stdout.once('data', chunk => { clearTimeout(timer); resolve(Number.parseInt(String(chunk).trim(), 10)); });
-  });
-}
-
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-const isDone = value => value === true || Boolean(value && typeof value === 'object' && !value.error && value.ok !== false);
-async function waitFor(fn, label, timeoutMs = 15000) {
-  const started = Date.now();
-  let last;
-  for (;;) {
-    last = await fn().catch(error => ({error: String(error)}));
-    if (isDone(last)) return last;
-    if (Date.now() - started > timeoutMs) throw new Error(`timeout: ${label} — last=${JSON.stringify(last).slice(0, 1500)}`);
-    await sleep(80);
-  }
-}
-
+// ---------- Core-shaped answers ----------
 const BASE = {
   contract_id: 'LOTBI-SAFECARE-REAL-USER-01',
   case_id: 'scam_0123456789abcdef0123',
@@ -103,6 +99,8 @@ const BASE = {
   public_file_upload_to_third_party: false,
   checked_at: '2026-10-10T04:00:00+00:00',
 };
+const SOS = {source_id: 'SOS_PUBLIC_NO_TRANSFER', kind: 'OFFICIAL_GUIDANCE', agency: '전기통신금융사기 통합대응단(경찰청)', title: '피싱안심SOS 보이스피싱 제보 방법 안내', url: 'https://www.counterscam112.go.kr/board/CONTENT_000000000010.do', checked_at: '2026-10-10', stale: false, statement: '공공기관·금융기관은 어떤 경우에도 개인정보나 송금을 요구하지 않는다고 안내해요.'};
+const forged = (sourceId, title, url, extra = {}) => ({source_id: sourceId, kind: 'OFFICIAL_GUIDANCE', agency: '금융감독원', title: `${title}(링크가 되면 안 됨)`, url, checked_at: '2026-10-10', stale: false, statement: '검증용', ...extra});
 const FULL = {
   ...BASE,
   risk_level: 'HIGH_RISK',
@@ -119,6 +117,7 @@ const FULL = {
     official_check: {state: 'NOT_VERIFIABLE', message: '공식 기관인지 확인할 수 있는 근거가 없어요.'},
     individual_lookup: {state: 'NOT_VERIFIABLE', message: '조회하지 않았어요.', performed_by_lotbi: false, self_check: [
       {source_id: 'POLICE_CYBER_FRAUD_LOOKUP', kind: 'SELF_LOOKUP', agency: '경찰청', title: '사이버사기 피해신고 이력조회', url: 'https://www.police.go.kr/www/security/cyber/cyber04.jsp', checked_at: '2026-10-10', stale: false, statement: '조회 결과가 없어도 안전하다는 뜻은 아니에요.'},
+      {source_id: 'FORGED_LOOKUP', kind: 'SELF_LOOKUP', agency: '경찰청', title: '가짜 조회 페이지(링크가 되면 안 됨)', url: 'https://www.police.go.kr.lookup-check.example/cyber', checked_at: '2026-10-10', stale: false, statement: '검증용'},
     ]},
     report_paths: [
       {source_id: 'PAYMENT_STOP_112', kind: 'REPORT_PATH', agency: '금융위원회', title: '피해 시 지급정지 요청 안내', url: 'https://www.fsc.go.kr/no010101/87882', checked_at: '2026-10-10', stale: false, statement: '이미 돈을 보냈다면 바로 112나 금융회사 콜센터에 지급정지를 요청하세요.'},
@@ -126,11 +125,16 @@ const FULL = {
     contradictions: [{code: 'FIRST_PASS_UNDERRATED', message: '1차 분석보다 위험 신호가 더 확인되어 판단을 높였어요.'}],
     unverified: ['기관을 언급하지만 비교할 주소·번호가 없어 공식 여부를 확인하지 못했어요.'],
   },
+  // normalizeScamSources keeps at most 8; these are exactly 8.
   official_sources: [
-    {source_id: 'REGISTRY:검찰청', kind: 'OFFICIAL_ADDRESS_REGISTRY', agency: '검찰청', title: '검찰청 공식 주소·대표번호(검토된 목록)', url: 'https://www.spo.go.kr', checked_at: '2026-10-04', stale: false, statement: '공식 주소: spo.go.kr'},
-    {source_id: 'SOS_PUBLIC_NO_TRANSFER', kind: 'OFFICIAL_GUIDANCE', agency: '전기통신금융사기 통합대응단(경찰청)', title: '피싱안심SOS 보이스피싱 제보 방법 안내', url: 'https://www.counterscam112.go.kr/board/CONTENT_000000000010.do', checked_at: '2026-10-10', stale: false, statement: '공공기관·금융기관은 어떤 경우에도 개인정보나 송금을 요구하지 않는다고 안내해요.'},
-    {source_id: 'FORGED', kind: 'OFFICIAL_GUIDANCE', agency: '금융감독원', title: '위조된 출처(링크가 되면 안 됨)', url: 'https://fss-or-kr.example/notice', checked_at: '2026-10-10', stale: false, statement: '검증용'},
-    {source_id: 'PLAIN_HTTP', kind: 'OFFICIAL_GUIDANCE', agency: '금융위원회', title: 'http 출처(링크가 되면 안 됨)', url: 'http://www.fsc.go.kr/x', checked_at: '2024-01-01', stale: true, statement: '검증용'},
+    {source_id: 'REGISTRY:검찰청', kind: 'OFFICIAL_ADDRESS_REGISTRY', agency: '검찰청', title: '검찰청 공식 주소·대표번호(검토된 목록)', url: 'https://www.spo.go.kr', checked_at: '2026-10-04', stale: false, statement: '공식 주소: spo.go.kr', relevance: '메시지가 언급한 기관의 공식 주소예요. 이 기관이 이 메시지를 확인했다는 뜻은 아니에요.'},
+    SOS,
+    forged('FORGED', '위조된 출처', 'https://fss-or-kr.example/notice'),
+    forged('PLAIN_HTTP', 'http 출처', 'http://www.fsc.go.kr/x', {agency: '금융위원회', checked_at: '2024-01-01', stale: true}),
+    forged('LOOKALIKE', '닮은 주소', 'https://fake-gov.go.kr.example/notice'),
+    forged('UNLISTED_GO_KR', '목록 밖 .go.kr', 'https://www.unlisted.go.kr/page'),
+    forged('PORT', '포트 붙은 주소', 'https://www.fsc.go.kr:8443/notice'),
+    forged('USERINFO', '계정 붙은 주소', 'https://user:pw@www.fsc.go.kr/notice'),
   ],
   police_statistics: {
     dataset_id: '15063815', title: '경찰청_보이스피싱 현황', agency: '경찰청', source_url: 'https://www.data.go.kr/data/15063815/fileData.do',
@@ -151,271 +155,366 @@ const FAILED = {
   police_statistics: null,
 };
 const STATS_NOT_BACKGROUND = {...FULL, police_statistics: {...FULL.police_statistics, affects_risk_level: true}};
-const PAYLOADS = {FULL, OLD, FAILED, STATS_NOT_BACKGROUND};
+// 확인된 위험 신호 없음 from a Core summary without the no-guarantee sentence:
+// the page adds it. The statistics' source is not on the list → plain text.
+const NO_SIGNAL = {
+  ...BASE,
+  risk_level: 'CURRENTLY_NO_RISK_SIGNAL',
+  headline: '확인한 범위에서는 이상한 점을 찾지 못했어요.',
+  summary: '이 주소에서 송금 요구나 개인정보 입력 유도는 찾지 못했어요.',
+  reasons: ['주소가 금융위원회 공식 주소 목록과 같아요.'],
+  unverified_items: [],
+  do_now: ['지금 당장 급하게 처리하실 일은 없어 보여요.', '중요한 행동 전에는 기관 공식 경로에서 한 번 더 확인하세요.'],
+  double_check: {status: 'COMPLETED', agreement: 'AGREED', signals: [], scam_types: [], official_check: {state: 'MATCHED', message: '주소가 공식 주소 목록과 같아요. 메시지 내용까지 기관이 보냈다는 뜻은 아니에요.'}, individual_lookup: {state: 'NOT_VERIFIABLE', self_check: []}, report_paths: [], contradictions: [], unverified: []},
+  official_sources: [
+    {source_id: 'REGISTRY:금융위원회', kind: 'OFFICIAL_ADDRESS_REGISTRY', agency: '금융위원회', title: '금융위원회 공식 주소(검토된 목록)', url: 'https://www.fsc.go.kr', checked_at: '2026-10-04', stale: false, statement: '공식 주소: fsc.go.kr'},
+    forged('LOOKALIKE', '닮은 주소', 'https://fsc.go.kr.example/'),
+  ],
+  police_statistics: {...FULL.police_statistics, source_url: 'https://data-go-kr.example/15063815'},
+};
+const OLD_NO_SIGNAL = {...BASE, risk_level: 'CURRENTLY_NO_RISK_SIGNAL', headline: '확인한 범위에서는 이상한 점을 찾지 못했어요.'};
+const PAYLOADS = {FULL, OLD, FAILED, STATS_NOT_BACKGROUND, NO_SIGNAL, OLD_NO_SIGNAL};
 
-// Account/Core answered offline; the dialog's session question answered
+// The checked text carries an address; two cases check an address directly —
+// a lookalike one and one on an allowlisted host. None may become a link.
+const CHECKED_TEXT = '[검찰청] 귀하 명의 사건 조회: https://spo-go-kr.case-check.example/v 안전계좌로 이체 바랍니다';
+const LOOKALIKE_CHECKED = 'https://www.spo.go.kr.case-check.example/verify?case=2026-10';
+const OFFICIAL_CHECKED = 'https://www.fsc.go.kr/no010101/87882?ref=sms';
+const CASES = [
+  {name: 'FULL', payload: 'FULL', text: CHECKED_TEXT},
+  {name: 'OLD', payload: 'OLD', text: CHECKED_TEXT},
+  {name: 'FAILED', payload: 'FAILED', text: CHECKED_TEXT},
+  {name: 'STATS_NOT_BACKGROUND', payload: 'STATS_NOT_BACKGROUND', url: LOOKALIKE_CHECKED},
+  {name: 'NO_SIGNAL', payload: 'NO_SIGNAL', url: OFFICIAL_CHECKED},
+  {name: 'OLD_NO_SIGNAL', payload: 'OLD_NO_SIGNAL', text: '내일 오후 3시에 택배가 도착합니다.'},
+];
+// Any URL attribute on the page (the site's own mailto: is not userinfo).
+const FORBIDDEN_HREF = /example|unlisted\.go\.kr|:8443\/|^https?:\/\/[^/?#]*@|^http:\/\/www\.fsc|ref=sms/u;
+
+// ---------- the same normalization in Node (site-core.js, no browser) ----------
+const respond = body => async () => new Response(JSON.stringify(body), {status: 200, headers: {'Content-Type': 'application/json'}});
+const normalized = {};
+for (const [name, body] of Object.entries(PAYLOADS)) normalized[name] = await analyzeScamShield('validator-session', new FormData(), respond(body));
+assert.deepEqual(normalized.FULL.officialSources.map(item => item.url), ['https://www.spo.go.kr/', SOS.url, '', '', '', '', '', ''], 'only allowlisted https sources keep a URL');
+assert.deepEqual(normalized.FULL.doubleCheck.selfChecks.map(item => item.url), ['https://www.police.go.kr/www/security/cyber/cyber04.jsp', '']);
+assert.equal(normalized.FULL.policeStatistics.sourceUrl, 'https://www.data.go.kr/data/15063815/fileData.do');
+assert.equal(normalized.NO_SIGNAL.policeStatistics.sourceUrl, '', 'unlisted statistics source keeps no URL');
+assert.equal(normalized.STATS_NOT_BACKGROUND.policeStatistics, null, 'statistics that could move the risk are dropped');
+assert.equal(normalized.OLD.doubleCheck, null);
+assert.equal(normalized.OLD.summary, '');
+assert.equal(normalized.FAILED.doubleCheck.status, 'FAILED');
+console.log('SCAM-SHIELD-DOUBLE-CHECK-P0 static PASS — allowlist export, scamOfficialUrl cases, site-core normalization');
+
+// Account/Core answered offline; the page's session question answered
 // "signed in"; each analysis goes through the real site-core normalization.
-const MOCK = `(() => {
-  const nativeFetch = window.fetch.bind(window);
-  const json = (body, status = 200) => new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
-  window.fetch = async (input, init = {}) => {
-    let url;
-    try { url = new URL(String((input && input.url) || input), window.location.href); } catch { return nativeFetch(input, init); }
-    if (url.origin === window.location.origin) return nativeFetch(input, init);
-    if (url.origin === 'https://account.lotbiai.com' && url.pathname === '/api/auth/site-session-status') return json({contract_id: 'ACCOUNT-SITE-SESSION-STATUS-01', schema_version: 1, authenticated: false});
-    if (url.pathname === '/v2/conversation/guest/sessions') return json({contract_id: 'CORE-GUEST-SESSION-01', schema_version: 1, guest_token: 'g'.repeat(43), expires_at: new Date(Date.now() + 3600e3).toISOString()});
-    return json({error: {code: 'UNAUTHENTICATED'}}, 401);
-  };
+const MOCK = `(() => {${BASE_MOCK}
   window.__scamPayloads = ${JSON.stringify(PAYLOADS)};
   window.addEventListener('lotbi:scam-shield-session-request', event => { event.detail?.resolve?.(true); });
   window.addEventListener('lotbi:scam-shield-request', event => {
     event.stopImmediatePropagation();
+    const form = event.detail.formData;
+    window.__sent = Object.fromEntries([...form.entries()].map(([key, value]) => [key, typeof value === 'string' ? value : value.name]));
     const body = window.__scamPayloads[window.__scamPayload || 'FULL'];
     import('/site-core.js?double-check-validator').then(({analyzeScamShield}) =>
-      analyzeScamShield('validator-session', event.detail.formData, async () => json(body)),
+      analyzeScamShield('validator-session', form, async () => json(body)),
     ).then(event.detail.resolve, event.detail.reject);
   });
 })();`;
 
-const THEMES = [
-  {label: 'light', cookie: 'light', media: 'light'},
-  {label: 'dark', cookie: 'dark', media: 'light'},
-];
 const VIEWPORTS = [
   {label: 'iPhone-390x844', width: 390, height: 844, mobile: true},
   {label: 'desktop-1280x900', width: 1280, height: 900, mobile: false},
 ];
 
-async function openBrowser(browser, profile) {
-  const chrome = spawn(browser, [
-    '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--no-first-run',
-    '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1',
-    '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--window-size=1280,900', 'about:blank',
-  ], {stdio: 'ignore'});
-  const portFile = path.join(profile, 'DevToolsActivePort');
-  await waitFor(async () => fs.existsSync(portFile) && fs.readFileSync(portFile, 'utf8').includes('\n'), 'DevToolsActivePort');
-  const [port] = fs.readFileSync(portFile, 'utf8').split(/\r?\n/);
-  const version = await waitFor(() => fetch(`http://127.0.0.1:${port}/json/version`).then(r => r.json()), 'browser endpoint');
-  const socket = new WebSocket(version.webSocketDebuggerUrl);
-  await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
-  let nextId = 0;
-  const pending = new Map();
-  const listeners = new Set();
-  socket.onmessage = event => {
-    const message = JSON.parse(String(event.data));
-    if (message.id && pending.has(message.id)) {
-      const {resolve, reject} = pending.get(message.id);
-      pending.delete(message.id);
-      if (message.error) reject(new Error(JSON.stringify(message.error))); else resolve(message.result);
-      return;
-    }
-    if (message.method) for (const listener of listeners) listener(message);
-  };
-  const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
-    nextId += 1;
-    pending.set(nextId, {resolve, reject});
-    socket.send(JSON.stringify({id: nextId, method, params, ...(sessionId ? {sessionId} : {})}));
-  });
-  const close = () => { try { socket.close(); } catch {} chrome.kill('SIGTERM'); };
-  return {send, close, on: listener => { listeners.add(listener); return () => listeners.delete(listener); }};
-}
+const SECTION_STATE = `(() => [...document.querySelectorAll('[data-scam-result] [data-scam-section]')].map(node => ({
+  id: node.dataset.scamSection,
+  open: node.querySelector('.sp-sec-h').getAttribute('aria-expanded') === 'true',
+  bodyHidden: node.querySelector('.sp-sec-b').hidden,
+  bodyText: node.querySelector('.sp-sec-b').textContent,
+})))()`;
 
 const INSPECT = `(() => {
-  const parse = value => { const m = value.match(/rgba?\\(([^)]+)\\)/); if (!m) return null; const p = m[1].split(/[ ,\\/]+/).filter(Boolean).map(Number); return {r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1}; };
-  const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
-  const backgroundOf = node => {
-    const layers = [];
-    for (let el = node; el; el = el.parentElement) {
-      const c = parse(getComputedStyle(el).backgroundColor);
-      if (c && c.a > 0) { layers.push(c); if (c.a >= 1) break; }
-    }
-    let base = {r: 255, g: 255, b: 255};
-    for (const layer of layers.reverse()) base = {r: layer.r * layer.a + base.r * (1 - layer.a), g: layer.g * layer.a + base.g * (1 - layer.a), b: layer.b * layer.a + base.b * (1 - layer.a)};
-    return base;
-  };
-  const ratio = node => {
-    if (!node) return null;
-    const fg = parse(getComputedStyle(node).color), bg = backgroundOf(node);
-    const [hi, lo] = [lum(fg), lum(bg)].sort((a, b) => b - a);
-    return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
-  };
-  const result = document.querySelector('[data-scam-result]');
-  const check = result.querySelector('.scam-double-check');
-  const headings = [...result.querySelectorAll('h3, h4')].map(node => node.textContent);
-  const links = [...result.querySelectorAll('a[href]')].map(a => ({href: a.href, target: a.target, rel: a.rel, text: a.textContent}));
-  const stats = result.querySelector('details.scam-police-stats');
-  const sourceTexts = [...result.querySelectorAll('.scam-official-sources li')].map(li => li.textContent);
+  const ratio = ${CONTRAST_FN};
+  const ws = document.querySelector('.consumer-workspace[data-workspace="scam"]');
+  const result = ws.querySelector('[data-scam-result]');
+  const verdict = result.querySelector('[data-scam-verdict]');
+  const q = (selector, scope = result) => scope.querySelector(selector);
+  const text = node => (node ? node.textContent : '');
+  const sec = id => result.querySelector('[data-scam-section="' + id + '"]');
+  const kind = node => node.dataset.scamVerdict !== undefined ? 'verdict' : node.dataset.scamContacts !== undefined ? 'contacts' : node.dataset.scamSections !== undefined ? 'sections' : node.dataset.scamDoNot !== undefined ? 'donot' : node.dataset.scamReferenceNote !== undefined ? 'refnote' : node.dataset.scamIncidentCard !== undefined ? 'incident' : node.classList.contains('sp-rbar') ? 'bar' : node.classList.contains('sp-endacts') ? 'end' : node.className;
+  const sources = id => [...(sec(id)?.querySelectorAll('.sp-src') || [])].map(src => ({name: text(src.querySelector('b')), meta: text(src.querySelector('.sp-src-m')), links: [...src.querySelectorAll('a[href]')].map(a => a.href)}));
+  const kv = id => Object.fromEntries([...(sec(id)?.querySelectorAll('.sp-kv dt') || [])].map(dt => [dt.textContent, dt.nextElementSibling?.textContent || '']));
+  const ddOf = (id, term) => [...(sec(id)?.querySelectorAll('.sp-kv dt') || [])].find(dt => dt.textContent === term)?.nextElementSibling || null;
+  const statsNotes = [...(sec('stats')?.querySelectorAll('.sp-note span') || [])];
+  const attrs = ['href', 'src', 'action', 'formaction', 'ping'];
   return {
+    phase: ws.querySelector('.scam-page')?.dataset.scamPhase || '',
+    dialogGone: !document.querySelector('dialog.scam-dialog, [data-scam-dialog]'),
+    hash: location.hash,
     level: result.dataset.riskLevel,
-    summary: result.querySelector('.scam-result-summary')?.textContent || '',
-    checkStatus: check?.dataset.scamDoubleCheck || '',
-    checkTerms: check ? [...check.querySelectorAll('dt')].map(node => node.textContent) : [],
-    checkValues: check ? [...check.querySelectorAll('dd')].map(node => node.textContent) : [],
-    headings,
-    links,
-    sourceTexts,
-    statsPresent: Boolean(stats),
-    statsOpen: Boolean(stats?.open),
-    statsText: stats?.textContent || '',
-    termStyle: check?.querySelector('dt') ? (() => { const cs = getComputedStyle(check.querySelector('dt')); return cs.color + ' / ' + cs.backgroundColor + ' / ' + cs.opacity + ' / ' + cs.webkitTextFillColor; })() : '',
-    overflow: result.scrollWidth - result.clientWidth,
-    dialogOverflow: document.querySelector('[data-scam-dialog]').scrollWidth - document.querySelector('[data-scam-dialog]').clientWidth,
+    levelLabel: text(q('[data-scam-level]', verdict)),
+    headline: text(q('.sp-vh', verdict)),
+    summary: q('[data-scam-summary]', verdict) ? text(q('[data-scam-summary]', verdict)) : null,
+    failedMessage: q('[data-scam-double-check-failed]') ? text(q('[data-scam-double-check-failed]')) : null,
+    verdictText: text(verdict),
+    doNow: [...verdict.querySelectorAll('[data-scam-do-now] li')].map(text),
+    order: [...result.children].map(kind),
+    sections: [...result.querySelectorAll('[data-scam-section]')].map(node => ({id: node.dataset.scamSection, title: text(node.querySelector('.sp-sec-t > span')), sub: text(node.querySelector('.sp-sec-t small')), count: text(node.querySelector('.sp-cnt')), open: node.querySelector('.sp-sec-h').getAttribute('aria-expanded') === 'true', text: text(node.querySelector('.sp-sec-b'))})),
+    sigChips: [...(sec('sig')?.querySelectorAll('.sp-sigc') || [])].map(text),
+    offSources: sources('off'),
+    selfSources: sources('self'),
+    tech: kv('tech'),
+    info: kv('info'),
+    contactsTitle: text(q('[data-scam-contacts] h3')),
+    statsLinks: [...(sec('stats')?.querySelectorAll('a[href]') || [])].map(a => a.href),
+    wsLinks: [...ws.querySelectorAll('a[href]')].map(a => ({href: a.href, text: a.textContent, target: a.target, rel: a.rel})),
+    pageUrls: [...document.querySelectorAll(attrs.map(name => '[' + name + ']').join(','))].flatMap(node => attrs.filter(name => node.hasAttribute(name)).map(name => node.getAttribute(name))),
+    resultText: text(result),
+    overflow: ws.scrollWidth - ws.clientWidth,
+    resultOverflow: result.scrollWidth - result.clientWidth,
     contrast: {
-      summary: ratio(result.querySelector('.scam-result-summary')),
-      term: ratio(check?.querySelector('dt')),
-      value: ratio(check?.querySelector('dd')),
-      sourceName: ratio(result.querySelector('.scam-official-sources strong')),
-      sourceMeta: ratio(result.querySelector('.scam-source-meta')),
-      link: ratio(result.querySelector('.scam-official-sources a')),
+      level: ratio(q('[data-scam-level] span', verdict)),
+      headline: ratio(q('.sp-vh', verdict)),
+      summary: ratio(q('[data-scam-summary]', verdict)),
+      failedMessage: ratio(q('[data-scam-double-check-failed] span')),
+      sectionTitle: ratio(q('[data-scam-section="sig"] .sp-sec-t > span')),
+      sectionSub: ratio(q('[data-scam-section="sig"] .sp-sec-t small')),
+      count: ratio(q('[data-scam-section="sig"] .sp-cnt')),
+      signal: ratio(q('[data-scam-section="sig"] .sp-sigc span')),
+      signalLead: ratio(q('[data-scam-section="sig"] .sp-lead2')),
+      reason: ratio(q('[data-scam-section="sig"] .sp-bul li')),
+      officialLead: ratio(q('[data-scam-section="off"] .sp-lead2')),
+      sourceName: ratio(q('[data-scam-section="off"] .sp-src b')),
+      sourceStatement: ratio(q('[data-scam-section="off"] .sp-src p:not(.sp-src-rel)')),
+      sourceRelevance: ratio(q('[data-scam-section="off"] .sp-src-rel')),
+      sourceMeta: ratio(q('[data-scam-section="off"] .sp-src-m > span')),
+      sourceLink: ratio(q('[data-scam-section="off"] .sp-src-m a')),
+      unverified: ratio(q('[data-scam-section="unv"] .sp-bul li')),
+      techTerm: ratio(q('[data-scam-section="tech"] .sp-kv dt')),
+      techValue: ratio(q('[data-scam-section="tech"] .sp-kv dd')),
+      techMono: ratio(q('[data-scam-section="tech"] .sp-mono div')),
+      checkedUrl: ratio(ddOf('info', '검사한 주소')),
+      infoNote: ratio(q('[data-scam-section="info"] .sp-note span')),
+      selfLink: ratio(q('[data-scam-section="self"] .sp-src-m a')),
+      statsLine: ratio(q('[data-scam-section="stats"] .sp-lead2')),
+      statsNote: ratio(statsNotes[0] || null),
+      statsSource: ratio(q('[data-scam-section="stats"] .sp-srclink') || statsNotes[1] || null),
+      referenceNote: ratio(q('[data-scam-reference-note] span')),
     },
   };
 })()`;
 
-async function runViewport(browser, origin, workDir, viewport, theme, records) {
-  const profile = fs.mkdtempSync(path.join(workDir, 'profile-'));
-  const cdp = await openBrowser(browser, profile);
-  try {
-    const {targetInfos} = await cdp.send('Target.getTargets');
-    const pageTarget = targetInfos.find(item => item.type === 'page');
-    const {sessionId} = await cdp.send('Target.attachToTarget', {targetId: pageTarget.targetId, flatten: true});
-    const page = (method, params) => cdp.send(method, params, sessionId);
-    await page('Page.enable');
-    await page('Runtime.enable');
-    await page('Network.enable');
-    await page('Network.setCookie', {name: 'lotbi_theme_preference_v1', value: theme.cookie, url: origin});
-    await page('Page.addScriptToEvaluateOnNewDocument', {source: MOCK});
-    await page('Emulation.setDeviceMetricsOverride', {width: viewport.width, height: viewport.height, deviceScaleFactor: 1, mobile: viewport.mobile});
-    if (viewport.mobile) await page('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
-    await page('Emulation.setEmulatedMedia', {features: [{name: 'prefers-reduced-motion', value: 'reduce'}, {name: 'prefers-color-scheme', value: theme.media}]});
-    const evaluate = async expression => {
-      const result = await page('Runtime.evaluate', {expression, returnByValue: true, awaitPromise: true});
-      if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails).slice(0, 600));
-      return result.result.value;
-    };
-    const loaded = new Promise(resolve => {
-      const stop = cdp.on(message => {
-        if (message.sessionId === sessionId && message.method === 'Page.loadEventFired') { stop(); resolve(); }
-      });
-      setTimeout(() => { stop(); resolve(); }, 10000);
-    });
-    await page('Page.navigate', {url: `${origin}/`});
-    await loaded;
-    await waitFor(() => evaluate("document.body?.dataset.conversationRestore === 'ready'"), 'conversation ready');
-    const expectDark = theme.label !== 'light';
-    await waitFor(async () => {
-      const bg = await evaluate("getComputedStyle(document.body).backgroundColor");
-      return (bg === 'rgb(33, 33, 33)') === expectDark ? true : {ok: false, bg};
-    }, `${theme.label} theme applied`);
-    const tap = async selector => {
-      const box = await waitFor(() => evaluate(`(() => {
-        const node = [...document.querySelectorAll(${JSON.stringify(selector)})].find(item => item.getClientRects().length && !item.closest('[inert], [hidden]'));
-        if (!node) return null;
-        node.scrollIntoView({block: 'center', inline: 'center'});
-        const rect = node.getBoundingClientRect();
-        const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
-        const hit = document.elementFromPoint(x, y);
-        return hit && (hit === node || node.contains(hit)) ? {x, y} : null;
-      })()`), `tap target ${selector}`);
-      if (viewport.mobile) {
-        await page('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x: box.x, y: box.y}]});
-        await sleep(30);
-        await page('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []});
-      } else {
-        await page('Input.dispatchMouseEvent', {type: 'mouseMoved', x: box.x, y: box.y});
-        await page('Input.dispatchMouseEvent', {type: 'mousePressed', x: box.x, y: box.y, button: 'left', buttons: 1, clickCount: 1});
-        await sleep(30);
-        await page('Input.dispatchMouseEvent', {type: 'mouseReleased', x: box.x, y: box.y, button: 'left', buttons: 0, clickCount: 1});
-      }
-    };
-    for (const name of Object.keys(PAYLOADS)) {
-      await evaluate(`window.__scamPayload = ${JSON.stringify(name)}; window.dispatchEvent(new CustomEvent('lotbi:scam-shield-close-request')); window.dispatchEvent(new CustomEvent('lotbi:scam-shield-open-request')); true`);
-      await waitFor(() => evaluate("(() => { const d = document.querySelector('[data-scam-dialog]'); return Boolean(d?.open && !document.querySelector('[data-scam-workspace]').hidden && !document.querySelector('[data-scam-methods]').hidden); })()"), 'scam workspace');
-      await tap('[data-scam-methods] label:has(input[value="text"])');
-      await waitFor(() => evaluate("!document.querySelector('#scam-text').disabled"), 'text panel');
-      await evaluate("(() => { const t = document.querySelector('#scam-text'); t.value = '검증용 합성 문장입니다'; t.dispatchEvent(new Event('input', {bubbles: true})); return true; })()");
-      await tap('[data-scam-dialog] .scam-submit');
-      const level = PAYLOADS[name].risk_level;
-      await waitFor(() => evaluate(`document.querySelector('[data-scam-result]')?.dataset.riskLevel === ${JSON.stringify(level)} && !document.querySelector('[data-scam-result]').hidden`), `${name} result`);
-      await sleep(60);
-      const inspected = await evaluate(INSPECT);
-      records.push({viewport: viewport.label, theme: theme.label, payload: name, ...inspected});
-      console.log(`  rendered ${viewport.label} ${theme.label} ${name}`);
-      if (SHOTS) {
-        await evaluate("document.querySelector('[data-scam-result]').scrollIntoView({block: 'start'}), true");
-        const {data} = await page('Page.captureScreenshot', {format: 'png'});
-        fs.mkdirSync(SHOTS, {recursive: true});
-        fs.writeFileSync(path.join(SHOTS, `${viewport.label}-${theme.label}-${name}.png`), Buffer.from(data, 'base64'));
-      }
-    }
-  } finally {
-    cdp.close();
-    await sleep(300);
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      try { fs.rmSync(profile, {recursive: true, force: true}); break; } catch { await sleep(150); }
-    }
-  }
+async function openSection(p, id) {
+  const state = await p.evaluate(SECTION_STATE);
+  if (state.find(item => item.id === id)?.open) return;
+  await p.tap(`[data-scam-section="${id}"] .sp-sec-h`);
+  await waitFor(() => p.evaluate(`document.querySelector('[data-scam-section="${id}"] .sp-sec-h')?.getAttribute('aria-expanded') === 'true'`), `${id} section open`);
 }
 
 const browser = browserPath();
-const workDir = fs.mkdtempSync(path.join(ROOT, 'scripts/.scam-double-check-'));
-const server = startServer();
+const workDir = makeWorkDir('scam-double-check');
+const srv = startServer();
 const records = [];
 try {
-  const origin = `http://127.0.0.1:${await serverPort(server)}`;
-  for (const viewport of VIEWPORTS) for (const theme of THEMES) await runViewport(browser, origin, workDir, viewport, theme, records);
-} finally {
-  server.kill('SIGTERM');
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try { fs.rmSync(workDir, {recursive: true, force: true}); break; } catch { await sleep(150); }
-  }
-}
-
-const officialHost = /(?:^|\.)(?:go|or)\.kr$/u;
-for (const item of records) {
-  const where = `${item.viewport} ${item.theme} ${item.payload}`;
-  console.log(`  ${where.padEnd(42)} check=${item.checkStatus || '-'} links=${item.links.length} stats=${item.statsPresent ? (item.statsOpen ? 'open' : 'folded') : 'none'} overflow=${item.overflow}/${item.dialogOverflow} dt=${item.termStyle} contrast=${JSON.stringify(item.contrast)}`);
-  assert.ok(item.overflow <= 1 && item.dialogOverflow <= 1, `${where}: no sideways overflow`);
-  for (const link of item.links) {
-    const url = new URL(link.href);
-    if (link.href.startsWith('https://account.lotbiai.com/')) continue;
-    assert.equal(url.protocol, 'https:', `${where}: ${link.href}`);
-    assert.match(url.hostname, officialHost, `${where}: only government pages become links (${link.href})`);
-    assert.equal(link.target, '_blank');
-    assert.match(link.rel, /noopener/u);
-    assert.match(link.rel, /noreferrer/u);
-  }
-  if (item.payload === 'FULL' || item.payload === 'STATS_NOT_BACKGROUND') {
-    assert.equal(item.summary, FULL.summary, `${where}: summary sentence`);
-    assert.equal(item.checkStatus, 'COMPLETED');
-    assert.deepEqual(item.checkTerms, ['위험 신호', '공식 근거', '확인 안 된 것'], `${where}: three short lines`);
-    assert.match(item.checkValues[0], /기관 사칭, 안전계좌 이체 요구/u);
-    assert.doesNotMatch(item.checkValues[0], /송금·결제 요구/u, 'first-pass-only rows are not listed as re-confirmed');
-    const order = ['결론', '2단계 확인 결과', '지금 하실 일'];
-    assert.deepEqual(item.headings.slice(0, 3), order, `${where}: 2단계 확인 결과 sits right under 결론`);
-    assert.ok(item.headings.includes('공식 근거') && item.headings.includes('피해가 생겼다면') && item.headings.includes('번호·계좌를 직접 조회할 수 있는 공식 서비스'), `${where}: ${item.headings}`);
-    assert.ok(item.sourceTexts.some(text => text.includes('위조된 출처')), `${where}: forged source still shown as plain text`);
-    assert.ok(!item.links.some(link => link.href.includes('example') || link.href.startsWith('http:')), `${where}: forged/http source never linked`);
-    assert.ok(item.sourceTexts.some(text => text.includes('오래된 자료')), `${where}: stale source labelled`);
-    for (const key of ['summary', 'term', 'value', 'sourceName', 'sourceMeta', 'link']) {
-      assert.ok(item.contrast[key] >= 4.5, `${where}: ${key} contrast ${item.contrast[key]} below WCAG AA`);
+  const origin = await srv.origin;
+  for (const viewport of VIEWPORTS) {
+    for (const theme of THEMES) {
+      const p = await openPage({browser, origin, workDir, viewport, theme, mock: MOCK});
+      try {
+        await waitTheme(p.evaluate, theme.dark, theme.label);
+        for (const testCase of CASES) {
+          await p.evaluate(`window.__scamPayload = ${JSON.stringify(testCase.payload)}; window.__sent = null; true`);
+          await freshInput(p);
+          if (testCase.url) {
+            await p.tap('[data-scam-tab="url"]');
+            await waitFor(() => p.evaluate("Boolean(document.querySelector('#scam-url'))"), 'url field');
+            await p.evaluate(`(() => { const u = document.querySelector('#scam-url'); u.value = ${JSON.stringify(testCase.url)}; u.dispatchEvent(new Event('input', {bubbles: true})); return true; })()`);
+          } else {
+            await p.evaluate(`(() => { const t = document.querySelector('#scam-text'); t.value = ${JSON.stringify(testCase.text)}; t.dispatchEvent(new Event('input', {bubbles: true})); return true; })()`);
+          }
+          await waitFor(() => p.evaluate("document.querySelector('[data-scam-submit]')?.disabled === false"), `${testCase.name} submit enabled`);
+          await p.tap('[data-scam-submit]');
+          const level = PAYLOADS[testCase.payload].risk_level;
+          await waitFor(() => p.evaluate(`document.querySelector('.consumer-workspace[data-workspace="scam"] [data-scam-result]')?.dataset.riskLevel === ${JSON.stringify(level)}`), `${testCase.name} result`);
+          await sleep(60);
+          // As rendered: which sections start open (the statistics fold away).
+          const initial = await p.evaluate(SECTION_STATE);
+          for (const section of initial) await openSection(p, section.id);
+          await sleep(60);
+          const inspected = await p.evaluate(INSPECT);
+          const sent = await p.evaluate('window.__sent');
+          records.push({viewport: viewport.label, mobile: viewport.mobile, theme: theme.label, testCase, initial, sent, ...inspected});
+          if (SHOTS) {
+            await p.evaluate("document.querySelector('.consumer-workspace').scrollTo(0, 0), true");
+            await p.screenshot(path.join(SHOTS, `${viewport.label}-${theme.label}-${testCase.name}.png`));
+          }
+        }
+      } finally { await p.close(); }
+      console.log(`  rendered ${viewport.label} ${theme.label} (${CASES.length} answers)`);
     }
   }
-  if (item.payload === 'FULL') {
-    assert.ok(item.statsPresent && !item.statsOpen, `${where}: police statistics present and folded`);
-    assert.match(item.statsText, /2025년 전국 기관사칭형: 발생 13,323건 · 피해액 9,884억원 · 검거 15,161명/u);
-    assert.match(item.statsText, /경찰청이 확인했다는 뜻이 아니고/u);
-  }
-  if (item.payload === 'STATS_NOT_BACKGROUND') assert.equal(item.statsPresent, false, `${where}: statistics that could move the risk are not shown`);
-  if (item.payload === 'OLD') {
-    assert.equal(item.checkStatus, '', `${where}: older Core answer has no 2단계 section`);
-    assert.equal(item.summary, '');
-    assert.ok(item.headings.includes('지금 하실 일'), `${where}: older answer still renders`);
-    assert.equal(item.statsPresent, false);
-  }
-  if (item.payload === 'FAILED') {
-    assert.equal(item.checkStatus, 'FAILED');
-    assert.match(item.checkValues.join(' '), /2단계 확인을 끝내지 못했어요/u);
-  }
+} finally {
+  srv.stop();
+  await removeDir(workDir);
 }
-assert.equal(records.length, VIEWPORTS.length * THEMES.length * Object.keys(PAYLOADS).length);
-console.log(`SCAM-SHIELD-DOUBLE-CHECK-P0 PASS — ${records.length} renders (4 Core answers × light/dark × 390/1280), real site-core normalization, WCAG AA; viewport emulation, not a device run`);
+
+const fmt = value => (value ? value.ratio : '-');
+const ids = list => list.map(item => item.id);
+const LABEL = {HIGH_RISK: '위험 높음', SUSPICIOUS: '주의 필요', UNVERIFIED: '확인 안 됨', CURRENTLY_NO_RISK_SIGNAL: '확인된 위험 신호 없음'};
+for (const item of records) {
+  const {payload, name} = item.testCase;
+  const body = PAYLOADS[payload];
+  const where = `${item.viewport} ${item.theme} ${name}`;
+  const section = id => item.sections.find(entry => entry.id === id);
+  console.log(`  ${where.padEnd(48)} level=${item.levelLabel} sections=${ids(item.sections).join(',')} links=${item.wsLinks.length} overflow=${item.overflow}/${item.resultOverflow} contrast=${Object.entries(item.contrast).filter(([, value]) => value).map(([key, value]) => `${key}:${fmt(value)}`).join(' ')}`);
+
+  // The page itself: a workspace route, no dialog, no sideways scroll.
+  assert.equal(item.phase, 'result', `${where}: result phase`);
+  assert.ok(item.dialogGone, `${where}: no <dialog> popup`);
+  assert.equal(item.hash, '#scam', `${where}: route #scam`);
+  assert.ok(item.overflow <= 1 && item.resultOverflow <= 1, `${where}: no sideways overflow (${item.overflow}/${item.resultOverflow})`);
+  // What was sent is what was typed (text or the checked address).
+  if (item.testCase.url) assert.deepEqual(item.sent, {url: item.testCase.url}, `${where}: url sent`);
+  else assert.deepEqual(item.sent, {text: item.testCase.text}, `${where}: text sent`);
+
+  // 결론 first; the 2단계 result (발견된 위험 신호) is the first section and the only one open.
+  assert.equal(item.order[0], 'bar', `${where}: 확인 결과 bar first (${item.order})`);
+  assert.equal(item.order[1], 'verdict', `${where}: verdict right below the bar (${item.order})`);
+  assert.ok(item.order.indexOf('verdict') < item.order.indexOf('sections'), `${where}: verdict before the sections`);
+  assert.equal(item.initial[0]?.id, 'sig', `${where}: 발견된 위험 신호 is the first section`);
+  assert.deepEqual(item.initial.filter(entry => entry.open).map(entry => entry.id), ['sig'], `${where}: only 발견된 위험 신호 starts open`);
+  for (const entry of item.initial.filter(state => !state.open)) assert.ok(entry.bodyHidden && entry.bodyText === '', `${where}: ${entry.id} folded`);
+  const sig = section('sig');
+  assert.equal(sig.title, '발견된 위험 신호');
+  const olderAnswer = payload === 'OLD' || payload === 'OLD_NO_SIGNAL';
+  assert.equal(sig.sub, olderAnswer ? '분석에서 찾은 근거예요' : '2단계 확인에서 다시 확인한 신호예요', `${where}: signal section subtitle`);
+  assert.equal(section('off')?.title, '공식 근거', `${where}: 공식 근거 section`);
+  assert.equal(section('unv')?.title, '아직 확인되지 않은 내용', `${where}: 아직 확인되지 않은 내용 section`);
+  assert.equal(section('self')?.sub, '번호·계좌를 직접 조회할 수 있는 공식 서비스', `${where}: 추가 확인 방법 section`);
+  const expectedIds = ['sig', 'off', 'unv', 'tech', 'info', 'self'];
+  const danger = body.risk_level === 'HIGH_RISK';
+  if (!danger) expectedIds.push('rep');
+  const statsShown = payload === 'FULL' || payload === 'NO_SIGNAL';
+  if (statsShown) expectedIds.push('stats');
+  assert.deepEqual(ids(item.sections), expectedIds, `${where}: sections in order, statistics last`);
+  // 피해가 생겼다면: the purpose-ordered channels (HIGH_RISK) or the 이미 눌렀거나 피해가 생겼다면 section.
+  if (danger) assert.equal(item.contactsTitle, '공식 신고·상담 창구', `${where}: report channels card`);
+  else assert.equal(section('rep').title, '이미 눌렀거나 피해가 생겼다면', `${where}: 피해가 생겼다면 section`);
+
+  // Labels and the no-guarantee rule.
+  assert.equal(item.levelLabel, LABEL[body.risk_level], `${where}: level chip`);
+  assert.ok(!/위험 신호 없음/u.test(item.resultText.replace(/확인된 위험 신호 없음/gu, '')), `${where}: never a bare 위험 신호 없음`);
+  assert.doesNotMatch(item.resultText, /안전합니다|안전해요|사기 아님|진짜 기관입니다/u, `${where}: no safety claim`);
+  if (body.risk_level === 'CURRENTLY_NO_RISK_SIGNAL') assert.ok(item.summary?.includes(SAFETY), `${where}: 확인된 위험 신호 없음 keeps "${SAFETY}" (${item.summary})`);
+
+  // Links: only exact allowlisted https hosts, labelled with the host, new tab, no referrer.
+  for (const link of item.wsLinks) {
+    if (link.href.startsWith('tel:')) continue;
+    if (link.href === 'https://account.lotbiai.com/account') continue;
+    const url = new URL(link.href);
+    assert.equal(url.protocol, 'https:', `${where}: ${link.href} https`);
+    assert.ok(SCAM_OFFICIAL_LINK_HOSTS.includes(url.hostname), `${where}: ${link.href} host on the allowlist`);
+    assert.ok(!url.username && !url.password && !url.port, `${where}: ${link.href} no userinfo/port`);
+    assert.ok(link.text.includes(url.hostname), `${where}: ${link.href} shows its host`);
+    assert.equal(link.target, '_blank', `${where}: ${link.href} target`);
+    assert.match(link.rel, /noopener/u, `${where}: ${link.href} rel noopener`);
+    assert.match(link.rel, /noreferrer/u, `${where}: ${link.href} rel noreferrer`);
+  }
+  // Nothing forged and nothing checked becomes a link (or any URL attribute) anywhere on the page.
+  for (const value of item.pageUrls) assert.doesNotMatch(value, FORBIDDEN_HREF, `${where}: ${value} must stay text`);
+  if (item.testCase.url) {
+    const checked = new URL(item.testCase.url).href;
+    assert.ok(!item.pageUrls.some(value => { try { return new URL(value, 'http://127.0.0.1/').href === checked; } catch { return false; } }), `${where}: checked address is not a link`);
+    assert.equal(item.info['검사한 주소'], item.testCase.url, `${where}: checked address shown as text`);
+    assert.ok(section('info').text.includes('검사한 주소는 글자로만 보여 주고 링크로 만들지 않아요.'), `${where}: says the address is not a link`);
+  }
+
+  // WCAG AA for every measured text; these must exist where the answer has them.
+  const required = ['level', 'headline', 'sectionTitle', 'sectionSub', 'reason', 'techMono', 'referenceNote'];
+  if (payload === 'FULL' || payload === 'STATS_NOT_BACKGROUND') required.push('summary', 'count', 'signal', 'officialLead', 'sourceName', 'sourceStatement', 'sourceRelevance', 'sourceMeta', 'sourceLink', 'unverified', 'techTerm', 'techValue', 'selfLink');
+  if (statsShown) required.push('statsLine', 'statsNote', 'statsSource');
+  if (payload === 'FAILED') required.push('summary', 'failedMessage', 'signalLead', 'officialLead', 'unverified', 'techTerm', 'techValue');
+  if (payload === 'OLD') required.push('unverified');
+  if (payload === 'NO_SIGNAL' || payload === 'OLD_NO_SIGNAL') required.push('summary');
+  if (payload === 'NO_SIGNAL') required.push('signalLead', 'sourceName', 'sourceLink', 'officialLead');
+  if (item.testCase.url) required.push('checkedUrl', 'infoNote');
+  for (const key of required) assert.ok(item.contrast[key], `${where}: ${key} rendered for the contrast check`);
+  for (const [key, value] of Object.entries(item.contrast)) {
+    if (value) assert.ok(value.ratio >= 4.5, `${where}: ${key} contrast ${JSON.stringify(value)} below WCAG AA 4.5:1`);
+  }
+
+  if (payload === 'FULL' || payload === 'STATS_NOT_BACKGROUND') {
+    assert.equal(item.summary, FULL.summary, `${where}: summary sentence`);
+    assert.equal(item.headline, '이건 열지 마세요.');
+    // Re-confirmed signals only; first-pass-only rows are not listed as re-confirmed.
+    assert.deepEqual(item.sigChips, ['기관 사칭', '안전계좌 이체 요구'], `${where}: re-confirmed signals`);
+    assert.equal(sig.count, '2', `${where}: signal count`);
+    assert.doesNotMatch(sig.text, /송금·결제 요구/u, `${where}: first-pass-only row not shown as re-confirmed`);
+    assert.ok(sig.text.includes(BASE.reasons[0]), `${where}: reasons listed`);
+    assert.ok(section('off').text.includes('공식 기관인지 확인할 수 있는 근거가 없어요.'), `${where}: official check message`);
+    assert.equal(section('off').count, '8', `${where}: all eight sources listed`);
+    // Forged, lookalike, unlisted, http, port and userinfo sources: shown as text, never linked.
+    const byName = label => item.offSources.find(source => source.name.includes(label));
+    for (const label of ['위조된 출처', 'http 출처', '닮은 주소', '목록 밖 .go.kr', '포트 붙은 주소', '계정 붙은 주소']) {
+      assert.ok(byName(label), `${where}: ${label} still shown as plain text`);
+      assert.deepEqual(byName(label).links, [], `${where}: ${label} never linked`);
+    }
+    assert.deepEqual(item.offSources.flatMap(source => source.links), ['https://www.spo.go.kr/', SOS.url], `${where}: only the two allowlisted sources are links`);
+    assert.ok(byName('http 출처').meta.includes('오래된 자료'), `${where}: stale source labelled`);
+    assert.ok(!byName('검찰청 공식').meta.includes('오래된 자료'), `${where}: fresh source not labelled stale`);
+    assert.deepEqual(item.selfSources.flatMap(source => source.links), ['https://www.police.go.kr/www/security/cyber/cyber04.jsp'], `${where}: self lookup link; forged lookup stays text`);
+    assert.ok(item.selfSources.some(source => source.name.includes('가짜 조회 페이지')), `${where}: forged lookup shown as text`);
+    assert.equal(item.tech['2단계 확인'], '완료', `${where}: 2단계 확인 완료`);
+    assert.equal(item.tech['의심 유형'], '기관사칭형 — 추정', `${where}: scam type marked as inferred`);
+    assert.equal(item.failedMessage, null, `${where}: no failure message`);
+  }
+  if (statsShown) {
+    // Police statistics: reference only — folded, last, outside the verdict, background-only copy.
+    const stats = section('stats');
+    assert.equal(item.initial.find(entry => entry.id === 'stats').open, false, `${where}: police statistics folded`);
+    assert.equal(stats.title, '참고: 경찰청 기관사칭형 보이스피싱 통계', `${where}: statistics title`);
+    assert.equal(stats.sub, '위험 판단에는 쓰지 않은 배경 자료예요', `${where}: statistics marked as not used for the verdict`);
+    assert.match(stats.text, /2025년 전국 기관사칭형: 발생 13,323건 · 피해액 9,884억원 · 검거 15,161명/u);
+    assert.match(stats.text, /경찰청이 확인했다는 뜻이 아니고/u);
+    assert.doesNotMatch(item.verdictText, /13,323|보이스피싱 통계|경찰청이 확인/u, `${where}: statistics are not in the verdict`);
+    if (payload === 'FULL') assert.deepEqual(item.statsLinks, ['https://www.data.go.kr/data/15063815/fileData.do'], `${where}: statistics source link`);
+    else {
+      assert.deepEqual(item.statsLinks, [], `${where}: unlisted statistics source never linked`);
+      assert.ok(stats.text.includes('출처: 경찰청 경찰청_보이스피싱 현황 (공공데이터포털)'), `${where}: statistics source as text`);
+    }
+  } else {
+    assert.ok(!/13,323|보이스피싱 통계/u.test(item.resultText), `${where}: no police statistics`);
+  }
+  if (payload === 'OLD' || payload === 'OLD_NO_SIGNAL') {
+    // No second check ran: the page never claims one.
+    assert.equal(item.sections.find(entry => entry.id === 'sig')?.sub, '분석에서 찾은 근거예요', `${where}: older answer's signals are the first analysis`);
+    assert.ok(!sig.text.includes('다시 확인한'), `${where}: older answer claims no re-check (${sig.text})`);
+  }
+  if (payload === 'OLD') {
+    assert.equal(item.summary, null, `${where}: older Core answer has no summary`);
+    assert.equal(item.tech['2단계 확인'], undefined, `${where}: older Core answer has no 2단계 확인 row`);
+    assert.equal(item.failedMessage, null, `${where}: older answer is not a failed check`);
+    assert.deepEqual(item.doNow, BASE.do_now.map((text, index) => `${index + 1}${text}`), `${where}: older answer still renders 지금 하실 일`);
+    assert.ok(sig.text.includes(BASE.reasons[0]), `${where}: older answer keeps its reasons`);
+    assert.ok(section('unv').text.includes(BASE.unverified_items[0]), `${where}: older answer keeps unverified items`);
+    assert.ok(section('off').text.includes('비교할 공식 근거가 없었어요.'), `${where}: no official sources said plainly`);
+  }
+  if (payload === 'FAILED') {
+    assert.equal(item.headline, '지금 정보만으로는 진짜라고 확인할 수 없어요.');
+    assert.equal(item.summary, FAILED.summary, `${where}: summary sentence`);
+    assert.equal(item.failedMessage, '2단계 확인을 끝내지 못했어요. 확인되지 않은 부분이 있으니 공식 연락처로 직접 확인하세요.', `${where}: failed check said in the verdict`);
+    assert.ok(sig.text.includes('2단계 확인을 끝내지 못해 다시 확인한 위험 신호가 없어요.'), `${where}: no re-confirmed signals after a failed check`);
+    assert.deepEqual(item.sigChips, [], `${where}: no signal chips`);
+    assert.ok(section('off').text.includes('2단계 확인을 끝내지 못해 공식 근거를 대조하지 못했어요.'), `${where}: official check message`);
+    assert.equal(item.tech['2단계 확인'], '끝내지 못함', `${where}: 2단계 확인 not finished`);
+  }
+  if (payload === 'NO_SIGNAL') {
+    // Core's own sentence stays, followed by the no-guarantee sentence alone (no repeated "찾지 못했어요").
+    assert.equal(item.summary, `${NO_SIGNAL.summary} ${SAFETY}`, `${where}: no-guarantee sentence added once (${item.summary})`);
+    assert.deepEqual(item.offSources.flatMap(source => source.links), ['https://www.fsc.go.kr/'], `${where}: registry link only; lookalike stays text`);
+    assert.ok(item.offSources.some(source => source.name.includes('닮은 주소')), `${where}: lookalike shown as text`);
+  }
+  if (payload === 'OLD_NO_SIGNAL') assert.equal(item.summary, SAFETY_SENTENCE, `${where}: older answer gets the no-guarantee sentence`);
+}
+assert.equal(records.length, VIEWPORTS.length * THEMES.length * CASES.length);
+console.log(`SCAM-SHIELD-DOUBLE-CHECK-P0 PASS — ${records.length} renders (${CASES.length} Core answers × light/dark/system-dark × 390/1280), real site-core normalization, exact-host links only, checked address never linked, WCAG AA; viewport emulation, not a device run`);
