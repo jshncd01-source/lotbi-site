@@ -44,6 +44,26 @@ READY_FOR_DEPLOY=YES
 - `node scripts/asset_cache_version.mjs --check` PASS (`aset-27f4f09b0a9a`).
 - 기존 캘린더 검사기 일괄 결과는 아래 「Gate 전 검사」에 적는다.
 
+## Gate 전 검사 (로컬 Windows, 2026-10-14 23시)
+
+- 브라우저 검사기 1차(캘린더 관련 42개): 37 PASS, 5 FAIL → 아래처럼 시안 04 기준으로 고친 뒤 개별 재실행 전부 PASS.
+- 옛 디자인(날짜 창·버튼 두 개·월 합계 줄·대화 위 창)을 전제로 하던 검사기를 시안 04의 같은 약속으로 옮겼다(약속은 줄이지 않음):
+  - `validate_calendar_day_panel_two_buttons_01` — 버튼 하나(`M월 D일 일정 추가`)+사진 하나, 선택한 날은 화면 안(넓은 화면 오른쪽 카드·휴대폰 달력 아래), 오늘만 선택, 입력칸·커서 없음, 취소·저장 뒤 같은 날.
+  - `validate_calendar_modal_runtime_02` — 월 칸 3개+`+N개 더`(휴대폰 점), 일정 상세→수정/삭제·삭제 확인 1개·Escape는 맨 위 창만, 날짜 미정 칩, 설정 창 Tab 가둠.
+  - `validate_calendar_touch_monthnav_daysheet_01` — 밀어서 달 넘김(휴대폰만), 선택한 날 목록 위치, Escape 한 번은 날짜로·캘린더는 유지.
+  - `validate_calendar_expense_summary_01` — 실제만 합계·예정 따로, 보기별 기간(월·주·일정=그 달, 년=그 해), `include_planned=true`, 401/403 상태 줄, 비로그인 계산, 금액 없는 기록, 통화 분리, 대비·넘침.
+  - `validate_message_calendar_footer_editor_01` — 캘린더는 승인된 전체 화면 작업 공간(region), 닫으면 대화 그대로.
+  - 정적: `validate_calendar_compact_editor_01`(`expense_status`), `validate_calendar_editor_footer_contrast_01`(휴대폰 머리글 저장), `validate_calendar_responsive_01`·`validate_subview_back_navigation_01`·`validate_calendar_secondary_surfaces_01`(새 화면 선택자·뒤로 가기 대상 9개), `validate_conversation_calendar_auto_suggest_01`(사진 초안 예정/실제 전달).
+- 2차(수정 뒤, 캘린더·대화·지출 관련 브라우저 56개): 55 PASS. 1 FAIL `validate_chat_dark_login_kakao_share_01`는 운영 main 2047877에서도 이 PC에서 같은 실패(카카오 공유 메뉴, 캘린더와 무관).
+- 브라우저 없는 검사기 154개: 152 PASS. `validate_calendar_secondary_surfaces_01`은 갱신 후 PASS. `validate_message_share_actions_01`은 이 PC 작업본의 CRLF 줄바꿈 때문(커밋본은 LF, Linux Gate 해당 없음).
+- 검사기를 옮기다 찾은 제품 결함(고침):
+  1. 휴대폰 아래 가계부 줄이 좌우로 16px 넘쳐 내용이 옆으로 밀림(360~900px 전부) → 음수 여백 제거.
+  2. 선택한 날 목록에서 Escape를 누르면 캘린더 전체가 닫힘 → 첫 Escape는 날짜로 돌아감.
+  3. 휴대폰 가계부 줄이 합계를 못 불러와도 이유를 안 보이고 "계산하는 중"이라고 읽음 → 이유를 상태 줄로.
+  4. 지출 내역 창에 다른 통화·"이 기기 기록" 안내가 없음, 닫을 때 숨은 단추로 포커스 → 보이는 합계 단추로.
+  5. 일정 상세를 닫으면 숨은 휴대폰 목록 쪽으로 포커스 → 보이는 일정 줄로.
+  6. 금액 없이 분류만 있는 기록을 고칠 때 `지출 연결` 줄에 분류가 안 보임 → 분류 표시.
+
 ## NOT TESTED
 
 - 운영 로그인 계정의 저장·재조회·사진 인식(로그인 경로는 로컬에서 재현 불가).
