@@ -951,9 +951,9 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.equal(result.gateBeforeFaceFront.bulkPick, '사진 여러 장 선택', `${label}: the batch is the way in`);
   assert.equal(result.gateBeforeFaceFront.examples, '아래는 필수 5장의 촬영 방향을 보여 주는 가상 예시예요.', label);
   assert.deepEqual(result.speciesChoices, ['DOG', 'CAT'], `${label}: the first step must offer dog or cat before photos`);
-  assert.equal(result.registrationProgress, '반려동물 등록 2단계 / 4단계 · 사진',
+  assert.equal(result.registrationProgress, '반려동물 등록 2단계 / 4단계 · 식별 사진',
     `${label}: registration must identify the current numbered step`);
-  assert.deepEqual(result.registrationSteps.map(step => step.name), ['기본정보', '사진', '최종 확인', '등록 완료'],
+  assert.deepEqual(result.registrationSteps.map(step => step.name), ['기본정보', '식별 사진', '최종 확인', '등록 완료'],
     `${label}: registration must show the four steps in order`);
   assert.deepEqual(result.registrationSteps.map(step => step.number), ['✓', '2', '3', '4'],
     `${label}: registration steps must be numbered, with the finished step checked`);
