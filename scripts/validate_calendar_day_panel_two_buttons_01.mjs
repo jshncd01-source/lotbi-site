@@ -474,7 +474,10 @@ try {
       if (value.editorSaveReturn.selectedDate !== value.emptyDate || !value.editorSaveReturn.savedTitleVisible) fail('save must return to the same selected day with the new record visible');
 
       // ── day list content ───────────────────────────────────────────────
-      if (!/^\d+월 \d+일/.test(empty.heading)) fail(`the day list heading must name the day, got (${empty.heading})`);
+      // LIFE UX 01 names the day in full on the desk card ("10월 5일 월요일", the
+      // editor's words); the phone list under the month uses the short form.
+      const headingPattern = value.desktop ? /^\d+월 \d+일 [일월화수목금토]요일$/ : /^\d+월 \d+일 \([일월화수목금토]\)$/;
+      if (!headingPattern.test(empty.heading)) fail(`the day list heading must name the day, got (${empty.heading})`);
       if (!empty.emptySentence) fail('an empty day must say 일정이 없어요');
       if (busy.emptySentence) fail('a day with entries must not say it has none');
       if (busy.events !== 8) fail(`a day with entries must list them (got ${busy.events})`);

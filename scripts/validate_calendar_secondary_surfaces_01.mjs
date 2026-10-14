@@ -223,21 +223,23 @@ const rootEscapeSource = manager.slice(rootEscapeStart, rootEscapeEnd);
 assert.match(rootEscapeSource, /calendar-settings-(?:dialog|backdrop)[\s\S]*return/,
   'root capture must defer Escape to the open Settings top layer before day-detail handling');
 
-// The approved date interaction opens a focused popup: a right-side MODAL on
-// desktop and a dismissible bottom SHEET on touch widths. The month itself is
-// full width until the owner selects a date.
-assert.match(touchRuntime, /desktopPresentation\s*!==\s*'MODAL'[\s\S]*desktopBackdrop/,
-  'desktop runtime must assert the selected-day right overlay and its backdrop');
-assert.match(touchRuntime, /presentation\s*!==\s*'SHEET'[\s\S]*position\s*!==\s*'fixed'[\s\S]*sheet\.backdrop/,
-  'touch runtime must assert a fixed bottom sheet with a dismiss backdrop');
-assert.match(touchRuntime, /!layout\.querySelector\('\.calendar-day-panel'\)[\s\S]*!layout\.querySelector\('\[data-calendar-day-detail-backdrop\]'\)/,
-  'Month runtime must open at full width without an already-mounted date popup');
+// CALENDAR-DESIGN-04 (owner-approved 2026-10-14): a picked date is part of the
+// page -- the card beside the month on a desk, the list under it on a phone --
+// and no popup, sheet or backdrop ever covers the month.
+assert.match(touchRuntime, /!d\.isSideCard \|\| !d\.beside[\s\S]*d\.overlay/,
+  'desktop runtime must assert the selected-day card beside the month with no overlay');
+assert.match(touchRuntime, /!list\.isUnderMonth[\s\S]*list\.position === 'fixed'[\s\S]*list\.overlay/,
+  'touch runtime must assert the in-page day list under the month with no sheet');
+assert.match(touchRuntime, /overlayOpen=\(\)=>Boolean\(document\.querySelector\('\.c4-dlg-backdrop,\.calendar-day-panel,\[data-calendar-day-detail-backdrop\]/,
+  'Month runtime must open without any date popup, sheet or backdrop');
 assert.doesNotMatch(dayPanelRuntime, /toggleLabel|\[접기\]|presentation\s*!==\s*'POPOVER'/,
   'day-panel runtime must not require the retired collapse/overlay UI');
 // LIFE UX 01: the day detail names its day in full ("10월 5일 월요일"), the
 // same words as the editor's date chip.
 assert.ok(dayPanelRuntime.includes('/^\\d+월 \\d+일 [일월화수목금토]요일$/'),
   'day-panel runtime must keep the selected-date heading contract');
+assert.ok(dayPanelRuntime.includes('/^\\d+월 \\d+일 \\([일월화수목금토]\\)$/'),
+  'day-panel runtime must keep the short phone heading of design 04');
 assert.match(monthGeometry, /rows\.length\s*!==\s*3[\s\S]*more\.textContent\s*!==\s*'\+3개 더'/,
   'Month geometry must lock three mounted rows plus a visible +3개 더 overflow summary');
 assert.match(modalRuntime, /visible\s*!==\s*expectedRows[\s\S]*overflowVisible/,
