@@ -7,8 +7,8 @@
 // page, with the workspace header ← (no close mark, no dimmed backdrop). This module
 // draws inside it:
 //   ⓪ 무슨 일이 있으셨나요? — the five situations Core sends
-//   ① a situation's first screen — 눌러서 답하기 · 바로 도움받기 (and the one
-//      emergency line where it matters)
+//   ① a situation's first screen — 눌러서 답하기 · 바로 도움받기 (no
+//      emergency-number line: "누가 119·112 몰라서 롯비를 열어? 삭제해")
 //   ② one question per screen (the guide's own answers, plus 잘 모르겠어요
 //      where the guide has none; 질문 그만하고 결과 보기 any time)
 //   ③ 이렇게 하세요 — 지금 할 일 · 챙길 것 · 도움받을 곳, each opening in place
@@ -35,7 +35,6 @@ import {
   canChooseStatus,
   cardModel,
   cleanAnswers,
-  emergencyFor,
   faultPortalGuide,
   feeLine,
   fetchTroubleGuides,
@@ -53,7 +52,7 @@ import {
   telHref,
   visibleQuestions,
   visibleSteps,
-} from './site-trouble-helper-model.js?v=aset-e4c4c918b564';
+} from './site-trouble-helper-model.js?v=aset-fdd47c03ea65';
 
 const RESET_CONFIRM_MS = 6000;
 const SITUATION_ICONS = Object.freeze({
@@ -134,7 +133,12 @@ function externalLink(label, href, {className = 'trouble-button trouble-button-l
 function callLink(label, phone, {className = 'trouble-button trouble-call', ariaLabel, data} = {}) {
   const href = telHref(phone);
   if (!href) return null;
-  return el('a', {className, attrs: {href, 'aria-label': ariaLabel || label}, data: {troublePhone: phone, ...data}}, icon('phone', 22), el('span', {text: label}));
+  // The number never breaks in the middle ("02-" / "3702-8500"): it wraps as one piece.
+  const at = label.lastIndexOf(phone);
+  const text = at > 0
+    ? el('span', {}, label.slice(0, at), el('span', {className: 'trouble-phone-number', text: label.slice(at)}))
+    : el('span', {text: label});
+  return el('a', {className, attrs: {href, 'aria-label': ariaLabel || label}, data: {troublePhone: phone, ...data}}, icon('phone', 22), text);
 }
 
 // ── the page ────────────────────────────────────────────────────────────
@@ -302,21 +306,10 @@ export function mountTroubleHelper(root, {resume = false} = {}) {
       el('span', {className: 'trouble-chip', data: {troubleChip: situation.id}}, icon(SITUATION_ICONS[situation.id] || 'question', 22), el('span', {text: situation.title})));
   }
 
-  function emergencyBar(situation) {
-    const line = emergencyFor(situation.id);
-    if (!line) return null;
-    return el('section', {className: 'trouble-emergency', attrs: {'aria-label': '긴급 연락'}, data: {troubleEmergency: situation.id}},
-      el('p', {className: 'trouble-emergency-text'}, icon('alert', 26), el('span', {text: line.text})),
-      el('div', {className: 'trouble-emergency-calls'}, line.phones.map(phone => callLink(`${phone} 전화`, phone, {
-        className: 'trouble-button trouble-emergency-call', ariaLabel: `${phone}에 전화 걸기`, data: {troubleQuickCall: phone},
-      }))));
-  }
-
   // ① the first screen of a situation.
   function renderStart(situation) {
     show(
       chip(situation),
-      emergencyBar(situation),
       el('div', {className: 'trouble-head'}, heading(PAGE_COPY.startTitle), el('p', {className: 'trouble-sub', text: PAGE_COPY.startSub})),
       el('button', {className: 'trouble-tap', attrs: {type: 'button'}, data: {troubleStartAsk: ''}, on: {click: () => startAsking(situation)}},
         el('span', {className: 'trouble-tap-circle'}, icon('tap', 36)),
@@ -411,7 +404,6 @@ export function mountTroubleHelper(root, {resume = false} = {}) {
     const cards = cardModel(guides, situation, record.answers);
     show(
       chip(situation),
-      emergencyBar(situation),
       el('div', {className: 'trouble-head'}, heading(PAGE_COPY.resultTitle)),
       el('div', {className: 'trouble-cards'},
         resultCard('todo', 'bolt', PAGE_COPY.todo, [
@@ -795,7 +787,7 @@ export function mountTroubleHelper(root, {resume = false} = {}) {
   }
 
   async function loadKakaoShare() {
-    try { return await import('./site-kakao-share.js?v=aset-e4c4c918b564'); } catch { return null; }
+    try { return await import('./site-kakao-share.js?v=aset-fdd47c03ea65'); } catch { return null; }
   }
   // Opening the 정리표 readies the KakaoTalk SDK, so the tap on 카카오로 보내기
   // reaches Kakao within the same gesture (see site-kakao-share.js).

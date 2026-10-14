@@ -9,10 +9,10 @@
 //   public GET /v2/trouble-helper/guides (credentials omit, no headers); the
 //   module loads on first use only (never at boot)
 // * ⓪ 무슨 일이 있으셨나요? — the five situations in Core's order with the notice
-// * ① a situation's first screen: the emergency line where the brief asks for
-//   one (자동차 사고 112·119, 중고거래 사기 112, 층간소음 112 — calls the
-//   reader presses), 눌러서 답하기 and 바로 도움받기 on the first screen; no
-//   photo/text/voice input, nothing that does not exist
+// * ① a situation's first screen: 눌러서 답하기 and 바로 도움받기 on the first
+//   screen; no emergency-number line on top (owner: "누가 119·112 몰라서
+//   롯비를 열어? 삭제해" — the guide's own 119/112 steps keep their calls inside
+//   지금 할 일); no photo/text/voice input, nothing that does not exist
 // * ② one question per screen, the guide's answers plus 잘 모르겠어요 where the
 //   guide has none (a skip: nothing hidden, never asked again), 질문 그만하고
 //   결과 보기, the answers given with 바꾸기; no "n/m" step counter
@@ -119,11 +119,9 @@ await check('the page copy: required sentences as the brief writes them', async 
   assert.deepEqual([...names.PAGE_VIEWS], ['start', 'ask', 'result', 'summary']);
   assert.equal(names.DISCLAIMER, 'LOTBI의 결과는 참고용이며 법률·보험·수리비의 최종 판단이 아닙니다.');
   assert.equal(names.NO_AUTO_SEND, '신고·전화·접수는 직접 하셔야 해요. LOTBI가 대신 보내지 않아요.');
-  assert.deepEqual(JSON.parse(JSON.stringify(names.EMERGENCY_LINES)), {
-    CAR_ACCIDENT: {text: '사람이 다쳤다면 먼저 112·119에 연락하세요.', phones: ['112', '119']},
-    USED_TRADE_FRAUD: {text: '돈을 보낸 직후라면 은행에 먼저 연락하세요.', phones: ['112']},
-    FLOOR_NOISE: {text: '위협을 느끼면 직접 만나지 말고 112에 연락하세요.', phones: ['112']},
-  });
+  assert.equal('EMERGENCY_LINES' in names, false, 'no emergency-number line (owner: 삭제해)');
+  assert.equal('emergencyFor' in names, false);
+  for (const source of [ui, modelSource]) assert.doesNotMatch(source, /에 연락하세요|data-trouble-emergency|trouble-emergency/u);
   for (const key of ['hubTitle', 'startTitle']) assert.equal(names.PAGE_COPY[key], '무슨 일이 있으셨나요?');
   assert.equal(names.PAGE_COPY.tapLabel, '눌러서 답하기');
   assert.equal(names.PAGE_COPY.direct, '바로 도움받기');
@@ -290,9 +288,6 @@ await check('page rules: one question at a time, 잘 모르겠어요 skips, save
   assert.equal(model.cardModel(guides, situation('FLOOR_NOISE'), {}).help.main.phone, '1661-2642');
   assert.equal(model.cardModel(guides, other, {}).help.main.phone, '132');
   assert.equal(model.cardModel(guides, fraud, {}).help.main.id, 'POLICE_182');
-  assert.equal(model.emergencyFor('WAGE_ARREARS'), null);
-  assert.equal(model.emergencyFor('OTHER_LEGAL'), null);
-  for (const id of ['CAR_ACCIDENT', 'USED_TRADE_FRAUD', 'FLOOR_NOISE']) assert.ok(model.emergencyFor(id).phones.every(phone => model.telHref(phone)));
   assert.doesNotMatch(JSON.stringify(cards), RATIO_RE);
 });
 
@@ -630,7 +625,7 @@ async function runFlow(browser, origin, dir, testCase) {
         tap: v.querySelector('[data-trouble-start-ask]')?.textContent || '',
         direct: v.querySelector('[data-trouble-direct]')?.textContent || '',
         inputs: [...v.querySelectorAll('input, textarea, [type=file]')].length,
-        first: __th.firstScreen(['[data-trouble-emergency]', '[data-trouble-start-ask]', '[data-trouble-direct]']),
+        first: __th.firstScreen(['[data-trouble-start-ask]', '[data-trouble-direct]']),
         focus: document.activeElement?.matches('[data-trouble-heading]') || false,
         backControl: Boolean(v.querySelector('[data-subview-back]')),
         hash: location.hash, measure: __th.measure(),
@@ -1012,10 +1007,9 @@ try {
       assertElderly(r.hub.measure, `${label} hub`, testCase);
       assertReadable(r.hubThemes, `${label} hub`);
     });
-    await check(`${label}: ① 자동차 사고 first screen — emergency line [112][119], 눌러서 답하기, 바로 도움받기 on the first screen, no other input`, () => {
+    await check(`${label}: ① 자동차 사고 first screen — 눌러서 답하기, 바로 도움받기 on the first screen, no emergency line, no other input`, () => {
       assert.equal(r.start.chip, '자동차 사고');
-      assert.deepEqual(r.start.emergency, {text: '사람이 다쳤다면 먼저 112·119에 연락하세요.',
-        calls: [['tel:112', '112 전화', '112에 전화 걸기'], ['tel:119', '119 전화', '119에 전화 걸기']]});
+      assert.equal(r.start.emergency, null, 'no emergency-number line (owner: 삭제해)');
       assert.equal(r.start.title, '무슨 일이 있으셨나요?');
       assert.equal(r.start.tap, '눌러서 답하기질문에 버튼만 누르면 돼요');
       assert.equal(r.start.direct, '바로 도움받기');
@@ -1023,7 +1017,7 @@ try {
       assert.equal(r.start.focus, true);
       assert.equal(r.start.backControl, true);
       assert.equal(r.start.hash, '#trouble');
-      assertInside(r.start.first, ['[data-trouble-emergency]', '[data-trouble-start-ask]', ...(testCase.height >= 800 ? ['[data-trouble-direct]'] : [])], `${label} start`);
+      assertInside(r.start.first, ['[data-trouble-start-ask]', '[data-trouble-direct]'], `${label} start`);
       assertElderly(r.start.measure, `${label} start`, testCase);
       assertReadable(r.startThemes, `${label} start`);
     });
@@ -1049,7 +1043,7 @@ try {
       assert.deepEqual(r.result.cards, ['todo', 'keep', 'help']);
       assert.equal(r.result.title, '이렇게 하세요');
       assert.equal(r.result.notice, FIXTURE.situations[0].notice);
-      assert.equal(r.result.emergency, '사람이 다쳤다면 먼저 112·119에 연락하세요.');
+      assert.equal(r.result.emergency, '', 'no emergency-number line');
       assert.deepEqual([r.result.todo.title, r.result.keep.title, r.result.help.title], ['지금 할 일', '챙길 것', '도움받을 곳']);
       assert.equal(r.result.todo.line, '더 큰 사고 막기비상등을 켜고 삼각대나 불꽃신호기를 세우세요.', '없어요: 119 is not the lead');
       assert.equal(r.result.keep.line, '블랙박스 원본 영상 등 5가지지우지 말고 모아 두세요.');
@@ -1116,9 +1110,9 @@ try {
       assert.equal(r.close.workspace, false);
       assert.ok(r.close.current.every(value => value === ''));
     });
-    await check(`${label}: 중고거래 사기 · 그 밖의 법률 고민 · 층간소음 — their own lines, 잘 모르겠어요, goto, 사기·피싱 확인 hand-over`, () => {
-      assert.equal(r.fraud.emergency, '돈을 보낸 직후라면 은행에 먼저 연락하세요.');
-      assert.deepEqual(r.fraud.calls, ['tel:112']);
+    await check(`${label}: 중고거래 사기 · 그 밖의 법률 고민 · 층간소음 — no emergency line, 잘 모르겠어요, goto, 사기·피싱 확인 hand-over`, () => {
+      assert.equal(r.fraud.emergency, '');
+      assert.deepEqual(r.fraud.calls, []);
       assert.equal(r.fraud.todoTitle, '돈을 더 보내지 마세요');
       assert.equal(r.fraud.main, 'tel:182');
       assert.equal(r.fraud.toldEmpty, true, 'nothing answered: 눌러서 답하기 offered');
@@ -1133,7 +1127,7 @@ try {
       assert.equal(r.other.gotoChip, '월급 못 받음');
       assert.equal(r.other.wageEmergency, false);
       assertElderly(r.other.measure, `${label} wage start`, testCase);
-      assert.deepEqual(r.noise, {emergency: '위협을 느끼면 직접 만나지 말고 112에 연락하세요.', calls: ['tel:112']});
+      assert.deepEqual(r.noise, {emergency: '', calls: []});
       assert.ok(r.troubleRequests.length >= 1);
       for (const [requestPath, credentials, authorization] of r.troubleRequests) {
         assert.ok(PUBLIC_PATHS.includes(requestPath), requestPath);

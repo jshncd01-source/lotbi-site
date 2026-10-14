@@ -15,7 +15,7 @@
 //   instead of being shown as a fact;
 // * a filed form is not 접수 until there is a 접수번호: 'SUBMITTED' can be
 //   chosen only once the situation's receipt_field_id holds one.
-import {CORE_ORIGIN} from './site-core.js?v=aset-e4c4c918b564';
+import {CORE_ORIGIN} from './site-core.js?v=aset-fdd47c03ea65';
 
 export const TROUBLE_HELPER_PATH = '/v2/trouble-helper/guides';
 export const TROUBLE_HELPER_STORAGE_KEY = 'lotbi.site.ux.v1.trouble-helper';
@@ -71,13 +71,9 @@ export const PAGE_COPY = Object.freeze({
 // Required on the page as written (owner brief §11).
 export const DISCLAIMER = 'LOTBI의 결과는 참고용이며 법률·보험·수리비의 최종 판단이 아닙니다.';
 export const NO_AUTO_SEND = '신고·전화·접수는 직접 하셔야 해요. LOTBI가 대신 보내지 않아요.';
-// One short line on top only where it matters (owner brief §8). The reader
-// presses the call; nothing is dialled for them.
-export const EMERGENCY_LINES = Object.freeze({
-  CAR_ACCIDENT: Object.freeze({text: '사람이 다쳤다면 먼저 112·119에 연락하세요.', phones: Object.freeze(['112', '119'])}),
-  USED_TRADE_FRAUD: Object.freeze({text: '돈을 보낸 직후라면 은행에 먼저 연락하세요.', phones: Object.freeze(['112'])}),
-  FLOOR_NOISE: Object.freeze({text: '위협을 느끼면 직접 만나지 말고 112에 연락하세요.', phones: Object.freeze(['112'])}),
-});
+// No emergency-number line on top of the page (owner 2026-10-14: "누가 119·112
+// 몰라서 롯비를 열어? 삭제해"). The guide's own steps (e.g. 다친 사람이 있으면
+// 119) keep their call buttons inside 지금 할 일.
 // The only sentences not taken from Core: what to do when Core cannot be read.
 export const FALLBACK_MESSAGE = '안내를 불러오지 못했어요. 급하면 112·119, 법률 고민은 132에 전화해 주세요.';
 export const FALLBACK_CALLS = Object.freeze([
@@ -515,10 +511,6 @@ export function normalizeRecord(situation, raw, today = localDay()) {
 }
 
 // ── TROUBLE-HELPER-PAGE-01 rules ─────────────────────────────────────────
-export function emergencyFor(situationId) {
-  return EMERGENCY_LINES[situationId] || null;
-}
-
 // The guide already offers "잘 모르겠어요" for some questions; the page adds one
 // only where it does not, so the reader is never stuck on a question.
 export function hasUnknownOption(question) {
@@ -544,6 +536,7 @@ export function cardModel(guides, situation, answers = {}) {
   const lead = steps.find(step => step.urgent) || steps[0] || null;
   const evidence = situation.evidence.map(entry => entry.label);
   const channels = situation.channelIds.map(id => guides?.channels?.get(id)).filter(Boolean);
+  // 112 · 119 stay with the steps that name them; 도움받을 곳 leads with the rest.
   const helpers = channels.filter(channel => !QUICK_CALL_PHONES.includes(channel.phone));
   const main = helpers.find(channel => channel.phone || channel.onlineUrl) || null;
   return {

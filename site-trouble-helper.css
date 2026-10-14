@@ -2,8 +2,8 @@
    Owner-approved design 2026-10-14: a workspace page, not a dialog; large
    type for older readers (body 20px, titles 30–36px), main buttons 64–72px,
    every target ≥ 48px, contrast ≥ 4.5:1. Surfaces, text and borders follow the
-   site theme tokens; the page's own accents (blue action, orange emergency
-   line, the three card colours) are set here for light and dark. */
+   site theme tokens; the page's own accents (blue action, orange 급해요
+   band, the three card colours) are set here for light and dark. */
 
 .consumer-workspace[data-workspace='trouble'] {
   --th-bg: #f3f6fb;
@@ -20,7 +20,6 @@
   --th-warn-bg: #fff2df;
   --th-warn-line: #f2bf84;
   --th-warn-text: #6b2d00;
-  --th-warn-icon: #c2410c;
   --th-ok-bg: #e1f3ea;
   --th-ok-text: #0b6040;
   --th-c1: #1557d6;
@@ -47,7 +46,6 @@ html[data-site-theme-bootstrap='dark'] body:not([data-site-theme]) .consumer-wor
   --th-warn-bg: #3a2610;
   --th-warn-line: #7a4f1d;
   --th-warn-text: #ffd8ac;
-  --th-warn-icon: #ff9a4d;
   --th-ok-bg: #143a2d;
   --th-ok-text: #9ee8ca;
   --th-c1: #b3cdff;
@@ -74,7 +72,6 @@ html[data-site-theme-bootstrap='dark'] body:not([data-site-theme]) .consumer-wor
     --th-warn-bg: #3a2610;
     --th-warn-line: #7a4f1d;
     --th-warn-text: #ffd8ac;
-    --th-warn-icon: #ff9a4d;
     --th-ok-bg: #143a2d;
     --th-ok-text: #9ee8ca;
     --th-c1: #b3cdff;
@@ -144,24 +141,13 @@ body.chat-home-page .consumer-workspace[data-workspace='trouble'] > .site-modal 
 .trouble-resume { color: var(--th-primary-text); font-size: 18px; font-weight: 800; }
 .trouble-cat-chev { color: var(--th-ink-2); }
 
-/* chip, emergency line */
+/* chip */
 .trouble-chip-row { display: flex; align-items: center; min-height: 48px; }
 .trouble-chip {
   display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px 0 12px; border: 1.5px solid var(--th-line);
   border-radius: 999px; background: var(--th-card); font-size: 18px; font-weight: 800;
 }
 .trouble-chip .trouble-icon { color: var(--th-primary-text); }
-.trouble-emergency {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px 12px 16px; border: 1.5px solid var(--th-warn-line);
-  border-radius: 16px; background: var(--th-warn-bg); color: var(--th-warn-text);
-}
-.trouble-emergency-text { display: flex; align-items: flex-start; gap: 10px; flex: 1 1 260px; margin: 0; font-size: 19px; font-weight: 800; line-height: 1.45; }
-.trouble-emergency-text .trouble-icon { color: var(--th-warn-icon); margin-top: 1px; }
-.trouble-emergency-calls { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
-.trouble-page .trouble-emergency-call {
-  min-height: 52px; padding: 0 16px; border: 1.5px solid var(--th-warn-line); background: var(--th-card); color: var(--th-warn-text); font-size: 19px;
-}
-
 /* buttons */
 .trouble-button {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; min-width: 48px; padding: 0 18px;
@@ -179,6 +165,7 @@ body.chat-home-page .consumer-workspace[data-workspace='trouble'] > .site-modal 
 }
 .trouble-link { display: inline-flex; align-items: center; min-height: 48px; min-width: 48px; justify-content: center; color: var(--th-primary-text); font-size: 19px; font-weight: 700; text-underline-offset: 4px; }
 .trouble-link-inline { display: inline-flex; }
+.trouble-phone-number { white-space: nowrap; }
 
 /* ① first screen */
 .trouble-tap {
