@@ -17,8 +17,9 @@
 // The ten tiles below the panel are examples; this panel is the only way in.
 import {
   addPersonIdentityPhoto, personErrorMessage, personIdentityPhotoErrorMessage,
-} from './site-person.js?v=aset-373a2a1768a6';
-import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-373a2a1768a6';
+} from './site-person.js?v=aset-be966f90764b';
+import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-be966f90764b';
+import {fgIcon} from './site-family-guardian-ui.js?v=aset-be966f90764b';
 
 export const PERSON_BULK_MAX_FILES = 10;
 export const PERSON_BULK_WARNING = '같은 사람의 사진만 선택해 주세요. 다른 사람이나 동물·사물 사진은 등록되지 않을 수 있어요.';
@@ -346,10 +347,13 @@ export function createPersonBulkPhotos({
     angles.dataset.personBulkAngles = '';
     const note = el('p', 'person-bulk-note', PERSON_BULK_OPTIONAL_GUIDE);
     const help = el('details', 'person-bulk-help');
-    help.append(el('summary', '', '사진 등록 안내'), angles, warning, note);
+    // FAMILY-GUARDIAN-DESIGN-UNIFY-01: the one rule that decides whether a photo is kept
+    // ("same person only") sits right under the button; the longer guide stays folded.
+    help.append(el('summary', '', '사진 등록 안내'), angles, note);
     const input = fileInput(true, 'personBulkInput');
     const pick = actionButton('갤러리에서 여러 장 선택', () => { if (guard()) input.click(); }, true);
     pick.classList.add('person-bulk-pick');
+    pick.prepend(fgIcon('image'));
     pick.dataset.personBulkPick = '';
     input.addEventListener('change', () => {
       const files = Array.from(input.files || []);
@@ -374,7 +378,7 @@ export function createPersonBulkPhotos({
     const noticeBox = el('div', 'person-bulk-notices');
     const result = el('div', 'person-bulk-result');
     result.dataset.personBulkResult = '';
-    section.append(title, pick, input, help, status, bar, alert, noticeBox, result);
+    section.append(title, pick, warning, input, help, status, bar, alert, noticeBox, result);
     view = {section, status, bar, fill, alert, noticeBox, result, pick};
     paint();
     if (!running) {

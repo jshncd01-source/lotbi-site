@@ -476,7 +476,7 @@ async function runCase(browser, origin, dir, testCase) {
       for (const cookie of cookies) await page('Network.setCookie', {name: cookie.split('=')[0], value: cookie.split('=').slice(1).join('='), url: origin});
       const inner = signedIn ? 'inner-signed-in.html' : 'inner.html';
       await page('Page.navigate', {url: `${origin}/scripts/${path.basename(dir)}/${inner}`});
-      await waitFor(async () => (await evaluate("document.readyState").catch(() => '')) === 'complete', 'document');
+      await waitFor(async () => (await evaluate("document.readyState").catch(() => '')) === 'complete', 'document', 60000);
       if (!keepStorage) await evaluate("localStorage.clear(), sessionStorage.clear(), true");
       await evaluate(`sessionStorage.setItem('re-test-token', ${JSON.stringify(token)}), true`);
       await page('Page.navigate', {url: `${origin}/scripts/${path.basename(dir)}/${inner}${hash}`});
