@@ -524,14 +524,17 @@ try {
       fail(`picked date must overlay the unchanged month at its right/bottom edge, got ${JSON.stringify(value.dayOverlay)}`);
     }
     const monthMode = value.summaryModes.find(mode=>mode.label==='월');
+    const weekMode = value.summaryModes.find(mode=>mode.label==='주');
     const yearMode = value.summaryModes.find(mode=>mode.label==='년');
+    const scheduleMode = value.summaryModes.find(mode=>mode.label==='일정');
     if (value.summaryModes.length!==4 || value.summaryModes.some(mode=>!mode.view)
       || !monthMode?.shown || !monthMode.outsideDayPanel || monthMode.amountLabel!=='9월 생활비 합계'
+      || !weekMode?.shown || !weekMode.outsideDayPanel || weekMode.amountLabel!=='9월 생활비 합계'
       || !yearMode?.shown || !yearMode.outsideDayPanel || yearMode.amountLabel!=='2026년 생활비 합계') {
-      fail(`Month and Year must each keep one real-data total below the calendar, got ${JSON.stringify(value.summaryModes)}`);
+      fail(`Week, Month, and Year must each keep one real-data total in their calendar chrome, got ${JSON.stringify(value.summaryModes)}`);
     }
-    if (value.summaryModes.some(mode=>!['월','년'].includes(mode.label) && mode.shown)) {
-      fail(`Week and Schedule must not duplicate period totals, got ${JSON.stringify(value.summaryModes)}`);
+    if (scheduleMode?.shown) {
+      fail(`Schedule must not duplicate a period total, got ${JSON.stringify(value.summaryModes)}`);
     }
 
     // One quiet line.
@@ -572,13 +575,15 @@ try {
       if (!(c.label >= 4.5) || !(c.amount >= 4.5)) fail(`${theme} line text must hold WCAG AA 4.5:1, got ${JSON.stringify(c)}`);
     }
 
-    // Month reads the civil month; Year reads the civil year. Returning to
-    // Month deliberately refreshes once, so no stale annual total survives.
-    if (value.expenseCalls.length !== 3) fail(`expected month/year/month expense reads, got ${value.expenseCalls.length}`);
+    // Month and Week both read the selected civil month; Year reads the civil
+    // year. Returning to Month deliberately refreshes once, so no stale annual
+    // total survives.
+    if (value.expenseCalls.length !== 4) fail(`expected month/week/year/month expense reads, got ${value.expenseCalls.length}`);
     if (!value.expenseCalls[0].includes('start=2026-09-01') || !value.expenseCalls[0].includes('end=2026-09-30')
-      || !value.expenseCalls[1].includes('start=2026-01-01') || !value.expenseCalls[1].includes('end=2026-12-31')
-      || !value.expenseCalls[2].includes('start=2026-09-01') || !value.expenseCalls[2].includes('end=2026-09-30')) {
-      fail(`expense windows must follow month/year/month exactly, got ${JSON.stringify(value.expenseCalls)}`);
+      || !value.expenseCalls[1].includes('start=2026-09-01') || !value.expenseCalls[1].includes('end=2026-09-30')
+      || !value.expenseCalls[2].includes('start=2026-01-01') || !value.expenseCalls[2].includes('end=2026-12-31')
+      || !value.expenseCalls[3].includes('start=2026-09-01') || !value.expenseCalls[3].includes('end=2026-09-30')) {
+      fail(`expense windows must follow month/week/year/month exactly, got ${JSON.stringify(value.expenseCalls)}`);
     }
 
     // The breakdown.

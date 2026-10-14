@@ -87,10 +87,11 @@ try{
   mountLifeCalendarManager({root,sessionToken:'',timezone:'Asia/Seoul',now:()=>new Date('2026-10-11T12:00:00+09:00'),fetchImpl,guestRepository:repo,weatherLocation:{label:'서울',latitude:37.5665,longitude:126.978},settingsStorage:localStorage});
   await wait(()=>root.querySelector('.calendar-month-grid'),'month');await wait(()=>root.getAttribute('aria-busy')!=='true','idle');await sleep(250);
   if(view==='detail'){root.querySelector('[data-calendar-date-trigger="2026-10-11"]')?.click();await wait(()=>root.querySelector('.calendar-day-panel:not([hidden])'),'detail')}
+  if(view==='week'){root.querySelector('[data-calendar-mode="week"]')?.click();await wait(()=>root.dataset.calendarManagerView==='week','week');await wait(()=>root.querySelectorAll('[data-calendar-fixed-expense="week"] .calendar-amount-category').length===6,'week expense')}
   if(view==='year'){root.querySelector('[data-calendar-mode="year"]')?.click();await wait(()=>root.dataset.calendarManagerView==='year','year');await wait(()=>root.getAttribute('aria-busy')!=='true','year idle')}
   if(view==='add'){document.querySelector('.calendar-primary-add-button')?.click();await wait(()=>root.querySelector('.calendar-editor-dialog'),'editor')}
   if(view==='totals'){document.querySelector('.consumer-workspace').scrollTop=10000;await sleep(100)}
-  await sleep(400);result.textContent=JSON.stringify({ok:true,view,empty,theme:document.body.dataset.siteTheme,width:innerWidth,height:innerHeight,overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth});
+  await sleep(400);const fixedExpense=root.querySelector('[data-calendar-fixed-expense="week"]');const fixedExpenseBox=fixedExpense?.getBoundingClientRect();result.textContent=JSON.stringify({ok:true,view,empty,theme:document.body.dataset.siteTheme,width:innerWidth,height:innerHeight,overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,weekExpense:view==='week'?{visible:Boolean(fixedExpense),position:fixedExpense?getComputedStyle(fixedExpense.closest('.calendar-amount-slot')).position:'',inside:Boolean(fixedExpenseBox&&fixedExpenseBox.top>=0&&fixedExpenseBox.bottom<=innerHeight+1),categories:fixedExpense?.querySelectorAll('.calendar-amount-category').length||0}:null});
 }catch(error){result.textContent=JSON.stringify({ok:false,error:String(error?.stack||error)})}
 </script></body></html>`;
 
@@ -131,10 +132,10 @@ try {
   await new Promise(resolve => { socket.onopen = resolve; });
   await send('Page.enable'); await send('Runtime.enable');
   const cases = [
-    ['pc-light-month',1280,900,false,'light','month',false],['pc-light-detail',1280,900,false,'light','detail',false],['pc-light-year',1280,900,false,'light','year',false],['pc-light-add',1280,900,false,'light','add',false],['pc-light-totals',1280,900,false,'light','totals',false],
-    ['pc-dark-month',1280,900,false,'dark','month',false],['pc-dark-empty',1280,900,false,'dark','month',true],['pc-dark-empty-detail',1280,900,false,'dark','detail',true],
-    ['mobile-light-month',360,780,true,'light','month',false],['mobile-light-detail',360,780,true,'light','detail',false],['mobile-light-year',360,780,true,'light','year',false],['mobile-light-add',360,780,true,'light','add',false],['mobile-light-totals',360,780,true,'light','totals',false],
-    ['mobile-dark-month',360,780,true,'dark','month',false],['mobile-dark-empty',360,780,true,'dark','month',true],['mobile-dark-empty-detail',360,780,true,'dark','detail',true],
+    ['pc-light-month',1280,900,false,'light','month',false],['pc-light-week',1280,900,false,'light','week',false],['pc-light-detail',1280,900,false,'light','detail',false],['pc-light-year',1280,900,false,'light','year',false],['pc-light-add',1280,900,false,'light','add',false],['pc-light-totals',1280,900,false,'light','totals',false],
+    ['pc-dark-month',1280,900,false,'dark','month',false],['pc-dark-week',1280,900,false,'dark','week',false],['pc-dark-empty',1280,900,false,'dark','month',true],['pc-dark-empty-detail',1280,900,false,'dark','detail',true],
+    ['mobile-light-month',360,780,true,'light','month',false],['mobile-light-week',360,780,true,'light','week',false],['mobile-light-detail',360,780,true,'light','detail',false],['mobile-light-year',360,780,true,'light','year',false],['mobile-light-add',360,780,true,'light','add',false],['mobile-light-totals',360,780,true,'light','totals',false],
+    ['mobile-dark-month',360,780,true,'dark','month',false],['mobile-dark-week',360,780,true,'dark','week',false],['mobile-dark-empty',360,780,true,'dark','month',true],['mobile-dark-empty-detail',360,780,true,'dark','detail',true],
   ];
   for (const [name,width,height,mobile,theme,view,empty] of cases) {
     await send('Page.bringToFront');
@@ -147,7 +148,7 @@ try {
       const debug=await send('Runtime.evaluate',{returnByValue:true,expression:"JSON.stringify({href:location.href,ready:document.readyState,result:document.getElementById('shot-result')?.textContent,body:document.body?.className})"});
       throw new Error(`${name}: fixture stayed pending ${debug.result.value}`);
     }
-    const parsed=JSON.parse(value);if(!parsed.ok)throw new Error(`${name}: ${parsed.error}`);if(parsed.overflow>1)throw new Error(`${name}: horizontal overflow ${parsed.overflow}`);
+    const parsed=JSON.parse(value);if(!parsed.ok)throw new Error(`${name}: ${parsed.error}`);if(parsed.overflow>1)throw new Error(`${name}: horizontal overflow ${parsed.overflow}`);if(view==='week'&&(!parsed.weekExpense?.visible||parsed.weekExpense.position!=='fixed'||!parsed.weekExpense.inside||parsed.weekExpense.categories!==6))throw new Error(`${name}: fixed expense summary ${JSON.stringify(parsed.weekExpense)}`);
     const shot=await send('Page.captureScreenshot',{format:'png'});const target=path.join(OUT,`${name}.png`);fs.writeFileSync(target,Buffer.from(shot.data,'base64'));console.log(name,JSON.stringify(parsed),'->',target);
   }
   socket.close();

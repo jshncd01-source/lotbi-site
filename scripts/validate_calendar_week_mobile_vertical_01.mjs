@@ -13,7 +13,7 @@
 //   - weather and the public holiday of the picked day stay visible
 //   - 이전/다음 주 and 오늘 keep working; 오늘 stays in the phone Week
 //   - + 기록 adds to the picked day, a card opens the editor, 삭제 removes it
-//   - the month's amount total is shown in Month only
+//   - the month's amount total is fixed at the bottom of Week
 //   - 320-412px: nothing clipped, overlapping or scrolling the page sideways,
 //     in Light and Dark
 //   - a desk keeps the seven-day hour grid (and 오늘 still opens the day view)
@@ -118,11 +118,33 @@ try {
     timezone: 'Asia/Seoul', now: new Date('2026-09-21T01:00:00Z'),
   });
   await wait(() => root.querySelector('.calendar-week-agenda'), 'week mounted');
+  await wait(() => root.querySelectorAll('[data-calendar-fixed-expense="week"] .calendar-amount-category').length === 6, 'week expense settled');
   const result = {ok: true, theme, viewport: {width: innerWidth, height: innerHeight}};
   const section = () => root.querySelector('.calendar-week-agenda');
   result.layout = section().dataset.weekLayout;
   const amountSlot = root.querySelector('.calendar-amount-slot');
-  result.weekAmountHidden = Boolean(amountSlot?.hidden) && !amountSlot?.querySelector('[data-calendar-amount-summary]');
+  const fixedExpense = amountSlot?.querySelector('[data-calendar-fixed-expense="week"]');
+  const fixedExpenseBox = fixedExpense?.getBoundingClientRect();
+  result.weekExpense = {
+    visible: Boolean(fixedExpense) && !amountSlot?.hidden,
+    total: fixedExpense?.querySelector('.calendar-amount-line-amount')?.textContent || '',
+    categories: fixedExpense?.querySelectorAll('.calendar-amount-category').length || 0,
+    position: amountSlot ? getComputedStyle(amountSlot).position : '',
+    insideViewport: Boolean(fixedExpenseBox) && fixedExpenseBox.top >= 0 && fixedExpenseBox.bottom <= innerHeight + 1,
+    box: fixedExpenseBox ? {top: fixedExpenseBox.top, bottom: fixedExpenseBox.bottom, height: fixedExpenseBox.height} : null,
+    slotBox: amountSlot ? (() => { const box = amountSlot.getBoundingClientRect(); return {top: box.top, bottom: box.bottom, height: box.height}; })() : null,
+    styles: fixedExpense ? (() => {
+      const card = getComputedStyle(fixedExpense);
+      const imageButton = fixedExpense.querySelector('.calendar-amount-image-button');
+      const categories = fixedExpense.querySelector('.calendar-amount-categories');
+      return {
+        padding: card.padding,
+        imageMinHeight: imageButton ? getComputedStyle(imageButton).minHeight : '',
+        categoryMarginTop: categories ? getComputedStyle(categories).marginTop : '',
+        categoryPaddingTop: categories ? getComputedStyle(categories).paddingTop : '',
+      };
+    })() : null,
+  };
 
   if (result.layout === 'timegrid') {
     // The desk: unchanged seven-column hour grid.
@@ -323,7 +345,9 @@ try {
     result.agenda = {amountHidden: root.querySelector('.calendar-amount-slot').hidden, listed: root.textContent.includes('점심')};
     root.querySelector('.calendar-mode-tab[data-calendar-mode="week"]').click();
     await wait(() => root.querySelector('.calendar-week-vertical'), 'week again');
-    result.weekAgain = {layout: section().dataset.weekLayout, amountHidden: root.querySelector('.calendar-amount-slot').hidden};
+    result.weekAgain = {layout: section().dataset.weekLayout,
+      amountVisible: !root.querySelector('.calendar-amount-slot').hidden
+        && Boolean(root.querySelector('[data-calendar-fixed-expense="week"]'))};
     out.textContent = JSON.stringify(result);
   }
 } catch (e) {
@@ -415,11 +439,14 @@ function checkPhone(v) {
   if (v.nextWeek.selected !== '2026-09-30' || !v.nextWeek.title.includes('9/27') || !same(v.nextWeek.dots, [0, 0, 1, 0, 0, 0, 0])) fail('다음 주 must carry the picked weekday and its records');
   if (v.previousWeekSelected !== '2026-09-23') fail('이전 주 must come back to the same weekday');
   if (v.today.view !== 'week' || v.today.layout !== 'vertical' || v.today.first !== '2026-09-20') fail('오늘 must bring today\'s week into the phone Week');
-  if (!v.weekAmountHidden) fail('the month total must not show in Week');
+  if (!v.weekExpense.visible || v.weekExpense.total !== '12,000원' || v.weekExpense.categories !== 6
+    || v.weekExpense.position !== 'fixed' || !v.weekExpense.insideViewport) {
+    fail('the six-category month total must stay fixed and visible at the bottom of Week');
+  }
   if (!v.month.titleWhole) fail('the month title must not be cut');
   if (v.month.cells < 35 || !v.month.slotVisible || v.month.label !== '9월 생활비 합계' || v.month.total !== '12,000원') fail('Month must keep its grid and the month total');
   if (!v.agenda.amountHidden || !v.agenda.listed) fail('the list view must stay as it was');
-  if (v.weekAgain.layout !== 'vertical' || !v.weekAgain.amountHidden) fail('coming back to Week must show the phone Week again');
+  if (v.weekAgain.layout !== 'vertical' || !v.weekAgain.amountVisible) fail('coming back to Week must restore its fixed expense summary');
 }
 
 function checkDesk(v) {
@@ -428,7 +455,10 @@ function checkDesk(v) {
   if (v.layout !== 'timegrid') fail(`the desk Week must keep the hour grid, got "${v.layout}"`);
   if (v.desk.columns !== 7 || !v.desk.sameRow || !v.desk.leftToRight || v.desk.railCount !== 0 || v.desk.hourLabels !== 24) fail('the desk Week must stay seven date columns over a 24-hour axis');
   if (v.desk.gridOverflow > 1) fail('the desk Week must fit without sideways scroll');
-  if (!v.weekAmountHidden) fail('the month total must not show in Week');
+  if (!v.weekExpense.visible || v.weekExpense.total !== '12,000원' || v.weekExpense.categories !== 6
+    || v.weekExpense.position !== 'relative' || !v.weekExpense.insideViewport) {
+    fail('the desk Week must keep the six-category month total below the scrolling week');
+  }
   if (!v.desk.todayKeepsWeek) fail('오늘 on a desk must return to this week without changing the chosen view');
 }
 

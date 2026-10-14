@@ -3304,9 +3304,69 @@ body[data-site-theme="dark"] .calendar-day-empty { background: #171c25; }
     height: auto;
     max-height: min(620px, calc(100dvh - 180px));
   }
+  .calendar-product-shell[data-calendar-mode='week'][data-amount-visible='true'] > .calendar-viewport {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .calendar-product-shell[data-calendar-mode='week'] .calendar-week-agenda,
+  .calendar-product-shell[data-calendar-mode='week'] .calendar-week-grid {
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+  }
+  .consumer-workspace[data-workspace='calendar'] .calendar-product-shell[data-calendar-mode='week'] > .calendar-viewport {
+    padding-bottom: 190px;
+  }
+  .consumer-workspace[data-workspace='calendar'] .calendar-product-shell[data-calendar-mode='week'] > .calendar-amount-slot {
+    position: fixed;
+    right: 24px;
+    bottom: 16px;
+    left: 244px;
+    max-height: 176px;
+    overflow: auto;
+    padding: 6px;
+    border: 1px solid var(--lotbi-calendar-grid-line);
+    border-radius: 16px;
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, .18);
+  }
 }
 .consumer-workspace[data-workspace='calendar'] .calendar-product-shell {
   gap: 14px;
+}
+.calendar-product-shell[data-calendar-mode='week'] {
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+}
+.calendar-product-shell[data-calendar-mode='week'][data-amount-visible='true'] > .calendar-action-slot[data-calendar-action-bar='top'] {
+  grid-row: 3;
+}
+.calendar-product-shell[data-calendar-mode='week'][data-amount-visible='true'] > .calendar-viewport {
+  grid-row: 4;
+}
+.calendar-product-shell[data-calendar-mode='week'] > .calendar-amount-slot {
+  grid-row: 5;
+  display: block !important;
+  position: relative;
+  z-index: 12;
+  min-width: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--lotbi-calendar-grid-line);
+  background: var(--lotbi-surface-primary, #fff);
+  box-shadow: 0 -8px 18px rgba(15, 23, 42, .08);
+}
+.calendar-product-shell[data-calendar-mode='week'] .calendar-amount-overview[data-calendar-fixed-expense='week'] {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 12px;
+}
+.calendar-product-shell[data-calendar-mode='week'] .calendar-amount-overview[data-calendar-fixed-expense='week'] .calendar-amount-line-amount {
+  font-size: 20px;
+}
+.calendar-product-shell[data-calendar-mode='week'] .calendar-amount-overview[data-calendar-fixed-expense='week'] .calendar-amount-categories {
+  margin-top: 5px;
+  padding-top: 5px;
+}
+.calendar-product-shell[data-calendar-mode='week'] .calendar-amount-overview[data-calendar-fixed-expense='week'] .calendar-amount-category {
+  padding-block: 2px;
 }
 .consumer-workspace[data-workspace='calendar'] .calendar-toolbar {
   grid-template-columns: minmax(72px, .7fr) minmax(180px, 4fr) minmax(72px, .7fr) minmax(72px, .8fr);
@@ -3514,6 +3574,48 @@ body[data-site-theme="dark"] .calendar-day-empty { background: #171c25; }
   .consumer-workspace[data-workspace='calendar'] .calendar-amount-line-amount { font-size: 24px; }
   .consumer-workspace[data-workspace='calendar'] .calendar-amount-image-button { padding-inline: 10px; font-size: 12px; }
   .consumer-workspace[data-workspace='calendar'] .calendar-amount-categories { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .calendar-product-shell[data-calendar-mode='week'] > .calendar-viewport {
+    padding-bottom: 220px;
+  }
+  .calendar-product-shell[data-calendar-mode='week'] > .calendar-amount-slot {
+    position: fixed;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    left: 8px;
+    max-height: min(210px, 42dvh);
+    overflow: auto;
+    padding: 6px;
+    border: 1px solid var(--lotbi-calendar-grid-line);
+    border-radius: 16px;
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, .18);
+  }
+  .calendar-product-shell[data-calendar-mode='week'] > .calendar-amount-slot .calendar-amount-overview[data-calendar-fixed-expense='week'] {
+    padding: 8px 10px;
+  }
+  .calendar-product-shell[data-calendar-mode='week'] > .calendar-amount-slot .calendar-amount-overview[data-calendar-fixed-expense='week'] .calendar-amount-head {
+    gap: 8px;
+  }
+  .calendar-product-shell[data-calendar-mode='week'] > .calendar-amount-slot .calendar-amount-overview[data-calendar-fixed-expense='week'] .calendar-amount-image-button {
+    min-height: 38px;
+    padding: 6px 9px;
+  }
+  .calendar-product-shell[data-calendar-mode='week'] > .calendar-amount-slot .calendar-amount-overview[data-calendar-fixed-expense='week'] .calendar-amount-categories {
+    margin-top: 5px;
+    padding-top: 5px;
+  }
+  .calendar-product-shell[data-calendar-mode='week'] > .calendar-amount-slot .calendar-amount-overview[data-calendar-fixed-expense='week'] .calendar-amount-category {
+    flex-direction: row;
+    justify-content: center;
+    gap: 1px;
+    padding: 1px 3px;
+  }
+  .calendar-product-shell[data-calendar-mode='week'] > .calendar-amount-slot .calendar-amount-overview[data-calendar-fixed-expense='week'] .calendar-amount-category dt {
+    font-size: 11px;
+  }
+  .calendar-product-shell[data-calendar-mode='week'] > .calendar-amount-slot .calendar-amount-overview[data-calendar-fixed-expense='week'] .calendar-amount-category dd {
+    margin-top: 0;
+    font-size: 11px;
+  }
 }
 
 @media (max-width: 420px) {
