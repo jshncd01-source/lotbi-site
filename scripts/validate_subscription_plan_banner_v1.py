@@ -13,7 +13,7 @@ for value in ("subscription-plan-banner", "consumer-plan-menu", "플랜 보기",
     assert value not in INDEX, f"unexpected homepage promotion: {value}"
 assert 'id="lotbi-prompt"' in INDEX
 assert 'class="chat-composer"' in INDEX
-assert 'class="home-value-proposition"' in INDEX
+assert 'data-home-avatar-anchor' in INDEX  # SITE-MAIN-HOME-REDESIGN-01: no Home title; the character stays
 assert 'fetchpriority="high"' in INDEX
 assert ".subscription-plan-banner" in CSS
 assert "39,900원" in SUBSCRIBE and "19,900원" not in SUBSCRIBE

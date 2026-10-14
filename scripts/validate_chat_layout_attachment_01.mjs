@@ -19,7 +19,7 @@ assert.match(html, /data-attachment-action="photos">사진·스크린샷<\/butto
 assert.match(html, /data-attachment-action="files">파일<\/button>/);
 assert.match(html, /data-attachment-input="files"/);
 assert.match(html, /class="attachment-preview-strip"/);
-assert.ok(html.includes('LOTBI는 실수할 수 있습니다. 중요한 정보와 예약·구매 내용은 최종 확인해 주세요.'));
+assert.ok(html.includes('LOTBI는 실수할 수 있어요. 중요한 정보와 예약·구매 내용은 꼭 직접 확인해 주세요.'));
 assert.match(styles, /\.chat-home-page\s*\{[^}]*height:\s*100dvh[^}]*overflow:\s*hidden/s);
 assert.match(html, /<main id="main-content" class="chat-home-shell" tabindex="0">/);
 assert.match(styles, /\.chat-home-shell\s*\{[^}]*min-height:\s*0[^}]*overflow-x:\s*hidden[^}]*overflow-y:\s*auto[^}]*scrollbar-gutter:\s*stable/s);

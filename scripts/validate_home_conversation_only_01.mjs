@@ -20,7 +20,9 @@ assert.doesNotMatch(conversation, /mountHomeFavorites|homeFavorites|data-home-pr
 assert.doesNotMatch(css, /home-favorites|home-example-prompts/u);
 assert.equal(fs.existsSync(path.join(root, 'site-home-favorites.js')), false);
 assert.equal(fs.existsSync(path.join(root, 'site-home-favorites.css')), false);
-assert.match(index, /<h2>무엇을 도와드릴까요\?<\/h2>/u);
+// SITE-MAIN-HOME-REDESIGN-01: the approved Home has no title; the character stays.
+assert.doesNotMatch(index, /home-value-proposition|무엇을 도와드릴까요/u);
+assert.match(index, /data-home-avatar-anchor/u);
 assert.match(index, /data-attachment-trigger/u);
 assert.match(index, /class="composer-button send-button" type="button" disabled/u);
 assert.equal((index.match(/data-scam-open/gu) || []).length, 2, 'formal desktop/mobile scam menu entries remain');
@@ -89,7 +91,7 @@ try {
       assert.equal(ready.ok, true, ready.error);
       await sleep(250);
       let state = await snapshot();
-      assert.equal(state.title, '무엇을 도와드릴까요?');
+      assert.equal(state.title, undefined, `${label}: the Home has no title`);
       assert.equal(state.favorites, false); assert.equal(state.quickSafety, false);
       assert.deepEqual(state.scamLabels, ['사기·피싱 확인', '사기·피싱 확인']);
       assert.equal(state.recentLists, 2); assert.equal(state.avatar, true);
@@ -106,10 +108,10 @@ try {
       await evaluate("const field=document.getElementById('lotbi-prompt'); field.value='입력 상태 확인'; field.dispatchEvent(new Event('input',{bubbles:true})); true");
       await waitFor(async () => {
         const next = await snapshot();
-        return !next.disabled && next.sendColor === 'rgb(36, 84, 184)';
+        return !next.disabled && next.sendColor === 'rgb(37, 99, 235)';
       }, `${label}: send enabled and visibly active`, 3000);
       state = await snapshot();
-      assert.equal(state.sendColor, 'rgb(36, 84, 184)'); assert.notEqual(state.sendColor, disabledColor);
+      assert.equal(state.sendColor, 'rgb(37, 99, 235)'); assert.notEqual(state.sendColor, disabledColor);
       logs.push(`${label}: 제거 범위·홈 핵심 요소·입력/전송 상태·가로 넘침 PASS`);
     } finally {
       page.close();
