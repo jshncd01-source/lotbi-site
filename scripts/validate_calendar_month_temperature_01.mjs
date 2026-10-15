@@ -414,8 +414,8 @@ function check(label, width, query, value) {
     if (amount.box.right > width + 0.5 || amount.box.left < -0.5) problems.push('the amount line leaves the screen');
     const slots = amount.slots.map(([category, text]) => `${category}:${text}`).join(',');
     const expectedSlots = populated
-      ? 'FOOD:310,000원,TRAVEL:80,000원,SHOPPING:112,000원,LIVING:96,000원,OTHER:30,000원'
-      : 'FOOD:0원,TRAVEL:0원,SHOPPING:0원,LIVING:0원,OTHER:0원';
+      ? 'UNCLASSIFIED:0원,FOOD:310,000원,TRAVEL:80,000원,SHOPPING:112,000원,LIVING:96,000원,OTHER:30,000원'
+      : 'UNCLASSIFIED:0원,FOOD:0원,TRAVEL:0원,SHOPPING:0원,LIVING:0원,OTHER:0원';
     if (slots !== expectedSlots) problems.push(`amount slots are ${slots}`);
     for (const [category, , slot] of amount.slots) if (hit(slot, amount.grid) || slot.right > width + 0.5 || slot.left < -0.5) problems.push(`${category} slot overlaps the grid or leaves the screen`);
   }

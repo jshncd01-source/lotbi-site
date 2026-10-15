@@ -617,6 +617,9 @@ export function normalizeSmartCalendarDraft(value) {
       amountMinor,
       currency,
       expenseCategory,
+      // CALENDAR-DESIGN-04: Core가 사진 종류로 제안하는 예정/실제 지출. 모르는 값이나
+      // 옛 Core(값 없음)는 제안 없음(null) -- 확인 창이 날짜로 기본값을 정한다.
+      expenseStatus: amountMinor !== null && (entry?.expense_status === 'PLANNED' || entry?.expense_status === 'PAID') ? entry.expense_status : null,
       memo,
       place,
       merchant,

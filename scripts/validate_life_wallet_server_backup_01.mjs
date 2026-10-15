@@ -99,9 +99,11 @@ try {
   const originals = await fingerprint(await store.list(accountId));
   buttonNamed(root, '잠그기').click();
   const unlock = await wait(() => root.querySelector('.wallet-unlock-form'), 'unlock'); unlock.querySelector('input').value = '1357'; unlock.requestSubmit();
-  await wait(() => root.querySelector('.wallet-deck-shell'), 'deck');
-  const reassuranceBefore = root.querySelector('.wallet-storage-reassurance strong')?.textContent || '';
-  await openSettings(root, 'keep');
+  await wait(() => root.querySelector('.wallet-shell'), 'wallet');
+  // LIFE-WALLET-REDESIGN-02: what is kept where is said on the 설정 screen, beside the backup rows.
+  root.querySelector('.wallet-settings > button').click();
+  const reassuranceBefore = (await wait(() => root.querySelector('.wallet-storage-reassurance strong'), 'settings reassurance')).textContent;
+  (await wait(() => root.querySelector('[data-wallet-server-backup="keep"]'), 'settings keep')).click();
   const form = await wait(() => root.querySelector('form.wallet-server-backup'), 'backup form');
   const [password, confirmation] = form.querySelectorAll('input[type=password]'); const check = form.querySelector('input[type=checkbox]');
   const statusOf = () => form.querySelector('[role=alert], .wallet-error, [aria-live]')?.textContent || '';
@@ -118,9 +120,10 @@ try {
   const putsBefore = core.requests.filter(request => request.method === 'PUT').length;
   confirmation.value = '${PASSWORD}'; check.checked = true; form.requestSubmit();
   const done = await wait(() => [...root.querySelectorAll('.wallet-message')].map(node => node.textContent).find(text => text.includes('서버에 백업했습니다')), 'backed up');
-  const reassuranceAfter = root.querySelector('.wallet-storage-reassurance strong')?.textContent || '';
   root.querySelector('.wallet-settings > button').click();
-  const menu = {restore: Boolean(root.querySelector('[data-wallet-server-backup="restore"]')), remove: Boolean(root.querySelector('[data-wallet-server-backup="delete"]')), help: [...root.querySelectorAll('.wallet-settings-help')].map(node => node.textContent).join(' | ')};
+  await wait(() => root.querySelector('[data-wallet-view="settings"]'), 'settings after backup');
+  const reassuranceAfter = root.querySelector('.wallet-storage-reassurance strong')?.textContent || '';
+  const menu = {restore: Boolean(root.querySelector('[data-wallet-server-backup="restore"]')), remove: Boolean(root.querySelector('[data-wallet-server-backup="delete"]')), help: [...root.querySelectorAll('.wallet-settings-help, .wallet-settings-row small')].map(node => node.textContent).join(' | ')};
   const puts = core.requests.filter(request => request.method === 'PUT');
   window.__result = JSON.stringify({ok: true, noticeWithoutBackup, rules, strength, putsBefore, done, reassuranceBefore, reassuranceAfter, menu, originals, sealed: core.stored, requests: core.requests.map(({method, url, body, authorization, credentials}) => ({method, url, body, authorization, credentials})), puts: puts.length});
 } catch (error) { window.__result = JSON.stringify({ok: false, error: String(error?.stack || error)}); }
@@ -147,7 +150,7 @@ try {
   const fetchesAfterRight = core.requests.filter(request => request.url.endsWith('/content')).length;
   const store = new LifeWalletVault(new IndexedDbWalletRepository()); await store.unlock(accountId, '2468');
   const copies = await fingerprint(await store.list(accountId));
-  const deckCards = root.querySelectorAll('.wallet-deck-card').length;
+  const deckCards = root.querySelectorAll('[data-wallet-item]').length;
   // Damaged ciphertext and an unknown format are refused; nothing is added.
   const failures = {};
   for (const mode of ['tamper', 'future']) {
@@ -156,7 +159,7 @@ try {
     const form = await wait(() => root.querySelector('form.wallet-server-restore'), 'restore ' + mode);
     form.querySelector('input[type=password]').value = '${PASSWORD}'; form.requestSubmit();
     failures[mode] = await wait(() => { const value = [...form.querySelectorAll('p')].map(p => p.textContent).join(' | '); return /맞지 않거나|지원하지 않거나/.test(value) && value; }, 'failure ' + mode);
-    buttonNamed(root, '나중에').click(); await wait(() => root.querySelector('.wallet-deck-shell'), 'back ' + mode);
+    buttonNamed(root, '나중에').click(); await wait(() => root.querySelector('.wallet-shell'), 'back ' + mode);
   }
   core.mode = 'normal';
   const countAfterFailures = (await store.list(accountId)).length;
@@ -166,7 +169,7 @@ try {
   const keepForm = await wait(() => root.querySelector('form.wallet-server-backup'), 'keep form');
   const [p1, p2] = keepForm.querySelectorAll('input[type=password]'); p1.value = '${PASSWORD}'; p2.value = '${PASSWORD}'; keepForm.querySelector('input[type=checkbox]').checked = true; keepForm.requestSubmit();
   const social = await wait(() => { const value = [...keepForm.querySelectorAll('p')].map(p => p.textContent).join(' | '); return value.includes('패스키') && value; }, 'social message');
-  buttonNamed(root, '취소').click(); await wait(() => root.querySelector('.wallet-deck-shell'), 'back from social');
+  buttonNamed(root, '취소').click(); await wait(() => root.querySelector('.wallet-shell'), 'back from social');
   core.mode = 'normal';
   // Too large: refused in the browser, nothing sent.
   const backupModule = await import('/site-life-wallet-backup.js?test=server-backup-b');

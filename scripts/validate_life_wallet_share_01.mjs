@@ -170,24 +170,28 @@ try {
   host.replaceChildren();
   const root = document.createElement('div'); host.append(root);
   const mounted = wallet.mountLifeWallet({root, authenticated: true, accountId: account, sessionExpiresAt: new Date(Date.now() + 3600000).toISOString(), sessionToken: 'tok', subscription: {plan: 'FREE'}});
-  const shareButton = await wait(() => root.querySelector('[data-wallet-share-open]'), 'wallet share button');
-  await wait(() => shareButton.textContent === '공유 1' || shareButton.textContent === '공유 2', 'pending count');
-  results.walletShareCount = shareButton.textContent;
-  root.querySelector('.wallet-add-action').click();
+  // LIFE-WALLET-REDESIGN-02: 공유 is a row on the 설정 screen, with the pending count beside it.
+  (await wait(() => root.querySelector('[data-wallet-settings-open]'), 'wallet settings button')).click();
+  const shareRow = await wait(() => root.querySelector('[data-wallet-share-open]'), 'wallet share row');
+  const pending = shareRow.querySelector('.wallet-share-count');
+  await wait(() => pending.textContent === '대기 1' || pending.textContent === '대기 2', 'pending count');
+  results.walletShareCount = pending.textContent;
+  [...root.querySelectorAll('button')].find(button => button.textContent.trim() === 'Life Wallet').click();
+  (await wait(() => root.querySelector('.wallet-add-action'), 'back from settings')).click();
   await wait(() => root.querySelector('.wallet-add-limit'), 'limit');
   results.freeLimit = root.textContent.includes('무료 회원은 자료를 1개까지 보관할 수 있습니다') && root.textContent.includes('이미 저장한 자료는 그대로 남아 있습니다') && root.querySelector('a[href="/subscribe"]') !== null;
   results.cardsKept = (await vault.list(account)).length === 1;
   mounted.dispose();
   const root2 = document.createElement('div'); host.replaceChildren(root2);
   const plus = wallet.mountLifeWallet({root: root2, authenticated: true, accountId: account, sessionExpiresAt: new Date(Date.now() + 3600000).toISOString(), sessionToken: 'tok', subscription: {plan: 'PLUS'}});
-  await wait(() => root2.querySelector('[data-wallet-share-open]'), 'plus wallet');
-  root2.querySelector('.wallet-add-action').click();
+  (await wait(() => root2.querySelector('.wallet-add-action'), 'plus wallet')).click();
   await wait(() => root2.querySelector('.wallet-attach'), 'plus add form');
   results.plusAdds = !root2.querySelector('.wallet-add-limit');
   plus.dispose();
   const root3 = document.createElement('div'); host.replaceChildren(root3);
   const guest = wallet.mountLifeWallet({root: root3, authenticated: true, accountId: account, sessionExpiresAt: new Date(Date.now() + 3600000).toISOString()});
-  await wait(() => root3.querySelector('.wallet-toolbar'), 'wallet without session token');
+  (await wait(() => root3.querySelector('[data-wallet-settings-open]'), 'wallet without session token')).click();
+  await wait(() => root3.querySelector('[data-wallet-view="settings"]'), 'settings without session token');
   results.noTokenNoShare = !root3.querySelector('[data-wallet-share-open]');
   guest.dispose();
 
@@ -206,5 +210,5 @@ for (const key of ['receivedListed', 'accepted', 'blockCalled', 'revoked', 'myQr
   assert.equal(r[key], true, `${key}: ${JSON.stringify(r)}`);
 }
 assert.equal(r.limitPolicy, 'true,false,false,false', 'Free keeps one item; paid plans and an unknown plan are not limited here');
-assert.match(r.walletShareCount, /^공유 [12]$/u, 'the wallet shows pending received requests on 공유');
+assert.match(r.walletShareCount, /^대기 [12]$/u, 'the wallet shows pending received requests on 공유');
 console.log('LIFE_WALLET_SHARE_01 PASS — inbox accept/reject/block, revoke, my QR, LOTBI ID share, camera QR share, denied/unsupported camera → LOTBI ID, Kakao/link invite, share-link intent, wallet 공유/공유하기, Free 1-item limit, labels only');

@@ -166,7 +166,14 @@ try {
   results.passwordMaskedField = passwordInput.dataset.masked === 'true' && passwordInput.getAttribute('autocomplete') === 'off' && passwordInput.dataset.lpignore === 'true';
   form.querySelector('[data-wallet-wifi-label="부모님 댁"]').click();
   act('save');
+  // LIFE-WALLET-REDESIGN-02: a new entry opens on its QR at once (closing by itself after a
+  // minute), with the green "saved" note; 닫기 goes back to the list on the 생활정보 tab.
+  await wait(() => q('.wallet-wifi-qr svg'), 'qr after save');
+  results.qrAfterSave = text().includes('와이파이를 암호화하여 저장했어요') && Boolean(timers.find(t => t.ms === 60000))
+    && !text().includes('Synthetic#Pass,1') && q('.wallet-wifi-password')?.dataset.masked === 'true';
+  act('close-qr');
   const card = await wait(() => q('[data-wallet-wifi-entry]'), 'saved entry');
+  results.qrAfterSave = results.qrAfterSave && q('[data-wallet-tab="life"]')?.getAttribute('aria-selected') === 'true';
   const entryId = card.dataset.walletWifiEntry;
   results.savedShown = card.textContent.includes('부모님 댁') && card.textContent.includes('LOTBI_Home_5G') && !text().includes('Synthetic#Pass,1')
     && card.querySelector('.wallet-wifi-password').dataset.masked === 'true' && text().includes('저장 자료 1개');
@@ -234,6 +241,8 @@ try {
   const select = open.querySelector('select'); select.value = 'nopass'; select.dispatchEvent(new Event('change', {bubbles: true}));
   results.nopassHidesPassword = open.querySelector('.wallet-wifi-secret').closest('label').hidden === true;
   act('save');
+  await wait(() => q('[data-wallet-wifi-action="close-qr"]'), 'open network qr');
+  act('close-qr');
   await wait(() => host.querySelectorAll('[data-wallet-wifi-entry]').length === 2, 'two entries');
   const listed = (await vault.listWifi(account)).entries;
   const cafe = listed.find(item => item.ssid === 'Cafe Guest');
@@ -289,7 +298,7 @@ const result = await runFixturePage({root: ROOT, fixturePath: '/__life_wallet_wi
 assert.equal(result.ok, true, result.error);
 const r = result.results;
 for (const key of ['payload', 'roundTrip', 'openPayload', 'vendorOrder', 'rules', 'stickerText', 'qrReference', 'qrVersions', 'qrTooLong', 'readers',
-  'freeHasWifi', 'stickerFilled', 'passwordMaskedField', 'savedShown', 'revealed', 'maskedAgain', 'copied', 'qrMatches', 'photo', 'wrongPinKeeps', 'editedWithPin',
+  'freeHasWifi', 'stickerFilled', 'passwordMaskedField', 'qrAfterSave', 'savedShown', 'revealed', 'maskedAgain', 'copied', 'qrMatches', 'photo', 'wrongPinKeeps', 'editedWithPin',
   'labelOnly', 'noLabelAdjust', 'noLabelInForm', 'noReader', 'nopassHidesPassword', 'openNetwork', 'sealedAtRest', 'notInDeck', 'notInBackup', 'wrongPinNoDelete', 'deletedWithPin', 'lockedGone', 'noNetwork']) {
   assert.equal(r[key], true, `${key}: ${JSON.stringify(r)} network=${JSON.stringify(result.network)}`);
 }

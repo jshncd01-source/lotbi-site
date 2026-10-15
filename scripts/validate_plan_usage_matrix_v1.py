@@ -31,7 +31,7 @@ cards = re.findall(r'<label class="plan-card[^>]*>(.*?)</label>', SUBSCRIBE, re.
 assert len(cards) == 3, "upgrade surface must contain exactly three paid cards"
 assert all("LOTBI Free" not in card for card in cards), "Free must not be an upgrade card"
 assert sum("recommended-badge" in card for card in cards) == 1, "exactly one plan must be recommended"
-assert "LOTBI Plus" in next(card for card in cards if "recommended-badge" in card)
+assert "LOTBI Pro" in next(card for card in cards if "recommended-badge" in card)
 
 # 공과금 확인 is not offered (LIFE INFO CLEANUP, 2026-10-08): the plans must not list it.
 for forbidden in ("제휴몰 개수", "제휴 서비스 개수", "쇼핑·예약 실행 횟수", "미래 모든 기능", "공과금", "고지서"):

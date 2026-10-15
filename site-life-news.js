@@ -19,10 +19,10 @@
 // story is hidden), 오늘 in pages of 20 with 더보기 (Core's order: under 전체
 // sports and photo items come last) and 1주일 as one heading per day with up
 // to ten representative stories.
-import {CORE_ORIGIN} from './site-core.js?v=aset-1d0b169fb87c';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-1d0b169fb87c';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-1d0b169fb87c';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-1d0b169fb87c';
+import {CORE_ORIGIN} from './site-core.js?v=aset-a5a7175d3f1d';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-a5a7175d3f1d';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-a5a7175d3f1d';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-a5a7175d3f1d';
 
 export const NEWS_PROVINCES = Object.freeze([
   '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시', '대전광역시', '울산광역시', '세종특별자치시',
@@ -92,10 +92,20 @@ export function formatNewsTime(value, now = new Date()) {
 
 // Core's feed order as it came (오늘 under 전체 puts sports / photo last; the
 // days are already newest first); never adds anything Core did not return.
+// REGIONAL-INFO-UNIFY-01: the article's own picture (Core image_url, https
+// only) as a small thumbnail; without one, the same default tile with its 분야.
 export function feedListItems(items) {
   return (Array.isArray(items) ? items : [])
-    .map(item => ({title: text(item?.title), source: text(item?.source_label), href: safeArticleHref(item?.url), at: item?.published_at || ''}))
+    .map(item => ({title: text(item?.title), source: text(item?.source_label), href: safeArticleHref(item?.url), at: item?.published_at || '',
+      image: newsImageHref(item?.image_url), category: text(item?.category_label)}))
     .filter(item => item.title && item.href);
+}
+
+export function newsImageHref(value) {
+  try {
+    const url = new URL(text(value));
+    return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';
+  } catch { return ''; }
 }
 
 // The 분야 tabs to show: 전체 always, a 분야 only when it has a story (or is
@@ -298,11 +308,25 @@ export function mountRegionalNews({root, fetchImpl = globalThis.fetch, now = () 
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     link.dataset.newsArticle = 'true';
+    const thumb = el('span', 'lotbi-news-thumb');
+    thumb.setAttribute('aria-hidden', 'true');
+    const fallback = () => {
+      thumb.replaceChildren(el('span', 'lotbi-news-thumb-label', item.category || '지역뉴스'));
+      thumb.dataset.newsThumb = 'default';
+    };
+    if (item.image) {
+      const image = el('img', 'lotbi-news-thumb-image');
+      image.alt = ''; image.loading = 'lazy'; image.decoding = 'async'; image.referrerPolicy = 'no-referrer';
+      image.addEventListener('error', fallback, {once: true});
+      image.src = item.image;
+      thumb.dataset.newsThumb = 'photo';
+      thumb.append(image);
+    } else fallback();
     const copy = el('span', 'lotbi-news-item-copy');
     copy.append(el('span', 'lotbi-news-item-title', item.title));
     const meta = [item.source, formatNewsTime(item.at, now())].filter(Boolean).join(' · ');
     if (meta) copy.append(el('span', 'lotbi-news-item-meta', meta));
-    link.append(copy, glyph('open'));
+    link.append(thumb, copy, glyph('open'));
     row.append(link);
     return row;
   };

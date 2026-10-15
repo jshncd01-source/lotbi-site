@@ -519,19 +519,31 @@ const SCENARIO = `(async () => {
     tel: kinder.querySelector('a[href^="tel:"]')?.getAttribute('href') || '', source: host.querySelector('.lotbi-mychild-source').textContent,
     gap: Boolean(host.querySelector('[data-my-child-section="info-request"]')), measure: measure(host)};
 
-  // 5. Delete one (two steps), then everything (two steps); consent asked again.
+  // 5. Delete one, then everything — each asks once in its own box ([취소] keeps it); consent asked again.
   byText(host, 'button', '목록으로').click();
   await wait(() => host.querySelectorAll('[data-my-child-entry]').length === 3, 'list with three');
   result.list = [...host.querySelectorAll('[data-my-child-entry]')].map(n => n.textContent);
   result.listMeasure = measure(host);
   host.querySelector('[data-my-child-entry]').click();
   const remove = await wait(() => host.querySelector('[data-my-child-delete]'), 'delete button');
+  const deletes = () => globalThis.__mcsCalls.filter(c => c.method === 'DELETE').length;
+  const confirmBox = dialog => ({open: dialog.open, modal: dialog.matches(':modal'), title: dialog.querySelector('h3')?.textContent || '', text: dialog.querySelector('p')?.textContent || '',
+    buttons: [...dialog.querySelectorAll('button')].map(b => b.textContent), focused: document.activeElement?.dataset?.myChildConfirm || ''});
   remove.click();
-  result.deleteArmed = {label: remove.textContent, deletes: globalThis.__mcsCalls.filter(c => c.method === 'DELETE').length};
+  let dialog = await wait(() => host.querySelector('dialog.lotbi-mychild-confirm[open]'), 'delete confirm');
+  result.deleteArmed = {...confirmBox(dialog), deletes: deletes()};
+  dialog.querySelector('[data-my-child-confirm="cancel"]').click();
+  await wait(() => !host.querySelector('dialog.lotbi-mychild-confirm'), 'confirm closed');
+  result.deleteCancelled = {deletes: deletes(), entry: Boolean(host.querySelector('[data-my-child-delete]')), focus: document.activeElement === remove};
   remove.click();
+  dialog = await wait(() => host.querySelector('dialog.lotbi-mychild-confirm[open]'), 'delete confirm 2');
+  dialog.querySelector('[data-my-child-confirm="ok"]').click();
   await wait(() => host.querySelectorAll('[data-my-child-entry]').length === 2, 'list after delete');
   const clear = host.querySelector('[data-my-child-delete-all]');
-  clear.click(); result.clearArmed = clear.textContent; clear.click();
+  clear.click();
+  dialog = await wait(() => host.querySelector('dialog.lotbi-mychild-confirm[open]'), 'delete-all confirm');
+  result.clearArmed = {...confirmBox(dialog), deletes: deletes()};
+  dialog.querySelector('[data-my-child-confirm="ok"]').click();
   await wait(() => host.querySelector('.lotbi-mychild-empty'), 'empty after delete all');
   result.afterClear = host.querySelector('.lotbi-mychild > .lotbi-mychild-status').textContent;
   host.querySelector('[data-my-child-add]').click();
@@ -678,8 +690,8 @@ try {
       assert.deepEqual(r.choices, [], 'no 내 아이 정보 / 유치원·학교 찾기 choice');
       assert.deepEqual(r.cards, ['medical', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', ...(LOCAL_ON ? ['local'] : []), 'my-child']);
       assert.equal(r.card.title, '내 아이 학교·유치원');
-      assert.equal(r.card.description, '가까운 교육시설과 정보');
-      assert.equal(r.card.accessibleName, '내 아이 학교·유치원. 가까운 교육시설과 정보');
+      assert.equal(r.card.description, '급식·알레르기·학사일정');
+      assert.equal(r.card.accessibleName, '내 아이 학교·유치원. 급식·알레르기·학사일정');
       assert.ok(r.card.box.h >= 44, JSON.stringify(r.card.box));
       assert.equal(r.back, '지역정보로 돌아가기');
       assert.equal(r.textBack, false, 'one back: the header ←, no second text link (QA #3)');
@@ -783,12 +795,19 @@ try {
       assert.match(r.kinder.source, /^교육부 유치원알리미 · 10\.8 12:00 갱신$/u);
       assert.equal(r.kinder.gap, false);
     });
-    await check(`${label}: delete one and delete all take two steps; consent asked again after 모두 삭제`, () => {
+    await check(`${label}: delete one and delete all each ask in a confirm box first; consent asked again after 모두 삭제`, () => {
       assert.equal(r.list.length, 3);
       assert.ok(r.list[0].startsWith('큰애학교전주서원초등학교알레르기 표시: 대두'), r.list[0]);
-      assert.equal(r.deleteArmed.label, '정말 삭제');
+      assert.equal(r.deleteArmed.modal, true, JSON.stringify(r.deleteArmed));
+      assert.match(r.deleteArmed.title, /^큰애\S*(을|를) 삭제할까요\?$/u);
+      assert.equal(r.deleteArmed.text, '이 학교·유치원과 알레르기 설정이 지워져요. 되돌릴 수 없어요.');
+      assert.deepEqual(r.deleteArmed.buttons, ['취소', '삭제']);
+      assert.equal(r.deleteArmed.focused, 'cancel', 'the safe choice has the focus');
       assert.equal(r.deleteArmed.deletes, 0);
-      assert.equal(r.clearArmed, '정말 모두 삭제');
+      assert.deepEqual(r.deleteCancelled, {deletes: 0, entry: true, focus: true}, '취소 keeps the entry and returns to the button');
+      assert.equal(r.clearArmed.title, '저장한 곳을 모두 삭제할까요?');
+      assert.deepEqual(r.clearArmed.buttons, ['취소', '모두 삭제']);
+      assert.equal(r.clearArmed.deletes, 1);
       assert.match(r.afterClear, /모두 삭제했어요/u);
       assert.equal(r.consentAgain, true);
     });

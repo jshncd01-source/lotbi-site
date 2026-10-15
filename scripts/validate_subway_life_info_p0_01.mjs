@@ -56,7 +56,7 @@ await check('지역정보: 지하철 정보 right after 지역뉴스, the other 
   const ids = sections.LIFE_SHORTCUTS.map(item => item.id);
   assert.deepEqual(ids, EXPECTED_CARDS);
   const card = sections.LIFE_SHORTCUTS.find(item => item.id === 'subway');
-  assert.deepEqual(card, {id: 'subway', label: '지하철 정보', description: '노선과 도착 정보를 확인해요', icon: 'subway'});
+  assert.deepEqual(card, {id: 'subway', label: '지하철 정보', description: '가까운 역과 실시간 도착', icon: 'subway'});
 });
 
 await check('the card opens routed screens of its own; nothing goes to the conversation', () => {
@@ -104,14 +104,19 @@ await check('Core answers: groups, lines and arrivals normalize to exactly what 
   assert.equal(arrivals[3].lastTrain, true);
   assert.equal(arrivals[2].statusLabel, '진입');
   assert.deepEqual(subway.directionChoices(arrivals, FIXTURE.congestion_gangnam_2_weekday.series),
-    [{code: 'INNER', label: '내선', heading: '역삼방면'}, {code: 'OUTER', label: '외선', heading: '교대방면'}]);
+    [{code: 'INNER', label: '내선', heading: '역삼방면', display: '역삼 방면'}, {code: 'OUTER', label: '외선', heading: '교대방면', display: '교대 방면'}]);
+  // REGIONAL-INFO-UNIFY-01: stations away from the official words only; how soon in words.
+  assert.deepEqual(arrivals.map(item => item.stopsAway), [null, 3, null, 1]);
+  assert.deepEqual(arrivals.map(subway.arrivalWhen), ['약 1분 후 도착', '약 7분 후 도착', '곧 도착 · 들어오는 중', '약 5분 후 도착']);
+  assert.deepEqual(arrivals.map(subway.arrivalWhere), ['교대역 출발', '3정거장 전 · 방배역', '강남 진입', '1정거장 전 · 역삼역']);
+  assert.equal(subway.SUBWAY_AUTO_REFRESH_MS, 30_000);
   assert.equal(subway.headingOf('성수행 - 교대방면 (막차)'), '교대방면');
   // 신분당선's live rows run a few minutes ahead of the clock: official words, no age.
   const ahead = subway.normalizeArrival({...FIXTURE.arrivals_gangnam_sinbundang.arrivals[0], clock_ahead: true, age_seconds: null, eta_seconds: null});
   assert.equal(ahead.clockAhead, true);
   const item = subway.arrivalItem(ahead, {documentRef: {createElement: tag => ({tag, className: '', textContent: '', dataset: {}, children: [], append(...nodes) { this.children.push(...nodes); }})}});
   const meta = item.children.find(node => node.className === 'subway-arrival-meta');
-  assert.match(meta.textContent, /^정보 생성 \d{2}:\d{2}:\d{2} \(제공처 시각이 지금보다 앞서 경과 시간을 계산하지 않았어요\)$/u);
+  assert.equal(meta.textContent, '제공처 시각이 지금보다 앞서 있어 몇 초 전 정보인지 계산하지 않았어요');
   assert.equal(subway.formatSeconds(75), '1분 15초');
   assert.equal(subway.formatSeconds(120), '2분');
   assert.equal(subway.kstDayType(Date.parse('2026-10-11T23:30:00Z')), 'weekday', 'Monday 08:30 KST');
@@ -315,6 +320,7 @@ const SNAPSHOT = `(() => {
       direction: item.dataset.direction, train: item.dataset.trainNo || '',
       line: item.querySelector('.subway-arrival-line')?.textContent || '',
       message: item.querySelector('.subway-arrival-message')?.textContent || '',
+      text: item.textContent,
       meta: item.querySelector('.subway-arrival-meta')?.textContent || '',
       position: item.querySelector('.subway-arrival-position')?.textContent || '',
       tags: [...item.querySelectorAll('.subway-tag')].map(n => n.textContent),
@@ -461,8 +467,8 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.ok(grid.rows.every(count => count === grid.columns), JSON.stringify(grid));
       assert.ok(grid.heights.every(height => height >= 44), JSON.stringify(grid.heights));
       assert.equal(grid.title, '지하철 정보');
-      assert.equal(grid.description, '노선과 도착 정보를 확인해요');
-      assert.equal(grid.accessibleName, '지하철 정보. 노선과 도착 정보를 확인해요');
+      assert.equal(grid.description, '가까운 역과 실시간 도착');
+      assert.equal(grid.accessibleName, '지하철 정보. 가까운 역과 실시간 도착');
       assert.ok(grid.icon);
     });
 
@@ -531,12 +537,14 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.equal(s.title, '강남역');
       assert.equal(s.back, '지하철 정보로 돌아가기');
       assert.deepEqual(s.lineChips, [{line: '2호선', pressed: 'true'}, {line: '신분당선', pressed: 'false'}]);
-      assert.deepEqual(s.directionChips.map(chip => chip.label), ['전체 방향', '내선 · 역삼방면', '외선 · 교대방면']);
+      assert.deepEqual(s.directionChips.map(chip => chip.label), ['전체 방향', '역삼 방면', '교대 방면'], 'the 방면 is the next station, never 내선/외선');
       assert.deepEqual(s.arrivals.map(item => item.direction), ['INNER', 'INNER', 'OUTER', 'OUTER']);
-      assert.equal(s.arrivals[0].line, '성수행 - 역삼방면');
-      assert.equal(s.arrivals[0].message, '2분 후 (교대)');
-      assert.equal(s.arrivals[0].meta, '지금 기준 약 1분 15초 남음 · 정보 생성 07:59:40 (20초 전)');
-      assert.equal(s.arrivals[0].position, '열차 위치: 교대 출발 · 07:59:48 수신');
+      assert.equal(s.arrivals[0].line, '성수행');
+      assert.equal(s.arrivals[0].message, '교대역 출발');
+      assert.equal(s.arrivals[0].meta, '20초 전 정보', 'no raw clock on a row');
+      assert.equal(s.arrivals[0].position, '');
+      assert.equal(s.arrivals[1].message, '3정거장 전 · 방배역');
+      assert.ok(s.arrivals.every(item => !/내선|외선|\d{2}:\d{2}:\d{2}/u.test(item.text)), JSON.stringify(s.arrivals));
       assert.equal(s.arrivals[2].message, '강남 진입');
       assert.deepEqual(s.arrivals[3].tags, ['막차']);
       assert.match(s.checked, /^마지막 확인 08:00:00/u);
@@ -593,8 +601,8 @@ async function runCase(browser, origin, workDir, testCase) {
     await tapSelector('[data-site-route="subway-station"] [data-subway-line-choice="1077"]');
     s = await settled(st => st.lineChips.some(c => c.line === '신분당선' && c.pressed === 'true') && st.arrivals.length === 1 && st.status.some(t => /1~8호선/u.test(t)), '신분당선');
     await check(`${label}: 신분당선 → its own arrivals; averages only for 서울교통공사 1~8호선`, () => {
-      assert.equal(s.arrivals[0].line, '광교행 - 양재방면');
-      assert.equal(s.arrivals[0].message, '신논현 출발');
+      assert.equal(s.arrivals[0].line, '광교행');
+      assert.equal(s.arrivals[0].message, '신논현역 출발');
       assert.equal(s.averageRows.length, 0);
       assert.ok(!s.slotVisible);
       assert.equal(s.log.subway.filter(call => call.name === 'arrivals').at(-1).params.station_id, '1077000687');

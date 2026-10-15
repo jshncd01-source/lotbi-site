@@ -17,8 +17,8 @@
 //     double-tap, a reload-and-retry and the same confirmation photographed
 //     again all land on the one entry without any of them knowing about each
 //     other.
-import {createLifeActivity} from './site-calendar.js?v=aset-1d0b169fb87c';
-import {SiteCoreError} from './site-core.js?v=aset-1d0b169fb87c';
+import {createLifeActivity} from './site-calendar.js?v=aset-a5a7175d3f1d';
+import {SiteCoreError} from './site-core.js?v=aset-a5a7175d3f1d';
 
 const FINGERPRINT_RE = /^[0-9a-f]{64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -93,6 +93,9 @@ function entryPayload(draft) {
     payload.amountMinor = entry.amountMinor;
     payload.currency = entry.currency || 'KRW';
     if (entry.expenseCategory) payload.expenseCategory = entry.expenseCategory;
+    // 시안 04: Core가 제안한 예정/실제 지출을 그대로 보낸다(예약 = 예정). 제안이
+    // 없으면 보내지 않아 예전처럼 실제 지출로 저장된다.
+    if (entry.expenseStatus === 'PLANNED' || entry.expenseStatus === 'PAID') payload.expenseStatus = entry.expenseStatus;
   }
   // memo is deliberately left out of the one-tap write. It is the field a
   // document's own text lands in, so it is both the likeliest place for a

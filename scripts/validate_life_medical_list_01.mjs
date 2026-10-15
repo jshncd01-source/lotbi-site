@@ -61,7 +61,7 @@ await check('지역정보: one 병원·응급실·약국 card (no 약국 card), 
   assert.equal(EXPECTED_CARDS.length, 8, 'eight cards: mobile 2×4, desktop 4×2');
   const card = sections.LIFE_SHORTCUTS[0];
   assert.equal(card.label, '병원·응급실·약국');
-  assert.equal(card.description, '진료과와 운영 중인 곳을 찾아요');
+  assert.equal(card.description, '진료 시간인 곳과 응급실 병상');
   assert.equal(card.icon, 'hospital');
   assert.equal(card.choices, undefined, 'no two-way choice in front of the screen');
   assert.equal(card.ask, undefined, 'the card never asks the conversation');
@@ -350,7 +350,12 @@ const SNAPSHOT = `(() => {
       badges: [...item.querySelectorAll('[data-medical-badge]')].map(node => node.textContent),
       name: item.querySelector('.medical-place-name')?.textContent || '',
       searchHref: item.querySelector('.medical-place-link')?.getAttribute('href') || '',
-      distance: item.querySelector('.medical-place-distance')?.textContent || '',
+      distance: item.querySelector('.medical-place-distance-tag')?.textContent || '',
+      hours: item.querySelector('.medical-place-hours')?.textContent || '',
+      hoursState: item.querySelector('.medical-place-hours')?.dataset.medicalHours || '',
+      mediaVisible: visible(item.querySelector('.medical-place-media')),
+      beds: item.querySelector('.medical-place-beds') ? {state: item.querySelector('.medical-place-beds').dataset.medicalBeds, value: item.querySelector('.medical-place-beds-value')?.textContent || '', time: item.querySelector('.medical-place-beds-time')?.textContent || ''} : null,
+      erNotice: item.querySelector('.medical-place-notice')?.textContent || '',
       category: item.querySelector('.medical-place-category')?.textContent || '',
       address: item.querySelector('.medical-place-address')?.textContent || '',
       lines: [...item.querySelectorAll('.medical-place-lines p')].map(node => ({state: node.dataset.medicalState, text: node.textContent})),
@@ -364,12 +369,13 @@ const SNAPSHOT = `(() => {
       mapLoaded: Boolean(mapImage && mapImage.complete && mapImage.naturalWidth > 0),
       mapFailed: Boolean(mapImage && mapImage.complete && mapImage.naturalWidth === 0),
       mapAria: map?.getAttribute('aria-label') || '',
+      mapText: map?.querySelector('.medical-action-label')?.textContent || '',
       mapTarget: map?.target || '',
       mapRel: map?.rel || '',
       mapBox: map ? {w: map.getBoundingClientRect().width, h: map.getBoundingClientRect().height} : null,
       right: rect.right, width: rect.width,
       contrastName: contrast(item.querySelector('.medical-place-name a')),
-      contrastState: contrast(item.querySelector('.medical-place-state')),
+      contrastState: contrast(item.querySelector('.medical-place-hours')),
       contrastSecondary: contrast(item.querySelector('.medical-place-address')),
     };
   });
@@ -401,6 +407,7 @@ const SNAPSHOT = `(() => {
     status: surface?.querySelector('.medical-status')?.textContent || '',
     statusRole: surface?.querySelector('.medical-status')?.getAttribute('role') || '',
     notice: surface?.querySelector('.medical-notice:not([hidden])')?.textContent || '',
+    legend: surface?.querySelector('.medical-legend:not([hidden])')?.textContent || '',
     errorText: errorBox?.querySelector('.medical-error-text')?.textContent || '',
     errorButtons: errorBox ? [...errorBox.querySelectorAll('button, a')].map(node => node.textContent) : [],
     errorTel: errorBox ? [...errorBox.querySelectorAll('a[href^="tel:"]')].map(node => node.getAttribute('href')) : [],
@@ -563,8 +570,8 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.deepEqual(grid.ids, EXPECTED_CARDS);
       assert.equal(grid.rows.length, testCase.mobile ? 4 : 2, JSON.stringify(grid));
       assert.equal(grid.label, '병원·응급실·약국');
-      assert.equal(grid.description, '진료과와 운영 중인 곳을 찾아요');
-      assert.equal(grid.accessibleName, '병원·응급실·약국. 진료과와 운영 중인 곳을 찾아요');
+      assert.equal(grid.description, '진료 시간인 곳과 응급실 병상');
+      assert.equal(grid.accessibleName, '병원·응급실·약국. 진료 시간인 곳과 응급실 병상');
       assert.equal(grid.pharmacy, false);
       assert.ok(grid.icon);
       assert.equal(grid.columns, testCase.mobile ? 2 : 4, `${testCase.mobile ? 'phones' : 'desktop'} keep the approved columns`);
@@ -586,7 +593,7 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.ok(s.specialties.find(item => item.specialty === 'pediatrics' && item.visible));
       assert.ok(s.specialties.find(item => item.specialty === 'plastic_surgery' && !item.visible));
       assert.deepEqual(s.specialties.filter(item => item.visible).map(item => item.text), ['내과', '소아청소년과', '이비인후과', '정형외과', '피부과', '치과', '한의원', '전체']);
-      assert.equal(s.statusFilter, '지금 진료 중만');
+      assert.equal(s.statusFilter, '진료 시간인 곳만');
       assert.deepEqual(s.log.chat, [], 'no conversation request');
       assert.equal(s.prompt, '', 'nothing typed into the composer');
       assert.equal(s.log.nearby.length, 1);
@@ -597,12 +604,13 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.equal(s.status, '가까운 병원·의원 12곳');
       assert.equal(s.statusRole, 'status');
       assert.equal(s.basis, '');
-      assert.equal(s.notice, '진료 중 우선 · 가까운 순');
+      assert.equal(s.notice, '진료 시간 우선 · 가까운 순');
+      assert.equal(s.legend, '진료 시간은 병원이 등록한 시간이에요. 점심시간·임시 휴진은 반영되지 않으니 가기 전에 전화로 확인하세요.');
       assert.equal(s.more, '더 보기 (5곳)');
       assert.match(s.source, /출처: 국립중앙의료원 공공데이터/u);
       assert.match(s.source, /운영시간은 등록된 정보예요\. 방문 전 전화로 확인해 주세요/u);
       assert.ok(s.log.geo >= 1, 'the allowed position was read');
-      assert.equal(s.locate, '📍 현재 위치 · 서울특별시 강남구');
+      assert.equal(s.locate, '현재 위치 · 서울특별시 강남구');
       assert.equal(s.locationNote, '위치는 이번 검색에만 쓰고 저장하지 않아요.');
       assert.equal(s.regionVisible, false);
       assert.equal(s.resultColumns, testCase.mobile ? 1 : 2);
@@ -612,10 +620,12 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.equal(first.name, '가상내과의원');
       assert.equal(first.category, '의원');
       assert.match(first.address, /^서울특별시 강남구/u);
-      assert.equal(first.distance, '직선 200m');
-      assert.equal(first.lines[0].state, 'OPEN');
-      assert.match(first.lines[0].text, /^등록 시간상 진료 중 · 오늘 09:00~18:00 · 직선 200m$/u);
-      assert.ok(first.lines.some(line => line.state === 'CONFIRM' && /실제 진료 여부는 전화로 확인/u.test(line.text)));
+      assert.equal(first.distance, '200m');
+      assert.deepEqual(first.badges, ['진료 시간 중']);
+      assert.equal(first.hoursState, 'OPEN');
+      assert.equal(first.hours, '오늘 09:00~18:00');
+      assert.deepEqual(first.lines, [], 'the registered-hours limit is the one legend above the list, not repeated per card');
+      assert.equal(first.mediaVisible, false, 'design 01: no picture slot, the text comes first');
       assert.equal(first.phone, 'tel:020000000');
       assert.equal(first.phoneLabel, '가상내과의원 전화하기');
       assert.ok(first.phoneBox.h >= 48 && first.phoneBox.w >= 48, JSON.stringify(first.phoneBox));
@@ -626,19 +636,20 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.equal(first.mapLoaded, true, 'the approved image loads');
       assert.equal(first.mapTarget, '_blank'); assert.equal(first.mapRel, 'noopener noreferrer');
       assert.equal(first.mapAria, '가상내과의원 길찾기 (네이버지도)');
+      assert.equal(first.mapText, '네이버지도', 'the map button names the app the reader picked');
       assert.ok(first.mapBox.h >= 48 && first.mapBox.w >= 48, JSON.stringify(first.mapBox));
-      const meters = s.items.map(item => { const m = /직선 ([\d.]+)(k?m)/u.exec(item.distance); return Number(m[1]) * (m[2] === 'km' ? 1000 : 1); });
+      const meters = s.items.map(item => { const m = /^([\d.]+)(k?m)$/u.exec(item.distance); return Number(m[1]) * (m[2] === 'km' ? 1000 : 1); });
       assert.deepEqual(meters, [200, 720, 980, 1500, 1800], 'open ones first (1760 m reads 1.8km), then by distance');
     });
-    await check(`${label}: no verified photo → every card keeps the institution placeholder`, () => {
-      assert.ok(s.items.every(item => !item.photo && item.placeholder), JSON.stringify(s.items));
+    await check(`${label}: no verified photo → every card keeps the institution placeholder (hidden: design 01 has no picture slot)`, () => {
+      assert.ok(s.items.every(item => !item.photo && item.placeholder && !item.mediaVisible), JSON.stringify(s.items));
     });
     await tapSelector('[data-site-route="life-medical"] [data-medical-status-only]');
     s = await settledScreen(st => st.statusOnlyChecked && /8곳/u.test(st.status), 'open-only filter on');
-    await check(`${label}: 지금 진료 중만 filters registered OPEN rows immediately without another request`, () => {
+    await check(`${label}: 진료 시간인 곳만 filters registered OPEN rows immediately without another request`, () => {
       assert.equal(s.log.nearby.length, 1);
       assert.equal(s.status, '가까운 병원·의원 8곳');
-      assert.ok(s.items.every(item => item.lines[0]?.state === 'OPEN'));
+      assert.ok(s.items.every(item => item.hoursState === 'OPEN' && item.badges[0] === '진료 시간 중'));
     });
     await tapSelector('[data-site-route="life-medical"] [data-medical-status-only]');
     s = await settledScreen(st => !st.statusOnlyChecked && /12곳/u.test(st.status), 'open-only filter off');
@@ -684,8 +695,10 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.deepEqual(s.items.map(item => item.name), names('hospital_12'));
       assert.equal(new Set(s.items.map(item => item.id)).size, 12);
       const closed = s.items.find(item => item.name === '가상소아과의원');
-      assert.equal(closed.lines[0].state, 'CLOSED');
-      assert.match(closed.lines[0].text, /^등록 시간상 진료 종료 · 오늘 09:00~12:00 · 직선 /u);
+      assert.equal(closed.hoursState, 'CLOSED');
+      assert.equal(closed.hours, '오늘 09:00~12:00');
+      assert.deepEqual(closed.badges, ['오늘 진료 끝남']);
+      assert.match(closed.distance, /^[\d.]+k?m$/u);
     });
 
     // 4. 응급실 / 약국 are one tap away on the same screen; the choice is remembered.
@@ -703,9 +716,10 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.deepEqual(s.items.map(item => item.name), names('emergency_4'));
       assert.equal(s.status, '가까운 응급실 4곳');
       assert.equal(s.more, '');
-      assert.equal(s.notice, '현재 진료 가능 우선 · 가까운 순');
-      assert.ok(s.items[0].lines.some(line => line.state === 'REALTIME_NONE'), JSON.stringify(s.items[0].lines));
-      assert.ok(s.items[0].lines.some(line => /수용 여부는 출발 전 전화로 확인/u.test(line.text)));
+      assert.equal(s.notice, '병상 보고 우선 · 가까운 순');
+      assert.deepEqual(s.items[0].beds, {state: 'NONE', value: '정보 없음', time: '응급실에 전화로 확인'}, JSON.stringify(s.items[0]));
+      assert.deepEqual(s.items[0].badges, [], 'an emergency room shows its bed report, not an hours badge');
+      assert.match(s.legend, /병상 수는 병원이 보고한 숫자예요\. 받을 수 있는지는 출발 전에 응급실로 전화해 확인하세요\./u);
       assert.equal(s.items[0].phone, 'tel:021110000');
     });
     record('응급실 — 같은 화면에서 칩 한 번', emergencyTaps, '내 주변 응급실 4곳 + 119 전화 버튼 항상 보임');
@@ -720,8 +734,10 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.deepEqual(s.items.map(item => item.name), names('pharmacy_8').slice(0, 5));
       assert.equal(s.status, '가까운 약국 8곳');
       assert.equal(s.more, '더 보기 (3곳)');
-      assert.equal(s.items[0].lines[0].state, 'OPEN');
-      assert.match(s.items[0].lines[0].text, /^등록 시간상 운영 중 · 오늘 09:00~18:00 · 직선 /u);
+      assert.equal(s.items[0].hoursState, 'OPEN');
+      assert.equal(s.items[0].hours, '오늘 09:00~18:00');
+      assert.deepEqual(s.items[0].badges, ['영업 시간 중']);
+      assert.match(s.legend, /^영업 시간은 약국이 등록한 시간이에요\./u);
       assert.equal(JSON.parse(s.storage.kind), 'pharmacy', 'the choice is remembered');
     });
     record('약국 — 같은 화면에서 칩 한 번', pharmacyTaps, '내 주변 약국 5곳(8곳 중)');
@@ -794,7 +810,6 @@ async function runCase(browser, origin, workDir, testCase) {
     s = await listed(5);
     await check(`${label}: a partly read provider says so, and the list still shows`, () => {
       assert.match(s.notice, /일부 기관만 확인/u);
-      assert.ok(s.items[0].lines.some(line => /일부 기관만 확인/u.test(line.text)));
     });
     await evaluate("(() => { localStorage.setItem('lotbi.life.medical-kind.v1', '\"hospital\"'); return true; })()");
     await setScenario('photo');
@@ -835,10 +850,11 @@ async function runCase(browser, origin, workDir, testCase) {
     await check(`${label}: long identity text and evidence-only status badges stay readable`, () => {
       assert.match(s.items[0].name, /가상아주긴병원명/u);
       assert.match(s.items[0].address, /가상메디컬복합센터 별관 12층/u);
-      assert.deepEqual(s.items[0].badges, ['진료 중', '24시간']);
-      assert.deepEqual(s.items[1].badges, ['진료 중', '야간진료', '곧 마감']);
-      assert.deepEqual(s.items[2].badges, ['진료 중', '휴일진료']);
+      assert.deepEqual(s.items[0].badges, ['진료 시간 중', '24시간']);
+      assert.deepEqual(s.items[1].badges, ['진료 시간 중', '야간 진료', '곧 마감 · 18:00']);
+      assert.deepEqual(s.items[2].badges, ['진료 시간 중', '휴일 진료']);
       assert.deepEqual(s.items[3].badges, ['운영시간 확인 필요']);
+      assert.equal(s.items[3].hours, '오늘 운영시간 정보 없음');
       assert.equal(s.overflow, 0);
     });
     await evaluate("(() => { localStorage.setItem('lotbi.life.medical-kind.v1', '\"pharmacy\"'); return true; })()");
@@ -846,8 +862,8 @@ async function runCase(browser, origin, workDir, testCase) {
     await reopenFromUrl();
     s = await listed(5);
     await check(`${label}: nothing registered open near → the sort line says so, the list is by distance`, () => {
-      assert.equal(s.notice, '영업 중 우선 · 가까운 순');
-      assert.ok(s.items.every(item => item.lines[0].state === 'CLOSED'));
+      assert.equal(s.notice, '영업 시간 우선 · 가까운 순');
+      assert.ok(s.items.every(item => item.hoursState === 'CLOSED' && item.badges[0] === '오늘 영업 끝남'));
     });
     await setScenario('normal');
     await evaluate("(() => { localStorage.removeItem('lotbi.life.medical-kind.v1'); return true; })()");
@@ -860,8 +876,8 @@ async function runCase(browser, origin, workDir, testCase) {
       s = await settledScreen(st => st.regionVisible && /위치 권한이 허용되지 않아/u.test(st.locationNote) && st.log.regions > 0 && /시·도와 시·군을 고르면/u.test(st.status), 'denied: picker');
       await check(`${label}: location refused → the 시·도/시·군 picker is open with both buttons, nothing searched, no position read`, () => {
         assert.deepEqual(s.provinces, ['시·도 선택', '서울특별시', '전북특별자치도']);
-        assert.equal(s.locate, '📍 내 위치 찾기');
-        assert.equal(s.toggle, '지역 고르기'); assert.equal(s.togglePressed, true);
+        assert.equal(s.locate, '내 위치 찾기');
+        assert.equal(s.toggle, '지역 변경'); assert.equal(s.togglePressed, true);
         assert.equal(s.log.nearby.length, 0);
         assert.equal(s.items.length, 0);
         assert.equal(s.status, '시·도와 시·군을 고르면 그곳의 병원·의원을 보여 드려요.');
@@ -877,9 +893,9 @@ async function runCase(browser, origin, workDir, testCase) {
         assert.deepEqual(s.items.map(item => item.name), names('hospital_12_region').slice(0, 5));
         assert.ok(s.items.every(item => item.distance === ''), 'a region has no distance');
         assert.equal(s.basis, '');
-        assert.equal(s.locate, '📍 현재 위치 · 강남구');
+        assert.equal(s.locate, '현재 위치 · 강남구');
         assert.equal(s.status, '강남구 병원·의원 12곳');
-        assert.equal(s.notice, '진료 중 우선 · 이름 순');
+        assert.equal(s.notice, '진료 시간 우선 · 이름 순');
         assert.equal(s.log.geo, 0, 'the browser position was not read');
         assert.deepEqual(JSON.parse(s.storage.region), {label: '강남구', latitude: 37.498, longitude: 127.028});
       });
@@ -903,7 +919,7 @@ async function runCase(browser, origin, workDir, testCase) {
         assert.equal(lastCall(s).label, '강남구');
         assert.equal(s.log.geo, 0);
         assert.equal(s.basis, '');
-        assert.equal(s.locate, '📍 현재 위치 · 강남구');
+        assert.equal(s.locate, '현재 위치 · 강남구');
         assert.equal(taps, 0);
         assert.equal(s.regionVisible, true, 'the picker stays open to change the region');
       });
@@ -913,7 +929,7 @@ async function runCase(browser, origin, workDir, testCase) {
       s = await listed(5, st => lastCall(st).source === undefined);
       await check(`${label}: [위치 허용하고 찾기] after allowing → the current position's list (region row closes)`, () => {
         assert.equal(s.basis, '');
-        assert.equal(s.locate, '📍 현재 위치 · 서울특별시 강남구');
+        assert.equal(s.locate, '현재 위치 · 서울특별시 강남구');
         assert.equal(s.regionVisible, false);
         assert.ok(s.log.geo >= 1);
       });
@@ -924,8 +940,8 @@ async function runCase(browser, origin, workDir, testCase) {
       await reopenFromUrl();
       s = await settledScreen(st => st.regionVisible && /내 위치나 지역을 알려 주시면/u.test(st.status), 'undecided: chooser');
       await check(`${label}: undecided permission, nothing remembered → [위치 허용하고 찾기] and [지역 고르기] are the screen; nothing asked, nothing searched`, () => {
-        assert.equal(s.locate, '📍 내 위치 찾기');
-        assert.equal(s.toggle, '지역 고르기');
+        assert.equal(s.locate, '내 위치 찾기');
+        assert.equal(s.toggle, '지역 변경');
         assert.equal(s.log.geo, 0);
         assert.equal(s.log.nearby.length, 0);
         assert.match(s.locationNote, /위치 허용하고 찾기.를 누르거나 지역을 골라 주세요/u);

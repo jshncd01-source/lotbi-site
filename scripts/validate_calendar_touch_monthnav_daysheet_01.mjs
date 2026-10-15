@@ -1,17 +1,17 @@
-// Locks touch month navigation and the persistent selected-day detail.
+// Locks touch month navigation and the selected day on the page.
+// Updated for the owner-approved calendar design 04 (2026-10-14).
 //
 // Covered contracts:
 //   - horizontal swipe changes month (left -> next, right -> previous)
 //   - vertical drag never changes month and never suppresses native scrolling
-//   - a tap-sized movement stays a tap, so date cells and event chips still work
+//   - a tap-sized movement stays a tap, so date cells still work
 //   - a burst of swipes advances exactly one month (no skipping)
-//   - desktop keeps the approved selected-day rail beside the Month
-//   - touch keeps the selected-day surface below the Month with no overlay
-//   - the day detail is part of the page (no close control) and tapping another
-//     date retargets the same persistent detail
-//   - Escape inside the detail steps back to the selected date and leaves the
-//     Calendar modal open (Site #129/#130)
-//   - desktop keeps the sticky side detail and gains no swipe behaviour
+//   - desktop lists the picked day in the card beside the Month, no swipe
+//   - touch lists the picked day under the Month with no sheet or overlay
+//   - the day list is part of the page (no close control, no repeated add
+//     actions); tapping another date retargets it and the one add action
+//   - Escape inside the day list steps back to the selected date and leaves the
+//     Calendar open (Site #129/#130)
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
@@ -39,6 +39,13 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/home-chat.css">
 <link rel="stylesheet" href="/site-calendar.css?v=20260922-daysheet1">
+<link rel="stylesheet" href="/site-calendar-expense.css">
+<link rel="stylesheet" href="/site-calendar-weather.css">
+<link rel="stylesheet" href="/site-theme-tokens.css">
+<link rel="stylesheet" href="/site-conversation.css">
+<link rel="stylesheet" href="/site-consumer-design.css">
+<link rel="stylesheet" href="/site-consumer-layout.css">
+<link rel="stylesheet" href="/site-consumer-detail.css">
 </head><body class="chat-home-page" data-site-auth-state="unauthenticated">
 <aside class="chat-sidebar chat-sidebar-desktop">
   <button type="button" data-calendar-view="all">캘린더</button>
@@ -80,7 +87,7 @@ const fixture = `<!doctype html><html lang="ko"><head>
 <script type="module">
 const out=document.getElementById('calendar-result');
 let stage='init';
-setTimeout(()=>{if(out.textContent==='pending'){const m=document.querySelector('.site-modal.site-calendar-modal');const c=m&&m.querySelector('.site-modal-content');out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage,diag:{modal:Boolean(m),view:c&&c.dataset.calendarManagerView,busy:c&&c.getAttribute('aria-busy'),grid:Boolean(m&&m.querySelector('.calendar-month-grid')),status:(m&&m.querySelector('.life-calendar-error')||{}).textContent||''},viewport:{width:innerWidth,height:innerHeight}})}},35000);
+setTimeout(()=>{if(out.textContent==='pending'){const m=document.querySelector('.site-modal.site-calendar-modal');const c=m&&m.querySelector('.site-modal-content');out.textContent=JSON.stringify({ok:false,error:'watchdog at stage: '+stage,diag:{modal:Boolean(m),view:c&&c.dataset.calendarManagerView,busy:c&&c.getAttribute('aria-busy'),grid:Boolean(m&&m.querySelector('.c4-mo-g')),status:(m&&m.querySelector('.life-calendar-error')||{}).textContent||''},viewport:{width:innerWidth,height:innerHeight}})}},35000);
 const wait=async(fn,label)=>{stage=label;for(let i=0;i<200;i+=1){if(fn())return true;await new Promise(r=>setTimeout(r,20))}throw new Error('timeout '+label)};
 const click=node=>node.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
 
@@ -155,28 +162,28 @@ try{
   // idle page may never produce another animation frame.
   stage='layout settle';
   await new Promise(r=>setTimeout(r,50));
-  await wait(()=>modal.querySelector('.calendar-month')?.getBoundingClientRect().width>0,'month geometry');
+  await wait(()=>modal.querySelector('.c4-mo-g')?.getBoundingClientRect().width>0,'month geometry');
 
-  // The approved Month opens with one persistent selected-day detail: beside
-  // the grid on desktop and directly after it in touch document flow.
-  const layoutNode=()=>modal.querySelector('.calendar-month-layout');
-  const childOrderOk=()=>{
-    const layout=layoutNode();
-    if(!layout)return false;
-    return layout.children.length===2
-      &&layout.children[0]?.classList.contains('calendar-month')
-      &&layout.children[1]?.classList.contains('calendar-day-panel')
-      &&!layout.children[1]?.hidden
-      &&!layout.querySelector('[data-calendar-day-detail-backdrop]');
-  };
+  // CALENDAR-DESIGN-04: the month opens with today selected and its day listed
+  // beside it (desk) or under it (phone). No window ever covers the month.
+  const shown=node=>Boolean(node&&node.getClientRects().length&&getComputedStyle(node).display!=='none');
+  const dayList=()=>[...modal.querySelectorAll('.c4-daycard,.c4-agenda')].find(shown)||null;
+  const overlayOpen=()=>Boolean(document.querySelector('.c4-dlg-backdrop,.calendar-day-panel,[data-calendar-day-detail-backdrop],.calendar-day-sheet-backdrop'));
   const titleOf=()=>modal.querySelector('.calendar-title-button')?.textContent||'';
-  const monthNode=()=>modal.querySelector('.calendar-month');
+  const monthNode=()=>modal.querySelector('.c4-mo-g');
+  const visibleAdd=()=>[...modal.querySelectorAll('[data-calendar-add]')].filter(shown);
   const idle=async label=>{await wait(()=>content?.getAttribute('aria-busy')!=='true',label)};
   const desktop=innerWidth>900;
   const result={ok:true,viewport:{width:innerWidth,height:innerHeight},desktop,
     reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches};
 
-  result.childOrder=childOrderOk();
+  const todayDate=modal.querySelector('.c4-mc[data-today="true"]')?.dataset.calendarDate||'';
+  result.openState={
+    design:modal.dataset.calendarDesign||'',
+    overlay:overlayOpen(),
+    listDate:dayList()?.dataset.selectedDate||'',
+    todayDate,
+  };
   const baseTitle=titleOf();
   const rect=monthNode().getBoundingClientRect();
   const midY=Math.round(rect.top+rect.height/2);
@@ -194,20 +201,26 @@ try{
   result.verticalScrollSafe=titleOf()===baseTitle&&!verticalPrevented;
 
   if(desktop){
-    // Desktop keeps the inline side detail and must gain no swipe behaviour.
+    // Desktop keeps swipe inert and lists the picked day in the side card.
     const swiped=drag(monthNode(),rightX,midY,leftX,midY);
     await new Promise(r=>setTimeout(r,30));
     result.desktopSwipeInert=titleOf()===baseTitle&&!swiped;
 
-    const cell=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(n=>n.dataset.selected!=='true');
+    const cell=[...modal.querySelectorAll('.c4-mc[data-current-month="true"]')].find(n=>n.dataset.selected!=='true');
+    const cellDate=cell.dataset.calendarDate;
     click(cell);
-    await wait(()=>!modal.querySelector('.calendar-day-panel')?.hidden,'desktop detail open');
-    const panel=modal.querySelector('.calendar-day-panel');
-    result.desktopPresentation=panel.dataset.presentation;
-    result.desktopPosition=getComputedStyle(panel).position;
-    result.desktopBackdrop=Boolean(modal.querySelector('[data-calendar-day-detail-backdrop]'));
-    result.desktopClose=Boolean(panel.querySelector('.calendar-day-close'));
-    result.desktopActionsInPanel=panel.querySelectorAll('.calendar-add-actions button').length;
+    await wait(()=>dayList()?.dataset.selectedDate===cellDate,'desktop day card follows');
+    const card=dayList();
+    result.desktopDay={
+      isSideCard:card.classList.contains('c4-daycard'),
+      position:getComputedStyle(card).position,
+      beside:card.getBoundingClientRect().left>=monthNode().getBoundingClientRect().right-1,
+      overlay:overlayOpen(),
+      close:Boolean(card.querySelector('.calendar-day-close')),
+      actionsInCard:card.querySelectorAll('[data-calendar-add],[data-calendar-add-image]').length,
+      addLabels:visibleAdd().map(n=>n.textContent.trim()),
+      expectedAdd:(()=>{const [,m,d]=cellDate.split('-').map(Number);return m+'월 '+d+'일 일정 추가'})(),
+    };
   }else{
     // --- swipe left -> next month ---------------------------------------
     const nextPrevented=drag(monthNode(),rightX,midY,leftX,midY);
@@ -244,80 +257,55 @@ try{
     await idle('previous button idle');
     result.buttonsPreserved=true;
 
-    // --- date tap retargets the persistent in-flow detail below the Month -
-    const cell=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')].find(n=>n.dataset.selected!=='true'&&n.dataset.today!=='true');
+    // --- a date tap lists that day under the Month ------------------------
+    const cell=[...modal.querySelectorAll('.c4-mc[data-current-month="true"]')].find(n=>n.dataset.selected!=='true'&&n.dataset.today!=='true');
     const cellDate=cell.dataset.calendarDate;
     click(cell);
-    await wait(()=>modal.querySelector('[data-calendar-date="'+cellDate+'"]')?.dataset.selected==='true','date selection');
-    await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===cellDate,'day detail follows');
-    // Geometry is only meaningful once any entry animation has settled. A
-    // background render (weather, holidays, the amount line) rebuilds the
-    // panel, so it is read afresh rather than through a reference that may
-    // since have left the document.
-    const livePanel=()=>modal.querySelector('.calendar-day-panel');
-    stage='sheet animation settle';
-    let previousBottom=null,stableTicks=0;
-    for(let i=0;i<120;i+=1){
-      const current=livePanel().getBoundingClientRect().bottom;
-      if(previousBottom!==null&&Math.abs(current-previousBottom)<0.5){
-        stableTicks+=1;
-        if(stableTicks>=3)break;
-      }else stableTicks=0;
-      previousBottom=current;
-      await new Promise(r=>setTimeout(r,20));
-    }
-    const sheet=livePanel();
-    const sheetRect=sheet.getBoundingClientRect();
-    const sheetStyle=getComputedStyle(sheet);
-    const pinned=modal.querySelector('.calendar-action-slot[data-calendar-action-bar="pinned"]');
+    await wait(()=>modal.querySelector('.c4-mc[data-calendar-date="'+cellDate+'"]')?.dataset.selected==='true','date selection');
+    await wait(()=>dayList()?.dataset.selectedDate===cellDate,'day list follows');
+    stage='day list settle';
+    await new Promise(r=>setTimeout(r,60));
+    const list=dayList();
+    const listRect=list.getBoundingClientRect();
     result.cellDate=cellDate;
-    result.sheet={
-      presentation:sheet.dataset.presentation,
-      position:sheetStyle.position,
-      top:sheetRect.top,
-      bottom:sheetRect.bottom,
-      left:sheetRect.left,
-      right:sheetRect.right,
-      gridBottom:modal.querySelector('.calendar-month-grid').getBoundingClientRect().bottom,
-      backdrop:Boolean(modal.querySelector('[data-calendar-day-detail-backdrop]')),
-      reducedMotion:sheet.dataset.reducedMotion||'',
-      heading:Boolean(sheet.querySelector('.calendar-day-heading')?.textContent?.trim()),
-      listOrEmpty:Boolean(sheet.querySelector('.calendar-day-event')||sheet.querySelector('.calendar-day-empty')||sheet.querySelector('.life-calendar-empty')),
-      close:Boolean(sheet.querySelector('.calendar-day-close')),
-      actionsInPanel:sheet.querySelectorAll('.calendar-add-actions button').length,
-    };
-    result.actions={
-      pinned:Boolean(pinned),
-      position:pinned?getComputedStyle(pinned).position:'',
-      addLabel:pinned?.querySelector('[data-calendar-add]')?.textContent||'',
-      addAria:pinned?.querySelector('[data-calendar-add]')?.getAttribute('aria-label')||'',
-      addImageLabel:pinned?.querySelector('[data-calendar-add-image]')?.textContent||'',
-      addImageAria:pinned?.querySelector('[data-calendar-add-image]')?.getAttribute('aria-label')||'',
+    result.list={
+      isUnderMonth:list.classList.contains('c4-agenda'),
+      position:getComputedStyle(list).position,
+      top:listRect.top,
+      left:listRect.left,
+      right:listRect.right,
+      gridBottom:monthNode().getBoundingClientRect().bottom,
+      overlay:overlayOpen(),
+      heading:Boolean(list.querySelector('.calendar-day-heading')?.textContent?.trim()),
+      listOrEmpty:Boolean(list.querySelector('.c4-dc-ev')||list.querySelector('.c4-empty-day')),
+      close:Boolean(list.querySelector('.calendar-day-close')),
+      actionsInList:list.querySelectorAll('[data-calendar-add],[data-calendar-add-image]').length,
+      addLabels:visibleAdd().map(n=>n.textContent.trim()),
+      expectedAdd:(()=>{const [,m,d]=cellDate.split('-').map(Number);return m+'월 '+d+'일 일정 추가'})(),
     };
 
-    // --- another date retargets the detail, and the pinned action follows --
-    const neighbourCell=[...modal.querySelectorAll('.calendar-date-cell[data-current-month="true"]')]
+    // --- another date retargets the list, and the add action follows -------
+    const neighbourCell=[...modal.querySelectorAll('.c4-mc[data-current-month="true"]')]
       .find(node=>node.dataset.calendarDate!==cellDate&&node.dataset.today!=='true');
     const neighbourDate=neighbourCell?.dataset.calendarDate||'';
     click(neighbourCell);
-    await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===neighbourDate,'panel retarget');
+    await wait(()=>dayList()?.dataset.selectedDate===neighbourDate,'list retarget');
     result.retarget={
       requested:neighbourDate,
-      selected:modal.querySelector('.calendar-day-panel')?.dataset.selectedDate||'',
-      stillShown:!modal.querySelector('.calendar-day-panel')?.hidden,
-      addLabel:modal.querySelector('.calendar-action-slot [data-calendar-add]')?.textContent||'',
+      selected:dayList()?.dataset.selectedDate||'',
+      addLabels:visibleAdd().map(n=>n.textContent.trim()),
+      expectedAdd:(()=>{const [,m,d]=neighbourDate.split('-').map(Number);return m+'월 '+d+'일 일정 추가'})(),
     };
 
-    // --- Escape inside the detail steps back to the date; Calendar survives --
-    click(modal.querySelector('[data-calendar-date="'+cellDate+'"]'));
-    await wait(()=>modal.querySelector('.calendar-day-panel')?.dataset.selectedDate===cellDate,'panel back on the first date');
-    const heading=modal.querySelector('.calendar-day-panel .calendar-day-heading');
+    // --- Escape inside the list steps back to the date; Calendar survives --
+    click(modal.querySelector('.c4-mc[data-calendar-date="'+cellDate+'"]'));
+    await wait(()=>dayList()?.dataset.selectedDate===cellDate,'list back on the first date');
+    const heading=dayList().querySelector('.calendar-day-heading');
     heading.focus();
     heading.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
-    await wait(()=>document.activeElement?.dataset.calendarDateTrigger===cellDate,'day detail Escape focus restore');
+    await wait(()=>document.activeElement?.dataset.calendarDateTrigger===cellDate,'day list Escape focus restore');
     result.escapeKeepsCalendar=Boolean(document.querySelector('.site-modal.site-calendar-modal'));
-    result.escapeBackdropCleared=!modal.querySelector('[data-calendar-day-detail-backdrop]');
-    result.escapeDetailStays=Boolean(modal.querySelector('.calendar-day-panel'));
+    result.escapeKeepsSelection=dayList()?.dataset.selectedDate===cellDate;
     result.escapeFocusRestore=true;
   }
 
@@ -371,9 +359,12 @@ try {
 
   for (const value of results) {
     const label = `${value.viewport.width}x${value.viewport.height}`;
+    const open = value.openState || {};
     if (!value.tapPreserved) throw new Error(`${label}: tap-sized movement must not navigate months`);
     if (!value.verticalScrollSafe) throw new Error(`${label}: vertical drag must not navigate or block scrolling`);
-    if (!value.childOrder) throw new Error(`${label}: Month must open with the calendar followed by one persistent selected-day detail`);
+    if (open.design !== 'c4') throw new Error(`${label}: the workspace Calendar must be the approved design 04`);
+    if (open.overlay) throw new Error(`${label}: Month must open with no window over it`);
+    if (!open.todayDate || open.listDate !== open.todayDate) throw new Error(`${label}: Month must open with today listed (${open.listDate} vs ${open.todayDate})`);
   }
 
   const desktops = results.filter(value => value.desktop);
@@ -382,12 +373,14 @@ try {
 
   for (const value of desktops) {
     const label = `${value.viewport.width}x${value.viewport.height}`;
+    const d = value.desktopDay || {};
     if (!value.desktopSwipeInert) throw new Error(`${label}: desktop must not gain swipe month navigation`);
-    if (value.desktopPresentation !== 'SIDE') throw new Error(`${label}: desktop must keep the selected-day side rail`);
-    if (value.desktopPosition !== 'relative' && value.desktopPosition !== 'sticky') throw new Error(`${label}: desktop detail must stay in the Month layout`);
-    if (value.desktopBackdrop) throw new Error(`${label}: desktop side detail must not render a dismiss backdrop`);
-    if (value.desktopClose) throw new Error(`${label}: persistent desktop detail must not render a close control`);
-    if (value.desktopActionsInPanel !== 2) throw new Error(`${label}: desktop side detail keeps its two record actions in the DOM (got ${value.desktopActionsInPanel})`);
+    if (!d.isSideCard || !d.beside) throw new Error(`${label}: desktop lists the picked day in the card beside the Month`);
+    if (d.position === 'fixed' || d.position === 'absolute') throw new Error(`${label}: the day card is part of the page, got ${d.position}`);
+    if (d.overlay) throw new Error(`${label}: picking a day must not open a window`);
+    if (d.close) throw new Error(`${label}: the day card is part of the page and has no close control`);
+    if (d.actionsInCard !== 0) throw new Error(`${label}: the day card must not repeat the add actions (got ${d.actionsInCard})`);
+    if (d.addLabels.join('|') !== d.expectedAdd) throw new Error(`${label}: one visible add action naming the picked day, got [${d.addLabels.join('|')}]`);
   }
 
   for (const value of mobiles) {
@@ -397,42 +390,34 @@ try {
     if (!value.burstNoSkip) throw new Error(`${label}: rapid swipes skipped months (${value.burstTitle})`);
     if (!value.buttonsPreserved) throw new Error(`${label}: 이전/다음 buttons must keep working`);
 
-    const sheet = value.sheet || {};
-    if (sheet.presentation !== 'FLOW') throw new Error(`${label}: touch day detail must stay in document flow (got ${sheet.presentation})`);
-    if (sheet.position === 'fixed' || sheet.position === 'absolute') throw new Error(`${label}: the touch detail must not detach from document flow`);
-    if (sheet.backdrop) throw new Error(`${label}: the touch detail must not have a dismiss backdrop`);
-    if (sheet.top < sheet.gridBottom - 2) throw new Error(`${label}: the touch detail must follow the month grid`);
-    if (sheet.left < -1 || sheet.right > value.viewport.width + 1) throw new Error(`${label}: day panel horizontal overflow`);
-    if (!sheet.heading) throw new Error(`${label}: the day panel must show the date heading`);
-    if (!sheet.listOrEmpty) throw new Error(`${label}: the day panel must show the entry list or the empty message`);
-    if (sheet.close) throw new Error(`${label}: persistent touch detail must not carry a close control`);
-    // The approved persistent panel owns the two record actions in the DOM;
-    // the Month must not duplicate them in a separate pinned action bar.
-    const actions = value.actions || {};
-    if (sheet.actionsInPanel !== 2) throw new Error(`${label}: the touch detail must keep both record actions inside`);
-    if (actions.pinned) throw new Error(`${label}: Month must not duplicate actions in a pinned bar`);
+    const list = value.list || {};
+    if (!list.isUnderMonth) throw new Error(`${label}: touch lists the picked day under the Month`);
+    if (list.position === 'fixed' || list.position === 'absolute') throw new Error(`${label}: the touch day list must flow with the page, got ${list.position}`);
+    if (list.top < list.gridBottom - 1) throw new Error(`${label}: the touch day list must sit under the Month`);
+    if (list.overlay) throw new Error(`${label}: picking a day must not open a sheet`);
+    if (list.left < -1 || list.right > value.viewport.width + 1) throw new Error(`${label}: day list horizontal overflow`);
+    if (!list.heading) throw new Error(`${label}: the day list must show the date heading`);
+    if (!list.listOrEmpty) throw new Error(`${label}: the day list must show the entry list or the empty message`);
+    if (list.close) throw new Error(`${label}: the day list is part of the page and has no close control`);
+    if (list.actionsInList !== 0) throw new Error(`${label}: the day list must not repeat the add actions (got ${list.actionsInList})`);
+    if (list.addLabels.join('|') !== list.expectedAdd) throw new Error(`${label}: one visible add action naming the picked day, got [${list.addLabels.join('|')}]`);
 
-    // Another date is reachable while the detail is shown, and taking it
-    // retargets the detail -- and the pinned action -- rather than closing it.
+    // Another date is reachable while the list is shown, and taking it
+    // retargets the list -- and the add action -- rather than closing it.
     if (value.retarget?.selected !== value.retarget?.requested) {
-      throw new Error(`${label}: tapping another date must move the detail to it (${JSON.stringify(value.retarget)})`);
+      throw new Error(`${label}: tapping another date must move the list to it (${JSON.stringify(value.retarget)})`);
     }
-    if (!value.retarget?.stillShown) throw new Error(`${label}: tapping another date must keep the detail on the page`);
-    if (!value.escapeKeepsCalendar) throw new Error(`${label}: Escape must leave the Calendar modal open`);
-    if (!value.escapeBackdropCleared) throw new Error(`${label}: Escape must leave no dismiss layer behind`);
+    if (value.retarget.addLabels.join('|') !== value.retarget.expectedAdd) throw new Error(`${label}: the add action must follow the picked day (${JSON.stringify(value.retarget)})`);
+    if (!value.escapeKeepsCalendar) throw new Error(`${label}: Escape must leave the Calendar open`);
+    if (!value.escapeKeepsSelection) throw new Error(`${label}: Escape must keep the picked day`);
     if (!value.escapeFocusRestore) throw new Error(`${label}: Escape must restore focus to the selected date`);
-    if (!value.escapeDetailStays) throw new Error(`${label}: Escape must preserve the persistent day detail`);
   }
 
   for (const value of results) {
     if (!value.reducedMotion) throw new Error(`${value.viewport.width}x${value.viewport.height}: reduced-motion case did not report reduced motion`);
-    if (value.sheet && value.sheet.reducedMotion !== 'true') throw new Error(`${value.viewport.width}x${value.viewport.height}: sheet must record prefers-reduced-motion`);
   }
   if (animated.reducedMotion) throw new Error('motion-enabled case unexpectedly reported reduced motion');
-  if (animated.sheet.reducedMotion !== 'false') throw new Error('motion-enabled sheet must record prefers-reduced-motion=false');
-  if (animated.sheet.presentation !== 'FLOW' || animated.sheet.position === 'fixed' || animated.sheet.backdrop) {
-    throw new Error('motion-enabled day panel must still render as persistent in-flow detail');
-  }
+  if (!animated.list?.isUnderMonth || animated.list.overlay) throw new Error('motion-enabled day list must still sit under the Month');
   if (!animated.swipeNext || !animated.swipePrevious || !animated.burstNoSkip) {
     throw new Error('motion-enabled swipe navigation regressed');
   }

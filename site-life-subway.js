@@ -20,10 +20,10 @@
 // (arvlMsg2), the official 진입/도착/출발 code, 막차, and the time it was
 // generated. The remaining time is Core's barvlDt minus the age; when it has
 // passed the screen says so instead of moving the train a station on its own.
-import {CORE_ORIGIN} from './site-core.js?v=aset-1d0b169fb87c';
-import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-1d0b169fb87c';
-import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-1d0b169fb87c';
-import {formatDistanceMeters} from './site-navigation.js?v=aset-1d0b169fb87c';
+import {CORE_ORIGIN} from './site-core.js?v=aset-a5a7175d3f1d';
+import {getBrowserLocationPermissionState, LOCATION_PERMISSION, resolveSharedBrowserCurrentLocation} from './site-current-location.js?v=aset-a5a7175d3f1d';
+import {isLocationUsageEnabled} from './site-location-preference.js?v=aset-a5a7175d3f1d';
+import {formatDistanceMeters} from './site-navigation.js?v=aset-a5a7175d3f1d';
 
 export const SUBWAY_MENU_LABEL = '지하철 정보';
 export const SUBWAY_STATION_TITLE = '지하철 도착정보';
@@ -44,6 +44,9 @@ export const SUBWAY_LINE_COLORS = Object.freeze({
 
 const TIMEOUT_MS = 12_000;
 const REFRESH_COOLDOWN_MS = 5_000;
+// REGIONAL-INFO-UNIFY-01: while the station screen is on screen, arrivals are
+// read again every 30 seconds (quietly: the list stays until the new one comes).
+export const SUBWAY_AUTO_REFRESH_MS = 30_000;
 const STATION_ID = /^\d{10}$/u;
 const LINE_ID = /^\d{4}$/u;
 const SLOT = /^\d{2}:\d{2}$/u;
@@ -172,7 +175,44 @@ export function normalizeArrival(value) {
     clockAhead: value.clock_ahead === true,
     lastTrain: value.last_train === true,
     position,
+    statusCode: text(value.status_code),
+    messageStation: text(value.message_station),
+    stopsAway: stopsAway(message, text(value.status_code)),
   });
+}
+
+// How many stations away the train is, from the official words only:
+// 「[3]번째 전역 (방배)」 → 3; 전역 출발·진입·도착 (arvlCd 3·4·5) → 1. Otherwise null.
+export function stopsAway(message, statusCode = '') {
+  const match = /\[(\d{1,2})\]번째 전역/u.exec(text(message));
+  if (match) return Number(match[1]);
+  return ['3', '4', '5'].includes(text(statusCode)) ? 1 : null;
+}
+
+// 「교대방면」 → 「교대 방면」: the reader sees where the train goes next, never 내선/외선.
+export function headingLabel(heading) {
+  return text(heading).replace(/\s*방면$/u, ' 방면');
+}
+
+// The one line a reader needs first: how soon, in words.
+export function arrivalWhen(arrival) {
+  if (arrival.statusCode === '1') return '지금 도착';
+  if (arrival.statusCode === '0') return '곧 도착 · 들어오는 중';
+  if (!arrival.etaElapsed && arrival.etaSeconds !== null && arrival.etaSeconds > 0) {
+    return arrival.etaSeconds < 60 ? '곧 도착' : `약 ${Math.round(arrival.etaSeconds / 60)}분 후 도착`;
+  }
+  if (arrival.stopsAway) return `${arrival.stopsAway}정거장 전`;
+  return arrival.message || arrival.statusLabel || '도착 정보 확인 중';
+}
+
+// Where the train is now, as stations: 「1정거장 전 · 역삼역」.
+export function arrivalWhere(arrival) {
+  const station = arrival.messageStation || arrival.position?.stationName || '';
+  if (arrival.stopsAway) return `${arrival.stopsAway}정거장 전${station ? ` · ${station}역` : ''}`;
+  if (arrival.statusCode === '0' || arrival.statusCode === '1') return arrival.message;
+  const status = arrival.position && arrival.position.stationName === station ? arrival.position.statusLabel
+    : arrival.statusCode === '2' ? '출발' : '';
+  return station ? `${station}역${status ? ` ${status}` : ' 근처'}` : '';
 }
 
 // "광운대행 - 시청방면" → "시청방면": the official heading of a direction.
@@ -191,7 +231,8 @@ export function directionChoices(arrivals = [], series = []) {
     const counts = new Map();
     for (const heading of headings) counts.set(heading, (counts.get(heading) || 0) + 1);
     const heading = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
-    return {code, label: SUBWAY_DIRECTION_LABELS[code], heading};
+    return {code, label: SUBWAY_DIRECTION_LABELS[code], heading,
+      display: heading ? headingLabel(heading) : `${arrivals.find(item => item.direction === code)?.destination || SUBWAY_DIRECTION_LABELS[code]}${arrivals.some(item => item.direction === code && item.destination) ? '행' : ''}`};
   });
 }
 
@@ -513,24 +554,27 @@ export function arrivalItem(arrival, {documentRef = document} = {}) {
   const item = el('li', 'subway-arrival', '', documentRef);
   item.dataset.direction = arrival.direction;
   if (arrival.trainNo) item.dataset.trainNo = arrival.trainNo;
+  // REGIONAL-INFO-UNIFY-01: how soon first, then how many stations away; the
+  // 방면 is the next station (never 내선/외선) and no raw clock is shown.
   const head = el('div', 'subway-arrival-head', '', documentRef);
-  head.append(el('span', 'subway-arrival-direction', arrival.directionLabel, documentRef));
-  head.append(el('strong', 'subway-arrival-line', arrival.lineName || `${arrival.destination}행`, documentRef));
+  const heading = headingOf(arrival.lineName);
+  head.append(el('span', 'subway-arrival-direction', heading ? headingLabel(heading) : '', documentRef));
+  head.append(el('strong', 'subway-arrival-line', arrival.destination ? `${arrival.destination}행` : arrival.lineName.replace(/\s*-.*$/u, ''), documentRef));
   if (arrival.express && arrival.trainType) head.append(el('span', 'subway-tag subway-tag-express', arrival.trainType, documentRef));
   if (arrival.lastTrain) head.append(el('span', 'subway-tag subway-tag-last', '막차', documentRef));
-  const message = el('p', 'subway-arrival-message', arrival.message || arrival.statusLabel, documentRef);
+  const when = el('p', 'subway-arrival-when', arrivalWhen(arrival), documentRef);
+  const message = el('p', 'subway-arrival-message', arrivalWhere(arrival) || arrival.message || arrival.statusLabel, documentRef);
   message.dataset.statusLabel = arrival.statusLabel || '';
   const meta = el('p', 'subway-arrival-meta', '', documentRef);
   const parts = [];
-  if (arrival.etaElapsed) parts.push('공식 예정 시간이 지났어요');
-  else if (arrival.etaSeconds !== null && arrival.etaSeconds > 0) parts.push(`지금 기준 약 ${formatSeconds(arrival.etaSeconds)} 남음`);
-  if (arrival.clockAhead) parts.push(`정보 생성 ${arrival.generatedAt} (제공처 시각이 지금보다 앞서 경과 시간을 계산하지 않았어요)`);
-  else if (arrival.generatedAt) parts.push(`정보 생성 ${arrival.generatedAt}${arrival.ageSeconds !== null ? ` (${formatSeconds(arrival.ageSeconds)} 전)` : ''}`);
+  if (arrival.etaElapsed) parts.push('예정 시간이 지나 정거장 수로 보여 드려요');
+  if (arrival.clockAhead) parts.push('제공처 시각이 지금보다 앞서 있어 몇 초 전 정보인지 계산하지 않았어요');
+  else if (arrival.ageSeconds !== null) parts.push(`${formatSeconds(arrival.ageSeconds)} 전 정보`);
   meta.textContent = parts.join(' · ');
-  item.append(head, message, meta);
-  if (arrival.position) {
-    const where = [arrival.position.stationName, arrival.position.statusLabel].filter(Boolean).join(' ');
-    item.append(el('p', 'subway-arrival-position', `열차 위치: ${where}${arrival.position.receivedAt ? ` · ${arrival.position.receivedAt} 수신` : ''}`, documentRef));
+  item.append(head, when, message, meta);
+  if (arrival.position && !arrival.stopsAway && arrival.position.stationName !== (arrival.messageStation || arrival.position.stationName)) {
+    const where = [arrival.position.stationName ? `${arrival.position.stationName}역` : '', arrival.position.statusLabel].filter(Boolean).join(' ');
+    item.append(el('p', 'subway-arrival-position', `열차 위치 · ${where}`, documentRef));
   }
   return item;
 }
@@ -651,8 +695,7 @@ export async function mountSubwayStation({
     all.addEventListener('click', () => { state.direction = ''; remember(); renderDirections(); renderArrivals(); renderAverage(); });
     directionRow.append(all);
     for (const choice of choices) {
-      const label = choice.heading ? `${choice.label} · ${choice.heading}` : choice.label;
-      const button = chip(label, state.direction === choice.code, documentRef, {subwayDirection: choice.code});
+      const button = chip(choice.display, state.direction === choice.code, documentRef, {subwayDirection: choice.code});
       button.addEventListener('click', () => {
         state.direction = choice.code; remember(); renderDirections(); renderArrivals(); renderAverage();
       });
@@ -662,7 +705,9 @@ export async function mountSubwayStation({
   }
 
   function renderArrivals() {
-    const shown = state.arrivals.filter(item => !state.direction || item.direction === state.direction);
+    // A train that already left this station (arvlCd 2 here) is not one to catch.
+    const shown = state.arrivals.filter(item => !(item.statusCode === '2' && item.messageStation === state.name)
+      && (!state.direction || item.direction === state.direction));
     arrivals.replaceChildren(...shown.map(item => arrivalItem(item, {documentRef})));
     if (state.realtimeStatus === 'OK' && !shown.length) realtimeStatus.textContent = '이 방향의 도착 예정 열차가 서울시 응답에 없어요.';
   }
@@ -698,12 +743,14 @@ export async function mountSubwayStation({
     }
   }
 
-  async function loadArrivals({force = false} = {}) {
+  async function loadArrivals({force = false, quiet = false} = {}) {
     if (!state.stationId) return;
     arrivalController?.abort(); arrivalController = new AbortController();
     const token = ++arrivalToken;
-    realtimeStatus.textContent = '서울시 실시간 도착정보를 확인하는 중…';
-    arrivals.replaceChildren();
+    if (!quiet) {
+      realtimeStatus.textContent = '서울시 실시간 도착정보를 확인하는 중…';
+      arrivals.replaceChildren();
+    }
     state.requests += 1;
     const response = await getJson(subwayUrl('arrivals', {station_id: state.stationId}), {fetchImpl, signal: arrivalController.signal});
     if (disposed || token !== arrivalToken) return;
@@ -728,7 +775,7 @@ export async function mountSubwayStation({
     state.realtimeStatus = text(data.status);
     state.arrivals = (Array.isArray(data.arrivals) ? data.arrivals : []).map(normalizeArrival).filter(Boolean);
     const checkedAt = kstClock(data.checked_at);
-    checked.textContent = checkedAt ? `마지막 확인 ${checkedAt}${force ? ' · 새로고침함' : ''}` : '';
+    checked.textContent = checkedAt ? `마지막 확인 ${checkedAt}${force ? ' · 새로고침함' : ''} · 30초마다 자동 확인` : '';
     if (state.realtimeStatus === 'OK') {
       realtimeStatus.textContent = state.arrivals.length ? '' : '도착 예정 열차가 서울시 응답에 없어요.';
       const positions = data.positions && typeof data.positions === 'object' ? data.positions : {};
@@ -805,9 +852,14 @@ export async function mountSubwayStation({
     return {dispose() { disposed = true; }, focus() { title.focus(); }, state};
   }
   await loadAll();
+  const timer = globalThis.setInterval?.(() => {
+    if (disposed || refresh.hidden || documentRef.visibilityState === 'hidden' || !root.isConnected) return;
+    void loadArrivals({quiet: true});
+  }, SUBWAY_AUTO_REFRESH_MS);
   return {
     dispose() {
       disposed = true;
+      globalThis.clearInterval?.(timer);
       arrivalController?.abort();
       congestionController?.abort();
     },

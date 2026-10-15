@@ -75,7 +75,27 @@ export function normalizeCalendarWeatherResponse(payload) {
   return Object.freeze({
     providerReady: payload.provider_ready,
     items: Object.freeze(items),
+    current: normalizeCurrentObservation(payload.current),
     aiCalls: 0,
+  });
+}
+
+// CALENDAR-DESIGN-04: 오늘의 "지금 N°"는 예보가 아니라 기상청 초단기실황
+// (KMA_NOWCAST) 관측값일 때만 쓴다. 값이 없거나 모양이 틀리면 실황이 없는 것으로
+// 보고(null) 예보 화면을 그대로 둔다 -- 실황 하나 때문에 날씨 전체를 버리지 않는다.
+const PRECIPITATION_KINDS = Object.freeze(['NONE', 'RAIN', 'RAIN_SNOW', 'SNOW', 'SHOWER', 'DRIZZLE', 'SLEET', 'SNOW_FLURRY']);
+export function normalizeCurrentObservation(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const temperature = Number(raw.temperature_c);
+  const observedAt = String(raw.observed_at || '');
+  if (raw.temperature_c === null || raw.temperature_c === undefined || !Number.isFinite(temperature)) return null;
+  if (String(raw.source || '') !== 'KMA_NOWCAST' || !Number.isFinite(Date.parse(observedAt))) return null;
+  const kind = String(raw.precipitation_kind || 'NONE');
+  return Object.freeze({
+    temperature,
+    precipitationKind: PRECIPITATION_KINDS.includes(kind) ? kind : 'NONE',
+    observedAt,
+    source: 'KMA_NOWCAST',
   });
 }
 

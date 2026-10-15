@@ -222,6 +222,69 @@
   .calendar-day-panel .calendar-amount-category dd { overflow: visible; text-overflow: clip; }
 }
 
+/* CALENDAR-APPROVED-DESIGN-FINAL-03 — 확정 시안의 합계 카드. */
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-overview {
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--lotbi-calendar-grid-line, #dbe1ea);
+  border-radius: 16px;
+  background: var(--lotbi-calendar-week-selected-surface, #f5f8fc);
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-head .calendar-amount-line {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-line-label { font-size: 15px; font-weight: 800; }
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-line-amount { font-size: 30px; font-weight: 950; }
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-line-chevron { display: none; }
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-image-button {
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 1px solid var(--lotbi-calendar-grid-line, #dbe1ea);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #fff);
+  color: var(--lotbi-text-primary, #303642);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-category-groups { padding: 0; }
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-categories {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--lotbi-calendar-grid-line, #dbe1ea);
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-category {
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 8px;
+  text-align: center;
+}
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-category dt { font-size: 12px; font-weight: 750; }
+.consumer-workspace[data-workspace='calendar'] .calendar-amount-category dd { margin-top: 2px; font-size: 15px; font-weight: 900; }
+
+@media (max-width: 900px) {
+  .consumer-workspace[data-workspace='calendar'] .calendar-amount-overview { padding: 14px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-amount-line-amount { font-size: 24px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-amount-image-button { padding-inline: 10px; font-size: 12px; }
+  .consumer-workspace[data-workspace='calendar'] .calendar-amount-categories { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 .calendar-expense-item dd {
   margin: 0;
   color: var(--lotbi-text-secondary, #3d4653);

@@ -80,6 +80,16 @@ const type = (input, value) => { input.value = value; input.dispatchEvent(new Ev
 const setPin = async (root, pin) => { const setup = await wait(() => root.querySelector('form.wallet-pin-form:not(.wallet-unlock-form)'), 'pin setup'); const [first, second] = setup.querySelectorAll('input'); first.value = pin; second.value = pin; setup.requestSubmit(); };
 const unlockWith = async (root, pin) => { const form = await wait(() => root.querySelector('.wallet-unlock-form'), 'unlock form'); for (const digit of pin) [...form.querySelectorAll('.wallet-keypad button')].find(button => button.textContent === digit).click(); [...form.querySelectorAll('.wallet-keypad button')].find(button => button.textContent === '열기').click(); };
 const customsCard = root => root.querySelector('section.wallet-customs');
+// LIFE-WALLET-REDESIGN-02: the code lives on the 생활정보 tab, and backups are rows on the 설정 screen.
+const showLife = root => root.querySelector('[data-wallet-tab="life"]')?.click();
+const backupDisabled = async root => {
+  root.querySelector('[data-wallet-settings-open]').click();
+  const page = await wait(() => root.querySelector('[data-wallet-view="settings"]'), 'settings');
+  const disabled = page.querySelector('[data-wallet-settings="backup"]').disabled;
+  press(page, 'Life Wallet');
+  await wait(() => customsCard(root), 'back from settings');
+  return disabled;
+};
 const pngDataUrl = () => { const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 20; const context = canvas.getContext('2d'); context.fillStyle = '#e9dcae'; context.fillRect(0, 0, 32, 20); return canvas.toDataURL('image/png'); };
 `;
 
@@ -230,11 +240,13 @@ try {
   mounted = wallet.mountLifeWallet({root, authenticated: true, accountId: A, customsCode: true});
   await setPin(root, '2468');
   const empty = await wait(() => customsCard(root), 'empty customs card');
+  showLife(root);
   const anchors = scope => [...scope.querySelectorAll('a')].map(anchor => ({href: anchor.href, target: anchor.target, rel: anchor.rel, text: anchor.textContent}));
-  result.emptyCard = {state: empty.dataset.walletCustoms, buttons: visibleButtons(empty).map(button => button.textContent), links: anchors(empty), backupDisabled: [...root.querySelectorAll('button')].find(button => button.textContent === '암호화 백업 파일 만들기')?.disabled};
+  result.emptyCard = {state: empty.dataset.walletCustoms, buttons: visibleButtons(empty).map(button => button.textContent), links: anchors(empty)};
+  result.emptyCard.backupDisabled = await backupDisabled(root);
 
   // Register: the field, the live format check, consent.
-  press(empty, '등록하기');
+  press(customsCard(root), '등록하기');
   const editor = await wait(() => root.querySelector('[data-wallet-view="customs-edit"]'), 'editor');
   const input = editor.querySelector('.wallet-customs-input');
   result.field = {type: input.type, inputMode: input.inputMode, autocomplete: input.getAttribute('autocomplete'), spellcheck: input.spellcheck, autocorrect: input.getAttribute('autocorrect'), autocapitalize: input.getAttribute('autocapitalize'), ignored: input.getAttribute('data-lpignore') === 'true' && input.dataset.formType === 'other', name: input.name, focused: document.activeElement === input, prefix: editor.querySelector('.wallet-customs-prefix')?.textContent, consent: Boolean(editor.querySelector('.wallet-customs-consent input[type=checkbox]')), pinField: Boolean(editor.querySelector('.wallet-pin-input')), links: anchors(editor)};
@@ -304,10 +316,11 @@ try {
   // Unlock: masked again.
   await unlockWith(root, '2468');
   const card2 = await wait(() => customsCard(root)?.dataset.walletCustoms === 'saved' && customsCard(root), 'card after unlock');
-  result.afterUnlock = {flag: card2.querySelector('.wallet-customs-number').dataset.masked, backupEnabled: ![...root.querySelectorAll('button')].find(button => button.textContent === '암호화 백업 파일 만들기')?.disabled};
+  result.afterUnlock = {flag: card2.querySelector('.wallet-customs-number').dataset.masked};
+  result.afterUnlock.backupEnabled = !(await backupDisabled(root));
 
   // 관리: facts, the caution, the official steps.
-  press(card2, '관리');
+  press(await wait(() => customsCard(root)?.dataset.walletCustoms === 'saved' && customsCard(root), 'card after settings'), '관리');
   const detail = await wait(() => root.querySelector('[data-wallet-view="customs"]'), 'detail');
   result.detail = {caution: detail.querySelector('.wallet-customs-caution')?.textContent, facts: [...detail.querySelectorAll('.wallet-customs-facts dt')].map(term => term.textContent), steps: [...detail.querySelectorAll('[data-wallet-customs-step]')].map(step => step.dataset.walletCustomsStep), links: anchors(detail), masked: detail.querySelector('.wallet-customs-number').dataset.masked, buttons: visibleButtons(detail).map(button => button.textContent)};
 
@@ -333,6 +346,7 @@ try {
   mounted = wallet.mountLifeWallet({root, authenticated: true, accountId: B, customsCode: true});
   await setPin(root, '1357');
   const cardB = await wait(() => customsCard(root), 'B card');
+  showLife(root);
   result.accountB = {state: cardB.dataset.walletCustoms, pageHasA: root.innerHTML.includes('0456')};
   press(cardB, '등록하기');
   const editorB = await wait(() => root.querySelector('[data-wallet-view="customs-edit"]'), 'B editor');
@@ -388,7 +402,9 @@ try {
   sessionStorage.clear();
   mounted = wallet.mountLifeWallet({root, authenticated: true, accountId: A, customsCode: true});
   await unlockWith(root, '2468');
-  press(await wait(() => customsCard(root)?.dataset.walletCustoms === 'saved' && customsCard(root), 'card for delete'), '관리');
+  await wait(() => customsCard(root)?.dataset.walletCustoms === 'saved', 'card for delete ready');
+  showLife(root);
+  press(customsCard(root), '관리');
   const detail2 = await wait(() => root.querySelector('[data-wallet-view="customs"]'), 'detail for delete');
   press(detail2, '번호 삭제');
   const removal = detail2.querySelector('form.wallet-delete-confirm');
@@ -418,7 +434,8 @@ try {
     localStorage.setItem('customs-restart-account', account);
     wallet.mountLifeWallet({root, authenticated: true, accountId: account, customsCode: true});
     await setPin(root, '3579');
-    press(await wait(() => customsCard(root), 'card'), '등록하기');
+    await wait(() => customsCard(root), 'card'); showLife(root);
+    press(customsCard(root), '등록하기');
     const editor = await wait(() => root.querySelector('[data-wallet-view="customs-edit"]'), 'editor');
     type(editor.querySelector('.wallet-customs-input'), 'P000000000123');
     editor.querySelector('.wallet-customs-consent input').checked = true;
@@ -447,7 +464,8 @@ try {
   const root = document.getElementById('host');
   wallet.mountLifeWallet({root, authenticated: true, accountId: 'customs-theme-${theme}-' + Date.now(), customsCode: true});
   await setPin(root, '2468');
-  press(await wait(() => customsCard(root), 'card'), '등록하기');
+  await wait(() => customsCard(root), 'card'); showLife(root);
+  press(customsCard(root), '등록하기');
   const editor = await wait(() => root.querySelector('[data-wallet-view="customs-edit"]'), 'editor');
   type(editor.querySelector('.wallet-customs-input'), 'P000000000123');
   const soon = new Date(); soon.setDate(soon.getDate() + 5);

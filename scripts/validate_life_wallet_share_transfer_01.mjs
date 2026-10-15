@@ -230,6 +230,8 @@ try {
   const mountScreen = async () => {
     const root = document.createElement('div'); host.replaceChildren(root);
     const mounted = wallet.mountLifeWallet({root, authenticated: true, accountId: account, sessionExpiresAt: new Date(Date.now() + 3600000).toISOString(), sessionToken: 'tokA', subscription: {plan: 'PLUS'}});
+    // LIFE-WALLET-REDESIGN-02: where things are kept is said on the 설정 screen.
+    (await wait(() => root.querySelector('[data-wallet-settings-open]'), 'wallet settings button')).click();
     const note = await wait(() => { const found = root.querySelector('.wallet-storage-share-note'); return found && found.dataset.walletShareRelay !== 'pending' ? found : null; }, 'wallet relay note');
     return {root, mounted, note};
   };
