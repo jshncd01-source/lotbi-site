@@ -45,9 +45,10 @@ body.chat-home-page {
   --hr-tile-other-bg: #F2F4F7; --hr-tile-other-fg: #4E5663;
 }
 
-body.chat-home-page[data-site-theme="dark"] {
+body.chat-home-page[data-site-theme="dark"],
+html[data-site-theme-bootstrap="dark"] body.chat-home-page:not([data-site-theme]) {
   --hr-bg: #212121;
-  --hr-side: #1A1A1A;
+  --hr-side: #212121; /* the site Dark surface, so the account row and the menu are one colour */
   --hr-card: #2A2A2A;
   --hr-subtle: #333333;
   --hr-hover: #383838;
@@ -73,6 +74,42 @@ body.chat-home-page[data-site-theme="dark"] {
   --hr-tile-care-bg: #3A1E2A; --hr-tile-care-fg: #F9A8C8;
   --hr-tile-life-bg: #163234; --hr-tile-life-fg: #7DD3D0;
   --hr-tile-other-bg: #333333; --hr-tile-other-fg: #C7C7C7;
+}
+
+/* "System" follows the device: on a Dark device the Home takes the same Dark colours.
+   Both Dark blocks also cover the moment before site-conversation.js sets
+   body[data-site-theme] (the head bootstrap already knows the saved theme). */
+@media (prefers-color-scheme: dark) {
+  body.chat-home-page[data-site-theme="system"],
+  html[data-site-theme-bootstrap="system"] body.chat-home-page:not([data-site-theme]) {
+    --hr-bg: #212121;
+    --hr-side: #212121; /* the site Dark surface, so the account row and the menu are one colour */
+    --hr-card: #2A2A2A;
+    --hr-subtle: #333333;
+    --hr-hover: #383838;
+    --hr-line: #424242;
+    --hr-line2: #5B5B5B;
+    --hr-tx: #F5F5F5;
+    --hr-tx2: #C7C7C7;
+    --hr-tx3: #A3A3A3;
+    --hr-acc-tx: #8AB4FF;
+    --hr-acc-soft: #1E2A44;
+    --hr-ring: rgba(138, 180, 255, .3);
+    --hr-err: #FCA5A5;
+    --hr-err-bg: #3A1B1D;
+    --hr-err-line: #6B2B2F;
+    --hr-off-bg: #3A3A3A;
+    --hr-off-ic: #7A7A7A;
+    --hr-stage: #2A2F38;
+    --hr-stage-shadow: rgba(0, 0, 0, .45);
+    --hr-tile-cal-bg: #1E2A44; --hr-tile-cal-fg: #8AB4FF;
+    --hr-tile-wallet-bg: #183225; --hr-tile-wallet-fg: #6EE7A0;
+    --hr-tile-scam-bg: #3A2416; --hr-tile-scam-fg: #FDBA74;
+    --hr-tile-trouble-bg: #2C2342; --hr-tile-trouble-fg: #C4B5FD;
+    --hr-tile-care-bg: #3A1E2A; --hr-tile-care-fg: #F9A8C8;
+    --hr-tile-life-bg: #163234; --hr-tile-life-fg: #7DD3D0;
+    --hr-tile-other-bg: #333333; --hr-tile-other-fg: #C7C7C7;
+  }
 }
 
 /* ---------- canvas colours ---------- */
@@ -206,6 +243,20 @@ body.chat-home-page:not(.conversation-active) .chat-composer {
 body.chat-home-page .chat-composer:focus-within {
   border-color: var(--hr-acc) !important;
   box-shadow: 0 0 0 3px var(--hr-ring) !important;
+}
+/* Dark keeps the site's Dark focus contract (SITE-CHAT-COMPOSER-DARK-FOCUS-01):
+   the rounded composer edge turns the Dark focus colour, with no blue glow. */
+body.chat-home-page[data-site-theme="dark"] .chat-composer:focus-within,
+html[data-site-theme-bootstrap="dark"] body.chat-home-page:not([data-site-theme]) .chat-composer:focus-within {
+  border-color: var(--lotbi-focus-ring) !important;
+  box-shadow: none !important;
+}
+@media (prefers-color-scheme: dark) {
+  body.chat-home-page[data-site-theme="system"] .chat-composer:focus-within,
+  html[data-site-theme-bootstrap="system"] body.chat-home-page:not([data-site-theme]) .chat-composer:focus-within {
+    border-color: var(--lotbi-focus-ring) !important;
+    box-shadow: none !important;
+  }
 }
 body.chat-home-page .chat-input,
 body.chat-home-page:not(.conversation-active) .chat-input {
@@ -392,7 +443,8 @@ body.chat-home-page .chat-home-footer .company-separator { color: var(--hr-line2
   }
   /* Profile menu rises from the bottom as a sheet. */
   body.chat-home-page .profile-popover-layer { background: rgba(16, 24, 40, .42); }
-  body.chat-home-page[data-site-theme="dark"] .profile-popover-layer { background: rgba(0, 0, 0, .62); }
+  body.chat-home-page[data-site-theme="dark"] .profile-popover-layer,
+  html[data-site-theme-bootstrap="dark"] body.chat-home-page:not([data-site-theme]) .profile-popover-layer { background: rgba(0, 0, 0, .62); }
   body.chat-home-page .profile-popover {
     position: fixed;
     left: 0;
@@ -446,4 +498,9 @@ body.chat-home-page .chat-home-footer .company-separator { color: var(--hr-line2
   body.chat-home-page:not(.conversation-active) .chat-safety-copy { justify-content: flex-start; margin: 8px 4px 0; text-align: left; }
   body.chat-home-page .chat-home-footer .company-legal-row { flex-direction: column; align-items: center; row-gap: 2px; font-size: 12px; line-height: 20px; }
   body.chat-home-page .chat-home-footer .company-separator { display: none; }
+}
+
+@media (max-width: 900px) and (prefers-color-scheme: dark) {
+  body.chat-home-page[data-site-theme="system"] .profile-popover-layer,
+  html[data-site-theme-bootstrap="system"] body.chat-home-page:not([data-site-theme]) .profile-popover-layer { background: rgba(0, 0, 0, .62); }
 }
