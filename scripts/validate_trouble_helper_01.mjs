@@ -1,38 +1,36 @@
-// TROUBLE-HELPER-01 — 분쟁·사고 도우미, “막막할 때 롯비”.
+// TROUBLE-HELPER-01 → TROUBLE-HELPER-PAGE-01 — 분쟁·사고 도우미 as a page.
 //
-// Contract checked here:
+// Contract checked here (owner-approved design 2026-10-14, "팝업 형태로 되면
+// 안돼 페이지로 해야돼", "음성은 빼야해"):
 // * both menus (desktop sidebar, mobile drawer) carry 분쟁·사고 도우미
-//   (data-trouble-open) right after 사기·피싱 확인; it opens <dialog
-//   data-trouble-dialog> headed "LOTBI 분쟁·사고 도우미" / “막막할 때 롯비”
-//   without any login, from Core's public GET /v2/trouble-helper/guides
-//   (credentials omit, no headers)
-// * TROUBLE-HELPER-URGENT-FIRST-01 (배포총괄방 decision, App the same names and
-//   order): ① five situations in order with the notice; a situation tap opens
-//   the result AT ONCE — no question screen ever — on tabs "할 일" / "증거·창구"
-//   / "정리표". 할 일 = '바로 전화' (112 · 119 of the steps on screen, step
-//   order; no row when there is none) → step cards → "내 상황에 맞게 좁히기"
-//   (every question at once, "답을 고르면 내 상황에 맞지 않는 할 일이 빠져요.",
-//   "답한 질문 n/m", pressed = chosen, a second press clears). show_if counts
-//   ONLY answered questions: unanswered = shown; an answer that does not match
-//   hides. On 375×812 the 바로 전화 row and the whole first card are on the
-//   first screen with no scroll (320×640: the row; 1280×900: row + card).
-//   ③ numbered step cards (urgent band, 했어요, 읽어주기, tel buttons, 사기·피싱 확인
-//   link, goto); ④ evidence, references, official channels with the fee line
-//   rules, hours, "확인일 · 근거 보기", "인증이 안 돼요" putting phone/visit first;
-//   ⑤ 상황 정리표 with 'SUBMITTED' locked until the receipt_field_id field holds
-//   a 접수번호 (never locked when it is null), save, print (large print sheet),
-//   카카오로 보내기 → navigator.share → copy, safety notes
-// * 자동차 사고: the 과실비율정보포털 order as far as answered, its link
-//   (전동킥보드 → pm_url), the "대화로 찾기" sentence + copy — or, before enough
-//   answers, the 좁히기 hint and the portal button; no ratio-looking number
-// * signed in (the way validate_my_child_school_01 / social_signup_profile_ux_01
-//   mount a session): the same flow, and the helper sends nothing more to Core
-//   than signed out — only the public guide GET (and the public Kakao config)
-// * progress survives a reload (the dialog reopens where it was)
+//   (data-trouble-open) right after 사기·피싱 확인; a tap opens a WORKSPACE page
+//   (route #trouble, the menu entry aria-current="page", header ← "뒤로") —
+//   no <dialog>, no ×, no dimmed overlay — without any login, from Core's
+//   public GET /v2/trouble-helper/guides (credentials omit, no headers); the
+//   module loads on first use only (never at boot)
+// * ⓪ 무슨 일이 있으셨나요? — the five situations in Core's order with the notice
+// * ① a situation's first screen: 눌러서 답하기 and 바로 도움받기 on the first
+//   screen; no emergency-number line on top (owner: "누가 119·112 몰라서
+//   롯비를 열어? 삭제해" — the guide's own 119/112 steps keep their calls inside
+//   지금 할 일); no photo/text/voice input, nothing that does not exist
+// * ② one question per screen, the guide's answers plus 잘 모르겠어요 where the
+//   guide has none (a skip: nothing hidden, never asked again), 질문 그만하고
+//   결과 보기, the answers given with 바꾸기; no "n/m" step counter
+// * ③ 이렇게 하세요 — 지금 할 일 · 챙길 것 · 도움받을 곳 (all three titles on
+//   the first screen at 375×812 and 1280×900), each opening in place: the
+//   guide's steps (했어요, phones, online links, 인증이 안 돼요, 사기·피싱 확인
+//   link, goto), the 과실비율정보포털 way in, the evidence checklist and
+//   references, the official channels (fees, hours, 확인일 · 근거); 전화할 때
+//   이렇게 말하세요; the 정리표 entry; the required 참고용 sentence
+// * ④ 상황 정리표: save on the device, print (large sheet), 카카오로 보내기 →
+//   navigator.share → copy, 'SUBMITTED' locked until a 접수번호
+// * the header ← and the phone's back step one screen at a time inside the
+//   page; a reload on #trouble reopens the screen it was on
+// * signed in: the helper sends Core nothing more than signed out
 // * Core down: the fallback sentence and 112 · 119 · 132 call buttons
-// * 375 (and 320, 1280) light and dark: no sideways scroll, text ≥ 20px,
-//   headings 26–28px, main buttons ≥ 56px, every target ≥ 48px, contrast ≥ 4.5
-//   (viewport emulation in headless Chrome, not a device run)
+// * 375 · 320 · 1280, light and dark: no sideways scroll, text ≥ 18px, title
+//   30px (phone) / 36px (wide), main buttons ≥ 56px, every target ≥ 48px,
+//   contrast ≥ 4.5 (viewport emulation in headless Chrome, not a device run)
 //
 // Core's answer comes from scripts/fixtures/trouble_helper_guides_01.json, the
 // public output of lotbi-core app/trouble_helper.py (public_guides()).
@@ -53,6 +51,7 @@ const check = async (name, fn) => { await fn(); passed += 1; console.log(`ok - $
 const index = read('index.html');
 const callback = read('auth/callback/index.html');
 const conversation = read('site-conversation.js');
+const routeSource = read('site-route.js');
 const ui = read('site-trouble-helper.js');
 const modelSource = read('site-trouble-helper-model.js');
 const css = read('site-trouble-helper.css');
@@ -68,57 +67,69 @@ await check('menus: 분쟁·사고 도우미 sits right after 사기·피싱 확
   assert.equal((index.match(/id="lotbi-icon-lifebuoy"/gu) || []).length, 1);
 });
 
-await check('dialog: header LOTBI 분쟁·사고 도우미 / “막막할 때 롯비”, no login gate, styles on both entry pages', () => {
-  const dialog = index.match(/<dialog class="trouble-dialog"[\s\S]*?<\/dialog>/u)?.[0] || '';
-  assert.ok(dialog, 'dialog markup');
-  assert.match(dialog, /<p class="trouble-dialog-eyebrow">LOTBI 분쟁·사고 도우미<\/p>/u);
-  assert.match(dialog, /<h2 id="trouble-dialog-title">“막막할 때 롯비”<\/h2>/u);
-  assert.match(dialog, /aria-labelledby="trouble-dialog-title"/u);
-  // No question flow any more, so no "질문 n/m" line in the dialog header.
-  assert.doesNotMatch(dialog, /data-trouble-progress|trouble-progress/u);
-  assert.doesNotMatch(dialog, /login|로그인/u, 'no login gate');
-  // 사기·피싱 확인 is its own page now (SCAM-PHISHING-REDESIGN-02), not a dialog before this one.
-  assert.ok(index.indexOf('<dialog class="trouble-dialog"') > 0);
-  assert.equal(index.indexOf('<dialog class="scam-dialog"'), -1);
+await check('a page, not a dialog: workspace #trouble, loaded on first use, styles on both entry pages', () => {
+  assert.doesNotMatch(index, /trouble-dialog|data-trouble-dialog/u, 'the old <dialog> is gone');
+  assert.doesNotMatch(ui, /showModal|<dialog|data-trouble-close|trouble-dialog|×/u, 'no dialog, no ×');
   for (const [name, html] of [['index.html', index], ['auth/callback/index.html', callback]]) {
     const scam = html.indexOf('site-scam-shield.css?v=');
     const mine = html.indexOf('site-trouble-helper.css?v=');
     assert.ok(scam > 0 && mine > scam, `${name}: stylesheet after site-scam-shield.css`);
   }
   // SITE-T55 gate: a boot-time import shifted other boot requests into
-  // validate_social_signup_profile_ux_01's window. Only a first tap (or a reload
-  // while open) may load the module; a failure there never stops the chat.
+  // validate_social_signup_profile_ux_01's window. Only a menu tap or the
+  // address naming the page may load the module.
   assert.doesNotMatch(conversation, /^void import\('\.\/site-trouble-helper\.js/mu, 'never imported at boot');
-  assert.match(conversation, /troubleHelperModule \|\|= import\('\.\/site-trouble-helper\.js\?v=aset-[0-9a-f]{12}'\)\.catch\(/u,
-    'loaded on first use from site-conversation.js');
-  assert.match(conversation, /closest\('\[data-trouble-open\]'\)[\s\S]{0,200}openTroubleHelper\?\.\(trigger\)/u, 'the first tap opens it');
-  assert.match(ui, /export function openTroubleHelper\(trigger\)/u);
+  assert.doesNotMatch(conversation, /lotbi\.trouble-helper\.open\.v1/u, 'no dialog reopen flag any more');
+  assert.match(conversation, /troubleHelperModule \|\|= import\('\.\/site-trouble-helper\.js\?v=aset-[0-9a-f]{12}'\)\.catch\(/u);
+  assert.match(conversation, /const openTroubleHelperPage = async \(\{resume = false\} = \{\}\) => \{/u);
+  assert.match(conversation, /installSurfaceBehavior\(backdrop, panel, \{workspace: 'trouble', route: 'trouble', onClose: \(\) => mounted\?\.dispose\(\)\}\)/u);
+  assert.match(conversation, /closest\('\[data-trouble-open\]'\);\s*if \(troubleTrigger instanceof HTMLButtonElement\) \{\s*event\.preventDefault\(\); void openTroubleHelperPage\(\); return;/u);
+  assert.match(conversation, /trouble: \(\) => openTroubleHelperPage\(\{resume: true\}\),/u);
+  assert.match(conversation, /workspace === 'trouble' && entry\.hasAttribute\('data-trouble-open'\)/u, 'the menu entry is marked current');
+  assert.match(routeSource, /'scam',\r?\n[^\n]*\n  'trouble',\r?\n  'care',/u, '#trouble right after #scam');
+  assert.match(ui, /export function mountTroubleHelper\(root, \{resume = false\} = \{\}\)/u);
+  assert.match(ui, /data: \{subviewBack: '', troubleBack: ''\}/u, 'the inner back control takes the header ← and the phone back');
 });
 
-await check('sources: no HTML injection, storage only inside try, theme tokens only, no "dispute" names', () => {
+await check('sources: no HTML injection, storage only inside try, no login, no voice, nothing that does not exist', () => {
   for (const [name, source] of [['site-trouble-helper.js', ui], ['site-trouble-helper-model.js', modelSource]]) {
     assert.doesNotMatch(source, /innerHTML|insertAdjacentHTML|outerHTML\s*=|eval\(|new Function|document\.write/u, name);
     assert.doesNotMatch(source, /dispute/iu, name);
+    // "음성은 빼야해": no read-aloud, no speech, no microphone.
+    assert.doesNotMatch(source, /read-aloud|ReadAloud|speechSynthesis|SpeechRecognition|getUserMedia|읽어주기|소리로 듣기|말로 설명/u, name);
+    // Only what exists: no photo reading, no free-text understanding, no ratio or cost.
+    assert.doesNotMatch(source, /사진 올리기|글로 적기|예상 과실|예상 수리비|보험사에 보낼/u, name);
   }
   assert.doesNotMatch(modelSource, /localStorage|sessionStorage|document\.|window\./u, 'the model is pure');
-  for (const match of ui.matchAll(/window\.(?:localStorage|sessionStorage)\.[a-zA-Z]+\(/gu)) {
-    const before = ui.slice(Math.max(0, match.index - 160), match.index);
+  for (const match of ui.matchAll(/(?:localStorage|sessionStorage)\.(?:getItem|setItem|removeItem)/gu)) {
+    const before = ui.slice(Math.max(0, match.index - 240), match.index);
     assert.match(before, /try\s*\{[^}]*$/u, `storage call without try: ${ui.slice(match.index, match.index + 60)}`);
   }
-  assert.doesNotMatch(css, /#[0-9a-f]{3,8}\b|data-site-theme|prefers-color-scheme/iu, 'theme tokens only');
-  assert.doesNotMatch(css, /dispute/iu);
   assert.doesNotMatch(ui, /Authorization|credentials:\s*'include'|sessionToken/u, 'no login, no credentials');
-  // URGENT-FIRST: no question screen, no step-by-step question progress.
-  assert.doesNotMatch(ui, /renderQuestion|answerQuestion|'question'|(?<!답한 )질문 \$\{|setProgress|data-trouble-progress/u, 'no question screen left');
+  assert.doesNotMatch(ui, /질문 \$\{[^}]*\}\s*\/|data-trouble-progress|setProgress/u, 'no "n/m" step counter');
+  // Colours: the site tokens, plus this page's own accents declared once per theme.
+  for (const line of css.split('\n')) {
+    if (/#[0-9a-f]{3,8}\b/iu.test(line)) assert.match(line, /^\s*--th-[a-z0-9-]+:\s*#[0-9a-f]{3,8};$/iu, `colour outside the page palette: ${line.trim()}`);
+  }
+  assert.doesNotMatch(css, /dispute|trouble-dialog/iu);
 });
 
-await check('names (same as the App): tabs 할 일 / 증거·창구 / 정리표, 좁히기 title and hint, portal hint', async () => {
+await check('the page copy: required sentences as the brief writes them', async () => {
   const names = await import('../site-trouble-helper-model.js');
-  assert.deepEqual([...names.RESULT_VIEWS], ['steps', 'help', 'summary']);
-  assert.deepEqual({...names.RESULT_TAB_LABELS}, {steps: '할 일', help: '증거·창구', summary: '정리표'});
-  assert.equal(names.NARROW_TITLE, '내 상황에 맞게 좁히기');
-  assert.equal(names.NARROW_HINT, '답을 고르면 내 상황에 맞지 않는 할 일이 빠져요.');
-  assert.equal(names.PORTAL_SENTENCE_HINT, '내 상황에 맞게 좁히기에서 답하면 포털에 붙여 넣을 문장을 만들어 드려요');
+  assert.deepEqual([...names.PAGE_VIEWS], ['start', 'ask', 'result', 'summary']);
+  assert.equal(names.DISCLAIMER, 'LOTBI의 결과는 참고용이며 법률·보험·수리비의 최종 판단이 아닙니다.');
+  assert.equal(names.NO_AUTO_SEND, '신고·전화·접수는 직접 하셔야 해요. LOTBI가 대신 보내지 않아요.');
+  assert.equal('EMERGENCY_LINES' in names, false, 'no emergency-number line (owner: 삭제해)');
+  assert.equal('emergencyFor' in names, false);
+  for (const source of [ui, modelSource]) assert.doesNotMatch(source, /에 연락하세요|data-trouble-emergency|trouble-emergency/u);
+  for (const key of ['hubTitle', 'startTitle']) assert.equal(names.PAGE_COPY[key], '무슨 일이 있으셨나요?');
+  assert.equal(names.PAGE_COPY.tapLabel, '눌러서 답하기');
+  assert.equal(names.PAGE_COPY.direct, '바로 도움받기');
+  assert.equal(names.PAGE_COPY.nextAsk, '한 가지만 더 알려주세요');
+  assert.equal(names.PAGE_COPY.unknown, '잘 모르겠어요');
+  assert.equal(names.PAGE_COPY.resultTitle, '이렇게 하세요');
+  assert.deepEqual([names.PAGE_COPY.todo, names.PAGE_COPY.keep, names.PAGE_COPY.help], ['지금 할 일', '챙길 것', '도움받을 곳']);
+  assert.equal(names.PORTAL_SENTENCE_HINT, '질문에 답하면 포털에 붙여 넣을 문장을 만들어 드려요');
   assert.deepEqual([...names.QUICK_CALL_PHONES], ['112', '119']);
 });
 
@@ -198,9 +209,9 @@ await check('show_if counts only answered questions (unanswered = shown); 바로
   const brokenCar = model.findSituation(broken, 'CAR_ACCIDENT');
   assert.ok(brokenCar.steps.some(step => step.id === 'bad_rule'));
   assert.ok(!model.visibleSteps(brokenCar, {}).some(step => ['bad_rule', 'empty_rule'].includes(step.id)));
-  // A record saved on the old question screen opens on 할 일.
+  // A record saved on the old question screen or tabs opens on the result.
   const old = model.normalizeRecord(car, {view: 'question', question: 2, answers: {injury: 'no'}});
-  assert.equal(old.view, 'steps');
+  assert.equal(old.view, 'result');
   assert.equal('question' in old, false);
 });
 
@@ -242,6 +253,44 @@ await check('접수번호 lock, fault portal order as far as answered, sentence,
   assert.doesNotMatch(model.savedAtLabel(new Date(2026, 9, 10, 21, 5)), RATIO_RE);
 });
 
+await check('page rules: one question at a time, 잘 모르겠어요 skips, saved views, card lines from the guide', () => {
+  const car = situation('CAR_ACCIDENT');
+  const fraud = situation('USED_TRADE_FRAUD');
+  const other = situation('OTHER_LEGAL');
+  assert.equal(model.nextQuestion(car, {}, {}).id, 'injury');
+  assert.equal(model.nextQuestion(car, {injury: 'no'}, {}).id, 'other');
+  assert.equal(model.nextQuestion(car, {injury: 'no'}, {other: true}).id, 'place', 'a skipped question is not asked again');
+  assert.equal(model.nextQuestion(car, {injury: 'no', place: 'oncoming'}, {other: true}).id, 'my_move', '신호등 hidden for 마주 오다가');
+  assert.equal(model.nextQuestion(car, {injury: 'no', place: 'intersection'}, {other: true}).id, 'signal');
+  assert.equal(model.nextQuestion(car, {injury: 'no', other: 'car', place: 'intersection', signal: 'yes', my_move: 'straight'}, {}), null);
+  assert.equal(model.nextQuestion(fraud, {paid: 'not_yet'}, {}).id, 'contact', '언제 보냈나요 hidden when nothing was sent');
+  assert.equal(model.hasUnknownOption(car.questions.find(q => q.id === 'injury')), true);
+  assert.equal(model.hasUnknownOption(car.questions.find(q => q.id === 'other')), false);
+  assert.equal(model.hasUnknownOption(other.questions[0]), false);
+  // Saved records: the old tabs open on the result; skipped answers are kept, an answer clears its skip.
+  assert.equal(model.normalizeRecord(car, {view: 'steps'}).view, 'result');
+  assert.equal(model.normalizeRecord(car, {view: 'help'}).view, 'result');
+  assert.equal(model.normalizeRecord(car, {view: 'summary'}).view, 'summary');
+  assert.equal(model.normalizeRecord(car, {}).view, 'start');
+  assert.equal(model.normalizeRecord(car, {view: 'nope'}).view, 'start');
+  assert.deepEqual(model.normalizeRecord(car, {skipped: {other: true, bogus: true, place: 'yes'}}).skipped, {other: true});
+  assert.deepEqual(model.normalizeRecord(car, {answers: {other: 'car'}, skipped: {other: true}}).skipped, {});
+  assert.equal(model.firstSentence('비상등을 켜고 삼각대를 세우세요. 탄 사람은 피하세요.'), '비상등을 켜고 삼각대를 세우세요.');
+  assert.equal(model.firstSentence('한 문장뿐'), '한 문장뿐');
+  const cards = model.cardModel(guides, car, {});
+  assert.equal(cards.todo.count, 7);
+  assert.equal(cards.todo.title, '다친 사람이 있으면 119', 'the first urgent step leads');
+  assert.equal(model.cardModel(guides, car, {injury: 'no'}).todo.title, '더 큰 사고 막기');
+  assert.equal(cards.keep.line, '블랙박스 원본 영상 등 5가지');
+  assert.equal(cards.help.main.id, 'KNIA_PORTAL', '112·119 are on the emergency line; 내 보험사 has no number');
+  assert.equal(cards.help.line, '내 보험사 사고 접수, 과실비율정보포털에 물어볼 수 있어요.');
+  assert.equal(model.cardModel(guides, situation('WAGE_ARREARS'), {}).help.main.phone, '1350');
+  assert.equal(model.cardModel(guides, situation('FLOOR_NOISE'), {}).help.main.phone, '1661-2642');
+  assert.equal(model.cardModel(guides, other, {}).help.main.phone, '132');
+  assert.equal(model.cardModel(guides, fraud, {}).help.main.id, 'POLICE_182');
+  assert.doesNotMatch(JSON.stringify(cards), RATIO_RE);
+});
+
 // ── Browser ─────────────────────────────────────────────────────────────
 function browserPath() {
   const candidates = [process.env.CHROME_BIN, 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -257,15 +306,15 @@ function browserPath() {
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36';
 const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36';
+// cards: whether the three result card titles must all be on the first screen.
 const CASES = [
-  {label: 'mobile-375x812', width: 375, height: 812, mobile: true, userAgent: IPHONE_UA, shots: true, firstCard: 'whole'},
-  {label: 'mobile-320x640', width: 320, height: 640, mobile: true, userAgent: ANDROID_UA, firstCard: 'starts'},
-  {label: 'desktop-1280x900', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA, firstCard: 'whole'},
+  {label: 'mobile-375x812', width: 375, height: 812, mobile: true, userAgent: IPHONE_UA, shots: true, cards: true, wide: false},
+  {label: 'mobile-320x640', width: 320, height: 640, mobile: true, userAgent: ANDROID_UA, cards: false, wide: false},
+  {label: 'desktop-1280x900', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA, shots: true, cards: true, wide: true},
 ];
-// Signed in: the phone the 자동차 사고 reader holds, and the PC.
 const SIGNED_CASES = [
-  {label: 'signed-mobile-375x812', width: 375, height: 812, mobile: true, userAgent: IPHONE_UA, shots: true, firstCard: 'whole'},
-  {label: 'signed-desktop-1280x900', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA, firstCard: 'whole'},
+  {label: 'signed-mobile-375x812', width: 375, height: 812, mobile: true, userAgent: IPHONE_UA, cards: true, wide: false},
+  {label: 'signed-desktop-1280x900', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA, cards: true, wide: true},
 ];
 
 function buildInner(mode) {
@@ -336,88 +385,98 @@ try {
 // Page-side helpers, installed once per page load.
 const HELPERS = `(() => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const dialog = () => document.querySelector('[data-trouble-dialog]');
-  const view = () => dialog()?.querySelector('[data-trouble-view]');
-  const wait = async (fn, label, ms = 15000) => { const t = Date.now(); for (;;) { const v = fn(); if (v) return v; if (Date.now() - t > ms) throw new Error('timeout: ' + label + ' | ' + (view()?.textContent || '').slice(0, 300)); await sleep(40); } };
+  const ws = () => document.querySelector('.consumer-workspace[data-workspace="trouble"]');
+  const view = () => ws()?.querySelector('[data-trouble-view]');
+  const pageText = () => ws()?.textContent || '';
+  const wait = async (fn, label, ms = 15000) => { const t = Date.now(); for (;;) { const v = fn(); if (v) return v; if (Date.now() - t > ms) throw new Error('timeout: ' + label + ' | ' + pageText().slice(0, 300)); await sleep(40); } };
   const visible = n => { const r = n.getBoundingClientRect(); const s = getComputedStyle(n); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
-  const describe = n => (n.dataset && Object.keys(n.dataset)[0] || n.className || n.tagName) + ':' + Math.round(n.getBoundingClientRect().width) + 'x' + Math.round(n.getBoundingClientRect().height) + ':' + (n.textContent || '').trim().slice(0, 14);
-  const targets = root => [...root.querySelectorAll('button, a[href], summary, textarea, label.trouble-check, label.trouble-status-option')].filter(visible);
+  const describe = n => (n.dataset && Object.keys(n.dataset)[0] || n.className.baseVal || n.className || n.tagName) + ':' + Math.round(n.getBoundingClientRect().width) + 'x' + Math.round(n.getBoundingClientRect().height) + ':' + (n.textContent || '').trim().slice(0, 14);
+  const hiddenAid = n => n.closest('.trouble-sr, .trouble-subview-back');
+  const targets = root => [...root.querySelectorAll('button, a[href], summary, textarea, label.trouble-check, label.trouble-status-option')].filter(visible).filter(n => !hiddenAid(n));
   const parse = value => (value.match(/[\\d.]+/g) || []).map(Number);
   const lum = ([r, g, b]) => { const f = c => { c /= 255; return c <= .03928 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4); }; return .2126 * f(r) + .7152 * f(g) + .0722 * f(b); };
   const bgOf = node => { for (let el = node; el; el = el.parentElement) { const c = parse(getComputedStyle(el).backgroundColor); if (c.length === 3 || (c.length === 4 && c[3] > .5)) return c.slice(0, 3); } return [255, 255, 255]; };
   const contrast = node => { const fg = parse(getComputedStyle(node).color).slice(0, 3), bg = bgOf(node); const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x); return Math.round(((a + .05) / (b + .05)) * 100) / 100; };
-  const textNodes = root => { const out = []; const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); while (walker.nextNode()) { const t = walker.currentNode; const p = t.parentElement; if (!t.textContent.trim() || !p || p.closest('.trouble-sr') || !visible(p)) continue; out.push(p); } return [...new Set(out)]; };
+  const textNodes = root => { const out = []; const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); while (walker.nextNode()) { const t = walker.currentNode; const p = t.parentElement; if (!t.textContent.trim() || !p || hiddenAid(p) || !visible(p)) continue; out.push(p); } return [...new Set(out)]; };
+  const page = () => ws().querySelector('[data-trouble-page]');
   const measure = () => {
-    const d = dialog();
-    const body = d.querySelector('[data-trouble-scroll]');
+    const w = ws();
+    const heading = view().querySelector('.trouble-title');
     return {
-      small: targets(d).filter(n => { const r = n.getBoundingClientRect(); return r.height < 47.5 || r.width < 47.5; }).map(describe),
-      mainSmall: [...d.querySelectorAll('.trouble-button, .trouble-option, .trouble-situation, .trouble-tab, .trouble-dialog-close, .trouble-call')].filter(visible).filter(n => n.getBoundingClientRect().height < 55.5).map(describe),
-      smallText: textNodes(d).filter(n => parseFloat(getComputedStyle(n).fontSize) < 19.5).map(n => describe(n) + ':' + getComputedStyle(n).fontSize).slice(0, 8),
-      bigText: textNodes(d).filter(n => parseFloat(getComputedStyle(n).fontSize) > 28.5 && !n.matches('.trouble-dialog-close')).map(describe).slice(0, 8),
-      overflow: [...d.querySelectorAll('*')].filter(n => { const r = n.getBoundingClientRect(); return r.width > 0 && r.right > innerWidth + 1; }).map(describe).slice(0, 6),
+      small: targets(w).filter(n => { const r = n.getBoundingClientRect(); return r.height < 47.5 || r.width < 47.5; }).map(describe),
+      mainSmall: [...w.querySelectorAll('.trouble-primary, .trouble-answer, .trouble-cat, .trouble-tap, .trouble-doc, .trouble-tool, .trouble-emergency-call, .trouble-more')].filter(visible).filter(n => n.getBoundingClientRect().height < 47.5 || (n.matches('.trouble-primary, .trouble-answer, .trouble-cat, .trouble-tap, .trouble-doc, .trouble-tool') && n.getBoundingClientRect().height < 55.5)).map(describe),
+      smallText: textNodes(page()).filter(n => parseFloat(getComputedStyle(n).fontSize) < 17.5).map(n => describe(n) + ':' + getComputedStyle(n).fontSize).slice(0, 8),
+      overflow: [...w.querySelectorAll('*')].filter(n => { const r = n.getBoundingClientRect(); return r.width > 0 && r.right > innerWidth + 1 && !hiddenAid(n); }).map(describe).slice(0, 6),
       page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      bodyScroll: body.scrollWidth - body.clientWidth,
-      title: parseFloat(getComputedStyle(d.querySelector('#trouble-dialog-title')).fontSize),
-      heading: parseFloat(getComputedStyle(d.querySelector('[data-trouble-heading]') || d.querySelector('#trouble-dialog-title')).fontSize),
+      wsScroll: w.scrollWidth - w.clientWidth,
+      heading: heading ? parseFloat(getComputedStyle(heading).fontSize) : 0,
       view: view()?.dataset.troubleView || '',
-      // A part a screen does not have must not show up as the text "null".
-      // No word boundary: the stray text sits right against the next card ("null1. …").
-      stray: (d.textContent.match(/null|undefined|NaN|\\[object Object\\]/gu) || []),
+      stray: (pageText().match(/null|undefined|NaN|\\[object Object\\]/gu) || []),
+      dialogs: document.querySelectorAll('dialog[open]').length,
+      overlay: document.body.classList.contains('site-overlay-open'),
+      workspace: document.body.classList.contains('site-workspace-open'),
+      bg: getComputedStyle(w).backgroundColor,
     };
   };
   const contrasts = () => {
-    const d = dialog();
     const out = {};
-    for (const node of textNodes(d)) {
+    for (const node of textNodes(page())) {
       const key = describe(node).split(':')[0];
       const value = contrast(node);
       if (!(key in out) || value < out[key].value) out[key] = {value, fg: getComputedStyle(node).color, bg: bgOf(node).join(','), text: node.textContent.trim().slice(0, 16)};
     }
     return out;
   };
-  const click = (selector, root) => { const node = (root || dialog()).querySelector(selector); if (!node) throw new Error('missing ' + selector + ' | ' + (view()?.textContent || '').slice(0, 200)); node.click(); return node; };
-  // 내 상황에 맞게 좁히기: press one answer; returns "답한 질문 n/m" after it.
-  const option = (questionId, optionId) => view()?.querySelector('[data-trouble-question="' + questionId + '"] [data-trouble-option="' + optionId + '"]');
+  const click = selector => { const node = ws().querySelector(selector); if (!node) throw new Error('missing ' + selector + ' | ' + pageText().slice(0, 200)); node.click(); return node; };
+  const onView = (name, label) => wait(() => view()?.dataset.troubleView === name && view(), label || name);
+  const asked = () => view()?.dataset.troubleView === 'ask' ? view().querySelector('[data-trouble-question]')?.dataset.troubleQuestion : '';
   const answer = async (questionId, optionId) => {
-    const node = await wait(() => view()?.dataset.troubleView === 'steps' && option(questionId, optionId), 'option ' + questionId + '=' + optionId);
-    node.click();
-    await sleep(20);
-    return view().querySelector('[data-trouble-answered]')?.textContent || '';
+    await wait(() => asked() === questionId, 'question ' + questionId);
+    click('[data-trouble-option="' + optionId + '"]');
+    await sleep(30);
   };
-  const stepIds = () => [...view().querySelectorAll('[data-trouble-step]')].map(n => n.dataset.troubleStep);
-  const quick = () => [...view().querySelectorAll('[data-trouble-quick-call]')].map(n => n.dataset.troubleQuickCall);
-  const questionIds = () => [...view().querySelectorAll('[data-trouble-question]')].map(n => n.dataset.troubleQuestion);
-  const pressed = () => Object.fromEntries([...view().querySelectorAll('[data-trouble-question]')]
-    .map(group => [group.dataset.troubleQuestion, [...group.querySelectorAll('[aria-pressed="true"]')].map(n => n.dataset.troubleOption).join('+')]).filter(entry => entry[1]));
-  const layout = () => [...view().children].map(n => n.matches('[data-trouble-heading]') ? 'heading' : n.matches('[data-trouble-situation-notice], [data-trouble-notice]') ? 'notice'
-    : n.matches('.trouble-tabs') ? 'tabs' : n.matches('[data-trouble-quick-calls]') ? 'quick' : n.matches('.trouble-steps') ? 'steps' : n.matches('[data-trouble-portal]') ? 'portal'
-    : n.matches('[data-trouble-narrow]') ? 'narrow' : n.matches('.trouble-nav') ? 'nav' : n.matches('.trouble-footer') ? 'footer' : n.tagName);
-  // What the first screen shows with no scroll: the 바로 전화 row and the first card.
-  const firstScreen = () => {
-    const scroll = dialog().querySelector('[data-trouble-scroll]');
-    const frame = scroll.getBoundingClientRect();
-    const bottom = Math.min(innerHeight, frame.bottom);
-    const box = n => { if (!n) return null; const r = n.getBoundingClientRect(); return {top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height), inside: r.top >= frame.top - 1 && r.bottom <= bottom + 1}; };
-    const card = view().querySelector('[data-trouble-step]');
-    // The danger token as this theme paints it (the color the 급해요 band uses).
-    const probe = document.createElement('span');
-    probe.style.color = 'var(--lotbi-error-text)';
-    dialog().append(probe);
-    const danger = getComputedStyle(probe).color;
-    probe.remove();
-    const row = view().querySelector('[data-trouble-quick-calls]');
-    return {scrollTop: scroll.scrollTop, bottom: Math.round(bottom), row: box(row), rowName: row?.getAttribute('aria-label') || '', rowVisibleTitle: Boolean(row?.querySelector('h1, h2, h3, h4, h5, p')),
-      calls: [...view().querySelectorAll('[data-trouble-quick-call]')].map(n => ({...box(n), href: n.getAttribute('href'), label: n.textContent.trim(),
-        aria: n.getAttribute('aria-label'), font: parseFloat(getComputedStyle(n).fontSize), danger: getComputedStyle(n).backgroundColor === danger})),
-      card: box(card), cardTitle: box(card?.querySelector('h4')), cardId: card?.dataset.troubleStep || ''};
+  const skip = async questionId => {
+    await wait(() => asked() === questionId, 'question ' + questionId);
+    click('[data-trouble-skip="' + questionId + '"]');
+    await sleep(30);
   };
-  // Every value the view takes, for the "never a question screen" check.
+  // Inside the first screen (no scroll): each selector's box against the viewport.
+  const firstScreen = selectors => {
+    const scrolled = (ws()?.scrollTop || 0) + window.scrollY;
+    const out = {scrolled};
+    for (const selector of selectors) {
+      const n = ws().querySelector(selector);
+      if (!n) { out[selector] = null; continue; }
+      const r = n.getBoundingClientRect();
+      out[selector] = {top: Math.round(r.top), bottom: Math.round(r.bottom), inside: r.top >= 0 && r.bottom <= innerHeight + 1};
+    }
+    return out;
+  };
+  const given = () => [...view().querySelectorAll('[data-trouble-answers] li')].map(li => [li.querySelector('.trouble-given-q')?.textContent || '', li.querySelector('strong')?.textContent || '', li.querySelector('[data-trouble-edit]')?.dataset.troubleEdit || '']);
   const views = window.__thViews = [];
-  new MutationObserver(() => views.push(view()?.dataset.troubleView || '')).observe(view(), {attributes: true, attributeFilter: ['data-trouble-view']});
-  const dialogText = () => dialog().textContent;
-  window.__th = {sleep, dialog, view, wait, measure, contrasts, contrast, click, option, answer, stepIds, quick, questionIds, pressed, layout, firstScreen, dialogText, visible};
+  new MutationObserver(() => { const v = view(); if (v) views.push(v.dataset.troubleView); }).observe(document.body, {subtree: true, attributes: true, attributeFilter: ['data-trouble-view']});
+  window.__th = {sleep, ws, view, wait, measure, contrasts, contrast, click, onView, asked, answer, skip, firstScreen, given, pageText, visible};
   return true;
+})()`;
+
+const OPEN = mobile => `(async () => {
+  if (${mobile ? 'true' : 'false'}) {
+    document.querySelector('[data-mobile-nav-open]').click();
+    await __th.wait(() => document.body.classList.contains('nav-drawer-open'), 'drawer');
+    document.querySelector('#mobile-nav-drawer [data-trouble-open]').click();
+  } else {
+    document.querySelector('.chat-sidebar-desktop [data-trouble-open]').click();
+  }
+  await __th.wait(() => __th.ws() && __th.view(), 'workspace');
+  const back = __th.ws().querySelector('.site-modal-close');
+  return {drawerOpen: document.body.classList.contains('nav-drawer-open'), hash: location.hash,
+    header: __th.ws().querySelector('.site-modal-header h2')?.textContent || '',
+    back: {text: back?.textContent || '', aria: back?.getAttribute('aria-label') || '', after: back ? getComputedStyle(back, '::after').content : ''},
+    current: [...document.querySelectorAll('[data-trouble-open]')].map(n => n.getAttribute('aria-current') || ''),
+    dialogs: document.querySelectorAll('dialog[open]').length,
+    overlay: document.body.classList.contains('site-overlay-open'),
+    workspace: document.body.classList.contains('site-workspace-open'),
+    role: __th.ws().querySelector('.site-modal')?.getAttribute('role') || ''};
 })()`;
 
 function startServer() {
@@ -529,19 +588,6 @@ const themed = async (evaluate, shoot, name) => {
   return out;
 };
 
-const OPEN = mobile => `(async () => {
-  if (${mobile ? 'true' : 'false'}) {
-    document.querySelector('[data-mobile-nav-open]').click();
-    await __th.wait(() => document.body.classList.contains('nav-drawer-open'), 'drawer');
-    document.querySelector('#mobile-nav-drawer [data-trouble-open]').click();
-  } else {
-    document.querySelector('.chat-sidebar-desktop [data-trouble-open]').click();
-  }
-  await __th.wait(() => __th.dialog().open, 'dialog open');
-  return {drawerOpen: document.body.classList.contains('nav-drawer-open'), eyebrow: __th.dialog().querySelector('.trouble-dialog-eyebrow').textContent,
-    title: __th.dialog().querySelector('#trouble-dialog-title').textContent};
-})()`;
-
 async function runFlow(browser, origin, dir, testCase) {
   return withPage(browser, dir, testCase, `${origin}/scripts/${path.basename(dir)}/inner.html`, async ({page, evaluate, ready, shoot}) => {
     const r = {};
@@ -549,382 +595,284 @@ async function runFlow(browser, origin, dir, testCase) {
       prev: n.previousElementSibling?.getAttribute('aria-label'), label: n.textContent.trim()}))`);
     r.bootLoaded = await evaluate('globalThis.__thBootLoaded');
     r.open = await evaluate(OPEN(testCase.mobile));
-    await evaluate("__th.wait(() => __th.view()?.dataset.troubleView === 'pick', 'pick view')");
-    r.pick = await evaluate(`({
-      situations: [...__th.view().querySelectorAll('[data-trouble-situation]')].map(n => [n.dataset.troubleSituation, n.querySelector('strong').textContent, n.querySelector('span')?.textContent || '']),
-      notice: __th.view().querySelector('[data-trouble-notice]')?.textContent || '',
-      login: Boolean(__th.dialog().querySelector('[data-scam-login], a[href*="auth"]')) || /로그인/.test(__th.dialogText()),
-      calls: globalThis.__thCalls, measure: __th.measure(), focus: document.activeElement?.matches('[data-trouble-heading]') || false})`);
-    r.pickThemes = await themed(evaluate, shoot, 'pick');
 
-    // ② 자동차 사고 — the tap opens 할 일 at once: '바로 전화' [119][112] and the
-    // first card on the first screen, every step shown while nothing is answered.
-    r.car = await evaluate(`(async () => {
-      __th.click('[data-trouble-situation="CAR_ACCIDENT"]');
-      const viewRightAfterTap = __th.view().dataset.troubleView;
-      await __th.wait(() => __th.view().dataset.troubleView === 'steps', 'steps');
+    // ⓪ 무슨 일이 있으셨나요?
+    r.hub = await evaluate(`(async () => {
+      const v = await __th.onView('hub');
       await __th.sleep(60);
-      const v = __th.view();
-      const narrow = v.querySelector('[data-trouble-narrow]');
       return {
-        viewRightAfterTap,
-        layout: __th.layout(),
-        first: __th.firstScreen(),
-        ids: __th.stepIds(),
-        quick: __th.quick(),
-        globalNotice: Boolean(v.querySelector('[data-trouble-notice]')),
-        heading: v.querySelector('[data-trouble-heading]')?.textContent || '',
-        focus: document.activeElement?.matches('[data-trouble-heading]') || false,
-        notice: v.querySelector('[data-trouble-situation-notice]')?.textContent || '',
-        tabs: [...v.querySelectorAll('[data-trouble-tab]')].map(n => [n.dataset.troubleTab, n.textContent, n.getAttribute('aria-current') || '']),
-        narrow: {
-          title: narrow?.querySelector('h4')?.textContent || '',
-          hint: narrow?.querySelector('[data-trouble-narrow-hint]')?.textContent || '',
-          count: narrow?.querySelector('[data-trouble-answered]')?.textContent || '',
-          questions: [...(narrow?.querySelectorAll('[data-trouble-question]') || [])].map(g => [g.dataset.troubleQuestion, g.querySelector('h5')?.textContent || '',
-            [...g.querySelectorAll('[data-trouble-option]')].map(n => n.dataset.troubleOption).join(',')]),
-          pressed: __th.pressed(),
-          optionsInNarrowOnly: [...v.querySelectorAll('[data-trouble-option]')].every(n => narrow.contains(n)),
-        },
-        portal: {
-          order: Boolean(v.querySelector('[data-trouble-portal-order]')),
-          hint: v.querySelector('[data-trouble-portal-hint]')?.textContent || '',
-          select: v.querySelector('[data-trouble-portal-select]')?.getAttribute('href') || '',
-          describe: v.querySelector('[data-trouble-portal-describe]')?.getAttribute('href') || '',
-          sentence: Boolean(v.querySelector('[data-trouble-portal-sentence], [data-trouble-portal-copy]')),
-          beforeNarrow: Boolean(v.querySelector('[data-trouble-portal]').compareDocumentPosition(narrow) & Node.DOCUMENT_POSITION_FOLLOWING),
-        },
-        // Linux gate fonts are narrower than Windows ones: with every glyph 3px
-        // narrower, no button on 할 일 (바로 전화, tabs, answers, portal) may drop under 48px.
-        narrowGlyphs: await (async () => {
-          const style = document.createElement('style');
-          style.textContent = '[data-trouble-dialog] * { letter-spacing: -3px !important; }';
-          document.head.append(style);
-          await __th.sleep(40);
-          const small = [...v.querySelectorAll('.trouble-quick-call, .trouble-option, .trouble-tab, .trouble-button, [data-trouble-portal] a, .trouble-check, .trouble-speak')]
-            .filter(__th.visible).filter(n => { const r = n.getBoundingClientRect(); return r.width < 47.5 || r.height < 47.5; })
-            .map(n => (n.className || n.tagName) + ':' + Math.round(n.getBoundingClientRect().width) + 'x' + Math.round(n.getBoundingClientRect().height) + ':' + n.textContent.trim().slice(0, 10));
-          const applied = getComputedStyle(v.querySelector('.trouble-quick-call')).letterSpacing;
-          style.remove();
-          await __th.sleep(40);
-          return {small, applied};
-        })(),
-        progressLine: Boolean(__th.dialog().querySelector('[data-trouble-progress]')) || /질문 \\d+\\/\\d+/.test(__th.dialogText().replace(/답한 질문 \\d+\\/\\d+/g, '')),
-        measure: __th.measure(),
-        text: __th.dialogText(),
+        situations: [...v.querySelectorAll('[data-trouble-situation]')].map(n => [n.dataset.troubleSituation, n.querySelector('strong').textContent, n.querySelector('.trouble-cat-sub')?.textContent || '']),
+        title: v.querySelector('[data-trouble-heading]').textContent,
+        notice: v.querySelector('[data-trouble-notice]')?.textContent || '',
+        login: /로그인/.test(__th.pageText()),
+        calls: globalThis.__thCalls, measure: __th.measure(), focus: document.activeElement?.matches('[data-trouble-heading]') || false,
+        backControl: Boolean(v.querySelector('[data-subview-back]')),
       };
     })()`);
-    await shoot('steps-first');
-    r.firstThemes = await themed(evaluate, shoot, 'steps-first');
+    r.hubThemes = await themed(evaluate, shoot, 'hub');
 
-    // 내 상황에 맞게 좁히기: '없어요' takes 119 away (card and row), a second
-    // press clears it; 교차로 brings 신호등 back. The pressed button stays put.
-    r.narrow = await evaluate(`(async () => {
-      const scroll = __th.dialog().querySelector('[data-trouble-scroll]');
-      const status = () => __th.dialog().querySelector('[data-trouble-status]').textContent;
-      const at = n => Math.round(n.getBoundingClientRect().top - scroll.getBoundingClientRect().top);
-      const press = async (q, o) => {
-        const node = __th.option(q, o);
-        node.scrollIntoView({block: 'center'});
-        await __th.sleep(40);
-        const before = at(node);
-        const count = await __th.answer(q, o);
-        const after = __th.option(q, o);
-        return {count, moved: Math.abs(at(after) - before), focus: document.activeElement === after, pressed: after.getAttribute('aria-pressed'),
-          ids: __th.stepIds(), quick: __th.quick(), questions: __th.questionIds(), status: status(), view: __th.view().dataset.troubleView};
+    // ① 자동차 사고 — the first screen.
+    r.start = await evaluate(`(async () => {
+      __th.click('[data-trouble-situation="CAR_ACCIDENT"]');
+      const v = await __th.onView('start');
+      await __th.sleep(60);
+      const emergency = v.querySelector('[data-trouble-emergency]');
+      return {
+        chip: v.querySelector('[data-trouble-chip]')?.textContent || '',
+        emergency: emergency ? {text: emergency.querySelector('.trouble-emergency-text').textContent,
+          calls: [...emergency.querySelectorAll('[data-trouble-quick-call]')].map(a => [a.getAttribute('href'), a.textContent, a.getAttribute('aria-label')])} : null,
+        title: v.querySelector('[data-trouble-heading]').textContent,
+        tap: v.querySelector('[data-trouble-start-ask]')?.textContent || '',
+        direct: v.querySelector('[data-trouble-direct]')?.textContent || '',
+        inputs: [...v.querySelectorAll('input, textarea, [type=file]')].length,
+        first: __th.firstScreen(['[data-trouble-start-ask]', '[data-trouble-direct]']),
+        focus: document.activeElement?.matches('[data-trouble-heading]') || false,
+        backControl: Boolean(v.querySelector('[data-subview-back]')),
+        hash: location.hash, measure: __th.measure(),
       };
+    })()`);
+    r.startThemes = await themed(evaluate, shoot, 'start');
+
+    // ② one question per screen.
+    r.ask = await evaluate(`(async () => {
+      __th.click('[data-trouble-start-ask]');
+      const v = await __th.onView('ask');
+      await __th.sleep(60);
+      const read = () => { const w = __th.view(); return {
+        question: __th.asked(), eyebrow: w.querySelector('.trouble-eyebrow')?.textContent || '', title: w.querySelector('[data-trouble-heading]')?.textContent || '',
+        options: [...w.querySelectorAll('[data-trouble-option]')].map(n => n.dataset.troubleOption), skip: Boolean(w.querySelector('[data-trouble-skip]')),
+        emergency: Boolean(w.querySelector('[data-trouble-emergency]')), stop: w.querySelector('[data-trouble-to-result]')?.textContent || '',
+        given: __th.given(), counter: /\\d+\\s*\\/\\s*\\d+/.test(w.textContent) }; };
+      const out = {first: read(), firstScreen: __th.firstScreen(['[data-trouble-option="unknown"]', '[data-trouble-to-result]']), measure: __th.measure()};
+      await __th.answer('injury', 'no');
+      out.second = read();
+      await __th.skip('other');
+      out.third = read();
+      await __th.answer('place', 'intersection');
+      out.fourth = read();
+      await __th.answer('signal', 'yes');
+      out.fifth = read();
+      out.fifthMeasure = __th.measure();
+      return out;
+    })()`);
+    await shoot('ask-my-move');
+    r.askThemes = await themed(evaluate, shoot, 'ask');
+    r.result = await evaluate(`(async () => {
+      await __th.answer('my_move', 'straight');
+      const v = await __th.onView('result');
+      await __th.sleep(80);
+      const card = id => { const n = v.querySelector('[data-trouble-card="' + id + '"]'); return {title: n.querySelector('h4').textContent, line: n.querySelector('.trouble-card-line').textContent,
+        more: n.querySelector('[data-trouble-more]').textContent, expanded: n.querySelector('[data-trouble-more]').getAttribute('aria-expanded'), open: n.dataset.open}; };
+      return {
+        cards: [...v.querySelectorAll('[data-trouble-card]')].map(n => n.dataset.troubleCard),
+        todo: card('todo'), keep: card('keep'), help: card('help'),
+        main: [...v.querySelectorAll('[data-trouble-main-route]')].map(a => [a.dataset.troubleMainRoute, a.getAttribute('href'), a.textContent]),
+        title: v.querySelector('[data-trouble-heading]').textContent,
+        notice: v.querySelector('[data-trouble-situation-notice]')?.textContent || '',
+        emergency: v.querySelector('[data-trouble-emergency] .trouble-emergency-text')?.textContent || '',
+        given: __th.given(),
+        script: [...v.querySelectorAll('[data-trouble-call-script] li')].map(n => n.textContent),
+        disclaimer: v.querySelector('[data-trouble-disclaimer]')?.textContent || '',
+        sheetEntry: v.querySelector('[data-trouble-open-summary]')?.textContent || '',
+        first: __th.firstScreen(['[data-trouble-card="todo"] h4', '[data-trouble-card="keep"] h4', '[data-trouble-card="help"] h4']),
+        views: [...new Set(window.__thViews)], measure: __th.measure(),
+      };
+    })()`);
+    await shoot('result');
+    r.resultThemes = await themed(evaluate, shoot, 'result');
+
+    // ③ the cards open in place.
+    r.cards = await evaluate(`(async () => {
+      const v = __th.view();
       const out = {};
-      out.injuryNo = await press('injury', 'no');
-      out.injuryCleared = await press('injury', 'no');
-      out.injuryAgain = await press('injury', 'no');
-      out.otherCar = await press('other', 'car');
-      out.otherCar.portal = {order: __th.view().querySelector('[data-trouble-portal-order]')?.textContent || '', hint: Boolean(__th.view().querySelector('[data-trouble-portal-hint]'))};
-      out.oncoming = await press('place', 'oncoming');
-      out.intersection = await press('place', 'intersection');
-      out.signal = await press('signal', 'yes');
-      out.myMove = await press('my_move', 'straight');
-      out.pressedAll = __th.pressed();
+      __th.click('[data-trouble-more="todo"]');
+      await __th.sleep(60);
+      const todo = __th.view().querySelector('[data-trouble-card="todo"]');
+      out.todo = {open: todo.dataset.open, expanded: todo.querySelector('[data-trouble-more]').getAttribute('aria-expanded'),
+        focus: document.activeElement?.dataset.troubleMore || '',
+        steps: [...todo.querySelectorAll('[data-trouble-step]')].map(n => n.dataset.troubleStep),
+        urgent: [...todo.querySelectorAll('[data-trouble-step][data-urgent="true"]')].map(n => n.dataset.troubleStep),
+        portal: {order: todo.querySelector('[data-trouble-portal-order]')?.textContent || '', hint: Boolean(todo.querySelector('[data-trouble-portal-hint]')),
+          select: todo.querySelector('[data-trouble-portal-select]')?.getAttribute('href') || '', sentence: Boolean(todo.querySelector('[data-trouble-portal-sentence]'))},
+        insurer: todo.querySelector('[data-trouble-step="insurer"]')?.textContent || '',
+        call112: [...todo.querySelectorAll('[data-trouble-step="call_112"] a[href^="tel:"]')].map(a => a.getAttribute('href'))};
+      todo.querySelector('[data-trouble-step-done="stay_safe"]').click();
+      await __th.sleep(30);
+      out.todo.doneSaved = JSON.parse(localStorage.getItem('lotbi.site.ux.v1.trouble-helper')).cases.CAR_ACCIDENT.done;
+      __th.click('[data-trouble-more="keep"]');
+      await __th.sleep(60);
+      const keep = __th.view().querySelector('[data-trouble-card="keep"]');
+      out.keep = {open: keep.dataset.open, evidence: [...keep.querySelectorAll('[data-trouble-evidence]')].map(n => n.dataset.troubleEvidence),
+        references: keep.querySelectorAll('[data-trouble-reference]').length};
+      keep.querySelector('[data-trouble-evidence]').click();
+      __th.click('[data-trouble-more="help"]');
+      await __th.sleep(60);
+      const help = __th.view().querySelector('[data-trouble-card="help"]');
+      out.help = {open: help.dataset.open, channels: [...help.querySelectorAll('[data-trouble-channel]')].map(n => n.dataset.troubleChannel),
+        verified: help.querySelectorAll('[data-trouble-verified]').length, fees: [...help.querySelectorAll('[data-trouble-fees]')].map(n => n.textContent)};
+      out.allOpen = __th.measure();
+      out.first = __th.firstScreen(['[data-trouble-card="todo"] h4']);
+      return out;
+    })()`);
+    await shoot('result-open');
+    r.openThemes = await themed(evaluate, shoot, 'result-open');
+    // Linux gate fonts are narrower than Windows ones: with every glyph 3px
+    // narrower, no button on the result may drop under 48px.
+    r.narrowGlyphs = await evaluate(`(async () => {
+      const style = document.createElement('style');
+      style.textContent = '[data-trouble-page] * { letter-spacing: -3px !important; }';
+      document.head.append(style);
+      await __th.sleep(40);
+      const small = [...__th.ws().querySelectorAll('.trouble-button, .trouble-more, .trouble-change, .trouble-link, .trouble-check, a[href]')]
+        .filter(__th.visible).filter(n => !n.closest('.trouble-sr, .trouble-subview-back')).filter(n => { const r = n.getBoundingClientRect(); return r.width < 47.5 || r.height < 47.5; })
+        .map(n => (n.className || n.tagName) + ':' + Math.round(n.getBoundingClientRect().width) + 'x' + Math.round(n.getBoundingClientRect().height) + ':' + n.textContent.trim().slice(0, 10));
+      style.remove();
+      await __th.sleep(40);
+      return small;
+    })()`);
+
+    // ④ 상황 정리표.
+    r.summary = await evaluate(`(async () => {
+      __th.click('[data-trouble-open-summary]');
+      const v = await __th.onView('summary');
+      await __th.sleep(300);
+      const out = {
+        tools: [...v.querySelectorAll('[data-trouble-tools] button')].map(n => n.textContent),
+        answers: [...v.querySelectorAll('[data-trouble-sheet-answers] li')].map(n => n.textContent),
+        done: [...v.querySelectorAll('.trouble-sheet-list li')].map(n => n.textContent),
+        fields: [...v.querySelectorAll('[data-trouble-field]')].map(n => n.dataset.troubleField),
+        locked: v.querySelector('[data-trouble-status-choice="SUBMITTED"]').disabled,
+        hint: !v.querySelector('[data-trouble-receipt-hint]').hidden,
+        safety: [...v.querySelectorAll('[data-trouble-safety] li')].map(n => n.textContent),
+        disclaimer: Boolean(v.querySelector('[data-trouble-disclaimer]')),
+        first: __th.firstScreen(['[data-trouble-tools]']),
+        measure: __th.measure(),
+      };
+      const receipt = v.querySelector('[data-trouble-field="receipt"]');
+      receipt.value = '2026-77';
+      receipt.dispatchEvent(new Event('input', {bubbles: true}));
+      out.unlocked = !v.querySelector('[data-trouble-status-choice="SUBMITTED"]').disabled;
+      __th.click('[data-trouble-print]');
+      await __th.sleep(30);
+      out.prints = globalThis.__thPrints;
+      __th.click('[data-trouble-share]');
+      await __th.wait(() => globalThis.__thShares.length, 'share');
+      out.share = globalThis.__thShares[0];
+      __th.click('[data-trouble-save]');
+      await __th.sleep(30);
+      out.status = __th.ws().querySelector('[data-trouble-status]').textContent;
+      out.stored = JSON.parse(localStorage.getItem('lotbi.site.ux.v1.trouble-helper')).cases.CAR_ACCIDENT;
+      return out;
+    })()`);
+    await shoot('summary');
+    r.summaryThemes = await themed(evaluate, shoot, 'summary');
+
+    // ← steps back one screen at a time; the phone's back does the same.
+    r.back = await evaluate(`(async () => {
+      const out = {};
+      __th.ws().querySelector('.site-modal-close').click();
+      await __th.onView('result', 'header back → result');
+      out.afterHeaderBack = __th.view().dataset.troubleView;
+      out.hash = location.hash;
+      history.back();
+      await __th.wait(() => __th.asked() === 'my_move', 'phone back → last question');
+      out.afterPhoneBack = __th.asked();
+      __th.click('[data-trouble-to-result]');
+      await __th.onView('result');
+      __th.click('[data-trouble-pick]');
+      await __th.onView('hub');
+      out.hub = __th.view().dataset.troubleView;
+      out.resume = [...__th.view().querySelectorAll('.trouble-resume')].map(n => n.closest('[data-trouble-situation]').dataset.troubleSituation);
+      return out;
+    })()`);
+
+    // 중고거래 사기: the emergency line, every step while nothing is answered,
+    // and the 사기·피싱 확인 link hands over (the page closes).
+    r.fraud = await evaluate(`(async () => {
+      __th.click('[data-trouble-situation="USED_TRADE_FRAUD"]');
+      let v = await __th.onView('start');
+      const out = {emergency: v.querySelector('[data-trouble-emergency] .trouble-emergency-text')?.textContent || '',
+        calls: [...v.querySelectorAll('[data-trouble-quick-call]')].map(a => a.getAttribute('href'))};
+      __th.click('[data-trouble-direct]');
+      v = await __th.onView('result');
+      out.todoTitle = v.querySelector('[data-trouble-card="todo"] .trouble-card-lead')?.textContent || '';
+      out.main = v.querySelector('[data-trouble-main-route]')?.getAttribute('href') || '';
+      out.toldEmpty = Boolean(v.querySelector('.trouble-given-empty'));
+      __th.click('[data-trouble-more="todo"]');
+      await __th.sleep(60);
+      out.steps = [...__th.view().querySelectorAll('[data-trouble-step]')].map(n => n.dataset.troubleStep);
+      out.measure = __th.measure();
+      __th.click('[data-trouble-scam-shield]');
+      await __th.wait(() => !__th.ws(), 'page closed for 사기·피싱 확인');
+      // 사기·피싱 확인 is its own page (#scam) since SCAM-PHISHING-REDESIGN-02.
+      await __th.wait(() => document.querySelector('[data-site-route="scam"] .scam-page'), '사기·피싱 확인 page');
+      out.scamOpen = Boolean(document.querySelector('.consumer-workspace[data-workspace="scam"]')) && !document.querySelector('dialog[open]');
+      out.hash = location.hash;
+      return out;
+    })()`);
+
+    // 그 밖의 법률 고민: no emergency line, 잘 모르겠어요 added, goto 월급 못 받음.
+    await evaluate("(async () => { document.querySelector('[data-site-route=\"scam\"] .site-modal-close')?.click(); await __th.wait(() => !document.querySelector('[data-site-route=\"scam\"]'), 'scam page closed'); document.querySelectorAll('dialog[open]').forEach(d => d.close()); await __th.sleep(300); return true; })()");
+    r.reopen = await evaluate(OPEN(testCase.mobile));
+    r.other = await evaluate(`(async () => {
+      await __th.onView('hub');
+      __th.click('[data-trouble-situation="OTHER_LEGAL"]');
+      let v = await __th.onView('start');
+      const out = {emergency: Boolean(v.querySelector('[data-trouble-emergency]'))};
+      __th.click('[data-trouble-start-ask]');
+      v = await __th.onView('ask');
+      out.question = __th.asked();
+      out.skip = Boolean(v.querySelector('[data-trouble-skip]'));
+      await __th.answer('topic', 'work');
+      v = await __th.onView('result');
+      __th.click('[data-trouble-more="todo"]');
+      await __th.sleep(60);
+      out.steps = [...__th.view().querySelectorAll('[data-trouble-step]')].map(n => n.dataset.troubleStep);
+      __th.click('[data-trouble-goto="WAGE_ARREARS"]');
+      v = await __th.onView('start');
+      out.gotoChip = v.querySelector('[data-trouble-chip]')?.textContent || '';
+      out.wageEmergency = Boolean(v.querySelector('[data-trouble-emergency]'));
       out.measure = __th.measure();
       return out;
     })()`);
-    await shoot('narrow');
-    r.narrowThemes = await themed(evaluate, shoot, 'narrow');
-    const carTexts = [r.car.text];
-    // ③ 할 일
-    r.steps = await evaluate(`(async () => {
-      const v = __th.view();
-      const cards = [...v.querySelectorAll('[data-trouble-step]')];
-      const card = id => v.querySelector('[data-trouble-step="' + id + '"]');
-      const result = {
-        ids: cards.map(n => n.dataset.troubleStep),
-        urgent: cards.filter(n => n.dataset.urgent === 'true').map(n => [n.dataset.troubleStep, n.querySelector('.trouble-step-urgent')?.textContent || '', getComputedStyle(n).borderLeftWidth]),
-        numbers: cards.map(n => n.querySelector('h4').textContent.trim().split(' ')[0]),
-        notice: v.querySelector('[data-trouble-situation-notice]')?.textContent || '',
-        tel112: card('call_112')?.querySelector('a[href^="tel:"]')?.getAttribute('href') || '',
-        insurer: card('insurer')?.textContent || '',
-        speak: cards.every(n => n.querySelector('.chat-message-action-read')),
-        checks: cards.every(n => n.querySelector('[data-trouble-step-done]')),
-        tabs: [...v.querySelectorAll('[data-trouble-tab]')].map(n => [n.dataset.troubleTab, n.getAttribute('aria-current') || '']),
-        portal: {
-          order: v.querySelector('[data-trouble-portal-order]')?.textContent || '',
-          select: v.querySelector('[data-trouble-portal-select]')?.getAttribute('href') || '',
-          sentence: v.querySelector('[data-trouble-portal-sentence]')?.textContent || '',
-          describe: v.querySelector('[data-trouble-portal-describe]')?.getAttribute('href') || '',
-          note: v.querySelector('[data-trouble-portal]')?.textContent || '',
-          targets: [...v.querySelectorAll('[data-trouble-portal] a')].map(a => a.target + '|' + a.rel),
-        },
-      };
-      const box = card('photos').querySelector('[data-trouble-step-done]');
-      box.click();
-      result.doneAfter = card('photos').dataset.done;
-      __th.click('[data-trouble-portal-copy]');
-      await __th.wait(() => globalThis.__thCopies.length, 'portal copy');
-      result.copied = globalThis.__thCopies.at(-1);
-      result.measure = __th.measure();
-      result.text = __th.dialogText();
-      return result;
+    r.noise = await evaluate(`(async () => {
+      if (__th.view()?.dataset.troubleView !== 'hub') { __th.ws().querySelector('.site-modal-close').click(); await __th.onView('hub'); }
+      __th.click('[data-trouble-situation="FLOOR_NOISE"]');
+      const v = await __th.onView('start');
+      return {emergency: v.querySelector('[data-trouble-emergency] .trouble-emergency-text')?.textContent || '',
+        calls: [...v.querySelectorAll('[data-trouble-quick-call]')].map(a => a.getAttribute('href'))};
     })()`);
-    carTexts.push(r.steps.text);
-    await shoot('steps');
-    r.stepsThemes = await themed(evaluate, shoot, 'steps');
-    // Scrolling to the portal box (as a focus move would) scrolls the dialog's
-    // body only; the dialog box itself never moves, so its header stays.
-    r.scrolled = await evaluate(`(async () => {
-      __th.view().querySelector('[data-trouble-portal]').scrollIntoView();
-      await __th.sleep(60);
-      const d = __th.dialog();
-      return {dialogTop: d.scrollTop, dialogOverflow: d.scrollHeight - d.clientHeight, bodyTop: d.querySelector('[data-trouble-scroll]').scrollTop,
-        headerTop: Math.round(d.querySelector('.trouble-dialog-header').getBoundingClientRect().top - d.getBoundingClientRect().top)};
-    })()`);
-    await shoot('steps-portal');
 
-    // ④ 모을 증거 · 참고 기준 · 공식 창구
-    r.help = await evaluate(`(async () => {
-      __th.click('[data-trouble-next]');
-      await __th.wait(() => __th.view().dataset.troubleView === 'help', 'help');
-      const v = __th.view();
-      const channel = id => v.querySelector('[data-trouble-channel="' + id + '"]');
-      const routeHeights = id => [...channel(id).querySelectorAll('.trouble-channel-routes > *')].map(n => [n.matches('a[href^="tel:"]') ? 'tel' : n.dataset.troubleOnline ? 'online' : n.dataset.troubleNoAuth ? 'noauth' : n.className, Math.round(n.getBoundingClientRect().height)]);
-      const evidence = [...v.querySelectorAll('[data-trouble-evidence]')];
-      evidence[0].click(); evidence[2].click();
-      const r = {
-        evidence: evidence.map(n => n.dataset.troubleEvidence),
-        references: [...v.querySelectorAll('[data-trouble-reference]')].map(a => [a.getAttribute('href'), a.target, a.rel]),
-        channels: [...v.querySelectorAll('[data-trouble-channel]')].map(n => n.dataset.troubleChannel),
-        fire: {tel: channel('FIRE_119').querySelector('a[href^="tel:"]')?.getAttribute('href'), fees: channel('FIRE_119').querySelector('[data-trouble-fees]')?.textContent, hours: channel('FIRE_119').querySelector('[data-trouble-hours]')?.textContent},
-        insurer: {fees: channel('MY_INSURER').querySelector('[data-trouble-fees]')?.textContent || '', hours: channel('MY_INSURER').querySelector('[data-trouble-hours]')?.textContent || '', text: channel('MY_INSURER').textContent},
-        knia: {hours: channel('KNIA_PORTAL').querySelector('[data-trouble-hours]')?.textContent || '', verified: channel('KNIA_PORTAL').querySelector('[data-trouble-verified]')?.textContent || '',
-          sources: [...channel('KNIA_PORTAL').querySelectorAll('[data-trouble-verified] a')].map(a => [a.getAttribute('href'), a.target]), routes: routeHeights('KNIA_PORTAL')},
-        script: Boolean(v.querySelector('[data-trouble-call-script] summary')),
-        measure: __th.measure(),
-      };
-      v.querySelector('[data-trouble-call-script]').open = true;
-      await __th.sleep(40);
-      r.measureOpen = __th.measure();
-      r.text = __th.dialogText();
-      return r;
+    // A reload on #trouble reopens the page on the screen it was on.
+    r.reload = await evaluate(`(async () => {
+      __th.click('[data-trouble-direct]');
+      await __th.onView('result');
+      __th.click('[data-trouble-open-summary]');
+      await __th.onView('summary');
+      await __th.sleep(450);
+      return location.hash;
     })()`);
-    carTexts.push(r.help.text);
-    await shoot('help');
-    r.helpThemes = await themed(evaluate, shoot, 'help');
-
-    // ⑤ 상황 정리표 — 'SUBMITTED' waits for the 접수번호.
-    r.summary = await evaluate(`(async () => {
-      __th.click('[data-trouble-next]');
-      await __th.wait(() => __th.view().dataset.troubleView === 'summary', 'summary');
-      const v = __th.view();
-      const submitted = () => v.querySelector('[data-trouble-status-choice="SUBMITTED"]');
-      const hint = () => v.querySelector('[data-trouble-receipt-hint]');
-      const type = (id, value) => { const area = v.querySelector('[data-trouble-field="' + id + '"]'); area.value = value; area.dispatchEvent(new Event('input', {bubbles: true})); };
-      const r = {
-        fields: [...v.querySelectorAll('[data-trouble-field]')].map(n => n.dataset.troubleField),
-        statuses: [...v.querySelectorAll('[data-trouble-status-option]')].map(n => n.textContent.trim()),
-        lockedAtStart: submitted().disabled, hintAtStart: __th.visible(hint()) ? hint().textContent : '',
-        answers: [...v.querySelectorAll('[data-trouble-answers] li')].map(n => n.textContent),
-        sheet: v.querySelector('[data-trouble-sheet]').textContent,
-        safety: [...v.querySelectorAll('[data-trouble-safety] li')].map(n => n.textContent),
-      };
-      submitted().click();
-      r.checkedWhileLocked = submitted().checked;
-      type('receipt', '보험-2026-7788');
-      r.lockedAfterReceipt = submitted().disabled; r.hintAfterReceipt = __th.visible(hint());
-      submitted().click();
-      r.checkedAfterReceipt = submitted().checked;
-      type('receipt', '');
-      r.lockedAfterClear = submitted().disabled;
-      r.statusAfterClear = v.querySelector('[data-trouble-status-choice]:checked')?.value;
-      type('receipt', '보험-2026-7788');
-      submitted().click();
-      type('when_where', '10월 10일 오후, 전주 덕진구 사거리');
-      __th.click('[data-trouble-save]');
-      r.saveStatus = __th.dialog().querySelector('[data-trouble-status]').textContent;
-      r.stored = JSON.parse(localStorage.getItem('lotbi.site.ux.v1.trouble-helper') || 'null');
-      __th.click('[data-trouble-print]');
-      r.prints = globalThis.__thPrints.slice();
-      await __th.sleep(300);
-      __th.click('[data-trouble-share]');
-      r.shareInsideTap = globalThis.__thShares.length === 1;
-      await __th.wait(() => globalThis.__thShares.length, 'share');
-      r.share = globalThis.__thShares.at(-1);
-      Object.defineProperty(navigator, 'share', {configurable: true, writable: true, value: undefined});
-      const copies = globalThis.__thCopies.length;
-      __th.click('[data-trouble-share]');
-      await __th.wait(() => globalThis.__thCopies.length > copies, 'copy fallback');
-      await __th.wait(() => /복사/.test(__th.dialog().querySelector('[data-trouble-status]').textContent), 'copy status');
-      r.copied = globalThis.__thCopies.at(-1);
-      r.copyStatus = __th.dialog().querySelector('[data-trouble-status]').textContent;
-      r.measure = __th.measure();
-      r.text = __th.dialogText();
-      return r;
-    })()`);
-    carTexts.push(r.summary.text);
-    await shoot('summary');
-    r.summaryThemes = await themed(evaluate, shoot, 'summary');
-    await evaluate("(async () => { __th.view().querySelector('[data-trouble-status-group]').scrollIntoView(); await __th.sleep(60); return true; })()");
-    await shoot('summary-status');
-
-    // 인쇄: in print media only the large-print sheet shows.
-    await page('Emulation.setEmulatedMedia', {media: 'print', features: [{name: 'prefers-reduced-motion', value: 'reduce'}]});
-    r.print = await evaluate(`(() => {
-      document.body.classList.add('trouble-printing');
-      const sheet = document.querySelector('[data-trouble-print-sheet]');
-      const out = {sheet: sheet ? getComputedStyle(sheet).display : 'none', size: sheet ? parseFloat(getComputedStyle(sheet).fontSize) : 0,
-        h1: sheet ? parseFloat(getComputedStyle(sheet.querySelector('h1')).fontSize) : 0,
-        shell: getComputedStyle(document.querySelector('.chat-app-shell')).display, dialog: getComputedStyle(__th.dialog()).display,
-        text: sheet?.textContent || ''};
-      document.body.classList.remove('trouble-printing');
-      return out;
-    })()`);
-    await page('Emulation.setEmulatedMedia', {media: '', features: [{name: 'prefers-reduced-motion', value: 'reduce'}]});
-
-    // Reload: the dialog reopens on the 정리표 with what was written. The old
-    // page's "ready" mark is cleared first so only the new page can answer.
-    r.viewsBeforeReload = await evaluate('[...new Set(window.__thViews)]');
-    await evaluate("document.getElementById('th-result').textContent = 'pending'; true");
     await page('Page.reload', {});
     await ready();
-    r.reload = await evaluate(`(async () => {
-      await __th.wait(() => __th.dialog().open && __th.view()?.dataset.troubleView === 'summary', 'reopened on summary');
-      const v = __th.view();
-      return {receipt: v.querySelector('[data-trouble-field="receipt"]').value, when: v.querySelector('[data-trouble-field="when_where"]').value,
-        status: v.querySelector('[data-trouble-status-choice]:checked')?.value, evidence: v.querySelector('[data-trouble-sheet]').textContent};
+    r.reloaded = await evaluate(`(async () => {
+      await __th.wait(() => __th.view()?.dataset.troubleView === 'summary', 'reopened on the 정리표');
+      return {view: __th.view().dataset.troubleView, chip: __th.view().querySelector('[data-trouble-chip]')?.textContent || '', hash: location.hash,
+        bootLoaded: globalThis.__thBootLoaded, workspace: document.body.classList.contains('site-workspace-open')};
     })()`);
-
-    // 중고거래 사기: opens on 할 일 with [112]; 좁히기 '아직 안 보냈어요' leaves
-    // the 조회 step (사기·피싱 확인 link) and no 바로 전화 row; '계좌로' brings 112 back.
-    r.fraud = await evaluate(`(async () => {
-      __th.click('[data-trouble-pick]');
-      await __th.wait(() => __th.view().dataset.troubleView === 'pick', 'pick again');
-      const resume = __th.view().querySelector('[data-trouble-situation="CAR_ACCIDENT"] .trouble-resume')?.textContent || '';
-      __th.click('[data-trouble-situation="USED_TRADE_FRAUD"]');
-      const viewRightAfterTap = __th.view().dataset.troubleView;
-      const v = () => __th.view();
-      const r = {resume, viewRightAfterTap, first: __th.firstScreen(), layout: __th.layout(), ids: __th.stepIds(), quick: __th.quick(), questions: __th.questionIds(),
-        scam: Boolean(v().querySelector('[data-trouble-step="lookup_before"] [data-trouble-scam-shield]')),
-        count: v().querySelector('[data-trouble-answered]')?.textContent || ''};
-      r.notYet = {count: await __th.answer('paid', 'not_yet')};
-      Object.assign(r.notYet, {ids: __th.stepIds(), quick: __th.quick(), row: Boolean(v().querySelector('[data-trouble-quick-calls]')), questions: __th.questionIds(),
-        scam: Boolean(v().querySelector('[data-trouble-step="lookup_before"] [data-trouble-scam-shield]'))});
-      await __th.answer('contact', 'yes');
-      r.bank = {count: await __th.answer('paid', 'bank')};
-      Object.assign(r.bank, {ids: __th.stepIds(), quick: __th.quick(), questions: __th.questionIds(), pressed: __th.pressed()});
-      await __th.answer('when', 'today');
-      await __th.answer('contact', 'no');
-      r.pressed = __th.pressed();
-      r.bankIds = __th.stepIds();
-      const police = __th.view().querySelector('[data-trouble-step="police_report"]');
-      const kind = n => n.matches('a[href^="tel:"]') ? 'tel' : n.dataset.troubleOnline ? 'online' : n.dataset.troubleNoAuth ? 'noauth' : n.dataset.troubleVisit ? 'visit' : n.className;
-      r.policeRoutes = [...police.querySelectorAll('.trouble-step-actions > *')].map(kind);
-      police.querySelector('[data-trouble-no-auth]').click();
-      await __th.sleep(60);
-      const policeAfter = __th.view().querySelector('[data-trouble-step="police_report"]');
-      r.policeRoutesOffline = [...policeAfter.querySelectorAll('.trouble-step-actions > *')].map(kind);
-      r.noAuthPressed = policeAfter.querySelector('[data-trouble-no-auth]').getAttribute('aria-pressed');
-      r.noAuthFocus = document.activeElement?.dataset?.troubleNoAuth || '';
-      r.measureSteps = __th.measure();
-      __th.click('[data-trouble-next]');
-      await __th.wait(() => __th.view().dataset.troubleView === 'help', 'fraud help');
-      const ecrm = () => __th.view().querySelector('[data-trouble-channel="ECRM"]');
-      r.channelsOffline = [...__th.view().querySelectorAll('[data-trouble-channel]')].map(n => n.dataset.troubleChannel);
-      r.ecrmOffline = [...ecrm().querySelectorAll('.trouble-channel-routes > *')].map(n => n.dataset.troubleVisit !== undefined ? 'visit' : n.dataset.troubleOnline ? 'online' : n.dataset.troubleNoAuth ? 'noauth' : n.tagName);
-      ecrm().querySelector('[data-trouble-no-auth]').click();
-      await __th.sleep(60);
-      r.channelsOnline = [...__th.view().querySelectorAll('[data-trouble-channel]')].map(n => n.dataset.troubleChannel);
-      r.ecrmOnline = [...ecrm().querySelectorAll('.trouble-channel-routes > *')].map(n => n.dataset.troubleOnline ? 'online' : n.dataset.troubleNoAuth ? 'noauth' : n.tagName);
-      r.ecrmHours = ecrm().querySelector('[data-trouble-hours]')?.textContent || '';
-      r.measure = __th.measure();
-      return r;
-    })()`);
-
-    // 그 밖의 법률 고민: no 112/119 → no 바로 전화 row; goto 월급 못 받음 opens
-    // its 할 일 at once; receipt_field_id null never locks.
-    r.other = await evaluate(`(async () => {
-      __th.click('[data-trouble-pick]');
-      await __th.wait(() => __th.view().dataset.troubleView === 'pick', 'pick 3');
-      __th.click('[data-trouble-situation="OTHER_LEGAL"]');
-      const r = {viewRightAfterTap: __th.view().dataset.troubleView, ids: __th.stepIds(), row: Boolean(__th.view().querySelector('[data-trouble-quick-calls]')), layout: __th.layout()};
-      await __th.answer('topic', 'money');
-      r.moneyIds = __th.stepIds();
-      await __th.answer('topic', 'work');
-      r.workIds = __th.stepIds();
-      __th.click('[data-trouble-tab="summary"]');
-      await __th.wait(() => __th.view().dataset.troubleView === 'summary', 'other summary');
-      r.submittedLocked = __th.view().querySelector('[data-trouble-status-choice="SUBMITTED"]').disabled;
-      r.hintShown = __th.visible(__th.view().querySelector('[data-trouble-receipt-hint]'));
-      r.statuses = [...__th.view().querySelectorAll('[data-trouble-status-option]')].map(n => n.textContent.trim());
-      __th.click('[data-trouble-tab="steps"]');
-      await __th.wait(() => __th.view().dataset.troubleView === 'steps', 'other steps 2');
-      __th.click('[data-trouble-goto="WAGE_ARREARS"]');
-      r.gotoView = __th.view().dataset.troubleView;
-      r.gotoHeading = __th.view().querySelector('[data-trouble-heading]')?.textContent || '';
-      r.wageIdsUnanswered = __th.stepIds();
-      r.wageQuestions = __th.questionIds();
-      await __th.answer('company', 'no');
-      r.wageIdsCompanyNo = __th.stepIds();
-      for (const [q, o] of [['employment', 'left'], ['documents', 'yes'], ['company', 'yes']]) await __th.answer(q, o);
-      r.wageIds = __th.stepIds();
-      r.duration = __th.view().querySelector('[data-trouble-step="file_petition"] [data-trouble-duration]')?.textContent || '';
-      __th.click('[data-trouble-next]');
-      await __th.wait(() => __th.view().dataset.troubleView === 'help', 'wage help');
-      const moel = __th.view().querySelector('[data-trouble-channel="MOEL_1350"]');
-      r.moelFees = moel.querySelector('[data-trouble-fees]')?.textContent || '';
-      r.measure = __th.measure();
-      return r;
-    })()`);
-    await shoot('wage-help');
-
-    // 처음부터 다시 takes two presses; a saved situation opens on 할 일 with its
-    // answers kept; then 사기·피싱 확인 link closes this dialog and opens that page.
-    r.reset = await evaluate(`(async () => {
-      const first = __th.click('[data-trouble-reset]');
-      const armed = first.textContent;
-      const stillHere = __th.view().dataset.troubleView;
-      __th.click('[data-trouble-reset]');
-      await __th.wait(() => __th.view().dataset.troubleView === 'pick', 'reset to pick');
-      const stored = JSON.parse(localStorage.getItem('lotbi.site.ux.v1.trouble-helper') || 'null');
-      __th.click('[data-trouble-situation="USED_TRADE_FRAUD"]');
-      const reopenedOn = __th.view().dataset.troubleView;
-      const keptAnswers = __th.pressed();
-      await __th.answer('paid', 'not_yet');
-      await __th.wait(() => __th.view().querySelector('[data-trouble-scam-shield]'), 'scam link');
-      __th.click('[data-trouble-scam-shield]');
-      await __th.wait(() => !__th.dialog().open && document.querySelector('[data-site-route="scam"] .scam-page'), 'scam opened');
-      const scamOpen = location.hash === '#scam' && Boolean(document.querySelector('.consumer-workspace[data-workspace="scam"]'));
-      document.querySelector('[data-site-route="scam"] .site-modal-close').click();
-      await __th.wait(() => !document.querySelector('[data-site-route="scam"]'), 'scam closed', 5000);
-      return {armed, stillHere, wageGone: !stored.cases.WAGE_ARREARS, carKept: Boolean(stored.cases.CAR_ACCIDENT), scamOpen, reopenedOn, keptAnswers,
-        flag: sessionStorage.getItem('lotbi.trouble-helper.open.v1'), views: [...new Set(window.__thViews)],
-        troubleRequests: globalThis.__thRequests.filter(item => item.trouble).map(item => [item.path, item.credentials, item.authorization])};
-    })()`);
-
-    // × closes and the reload no longer reopens it.
-    await evaluate(OPEN(testCase.mobile));
+    // From its first screen, ← leaves the page for the conversation.
     r.close = await evaluate(`(async () => {
-      __th.click('[data-trouble-close]');
-      await __th.wait(() => !__th.dialog().open, 'closed');
-      return {flag: sessionStorage.getItem('lotbi.trouble-helper.open.v1'), focus: document.activeElement?.matches('[data-trouble-open], [data-mobile-nav-open]') || false};
+      for (let i = 0; i < 6 && __th.ws() && __th.view()?.dataset.troubleView !== 'hub'; i += 1) {
+        __th.ws().querySelector('.site-modal-close').click();
+        await __th.sleep(250);
+      }
+      await __th.onView('hub');
+      __th.ws().querySelector('.site-modal-close').click();
+      await __th.wait(() => !__th.ws(), 'page left');
+      await __th.sleep(200);
+      return {hash: location.hash, workspace: document.body.classList.contains('site-workspace-open'),
+        current: [...document.querySelectorAll('[data-trouble-open]')].map(n => n.getAttribute('aria-current') || '')};
     })()`);
-    r.carTexts = carTexts;
+    r.troubleRequests = await evaluate("globalThis.__thRequests.filter(item => item.trouble).map(item => [item.path, item.credentials, item.authorization])");
     return r;
   });
 }
@@ -947,8 +895,8 @@ async function runFailure(browser, origin, dir, testCase) {
 }
 
 // Signed in (a session mounted as auth/callback does): the menu opens the same
-// helper, the same urgent-first flow runs, and what the helper sends to Core is
-// no more than signed out — public reads only, never the session.
+// page, the same flow runs, and what the helper sends to Core is no more than
+// signed out — public reads only, never the session.
 async function runSigned(browser, origin, dir, testCase) {
   return withPage(browser, dir, testCase, `${origin}/scripts/${path.basename(dir)}/signed.html`, async ({evaluate, shoot}) => {
     const r = {};
@@ -960,23 +908,20 @@ async function runSigned(browser, origin, dir, testCase) {
     })()`);
     r.open = await evaluate(OPEN(testCase.mobile));
     r.flow = await evaluate(`(async () => {
-      await __th.wait(() => __th.view()?.dataset.troubleView === 'pick', 'pick view');
-      const pick = [...__th.view().querySelectorAll('[data-trouble-situation]')].map(n => n.dataset.troubleSituation);
-      const login = /로그인/.test(__th.dialogText());
+      await __th.onView('hub');
+      const hub = [...__th.view().querySelectorAll('[data-trouble-situation]')].map(n => n.dataset.troubleSituation);
+      const login = /로그인/.test(__th.pageText());
       __th.click('[data-trouble-situation="CAR_ACCIDENT"]');
-      const viewRightAfterTap = __th.view().dataset.troubleView;
+      await __th.onView('start');
+      __th.click('[data-trouble-direct]');
+      const v = await __th.onView('result');
       await __th.sleep(60);
-      const out = {pick, login, viewRightAfterTap, first: __th.firstScreen(), ids: __th.stepIds(), quick: __th.quick(), layout: __th.layout(),
-        tabs: [...__th.view().querySelectorAll('[data-trouble-tab]')].map(n => n.textContent)};
-      out.count = await __th.answer('injury', 'no');
-      out.afterNo = {ids: __th.stepIds(), quick: __th.quick()};
-      __th.click('[data-trouble-tab="help"]');
-      await __th.wait(() => __th.view().dataset.troubleView === 'help', 'help');
-      __th.click('[data-trouble-tab="summary"]');
-      await __th.wait(() => __th.view().dataset.troubleView === 'summary', 'summary');
+      const out = {hub, login, cards: [...v.querySelectorAll('[data-trouble-card]')].map(n => n.dataset.troubleCard),
+        first: __th.firstScreen(['[data-trouble-card="todo"] h4', '[data-trouble-card="keep"] h4', '[data-trouble-card="help"] h4'])};
+      __th.click('[data-trouble-open-summary]');
+      await __th.onView('summary');
       await __th.sleep(500);
       out.measure = __th.measure();
-      out.views = [...new Set(window.__thViews)];
       out.trouble = globalThis.__thRequests.filter(item => item.trouble).map(item => ({origin: item.origin, path: item.path, credentials: item.credentials, authorization: item.authorization}));
       out.guideCalls = globalThis.__thCalls;
       return out;
@@ -999,48 +944,30 @@ const assertReadable = (themes, label) => {
     for (const [key, value] of Object.entries(values)) assert.ok(value.value >= 4.5, `${label} ${mode} ${key} contrast ${JSON.stringify(value)}`);
   }
 };
-const assertElderly = (m, label, width) => {
+// Older readers: no sideways scroll, text ≥ 18px, every target ≥ 48px, main
+// buttons ≥ 56px, the title 30px on a phone and 36px on a wide screen; a
+// page in the workspace, never a dialog or a dimmed overlay.
+const assertElderly = (m, label, testCase) => {
   assert.deepEqual(m.stray, [], `${label}: stray text`);
   assert.deepEqual(m.overflow, [], `${label}: overflow`);
   assert.ok(m.page <= 0, `${label}: page scrolls sideways by ${m.page}`);
-  assert.ok(m.bodyScroll <= 0, `${label}: dialog scrolls sideways by ${m.bodyScroll}`);
+  assert.ok(m.wsScroll <= 0, `${label}: workspace scrolls sideways by ${m.wsScroll}`);
   assert.deepEqual(m.small, [], `${label}: targets under 48px`);
-  assert.deepEqual(m.mainSmall, [], `${label}: main buttons under 56px`);
-  assert.deepEqual(m.smallText, [], `${label}: text under 20px`);
-  assert.deepEqual(m.bigText, [], `${label}: text over 28px`);
-  assert.ok(m.title >= 26 && m.title <= 28, `${label}: title ${m.title}`);
-  assert.ok(m.heading >= 26 && m.heading <= 28, `${label}: heading ${m.heading}`);
-  assert.ok(width, label);
+  assert.deepEqual(m.mainSmall, [], `${label}: main buttons too small`);
+  assert.deepEqual(m.smallText, [], `${label}: text under 18px`);
+  if (m.heading) assert.equal(m.heading, testCase.wide ? 36 : 30, `${label}: title ${m.heading}`);
+  assert.equal(m.dialogs, 0, `${label}: no dialog`);
+  assert.equal(m.overlay, false, `${label}: no overlay`);
+  assert.equal(m.workspace, true, `${label}: a workspace page`);
+};
+const assertInside = (first, selectors, label) => {
+  assert.equal(first.scrolled, 0, `${label}: nothing scrolled`);
+  for (const selector of selectors) assert.ok(first[selector]?.inside, `${label}: ${selector} on the first screen ${JSON.stringify(first)}`);
 };
 
 const PUBLIC_PATHS = ['/v2/trouble-helper/guides', '/app/config.json'];
-// App order (TroubleHelperScreen): tabs → 제목 → 참고용 line → 바로 전화 → 할 일 → 포털 → 좁히기 → 다음 → footer.
-const RESULT_LAYOUT = ['tabs', 'heading', 'notice', 'quick', 'steps', 'portal', 'narrow', 'nav', 'footer'];
-const VIEWS = ['loading', 'pick', 'steps', 'help', 'summary'];
-const callAria = phone => `${phone}에 바로 전화 걸기`;
-// 바로 전화 row on the first screen (no scroll); the first card whole, or at
-// least its title, depending on the screen.
-const assertFirstScreen = (first, testCase, label, phones, cardId) => {
-  assert.equal(first.scrollTop, 0, `${label}: nothing scrolled`);
-  if (phones.length) {
-    assert.ok(first.row?.inside, `${label}: 바로 전화 row on the first screen ${JSON.stringify(first)}`);
-    assert.equal(first.rowName, '바로 전화');
-    assert.equal(first.rowVisibleTitle, false, 'the row is the buttons only (App the same)');
-    assert.deepEqual(first.calls.map(call => call.href), phones.map(phone => `tel:${phone}`));
-    assert.deepEqual(first.calls.map(call => call.label), phones.map(phone => `${phone} 전화`));
-    assert.deepEqual(first.calls.map(call => call.aria), phones.map(callAria));
-    for (const call of first.calls) {
-      assert.ok(call.inside, `${label}: ${call.label} on the first screen`);
-      assert.ok(call.height >= 64 && call.font >= 24, `${label}: ${call.label} large ${JSON.stringify(call)}`);
-      assert.equal(call.danger, true, `${label}: ${call.label} in the danger color`);
-    }
-  } else {
-    assert.equal(first.row, null, `${label}: no 바로 전화 row without 112/119`);
-  }
-  assert.equal(first.cardId, cardId);
-  if (testCase.firstCard === 'whole') assert.ok(first.card.inside, `${label}: the whole first card on the first screen ${JSON.stringify(first)}`);
-  else assert.ok(first.cardTitle.inside, `${label}: the first card's title on the first screen ${JSON.stringify(first)}`);
-};
+const VIEWS = ['loading', 'hub', 'start', 'ask', 'result', 'summary'];
+const CAR_TITLES = FIXTURE.situations.map(item => [item.id, item.title, item.subtitle]);
 
 const browser = browserPath();
 const dir = fs.mkdtempSync(path.join(ROOT, 'scripts/.validate-trouble-helper-01-'));
@@ -1055,261 +982,177 @@ try {
   for (const testCase of CASES) {
     const label = testCase.label;
     const r = await runFlow(browser, origin, dir, testCase);
-    await check(`${label}: both menus open it without a login; Core read is public (credentials omit, no headers)`, () => {
+    await check(`${label}: both menus open a page (workspace #trouble, ← 뒤로, no dialog, no ×, no overlay) without a login`, () => {
       assert.deepEqual(r.menus.map(m => [m.inDrawer, m.prev, m.label]), [[false, '사기·피싱 확인', '분쟁·사고 도우미'], [true, '사기·피싱 확인', '분쟁·사고 도우미']]);
       assert.equal(r.bootLoaded, false, 'site-trouble-helper.js is not fetched at boot (SITE-T55 gate)');
-      assert.equal(r.open.eyebrow, 'LOTBI 분쟁·사고 도우미');
-      assert.equal(r.open.title, '“막막할 때 롯비”');
-      assert.equal(r.open.drawerOpen, false, 'the drawer closes behind the dialog');
-      assert.equal(r.pick.login, false);
-      assert.equal(r.pick.calls.length, 1);
-      assert.deepEqual(r.pick.calls[0], {url: 'https://api.lotbiai.com/v2/trouble-helper/guides', method: 'GET', credentials: 'omit', mode: 'cors', headers: []});
+      assert.equal(r.open.drawerOpen, false, 'the mobile drawer closes');
+      assert.equal(r.open.hash, '#trouble');
+      assert.equal(r.open.header, '분쟁·사고 도우미');
+      assert.equal(r.open.back.text, '←');
+      assert.equal(r.open.back.aria, '대화로 돌아가기');
+      assert.equal(r.open.back.after, '"뒤로"');
+      assert.ok(r.open.current.includes('page'), 'the menu entry is the current page');
+      assert.equal(r.open.dialogs, 0);
+      assert.equal(r.open.overlay, false);
+      assert.equal(r.open.workspace, true);
+      assert.equal(r.open.role, 'region');
+      assert.deepEqual(r.hub.calls, [{url: 'https://api.lotbiai.com/v2/trouble-helper/guides', method: 'GET', credentials: 'omit', mode: 'cors', headers: []}]);
+      assert.equal(r.hub.login, false);
     });
-    await check(`${label}: ① five situations in order under the notice`, () => {
-      assert.deepEqual(r.pick.situations, FIXTURE.situations.map(item => [item.id, item.title, item.subtitle]));
-      assert.equal(r.pick.notice, FIXTURE.notice);
-      assert.equal(r.pick.focus, true, 'focus on the heading');
-      assertElderly(r.pick.measure, `${label} pick`, testCase.width);
-      assertReadable(r.pickThemes, `${label} pick`);
+    await check(`${label}: ⓪ 무슨 일이 있으셨나요? — five situations in Core's order, the notice, large and readable`, () => {
+      assert.equal(r.hub.title, '무슨 일이 있으셨나요?');
+      assert.deepEqual(r.hub.situations, CAR_TITLES);
+      assert.equal(r.hub.notice, FIXTURE.notice);
+      assert.equal(r.hub.focus, true);
+      assert.equal(r.hub.backControl, false, 'from the first screen ← leaves the page');
+      assertElderly(r.hub.measure, `${label} hub`, testCase);
+      assertReadable(r.hubThemes, `${label} hub`);
     });
-    await check(`${label}: ② a situation tap opens 할 일 at once — 바로 전화 [119][112] and the first card on the first screen`, () => {
-      assert.equal(r.car.viewRightAfterTap, 'steps', 'no question screen first');
-      assert.deepEqual(r.car.layout, RESULT_LAYOUT);
-      assert.equal(r.car.heading, '자동차 사고');
-      assert.equal(r.car.focus, true, 'focus on the situation title');
-      assert.equal(r.car.notice, FIXTURE.situations[0].notice);
-      assert.deepEqual(r.car.tabs, [['steps', '할 일', 'step'], ['help', '증거·창구', ''], ['summary', '정리표', '']]);
-      assert.equal(r.car.globalNotice, false, 'the shared 참고용 box stays on the situation list');
-      assert.deepEqual(r.car.quick, ['119', '112']);
-      assert.deepEqual(r.car.ids, ['call_119', 'stay_safe', 'call_112', 'photos', 'blackbox', 'insurer', 'fault_reference'], 'nothing answered: every step, data order');
-      assertFirstScreen(r.car.first, testCase, `${label} car`, ['119', '112'], 'call_119');
-      assert.equal(r.car.progressLine, false, 'no "질문 n/m" anywhere');
-      assert.equal(r.car.narrowGlyphs.applied, '-3px', 'narrow-glyph stage applied');
-      assert.deepEqual(r.car.narrowGlyphs.small, [], 'narrow glyphs: every 할 일 button stays 48px or more');
-      assertElderly(r.car.measure, `${label} car first`, testCase.width);
-      assertReadable(r.firstThemes, `${label} car first`);
+    await check(`${label}: ① 자동차 사고 first screen — 눌러서 답하기, 바로 도움받기 on the first screen, no emergency line, no other input`, () => {
+      assert.equal(r.start.chip, '자동차 사고');
+      assert.equal(r.start.emergency, null, 'no emergency-number line (owner: 삭제해)');
+      assert.equal(r.start.title, '무슨 일이 있으셨나요?');
+      assert.equal(r.start.tap, '눌러서 답하기질문에 버튼만 누르면 돼요');
+      assert.equal(r.start.direct, '바로 도움받기');
+      assert.equal(r.start.inputs, 0, 'no photo, text or voice input');
+      assert.equal(r.start.focus, true);
+      assert.equal(r.start.backControl, true);
+      assert.equal(r.start.hash, '#trouble');
+      assertInside(r.start.first, ['[data-trouble-start-ask]', '[data-trouble-direct]'], `${label} start`);
+      assertElderly(r.start.measure, `${label} start`, testCase);
+      assertReadable(r.startThemes, `${label} start`);
     });
-    await check(`${label}: 내 상황에 맞게 좁히기 — every question at once, unanswered never hides, 없어요 takes 119 out, a second press clears`, () => {
-      const car = FIXTURE.situations[0];
-      assert.equal(r.car.narrow.title, '내 상황에 맞게 좁히기');
-      assert.equal(r.car.narrow.hint, '답을 고르면 내 상황에 맞지 않는 할 일이 빠져요.');
-      assert.equal(r.car.narrow.count, '답한 질문 0/5');
-      assert.deepEqual(r.car.narrow.questions, car.questions.map(q => [q.id, q.text, q.options.map(o => o.id).join(',')]), '신호등 shows while 어디서 is unanswered');
-      assert.deepEqual(r.car.narrow.pressed, {});
-      assert.equal(r.car.narrow.optionsInNarrowOnly, true);
-      assert.deepEqual(r.car.portal, {order: false, hint: '내 상황에 맞게 좁히기에서 답하면 포털에 붙여 넣을 문장을 만들어 드려요',
-        select: car.fault_portal.select_url, describe: car.fault_portal.describe_url, sentence: false, beforeNarrow: true});
-      const n = r.narrow;
-      for (const [name, step] of Object.entries(n).filter(([, value]) => value && value.count)) {
-        assert.ok(step.moved <= 2, `${label} ${name}: the pressed button stays under the finger (moved ${step.moved}px)`);
-        assert.equal(step.focus, true, `${label} ${name}: focus stays on the pressed button`);
-        assert.equal(step.view, 'steps');
-      }
-      const without119 = ['stay_safe', 'call_112', 'photos', 'blackbox', 'insurer', 'fault_reference'];
-      assert.deepEqual([n.injuryNo.count, n.injuryNo.pressed, n.injuryNo.ids, n.injuryNo.quick], ['답한 질문 1/5', 'true', without119, ['112']]);
-      assert.equal(n.injuryNo.status, '답을 골랐어요. ‘다친 사람이 있으면 119’ 할 일이 빠졌어요.');
-      assert.deepEqual([n.injuryCleared.count, n.injuryCleared.pressed, n.injuryCleared.ids[0], n.injuryCleared.quick], ['답한 질문 0/5', 'false', 'call_119', ['119', '112']]);
-      assert.equal(n.injuryCleared.status, '답을 지웠어요. ‘다친 사람이 있으면 119’ 할 일이 다시 보여요.');
-      assert.deepEqual([n.injuryAgain.count, n.injuryAgain.quick], ['답한 질문 1/5', ['112']]);
-      assert.deepEqual([n.otherCar.count, n.otherCar.status, n.otherCar.portal], ['답한 질문 2/5', '답을 골랐어요. 할 일은 그대로예요.', {order: '차 대 차', hint: true}]);
-      assert.deepEqual([n.oncoming.count, n.oncoming.questions], ['답한 질문 3/4', ['injury', 'other', 'place', 'my_move']], '마주 오다가: 신호등 leaves');
-      assert.deepEqual([n.intersection.count, n.intersection.questions], ['답한 질문 3/5', ['injury', 'other', 'place', 'signal', 'my_move']], '교차로: 신호등 comes back');
-      assert.equal(n.signal.count, '답한 질문 4/5');
-      assert.equal(n.myMove.count, '답한 질문 5/5');
-      assert.deepEqual(n.pressedAll, {injury: 'no', other: 'car', place: 'intersection', signal: 'yes', my_move: 'straight'});
-      for (const views of [r.viewsBeforeReload, r.reset.views]) assert.ok(views.every(view => VIEWS.includes(view)), `never a question screen: ${views}`);
-      assertElderly(n.measure, `${label} narrow`, testCase.width);
-      assertReadable(r.narrowThemes, `${label} narrow`);
+    await check(`${label}: ② one question per screen — the guide's answers, 잘 모르겠어요 everywhere, a skip never asks again, no counter`, () => {
+      assert.deepEqual(r.ask.first, {question: 'injury', eyebrow: '하나씩 여쭤볼게요', title: '다친 사람이 있나요?', options: ['yes', 'no', 'unknown'], skip: false,
+        emergency: false, stop: '질문 그만하고 결과 보기', given: [], counter: false}, 'the emergency line stays on the first screen and the result');
+      assertInside(r.ask.firstScreen, testCase.height >= 800 ? ['[data-trouble-option="unknown"]', '[data-trouble-to-result]'] : ['[data-trouble-option="unknown"]'], `${label} ask`);
+      assertElderly(r.ask.measure, `${label} ask`, testCase);
+      assert.equal(r.ask.second.question, 'other');
+      assert.equal(r.ask.second.eyebrow, '한 가지만 더 알려주세요');
+      assert.equal(r.ask.second.skip, true, '무엇과 부딪혔나요 has no 잘 모르겠어요 of its own');
+      assert.equal(r.ask.second.emergency, false);
+      assert.deepEqual(r.ask.second.given, [['다친 사람이 있나요?', '없어요', 'injury']]);
+      assert.equal(r.ask.third.question, 'place', 'skipped: not asked again');
+      assert.equal(r.ask.fourth.question, 'signal', '교차로 brings 신호등');
+      assert.equal(r.ask.fifth.question, 'my_move');
+      assert.equal(r.ask.fifth.counter, false);
+      assert.deepEqual(r.ask.fifth.given.map(row => row[2]), ['injury', 'place', 'signal']);
+      assertElderly(r.ask.fifthMeasure, `${label} ask my_move`, testCase);
+      assertReadable(r.askThemes, `${label} ask`);
     });
-    await check(`${label}: ③ numbered steps, urgent band, tel, 했어요, 읽어주기, 과실비율정보포털 way in`, () => {
-      assert.deepEqual(r.steps.ids, ['stay_safe', 'call_112', 'photos', 'blackbox', 'insurer', 'fault_reference']);
-      assert.deepEqual(r.steps.numbers, ['1.', '2.', '3.', '4.', '5.', '6.']);
-      assert.deepEqual(r.steps.urgent.map(item => item[0]), ['stay_safe']);
-      assert.equal(r.steps.urgent[0][1], '급해요 · 먼저 하세요');
-      assert.equal(r.steps.urgent[0][2], '10px');
-      assert.equal(r.steps.notice, FIXTURE.situations[0].notice);
-      assert.equal(r.steps.tel112, 'tel:112');
-      assert.match(r.steps.insurer, /번호는 보험증권이나 보험사 앱에 있어요/u);
-      assert.ok(r.steps.speak && r.steps.checks);
-      assert.deepEqual(r.steps.tabs, [['steps', 'step'], ['help', ''], ['summary', '']]);
-      assert.equal(r.steps.doneAfter, 'true');
-      assert.equal(r.steps.portal.order, '차 대 차 → 교차로');
-      assert.equal(r.steps.portal.select, FIXTURE.situations[0].fault_portal.select_url);
-      assert.equal(r.steps.portal.sentence, '교차로(사거리·삼거리)에서 다른 차와 부딪혔어요. 신호등은 있었어요. 내 차는 곧게 가고 있었어요.');
-      assert.equal(r.steps.portal.describe, FIXTURE.situations[0].fault_portal.describe_url);
-      assert.ok(r.steps.portal.note.includes(FIXTURE.situations[0].fault_portal.copy_note));
-      assert.ok(r.steps.portal.targets.every(value => value === '_blank|noopener noreferrer'));
-      assert.equal(r.steps.copied, r.steps.portal.sentence);
-      assert.equal(r.scrolled.dialogTop, 0, 'the dialog box never scrolls');
-      assert.ok(r.scrolled.dialogOverflow <= 2, `nothing overflows the dialog box: ${JSON.stringify(r.scrolled)}`);
-      assert.ok(r.scrolled.bodyTop > 0 && r.scrolled.headerTop <= 1, JSON.stringify(r.scrolled));
-      assertElderly(r.steps.measure, `${label} steps`, testCase.width);
-      assertReadable(r.stepsThemes, `${label} steps`);
+    await check(`${label}: ③ 이렇게 하세요 — 지금 할 일 · 챙길 것 · 도움받을 곳${testCase.cards ? ' on the first screen' : ''}, lines from the guide, 참고용 sentence`, () => {
+      assert.deepEqual(r.result.cards, ['todo', 'keep', 'help']);
+      assert.equal(r.result.title, '이렇게 하세요');
+      assert.equal(r.result.notice, FIXTURE.situations[0].notice);
+      assert.equal(r.result.emergency, '', 'no emergency-number line');
+      assert.deepEqual([r.result.todo.title, r.result.keep.title, r.result.help.title], ['지금 할 일', '챙길 것', '도움받을 곳']);
+      assert.equal(r.result.todo.line, '더 큰 사고 막기비상등을 켜고 삼각대나 불꽃신호기를 세우세요.', '없어요: 119 is not the lead');
+      assert.equal(r.result.keep.line, '블랙박스 원본 영상 등 5가지지우지 말고 모아 두세요.');
+      assert.equal(r.result.help.line, '내 보험사 사고 접수, 과실비율정보포털에 물어볼 수 있어요.');
+      assert.deepEqual(r.result.main, [['KNIA_PORTAL', 'tel:0237028500', '과실비율정보포털 전화 02-3702-8500']]);
+      for (const id of ['todo', 'keep', 'help']) assert.deepEqual([r.result[id].more, r.result[id].expanded, r.result[id].open], ['자세히', 'false', 'false']);
+      assert.deepEqual(r.result.given.map(row => [row[1], row[2]]), [['없어요', 'injury'], ['교차로(사거리·삼거리)', 'place'], ['있었어요', 'signal'], ['곧게 가고 있었어요', 'my_move']]);
+      assert.deepEqual(r.result.script, FIXTURE.situations[0].call_script);
+      assert.equal(r.result.disclaimer, `${FIXTURE.situations[0].notice}LOTBI의 결과는 참고용이며 법률·보험·수리비의 최종 판단이 아닙니다.신고·전화·접수는 직접 하셔야 해요. LOTBI가 대신 보내지 않아요.`);
+      assert.equal(r.result.sheetEntry, '상황 정리표적어 두고 인쇄하거나 카카오로 보내요');
+      if (testCase.cards) assertInside(r.result.first, ['[data-trouble-card="todo"] h4', '[data-trouble-card="keep"] h4', '[data-trouble-card="help"] h4'], `${label} result`);
+      else assertInside(r.result.first, ['[data-trouble-card="todo"] h4'], `${label} result`);
+      assert.ok(r.result.views.every(view => VIEWS.includes(view)), String(r.result.views));
+      assertElderly(r.result.measure, `${label} result`, testCase);
+      assertReadable(r.resultThemes, `${label} result`);
+      assert.doesNotMatch(JSON.stringify(r.result), RATIO_RE, 'no ratio-looking number');
     });
-    await check(`${label}: ④ evidence, references, channels with fee/hours/확인일·근거; phone ≥ online`, () => {
-      assert.deepEqual(r.help.evidence, FIXTURE.situations[0].evidence.map(item => item.id));
-      assert.deepEqual(r.help.references, FIXTURE.situations[0].references.map(item => [item.url, '_blank', 'noopener noreferrer']));
-      assert.deepEqual(r.help.channels, FIXTURE.situations[0].channel_ids);
-      assert.deepEqual(r.help.fire, {tel: 'tel:119', fees: '상담료 없음 · 통화료 없음 · 신청 수수료 없음', hours: '운영시간 365일 24시간'});
-      assert.equal(r.help.insurer.fees, '');
-      assert.equal(r.help.insurer.hours, '');
-      assert.equal(r.help.knia.hours, '운영시간은 전화로 확인해 주세요');
-      const knia = FIXTURE.channels.find(item => item.id === 'KNIA_PORTAL');
-      assert.match(r.help.knia.verified, new RegExp(`^확인일 ${knia.verified_at} · 근거 보기`, 'u'));
-      assert.deepEqual(r.help.knia.sources, [knia.source_url, ...(knia.other_source_urls || [])].map(url => [new URL(url).href, '_blank']));
-      const tel = r.help.knia.routes.find(item => item[0] === 'tel');
-      const online = r.help.knia.routes.find(item => item[0] === 'online');
-      assert.ok(tel && online && tel[1] >= online[1], JSON.stringify(r.help.knia.routes));
-      assert.equal(r.help.knia.routes[0][0], 'tel', 'phone first');
-      assert.ok(r.help.script);
-      assertElderly(r.help.measure, `${label} help`, testCase.width);
-      assertElderly(r.help.measureOpen, `${label} help (script open)`, testCase.width);
-      assertReadable(r.helpThemes, `${label} help`);
+    await check(`${label}: ③ cards open in place — steps (했어요 saved), 과실비율정보포털, evidence, channels; 48px even with narrow glyphs`, () => {
+      assert.deepEqual([r.cards.todo.open, r.cards.todo.expanded, r.cards.todo.focus], ['true', 'true', 'todo']);
+      assert.deepEqual(r.cards.todo.steps, ['stay_safe', 'call_112', 'photos', 'blackbox', 'insurer', 'fault_reference'], '없어요: no 119 step');
+      assert.deepEqual(r.cards.todo.urgent, ['stay_safe']);
+      assert.deepEqual(r.cards.todo.call112, ['tel:112']);
+      assert.deepEqual(r.cards.todo.portal, {order: '교차로', hint: false, select: FIXTURE.situations[0].fault_portal.select_url, sentence: true},
+        '무엇과 부딪혔나요 skipped: the order as far as answered; 신호등 and 내 차 make the sentence');
+      assert.deepEqual(r.cards.todo.doneSaved, {stay_safe: true});
+      assert.deepEqual(r.cards.keep.evidence, FIXTURE.situations[0].evidence.map(item => item.id));
+      assert.equal(r.cards.keep.open, 'true');
+      assert.deepEqual(r.cards.help.channels, FIXTURE.situations[0].channel_ids);
+      assert.ok(r.cards.help.verified >= 1);
+      assertElderly(r.cards.allOpen, `${label} result open`, testCase);
+      assertReadable(r.openThemes, `${label} result open`);
+      assert.deepEqual(r.narrowGlyphs, [], `${label}: under 48px with narrow glyphs`);
     });
-    await check(`${label}: ⑤ 정리표 — 'SUBMITTED' only with a 접수번호; save, print, 카카오 → share → copy`, () => {
+    await check(`${label}: ④ 상황 정리표 — tools on top, answers, 접수번호 lock, print sheet, share, saved on the device`, () => {
+      assert.deepEqual(r.summary.tools, ['휴대폰에 저장', '인쇄', '카카오로 보내기']);
+      assertInside(r.summary.first, ['[data-trouble-tools]'], `${label} summary`);
       assert.deepEqual(r.summary.fields, FIXTURE.situations[0].summary_fields.map(item => item.id));
-      const labels = FIXTURE.situations[0].status_labels;
-      assert.deepEqual(r.summary.statuses, FIXTURE.status_track.map(item => labels[item.id] || item.label));
-      assert.equal(r.summary.lockedAtStart, true);
-      assert.equal(r.summary.hintAtStart, '접수번호를 적으면 고를 수 있어요');
-      assert.equal(r.summary.checkedWhileLocked, false);
-      assert.equal(r.summary.lockedAfterReceipt, false);
-      assert.equal(r.summary.hintAfterReceipt, false);
-      assert.equal(r.summary.checkedAfterReceipt, true);
-      assert.equal(r.summary.lockedAfterClear, true);
-      assert.equal(r.summary.statusAfterClear, 'PREPARE');
-      assert.ok(r.summary.answers.includes('신호등이 있었나요? 있었어요'), JSON.stringify(r.summary.answers));
-      const carSteps = FIXTURE.situations[0].steps;
-      assert.ok(r.summary.sheet.includes(carSteps.find(step => step.id === 'photos').title), 'done step listed');
-      const carEvidence = FIXTURE.situations[0].evidence;
-      for (const index of [0, 2]) assert.ok(r.summary.sheet.includes(carEvidence[index].label), 'checked evidence listed');
-      assert.deepEqual(r.summary.safety, FIXTURE.safety_notes);
-      assert.match(r.summary.saveStatus, /^이 휴대폰에 저장했어요\. \(\d+월 \d+일 오[전후] \d+시 \d+분\)$/u);
-      const stored = r.summary.stored.cases.CAR_ACCIDENT;
-      assert.equal(stored.fields.receipt, '보험-2026-7788');
-      assert.equal(stored.status, 'SUBMITTED');
-      assert.equal(stored.answers.signal, 'yes');
+      assert.equal(r.summary.locked, true);
+      assert.equal(r.summary.hint, true);
+      assert.equal(r.summary.unlocked, true);
       assert.equal(r.summary.prints.length, 1);
       assert.equal(r.summary.prints[0].printing, true);
       assert.match(r.summary.prints[0].sheet, /자동차 사고/u);
-      assert.match(r.summary.prints[0].sheet, /보험-2026-7788/u);
-      for (const shared of [r.summary.share.text, r.summary.copied]) {
-        assert.ok(shared.includes(FIXTURE.notice), 'notice in the sent text');
-        assert.ok(shared.includes('인증번호·비밀번호는 가족에게도 보내지 마세요'), 'safety line in the sent text');
-        assert.ok(shared.includes('접수번호: 보험-2026-7788'));
-      }
-      assert.match(r.summary.copyStatus, /복사했어요/u);
-      assert.equal(r.summary.shareInsideTap, true, 'KakaoTalk not set up: the share sheet opens inside the tap (no wait first)');
-      assertElderly(r.summary.measure, `${label} summary`, testCase.width);
+      assert.match(r.summary.prints[0].sheet, /LOTBI의 결과는 참고용이며/u);
+      assert.equal(r.summary.share.title, '막막할 때 롯비 · 자동차 사고 상황 정리표');
+      assert.ok(r.summary.share.text.slice(0, 200).includes('접수번호: 2026-77'));
+      assert.match(r.summary.status, /이 휴대폰에 저장했어요/u);
+      assert.equal(r.summary.stored.fields.receipt, '2026-77');
+      assert.equal(r.summary.stored.view, 'summary');
+      assert.deepEqual(r.summary.safety, FIXTURE.safety_notes);
+      assert.equal(r.summary.disclaimer, true);
+      assertElderly(r.summary.measure, `${label} summary`, testCase);
       assertReadable(r.summaryThemes, `${label} summary`);
     });
-    await check(`${label}: 인쇄 shows only a large-print 정리표`, () => {
-      assert.equal(r.print.sheet, 'block');
-      assert.ok(r.print.size >= 21, `print text ${r.print.size}px`);
-      assert.ok(r.print.h1 >= 30, `print title ${r.print.h1}px`);
-      assert.equal(r.print.shell, 'none');
-      assert.equal(r.print.dialog, 'none');
-      assert.match(r.print.text, /꼭 기억하세요/u);
+    await check(`${label}: ← and the phone back step one screen at a time; 다른 상황 고르기; a reload reopens the 정리표; ← from the first screen leaves`, () => {
+      assert.equal(r.back.afterHeaderBack, 'result');
+      assert.equal(r.back.hash, '#trouble');
+      assert.equal(r.back.afterPhoneBack, 'my_move');
+      assert.equal(r.back.hub, 'hub');
+      assert.deepEqual(r.back.resume, ['CAR_ACCIDENT']);
+      assert.equal(r.reload, '#trouble');
+      assert.deepEqual({...r.reloaded, bootLoaded: undefined}, {view: 'summary', chip: '층간소음·이웃 다툼', hash: '#trouble', bootLoaded: undefined, workspace: true});
+      assert.equal(r.close.hash, '');
+      assert.equal(r.close.workspace, false);
+      assert.ok(r.close.current.every(value => value === ''));
     });
-    await check(`${label}: no ratio-looking number on any 자동차 사고 screen`, () => {
-      for (const text of r.carTexts) assert.doesNotMatch(text, RATIO_RE, text.match(RATIO_RE)?.[0]);
-      assert.equal(r.carTexts.length, 4);
-    });
-    await check(`${label}: a reload reopens the dialog on the 정리표 with everything kept`, () => {
-      assert.deepEqual(r.reload.receipt, '보험-2026-7788');
-      assert.equal(r.reload.when, '10월 10일 오후, 전주 덕진구 사거리');
-      assert.equal(r.reload.status, 'SUBMITTED');
-      assert.ok(r.reload.evidence.includes(FIXTURE.situations[0].evidence[0].label), 'checked evidence kept');
-    });
-    await check(`${label}: 중고거래 — opens on 할 일 with [112]; 좁히기 아직 → no 112 row, 사기·피싱 확인 link; 계좌로 → 112; "인증이 안 돼요"`, () => {
-      assert.match(r.fraud.resume, /이어서 보기/u);
-      assert.equal(r.fraud.viewRightAfterTap, 'steps');
-      assert.deepEqual(r.fraud.layout, RESULT_LAYOUT.filter(part => part !== 'portal'));
-      assert.deepEqual(r.fraud.ids, ['stop_paying', 'bank_and_112', 'app_report', 'save_evidence', 'police_report', 'lookup_before'], 'nothing answered: every step');
-      assert.deepEqual(r.fraud.quick, ['112']);
-      assertFirstScreen(r.fraud.first, testCase, `${label} fraud`, ['112'], 'stop_paying');
-      assert.deepEqual(r.fraud.questions, ['paid', 'when', 'contact']);
-      assert.equal(r.fraud.count, '답한 질문 0/3');
-      assert.equal(r.fraud.scam, true);
-      assert.deepEqual(r.fraud.notYet, {count: '답한 질문 1/2', ids: ['stop_paying', 'lookup_before'], quick: [], row: false, questions: ['paid', 'contact'], scam: true});
-      assert.deepEqual(r.fraud.bank, {count: '답한 질문 2/3', ids: ['stop_paying', 'bank_and_112', 'save_evidence', 'police_report'], quick: ['112'],
-        questions: ['paid', 'when', 'contact'], pressed: {paid: 'bank', contact: 'yes'}});
-      assert.deepEqual(r.fraud.pressed, {paid: 'bank', when: 'today', contact: 'no'});
-      assert.deepEqual(r.fraud.bankIds, ['stop_paying', 'bank_and_112', 'save_evidence', 'police_report']);
-      assert.deepEqual(r.fraud.policeRoutes, ['tel', 'online', 'noauth'], 'the 182 phone comes before the online form');
-      assert.deepEqual(r.fraud.policeRoutesOffline, ['tel', 'visit', 'online', 'noauth'], '인증이 안 돼요: the 경찰서 visit moves ahead of the online form');
-      assert.equal(r.fraud.noAuthPressed, 'true');
-      assert.equal(r.fraud.noAuthFocus, 'ECRM');
-      assert.deepEqual(r.fraud.channelsOffline, ['POLICE_112', 'POLICE_182', 'ECRM', 'POLICE_FRAUD_LOOKUP']);
-      assert.deepEqual(r.fraud.ecrmOffline, ['visit', 'online', 'noauth']);
-      assert.deepEqual(r.fraud.ecrmOnline, ['online', 'noauth']);
-      assert.equal(r.fraud.ecrmHours, '');
-      assertElderly(r.fraud.measureSteps, `${label} fraud steps`, testCase.width);
-      assertElderly(r.fraud.measure, `${label} fraud help`, testCase.width);
-    });
-    await check(`${label}: 그 밖의 법률 고민 — no 112/119, no row; goto 월급 못 받음 opens its 할 일; no receipt_field_id, no lock; duration; 1350 fee`, () => {
-      assert.equal(r.other.viewRightAfterTap, 'steps');
-      assert.deepEqual(r.other.ids, ['summary_first', 'work_link', 'call_132', 'call_110'], 'topic unanswered: the 월급 link shows');
-      assert.equal(r.other.row, false);
-      assert.deepEqual(r.other.layout, RESULT_LAYOUT.filter(part => !['quick', 'portal'].includes(part)));
-      assert.deepEqual(r.other.moneyIds, ['summary_first', 'call_132', 'call_110']);
-      assert.deepEqual(r.other.workIds, ['summary_first', 'work_link', 'call_132', 'call_110']);
-      assert.equal(r.other.submittedLocked, false);
-      assert.equal(r.other.hintShown, false);
-      assert.equal(r.other.gotoView, 'steps');
-      assert.equal(r.other.gotoHeading, '월급 못 받음');
-      const all = ['write_down', 'call_1350', 'file_petition', 'attend', 'certificate', 'substitute_pay', 'legal_aid'];
-      assert.deepEqual(r.other.wageIdsUnanswered, all);
-      assert.deepEqual(r.other.wageQuestions, ['employment', 'documents', 'company']);
-      assert.deepEqual(r.other.wageIdsCompanyNo, all.filter(id => id !== 'substitute_pay'));
-      assert.deepEqual(r.other.wageIds, all);
-      assert.equal(r.other.duration, FIXTURE.situations[2].steps.find(step => step.id === 'file_petition').duration);
-      assert.equal(r.other.moelFees, '통화료 별도 · 신청 수수료 없음');
-      assertElderly(r.other.measure, `${label} wage help`, testCase.width);
-    });
-    await check(`${label}: 처음부터 다시 takes two presses; 사기·피싱 확인 link hands over; × closes for good`, () => {
-      assert.equal(r.reset.armed, '한 번 더 누르면 지우고 처음부터 해요');
-      assert.equal(r.reset.stillHere, 'help');
-      assert.equal(r.reset.wageGone, true);
-      assert.equal(r.reset.carKept, true);
-      assert.equal(r.reset.scamOpen, true);
-      assert.equal(r.reset.reopenedOn, 'steps', 'a saved situation opens on 할 일 (calls first), not where it was left');
-      assert.deepEqual(r.reset.keptAnswers, {paid: 'bank', when: 'today', contact: 'no'}, 'its answers are kept');
-      assert.equal(r.reset.flag, null);
-      // Signed out, what the helper sent: the public guide read and the public Kakao config, never a session.
-      assert.ok(r.reset.troubleRequests.length >= 1);
-      for (const [requestPath, credentials, authorization] of r.reset.troubleRequests) {
+    await check(`${label}: 중고거래 사기 · 그 밖의 법률 고민 · 층간소음 — no emergency line, 잘 모르겠어요, goto, 사기·피싱 확인 hand-over`, () => {
+      assert.equal(r.fraud.emergency, '');
+      assert.deepEqual(r.fraud.calls, []);
+      assert.equal(r.fraud.todoTitle, '돈을 더 보내지 마세요');
+      assert.equal(r.fraud.main, 'tel:182');
+      assert.equal(r.fraud.toldEmpty, true, 'nothing answered: 눌러서 답하기 offered');
+      assert.deepEqual(r.fraud.steps, ['stop_paying', 'bank_and_112', 'app_report', 'save_evidence', 'police_report', 'lookup_before']);
+      assertElderly(r.fraud.measure, `${label} fraud`, testCase);
+      assert.equal(r.fraud.scamOpen, true);
+      assert.equal(r.fraud.hash, '#scam');
+      assert.equal(r.other.emergency, false);
+      assert.equal(r.other.question, 'topic');
+      assert.equal(r.other.skip, true);
+      assert.deepEqual(r.other.steps, ['summary_first', 'work_link', 'call_132', 'call_110']);
+      assert.equal(r.other.gotoChip, '월급 못 받음');
+      assert.equal(r.other.wageEmergency, false);
+      assertElderly(r.other.measure, `${label} wage start`, testCase);
+      assert.deepEqual(r.noise, {emergency: '', calls: []});
+      assert.ok(r.troubleRequests.length >= 1);
+      for (const [requestPath, credentials, authorization] of r.troubleRequests) {
         assert.ok(PUBLIC_PATHS.includes(requestPath), requestPath);
         assert.equal(credentials, 'omit', requestPath);
         assert.equal(authorization, false, requestPath);
       }
-      guestTroublePaths.push(...r.reset.troubleRequests.map(item => item[0]));
-      assert.equal(r.close.flag, null);
-      assert.equal(r.close.focus, true);
+      guestTroublePaths.push(...r.troubleRequests.map(item => item[0]));
     });
   }
   for (const testCase of SIGNED_CASES) {
     const label = testCase.label;
     const s = await runSigned(browser, origin, dir, testCase);
-    await check(`${label}: signed in — the menu opens the same helper, a tap opens 할 일 with [119][112], 좁히기 works`, () => {
+    await check(`${label}: signed in — the menu opens the same page and the same cards`, () => {
       assert.equal(s.boot.auth, 'authenticated');
       assert.ok(s.boot.me.length >= 1 && s.boot.me.every(Boolean), 'the session is really mounted (/v2/me with the token)');
       assert.equal(s.boot.bootLoaded, false, 'not fetched at boot signed in either');
       assert.equal(s.boot.troubleAtBoot, 0);
-      assert.equal(s.open.eyebrow, 'LOTBI 분쟁·사고 도우미');
-      assert.equal(s.open.drawerOpen, false);
-      assert.deepEqual(s.flow.pick, FIXTURE.situations.map(item => item.id));
+      assert.equal(s.open.hash, '#trouble');
+      assert.equal(s.open.dialogs, 0);
+      assert.deepEqual(s.flow.hub, FIXTURE.situations.map(item => item.id));
       assert.equal(s.flow.login, false);
-      assert.equal(s.flow.viewRightAfterTap, 'steps');
-      assert.deepEqual(s.flow.layout, RESULT_LAYOUT);
-      assert.deepEqual(s.flow.tabs, ['할 일', '증거·창구', '정리표']);
-      assert.deepEqual(s.flow.ids, ['call_119', 'stay_safe', 'call_112', 'photos', 'blackbox', 'insurer', 'fault_reference']);
-      assert.deepEqual(s.flow.quick, ['119', '112']);
-      assertFirstScreen(s.flow.first, testCase, `${label} car`, ['119', '112'], 'call_119');
-      assert.equal(s.flow.count, '답한 질문 1/5');
-      assert.deepEqual(s.flow.afterNo, {ids: ['stay_safe', 'call_112', 'photos', 'blackbox', 'insurer', 'fault_reference'], quick: ['112']});
-      assert.ok(s.flow.views.every(view => VIEWS.includes(view)), String(s.flow.views));
-      assertElderly(s.flow.measure, `${label} summary`, testCase.width);
+      assert.deepEqual(s.flow.cards, ['todo', 'keep', 'help']);
+      assertInside(s.flow.first, ['[data-trouble-card="todo"] h4', '[data-trouble-card="keep"] h4', '[data-trouble-card="help"] h4'], `${label} result`);
+      assertElderly(s.flow.measure, `${label} summary`, testCase);
     });
     await check(`${label}: signed in — the helper sends Core nothing more than signed out (public GETs, no session, no credentials)`, () => {
       assert.deepEqual(s.flow.guideCalls, [{url: 'https://api.lotbiai.com/v2/trouble-helper/guides', method: 'GET', credentials: 'omit', mode: 'cors', headers: []}]);
@@ -1332,7 +1175,7 @@ try {
     assert.equal(fail.retry, true);
     assert.equal(fail.requests, 1);
     assert.equal(fail.retried, 2);
-    assertElderly({...fail.measure, heading: 26}, 'failure', 375);
+    assertElderly(fail.measure, 'failure', CASES[0]);
     assertReadable(fail.themes, 'failure');
   });
 } finally {
@@ -1342,4 +1185,4 @@ try {
   }
 }
 
-console.log(`TROUBLE-HELPER-01 site contract: PASS (${passed} checks; viewport emulation in headless Chrome, not a device run)`);
+console.log(`TROUBLE-HELPER-PAGE-01 site contract: PASS (${passed} checks; viewport emulation in headless Chrome, not a device run)`);

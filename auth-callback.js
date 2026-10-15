@@ -9,11 +9,11 @@ import {
   returnHomeFromStaleSiteHandoff,
   siteHandoffReturnPath,
   SiteHandoffClientError,
-} from './site-auth.js?v=aset-3a339843649e';
-import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-3a339843649e';
-import {parseSiteRouteHash} from './site-route.js?v=aset-3a339843649e';
-import {mountConversation} from './site-conversation.js?v=aset-3a339843649e';
-import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-3a339843649e';
+} from './site-auth.js?v=aset-1d0b169fb87c';
+import {redeemSiteHandoff, SiteCoreError} from './site-core.js?v=aset-1d0b169fb87c';
+import {parseSiteRouteHash} from './site-route.js?v=aset-1d0b169fb87c';
+import {mountConversation} from './site-conversation.js?v=aset-1d0b169fb87c';
+import {claimGuestConversationToAccount} from './site-conversation-storage.js?v=aset-1d0b169fb87c';
 
 const callbackShell = document.getElementById('auth-callback-shell');
 const titleNode = document.getElementById('auth-callback-title');
@@ -142,8 +142,8 @@ async function hydrateHomeShell() {
   document.body.replaceWith(nextBody);
   window.dispatchEvent(new CustomEvent('lotbi:home-shell-hydrated'));
   document.title = parsed.title || 'LOTBI | 무엇을 도와드릴까요?';
-  await loadClassicScript('/home-shell.js?v=aset-3a339843649e');
-  await loadClassicScript('/mobile-entry.js?v=aset-3a339843649e');
+  await loadClassicScript('/home-shell.js?v=aset-1d0b169fb87c');
+  await loadClassicScript('/mobile-entry.js?v=aset-1d0b169fb87c');
 }
 
 async function completeSiteHandoff() {

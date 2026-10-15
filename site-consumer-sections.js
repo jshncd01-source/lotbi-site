@@ -1,8 +1,8 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-3a339843649e';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-3a339843649e';
-import {chooseRegion} from './site-location-allow.js?v=aset-3a339843649e';
-import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-3a339843649e';
-import {fgIcon} from './site-family-guardian-ui.js?v=aset-3a339843649e';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-1d0b169fb87c';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-1d0b169fb87c';
+import {chooseRegion} from './site-location-allow.js?v=aset-1d0b169fb87c';
+import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-1d0b169fb87c';
+import {fgIcon} from './site-family-guardian-ui.js?v=aset-1d0b169fb87c';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -380,7 +380,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-medical');
       detail.append(host);
       root.replaceChildren(detail); setView('life-medical');
-      import('./site-life-medical-list.js?v=aset-3a339843649e').then(({mountMedicalList}) => {
+      import('./site-life-medical-list.js?v=aset-1d0b169fb87c').then(({mountMedicalList}) => {
         if (disposed || current !== generation) return null;
         return mountMedicalList({root: host}).then(mounted => {
           if (disposed || current !== generation) { mounted.dispose(); return; }
@@ -402,7 +402,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(host);
       root.replaceChildren(detail); setView('life-news');
-      import('./site-life-news.js?v=aset-3a339843649e').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-1d0b169fb87c').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -423,7 +423,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(title, host);
       root.replaceChildren(detail); setView('life-education'); title.focus();
-      import('./site-life-education.js?v=aset-3a339843649e').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-1d0b169fb87c').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
