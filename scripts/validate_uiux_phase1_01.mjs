@@ -10,8 +10,9 @@ const publicCss = read('styles.css');
 const about = read('about.html');
 
 assert.doesNotMatch(index, /한국 생활을 묻고, 찾고, 기록하고, 실행하세요\./u);
-assert.match(index, /<h2>무엇을 도와드릴까요\?<\/h2>/u);
-assert.match(index, /<section class="home-value-proposition" aria-label="LOTBI 활용 안내">/u);
+// SITE-MAIN-HOME-REDESIGN-01: the approved Home has no title; the 3D character stays.
+assert.doesNotMatch(index, /<h2>무엇을 도와드릴까요\?<\/h2>|class="home-value-proposition"/u);
+assert.match(index, /data-home-avatar-anchor/u);
 assert.equal((index.match(/data-home-prompt=/gu) || []).length, 0, 'home has no favorite prompt');
 assert.doesNotMatch(index, /data-home-favorites|data-favorites-(?:count|add|edit)|내 즐겨찾기/u);
 assert.doesNotMatch(index, /빠른 안전 확인|의심되는 문자 확인/u);
