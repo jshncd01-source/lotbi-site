@@ -17,8 +17,8 @@
 //   while the wallet is open, and QR 보여 주기 shows the standard WIFI: code (drawn on this device
 //   by site-qr-encode.js) for a guest's phone camera; a new entry opens on it right after saving.
 //   Changing or deleting asks for the PIN.
-import {encodeQr, qrSvgElement} from './site-qr-encode.js?v=aset-a72d9d8f460d';
-import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-a72d9d8f460d';
+import {encodeQr, qrSvgElement} from './site-qr-encode.js?v=aset-749187ce9eff';
+import {createWalletDocumentScanner} from './site-life-wallet-scan-ui.js?v=aset-749187ce9eff';
 
 export const WIFI_REVEAL_MS = 30_000;
 export const WIFI_QR_SHOW_MS = 60_000;

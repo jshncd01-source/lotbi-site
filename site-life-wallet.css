@@ -538,7 +538,7 @@ body.chat-home-page .consumer-workspace[data-workspace='wallet'] > .site-modal {
   .wallet-item-veil .wallet-veil-text, .wallet-item-format, .wallet-item-hide { display: none; }
   .wallet-item-open { flex: 1 1 auto; min-width: 0; padding: 4px 0; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
   .wallet-item-open:hover { background: transparent; }
-  .wallet-item-line { display: grid; gap: 4px; }
+  .wallet-item-line { display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; gap: 4px; }
   .wallet-item-meta { display: flex; align-items: center; gap: 6px; font-size: 14px; }
   .wallet-item-meta .wallet-kind-badge { height: 22px; padding: 0 7px; }
   .wallet-item-line .wallet-kind-badge { display: none; }

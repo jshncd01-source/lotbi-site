@@ -17,9 +17,9 @@
 // The ten tiles below the panel are examples; this panel is the only way in.
 import {
   addPersonIdentityPhoto, personErrorMessage, personIdentityPhotoErrorMessage,
-} from './site-person.js?v=aset-a72d9d8f460d';
-import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-a72d9d8f460d';
-import {fgIcon} from './site-family-guardian-ui.js?v=aset-a72d9d8f460d';
+} from './site-person.js?v=aset-749187ce9eff';
+import {PERSON_PHOTO_ACCEPT, personPhotoPrepareMessage, preparePersonPhoto} from './site-person-photo-intake.js?v=aset-749187ce9eff';
+import {fgIcon} from './site-family-guardian-ui.js?v=aset-749187ce9eff';
 
 export const PERSON_BULK_MAX_FILES = 10;
 export const PERSON_BULK_WARNING = '같은 사람의 사진만 선택해 주세요. 다른 사람이나 동물·사물 사진은 등록되지 않을 수 있어요.';

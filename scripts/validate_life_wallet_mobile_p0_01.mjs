@@ -85,7 +85,7 @@ try {
     return {index, row: getComputedStyle(item).flexDirection,
       itemInside: r.left >= frame.left - .5 && r.right <= frame.right + .5 && r.right <= innerWidth,
       imageInside: i.left >= thumb.left - .5 && i.right <= thumb.right + .5 && i.top >= thumb.top - .5 && i.bottom <= thumb.bottom + .5,
-      masked: image.dataset.masked, titleShown: title.getBoundingClientRect().width >= 60 && title.textContent.length > 0,
+      masked: image.dataset.masked, titleShown: title.getBoundingClientRect().width >= 60 && title.textContent.length > 0, titleWidth: Math.round(title.getBoundingClientRect().width),
       objectFit: getComputedStyle(image).objectFit, overflow: document.documentElement.scrollWidth > innerWidth};
   });
   window.__result = JSON.stringify({ok: true, width: innerWidth, views});
