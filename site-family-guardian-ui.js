@@ -5,7 +5,7 @@
 // replaces the browser's own confirm(), the photo-count tiles of the 식별 사진
 // step and the tag on each example/registered photo. Every screen keeps its own
 // data and behavior; this module only draws.
-import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-d015d6b422b2';
+import {createBottomSheet, SHEET_PRESENTATION} from './site-bottom-sheet.js?v=aset-a5a7175d3f1d';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 

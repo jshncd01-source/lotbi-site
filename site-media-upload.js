@@ -10,7 +10,7 @@
 // pointed at the real thing the day that contract ships, and at
 // `createMockCoreApi()` (site-media-upload-mock-core.js) until then.
 //
-//   import {createMediaUploadClient, MEDIA_UPLOAD_STATE} from './site-media-upload.js?v=aset-d015d6b422b2';
+//   import {createMediaUploadClient, MEDIA_UPLOAD_STATE} from './site-media-upload.js?v=aset-a5a7175d3f1d';
 //
 //   const client = createMediaUploadClient({api, transport: createXhrTransport()});
 //   client.onEvent((event) => { ... });
