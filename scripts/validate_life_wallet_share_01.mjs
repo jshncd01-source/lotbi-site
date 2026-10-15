@@ -36,6 +36,7 @@ try {
   const fakeFetch = async (url, init = {}) => {
     const u = new URL(url); const body = init.body ? JSON.parse(init.body) : undefined;
     calls.push({path: u.pathname, method: init.method || 'GET', body, auth: init.headers?.Authorization, credentials: init.credentials});
+    if (u.pathname.startsWith('/v2/life-wallet/capacity')) return json(200, {plan: 'FREE', used: 1, limit: 1, remaining: 0, over_limit: false});
     const p = u.pathname.replace('/v2/life-wallet/share', '');
     if (p === '/inbox') return json(200, {received: requests.filter(r => r.direction === 'RECEIVED'), sent: requests.filter(r => r.direction === 'SENT'), document_transfer: {available: false}});
     if (p === '/profile') return json(200, {lotbi_id: 'honggil01'});
@@ -160,7 +161,7 @@ try {
   results.usedLink = true;
 
   // 9. The wallet itself: 공유 (with the pending count), 공유하기 on an item, Free keeps one item.
-  results.limitPolicy = [wallet.walletAddBlocked({plan: 'FREE'}, 1), wallet.walletAddBlocked({plan: 'FREE'}, 0), wallet.walletAddBlocked({plan: 'PLUS'}, 9), wallet.walletAddBlocked(null, 9)].join(',');
+  results.limitPolicy = [wallet.walletAddBlocked({plan: 'FREE'}, 1), wallet.walletAddBlocked({plan: 'FREE'}, 0), wallet.walletAddBlocked({plan: 'BASIC'}, 30), wallet.walletAddBlocked({plan: 'PLUS'}, 100), wallet.walletAddBlocked({plan: 'PRO'}, 300), wallet.walletAddBlocked(null, 9)].join(',');
   const account = 'share-test-account';
   const vault = new wallet.LifeWalletVault(new wallet.IndexedDbWalletRepository());
   if (!(await vault.hasVault(account))) await vault.create(account, '0123'); else await vault.unlock(account, '0123');
@@ -209,6 +210,6 @@ for (const key of ['receivedListed', 'accepted', 'blockCalled', 'revoked', 'myQr
   'inviteLink', 'capture', 'intent', 'badLinkIgnored', 'claimed', 'usedLink', 'freeLimit', 'cardsKept', 'plusAdds', 'noTokenNoShare', 'labelsOnly']) {
   assert.equal(r[key], true, `${key}: ${JSON.stringify(r)}`);
 }
-assert.equal(r.limitPolicy, 'true,false,false,false', 'Free keeps one item; paid plans and an unknown plan are not limited here');
+assert.equal(r.limitPolicy, 'true,false,true,true,true,false', 'Free, Basic, Plus and Pro use their confirmed Life Wallet limits; an unknown plan is not guessed');
 assert.match(r.walletShareCount, /^대기 [12]$/u, 'the wallet shows pending received requests on 공유');
 console.log('LIFE_WALLET_SHARE_01 PASS — inbox accept/reject/block, revoke, my QR, LOTBI ID share, camera QR share, denied/unsupported camera → LOTBI ID, Kakao/link invite, share-link intent, wallet 공유/공유하기, Free 1-item limit, labels only');

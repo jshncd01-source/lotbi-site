@@ -1,7 +1,7 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-66255ae7fee8';
-import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-66255ae7fee8';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-66255ae7fee8';
-import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-66255ae7fee8';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-769a42fd66ce';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-769a42fd66ce';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-769a42fd66ce';
+import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-769a42fd66ce';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -1471,11 +1471,13 @@ function serverBackupTime(meta) {
   return `${at.getFullYear()}.${two(at.getMonth() + 1)}.${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
 }
 
-// Free members keep one item of their own; paid plans keep their existing (unlimited) room.
-// Items already saved are never removed: only adding one more is held back.
+// Plan capacity is also enforced by Core for signed-in sessions. Existing over-limit
+// items are never removed: only adding one more is held back.
 export const FREE_WALLET_ITEM_LIMIT = 1;
+export const WALLET_ITEM_LIMITS = Object.freeze({FREE: 1, BASIC: 30, PLUS: 100, PRO: 300});
 export function walletAddBlocked(subscription, count) {
-  return subscription?.plan === 'FREE' && count >= FREE_WALLET_ITEM_LIMIT;
+  const limit = WALLET_ITEM_LIMITS[subscription?.plan];
+  return Number.isInteger(limit) && count >= limit;
 }
 
 export function mountLifeWallet({root, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null, customsCode = CUSTOMS_CODE_RELEASED} = {}) {
@@ -1484,6 +1486,28 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   // this class; it leaves with the wallet, so other sections that reuse the root keep their look.
   root.classList.add('wallet-root');
   const walletViewStateKey = accountId ? accountScope(accountId).then(scope => `${WALLET_VIEW_STATE_PREFIX}${scope}`).catch(() => '') : Promise.resolve('');
+  const capacityModule = sessionToken ? import('./site-life-wallet-capacity.js?v=aset-769a42fd66ce') : null;
+  let capacityClient = null;
+  const capacity = async () => {
+    const module = await capacityModule;
+    capacityClient ||= module.createWalletCapacity({sessionToken});
+    return capacityClient;
+  };
+  let capacitySynced = false;
+  const syncCapacity = async cards => {
+    if (!capacityModule || capacitySynced || !cards.length) return;
+    await (await capacity()).sync(cards.map(card => card.id));
+    capacitySynced = true;
+  };
+  const saveNewCard = async card => {
+    const client = capacityModule ? await capacity() : null;
+    if (client) await client.reserve(card.id);
+    try { return await vault.save(accountId, card); }
+    catch (error) {
+      if (client) await client.release(card.id).catch(() => {});
+      throw error;
+    }
+  };
   // Sharing needs the signed-in session (share requests live on LOTBI Core). An original
   // leaves this device only sealed for the accepted recipient's key (site-life-wallet-share-crypto.js).
   const shareWallet = Object.freeze({
@@ -1491,7 +1515,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     rememberKeyId: (publicKey, keyId) => vault.rememberShareKeyId(accountId, publicKey, keyId),
     open: sealed => vault.openSharedItem(accountId, sealed),
     list: () => vault.list(accountId),
-    save: card => vault.save(accountId, card),
+    save: card => saveNewCard(card),
     addBlocked: count => walletAddBlocked(subscription, count),
     newId: () => randomId(),
   });
@@ -1500,7 +1524,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-66255ae7fee8') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-769a42fd66ce') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;
@@ -1899,6 +1923,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     root.replaceChildren(loading);
     try {
       const cards = await vault.list(accountId);
+      try { await syncCapacity(cards); } catch { /* viewing existing encrypted items stays available */ }
       // A code that cannot be opened is reported on its own card; the rest of the wallet opens.
       let customs = null; let customsUnreadable = false;
       if (customsCode) {
@@ -2170,7 +2195,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const details = element('div', 'wallet-add-details'); details.append(kinds.element, titleField, noteField);
     const grid = element('div', 'wallet-add-grid'); grid.append(media, details);
     const actions = element('div', 'wallet-form-actions'); actions.append(cancel, save);
-    const bar = element('div', 'wallet-form-bar'); bar.append(safeLine('이 기기에만 암호화해 보관 · LOTBI 서버로 보내지 않아요'), reason, actions);
+    const bar = element('div', 'wallet-form-bar'); bar.append(safeLine('자료 내용은 이 기기에만 암호화해 보관 · LOTBI 서버로 보내지 않아요'), reason, actions);
     const back = backButton('내 자료', () => { photoPicker.destroy(); void renderWallet(); });
     const head = element('div', 'wallet-page-head'); head.append(back, element('h3', '', '자료 추가'), stepsBar(1));
     form.append(head, intro, grid, facts, status,
@@ -2185,7 +2210,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         setBusy(form, true);
         if (resuming) await resuming;
         const frontDataUrl = await photoPicker.readDataUrl();
-        await vault.save(accountId, {id: randomId(), kind: 'document', category, name: titleInput.value.trim(), note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
+        await saveNewCard({id: randomId(), kind: 'document', category, name: titleInput.value.trim(), note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
         photoPicker.destroy(); stepObserver.disconnect();
         await renderWallet('자료를 암호화하여 저장했습니다.', {tab: 'items'});
       } catch (error) { status.textContent = safeMessage(error, '자료를 저장하지 못했습니다.'); setBusy(form, false); refresh(); }
@@ -2264,7 +2289,9 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         try {
           validateWalletPin(removalPin.value); setBusy(dialog, true);
           await vault.verifyPin(accountId, removalPin.value);
-          await vault.remove(accountId, card.id); close(); await renderWallet('자료를 삭제했습니다.');
+          await vault.remove(accountId, card.id);
+          if (capacityModule) await (await capacity()).release(card.id);
+          close(); await renderWallet('자료를 삭제했습니다.');
         } catch (error) { removalStatus.textContent = safeMessage(error, '자료를 삭제하지 못했습니다.'); setBusy(dialog, false); removalPin.value = ''; focusUnlessTouch(removalPin); }
       });
       focusUnlessTouch(removalPin);
@@ -2376,7 +2403,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const grid = element('div', 'wallet-add-grid'); grid.append(details, media);
     const back = () => { replacing?.destroy(); renderDetail(card, title); };
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', back, true), save);
-    const bar = element('div', 'wallet-form-bar'); bar.append(safeLine('이 기기에만 암호화해 보관 · LOTBI 서버로 보내지 않아요'), reason, actions);
+    const bar = element('div', 'wallet-form-bar'); bar.append(safeLine('자료 내용은 이 기기에만 암호화해 보관 · LOTBI 서버로 보내지 않아요'), reason, actions);
     form.append(pageHead('정보 수정', back, '자료로'), grid, status, bar);
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
@@ -2621,7 +2648,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const grid = element('div', 'wallet-customs-form-grid'); grid.append(main, preview);
     const back = () => { if (existing) renderCustomsDetail(existing); else void renderWallet('', {tab: 'life'}); };
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', back, true), save);
-    const bar = element('div', 'wallet-form-bar'); bar.append(safeLine('이 기기에만 암호화해 보관 · LOTBI 서버로 보내지 않아요'), reason, actions);
+    const bar = element('div', 'wallet-form-bar'); bar.append(safeLine('자료 내용은 이 기기에만 암호화해 보관 · LOTBI 서버로 보내지 않아요'), reason, actions);
     form.append(
       pageHead(existing ? '개인통관고유부호 변경' : '개인통관고유부호 등록', back, existing ? '번호 관리' : '생활정보'),
       grid, status,
