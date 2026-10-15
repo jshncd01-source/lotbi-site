@@ -77,6 +77,29 @@ const PLACE_RESULT = {
         ai_calls: 0,
       },
     },
+    {
+      result_id: 'place-3',
+      place_id: 'naver:three',
+      name: '사진 로드 실패 검증 장소',
+      category: '음식점>한식',
+      road_address: '전북특별자치도 전주시 완산구 테스트로 3',
+      latitude: 35.819,
+      longitude: 127.142,
+      coordinate_system: 'WGS84',
+      coordinate_authority: 'NAVER_MAPS_GEOCODING',
+      navigation_capability: true,
+      phone: null,
+      phone_verified: false,
+      image_url: 'https://lh3.googleusercontent.com/broken-place-photo-contract.jpg',
+      photo_evidence: {
+        provider: 'GOOGLE_PLACES',
+        provider_place_id: 'google:broken-three',
+        match_basis: 'EXACT_NAME_AND_ADDRESS',
+        fetched_at: '2026-09-25T08:30:00Z',
+        verification_state: 'VERIFIED',
+        attributions: [],
+      },
+    },
   ],
 };
 
@@ -110,6 +133,11 @@ try {
     get() { return mockImageSrc.get(this) || nativeImageSrc?.get?.call(this) || ''; },
     set(value) {
       const next = String(value);
+      if (next.includes('/broken-place-photo-contract.jpg')) {
+        mockImageSrc.set(this, next);
+        queueMicrotask(() => this.dispatchEvent(new Event('error')));
+        return;
+      }
       if (next.startsWith('https://lh3.googleusercontent.com/')) {
         mockImageSrc.set(this, next);
         queueMicrotask(() => this.dispatchEvent(new Event('load')));
@@ -152,6 +180,8 @@ try {
   const center=await wait(()=>rail.querySelector('[data-orbit-slot="CENTER"]'),'center');
   await new Promise(r=>setTimeout(r,250));
   const side=rail.querySelector('.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"])');
+  const broken=[...rail.querySelectorAll('.lotbi-place-orbit-card')]
+    .find(node=>(node.getAttribute('aria-label')||'').includes('사진 로드 실패 검증 장소'));
   const box=node=>{const r=node.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}};
   const actions=[...center.querySelectorAll('.lotbi-rich-card-action')];
   out.textContent=JSON.stringify({
@@ -172,6 +202,8 @@ try {
     photoSrc:center.querySelector('.lotbi-place-photo')?.src||'',
     sideMediaHidden:side.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
     sideMediaState:side.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
+    brokenMediaHidden:broken?.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
+    brokenMediaState:broken?.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
     sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
     sideActionsVisible:[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
     sideActionTabIndexes:[...side.querySelectorAll('.lotbi-rich-card-action')].map(n=>n.tabIndex),
@@ -252,8 +284,10 @@ try {
     assert.equal(reading.mediaHidden,false,`${testCase.label}: verified photo banner remains visible`);
     assert.equal(reading.mediaState,'loaded',`${testCase.label}: verified photo media state`);
     assert.equal(reading.photoSrc,PLACE_RESULT.results[0].image_url,`${testCase.label}: verified photo src preserved`);
-    assert.equal(reading.sideMediaHidden,false,`${testCase.label}: no-photo side banner remains visible`);
+    assert.equal(reading.sideMediaHidden,true,`${testCase.label}: no-photo side media is fully hidden`);
     assert.equal(reading.sideMediaState,'empty-no-photo',`${testCase.label}: no-photo side media state`);
+    assert.equal(reading.brokenMediaHidden,true,`${testCase.label}: failed photo media is fully hidden`);
+    assert.equal(reading.brokenMediaState,'empty-no-photo',`${testCase.label}: failed photo media state`);
     assert.ok(reading.card.h<=reading.rail.h+1,`${testCase.label}: card ${reading.card.h} > rail ${reading.rail.h}`);
     assert.ok(reading.card.w<=Math.min(testCase.width*.82,286)+2,`${testCase.label}: card width ${reading.card.w}`);
     assert.ok(reading.sideOpacity<=.2,`${testCase.label}: side opacity ${reading.sideOpacity}`);
