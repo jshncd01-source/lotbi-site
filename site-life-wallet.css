@@ -44,6 +44,9 @@ body[data-site-theme='dark'], html[data-site-theme-bootstrap='dark'] body:not([d
   body[data-site-theme='system'], html[data-site-theme-bootstrap='system'] body:not([data-site-theme]) { --lotbi-wallet-page: #212121; }
 }
 body.chat-home-page .consumer-workspace[data-workspace='wallet'] > .site-modal { max-width: 1120px; }
+/* The shared rule sizes the wallet panel from the window width (100vw), so beside the side menu on a
+   PC it ran past the right edge. The panel takes the room the workspace actually has. */
+body.chat-home-page .site-modal-backdrop[data-site-route="wallet"] > .consumer-section-panel { width: min(100%, 1120px); }
 .consumer-section-content[data-wallet-state='locked'] { overflow: hidden; }
 .wallet-root [hidden], [class^='wallet-'][hidden], [class*=' wallet-'][hidden] { display: none !important; }
 
