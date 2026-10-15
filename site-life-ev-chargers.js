@@ -213,8 +213,11 @@ export function chargerGroupLines(chargers) {
   return [...groups.values()].map(group => {
     // 급속/완속 leads the line; a charger whose speed the data does not settle
     // says so after its type instead of a misleading word in front.
+    // REGIONAL-INFO-UNIFY-01: the KECO type name may already say the speed
+    // (AC완속) — the word is not said twice (「완속 AC완속」).
     const known = group.speed === 'FAST' || group.speed === 'SLOW';
-    const head = [known ? SPEED_LABELS[group.speed] : '', group.typeLabel, group.outputKw ? `${group.outputKw}kW` : '']
+    const speedWord = known && !String(group.typeLabel || '').includes(SPEED_LABELS[group.speed]) ? SPEED_LABELS[group.speed] : '';
+    const head = [speedWord, group.typeLabel, group.outputKw ? `${group.outputKw}kW` : '']
       .filter(Boolean).join(' ') + (known ? '' : ' (급속·완속 확인 불가)');
     const words = [...group.words.entries()].map(([word, n]) => (group.total === 1 ? word : `${word} ${n}`)).join(' · ');
     return {text: `${head}${group.total > 1 ? ` ${group.total}대` : ''} · ${words}`, available: group.words.has('사용 가능')};
@@ -266,6 +269,7 @@ export function evMapLink(station, provider, {documentRef = document, userAgent 
     return null;                                              // no link rather than a wrong one
   }
   const {icon, label} = evMapIcon(provider, {userAgent});
+  const desktopTmap = provider === 'TMAP' && icon === 'naver-map';
   const link = el('a', 'ev-map-link', '', documentRef);
   link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer';
   link.dataset.mapProvider = provider;
@@ -275,10 +279,10 @@ export function evMapLink(station, provider, {documentRef = document, userAgent 
   const image = el('img', 'ev-map-icon', '', documentRef);
   image.src = `${EV_MAP_ICON_BASE}${icon}.png?v=${EV_MAP_ICON_VERSION}`;
   image.alt = ''; image.width = 32; image.height = 32; image.decoding = 'async';
-  const fallback = el('span', 'ev-map-fallback', label.split('(')[0], documentRef);
-  fallback.hidden = true;
-  image.addEventListener('error', () => { image.hidden = true; fallback.hidden = false; }, {once: true});
-  link.append(image, fallback);
+  // REGIONAL-INFO-UNIFY-01: the button names the app it opens, next to its icon.
+  const name = el('span', 'ev-map-label', desktopTmap ? '티맵 대신 네이버지도 웹' : label, documentRef);
+  image.addEventListener('error', () => { image.hidden = true; }, {once: true});
+  link.append(image, name);
   return link;
 }
 
@@ -294,6 +298,12 @@ export function evStationItem(station, {mapProvider, documentRef = document, use
   body.append(head);
   if (station.address) body.append(el('p', 'ev-station-address', station.address, documentRef));
   const summary = el('p', 'ev-station-summary', '', documentRef);
+  // The first thing to read: can I charge here now? Only confirmed states count.
+  const buckets = Object.values(station.summary).filter(Boolean);
+  const free = buckets.reduce((sum, bucket) => sum + (bucket.available || 0), 0);
+  const checked = buckets.reduce((sum, bucket) => sum + (bucket.checked || 0), 0);
+  summary.dataset.evState = free > 0 ? 'AVAILABLE' : checked > 0 ? 'BUSY' : 'UNCHECKED';
+  summary.append(el('strong', 'ev-station-state', free > 0 ? `사용 가능 ${free}대` : checked > 0 ? '지금 빈 충전기 없음' : '상태 확인 필요', documentRef));
   for (const speed of ['FAST', 'SLOW', 'UNKNOWN']) {
     const line = speedSummaryText(speed, station.summary[speed]);
     if (!line) continue;

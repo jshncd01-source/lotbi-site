@@ -34,7 +34,7 @@ const ID = n => String(n).padStart(40, 'a').slice(-40).replace(/[^0-9a-f]/gu, 'b
   // LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: the card now opens 온누리상품권·지역화폐;
   // the onnuri module itself (ONNURI_MENU_LABEL) is unchanged.
   assert.equal(onnuri.label, '온누리상품권·지역화폐');
-  assert.equal(onnuri.description, '사용처와 혜택을 찾아요');
+  assert.equal(onnuri.description, '쓸 수 있는 가맹점 찾기');
   assert.equal(ONNURI_MENU_LABEL, '온누리상품권');
   assert.equal(ONNURI_CARD_LABEL, '온누리 가맹점');
   // QA 2026-10-10 #12: LOTBI's own plain voucher icon until the official logo
@@ -403,8 +403,8 @@ async function runCase(browser, origin, dir, testCase) {
     await load();
     let state = await probe();
     assert.equal(state.shortcut.title, '온누리상품권·지역화폐');
-    assert.equal(state.shortcut.description, '사용처와 혜택을 찾아요');
-    assert.equal(state.shortcut.accessibleName, '온누리상품권·지역화폐. 사용처와 혜택을 찾아요');
+    assert.equal(state.shortcut.description, '쓸 수 있는 가맹점 찾기');
+    assert.equal(state.shortcut.accessibleName, '온누리상품권·지역화폐. 쓸 수 있는 가맹점 찾기');
     assert.equal(state.shortcut.slot, '', 'the plain icon shows; no logo slot drawn');
     assert.equal(state.shortcut.img, false, 'no official logo image');
     assert.equal(state.shortcut.svg, true, 'the plain voucher icon');
@@ -419,7 +419,7 @@ async function runCase(browser, origin, dir, testCase) {
     assert.equal(state.cards.length, 0, 'no nationwide list before a region');
     assert.equal(state.requests.filter(url => url.startsWith('/v2/life/onnuri/merchants')).length, 0, 'no merchant request before a region');
     assert.deepEqual(state.chipNames, [['category', '업종', true], ['accept', '종류', true]], 'each chip row is named');
-    assert.equal(state.disclaimerSummary, '공공데이터 기준 안내예요. 방문 전 가맹점에 확인해 주세요.자세히');
+    assert.equal(state.disclaimerSummary, '공공데이터 기준 안내예요. 방문 전 가맹점에 확인해 주세요.안내 자세히');
     assert.equal(state.disclaimerOpen, false, 'the long notice starts folded');
     assert.equal(state.disclaimerVisible, false, 'folded notice takes no space');
     // A chip before a region still does not list the whole country.

@@ -407,7 +407,13 @@ export async function mountLocalVoucherMerchants({
   intro.append(el('strong', 'voucher-intro-title', '지역화폐(지역사랑상품권) 가맹점 찾기'));
   const notice = el('p', 'consumer-feature-note voucher-notice', VOUCHER_DEFAULT_NOTICE);
   notice.setAttribute('data-voucher-notice', '');
-  intro.append(notice, el('p', 'consumer-feature-note voucher-not-partner', VOUCHER_NOT_PARTNER));
+  // REGIONAL-INFO-UNIFY-01: the long notice folds to one line + 「안내 자세히」,
+  // the way the 온누리 tab beside it does.
+  const noticeBox = el('details', 'voucher-notice-box');
+  const noticeSummary = el('summary', 'consumer-feature-note voucher-notice-summary');
+  noticeSummary.append(el('span', '', '공공데이터 기준 안내예요. 방문 전 가맹점에 확인해 주세요.'), el('span', 'voucher-notice-more', '안내 자세히'));
+  noticeBox.append(noticeSummary, notice, el('p', 'consumer-feature-note voucher-not-partner', VOUCHER_NOT_PARTNER));
+  intro.append(noticeBox);
 
   const regionRow = el('div', 'voucher-region-row');
   const selects = {}; const fields = {};

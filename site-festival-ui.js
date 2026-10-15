@@ -1229,7 +1229,14 @@ export async function mountFestivalManager({
           sessionToken,
           guestRepository: repository,
         });
-        grid.appendChild(card);
+        // REGIONAL-INFO-UNIFY-01: a finished event goes below every one still on
+        // or coming (Core's order is kept inside each group, pages included).
+        if (computeFestivalStatus(festival, now) === 'ENDED') {
+          card.dataset.festivalEnded = 'true';
+          grid.appendChild(card);
+        } else {
+          grid.insertBefore(card, grid.querySelector(':scope > [data-festival-ended]'));
+        }
         watchCardActions(card, festival);
       }
       hasMore = result.hasMore;

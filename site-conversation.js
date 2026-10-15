@@ -4663,7 +4663,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const definitions = {
       wallet: ['Life Wallet', '내 생활자료를 안전하게 보관해요.'],
       care: ['가족 지킴이', '사람과 반려동물을 함께 챙기는 안전 공간입니다.'],
-      life: ['지역정보', '저장한 지역과 내 주변의 필요한 정보를 찾아보세요.'],
+      life: ['지역정보', '병원부터 지하철·축제까지, 내 지역 생활 정보를 한곳에서 찾아요.'],
       mall: ['연결 서비스', '업체와 연결하고, 롯비에서 필요한 서비스를 이용하세요.'],
     };
     const definition = definitions[section];

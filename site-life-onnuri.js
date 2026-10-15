@@ -416,7 +416,7 @@ export async function mountOnnuriMerchants({
   // results down -- one line, the rest under 자세히.
   const notice = el('details', 'onnuri-disclaimer-box');
   const noticeSummary = el('summary', 'consumer-feature-note onnuri-disclaimer-summary');
-  noticeSummary.append(el('span', '', ONNURI_DISCLAIMER_SUMMARY), el('span', 'onnuri-disclaimer-more', '자세히'));
+  noticeSummary.append(el('span', '', ONNURI_DISCLAIMER_SUMMARY), el('span', 'onnuri-disclaimer-more', '안내 자세히'));
   notice.append(noticeSummary, el('p', 'consumer-feature-note onnuri-disclaimer', ONNURI_DISCLAIMER));
   intro.append(brand, notice);
 

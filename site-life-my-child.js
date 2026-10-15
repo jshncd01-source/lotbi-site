@@ -54,6 +54,12 @@ function button(label, run, className = 'consumer-action consumer-action-seconda
   return element;
 }
 
+// 을/를 after a nickname, by its last syllable.
+function objectParticle(word) {
+  const last = String(word || '').charCodeAt(String(word || '').length - 1);
+  return last >= 0xac00 && last <= 0xd7a3 && (last - 0xac00) % 28 !== 0 ? '을' : '를';
+}
+
 function isoParts(value) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(String(value || ''));
   return match ? match.slice(1).map(Number) : null;
@@ -169,6 +175,39 @@ export function mountMyChild({
   const live = current => !disposed && current === generation;
   const say = text => { status.textContent = text || ''; };
 
+  // REGIONAL-INFO-UNIFY-01: a delete asks once in its own box — what goes away,
+  // [취소] [삭제] — instead of a second tap on the same button. Resolves true only
+  // for the delete button; Esc and 취소 keep everything.
+  let openConfirm = null;
+  function confirmDelete({title, message, confirmLabel, returnFocus}) {
+    openConfirm?.close('');
+    return new Promise(resolve => {
+      const dialog = node('dialog', 'lotbi-mychild-confirm');
+      dialog.setAttribute('aria-labelledby', 'lotbi-mychild-confirm-title');
+      dialog.setAttribute('aria-describedby', 'lotbi-mychild-confirm-text');
+      const heading = node('h3', 'lotbi-mychild-confirm-title', title); heading.id = 'lotbi-mychild-confirm-title';
+      const text = node('p', 'lotbi-mychild-confirm-text', message); text.id = 'lotbi-mychild-confirm-text';
+      const row = node('div', 'lotbi-mychild-confirm-actions');
+      const cancel = button('취소', () => dialog.close(''));
+      cancel.dataset.myChildConfirm = 'cancel';
+      const ok = button(confirmLabel, () => dialog.close('ok'), 'consumer-action lotbi-mychild-confirm-delete');
+      ok.dataset.myChildConfirm = 'ok';
+      row.append(cancel, ok);
+      dialog.append(heading, text, row);
+      dialog.addEventListener('close', () => {
+        const confirmed = dialog.returnValue === 'ok';
+        dialog.remove();
+        if (openConfirm === dialog) openConfirm = null;
+        if (!disposed && returnFocus?.isConnected) returnFocus.focus();
+        resolve(confirmed && !disposed);
+      }, {once: true});
+      container.append(dialog);
+      openConfirm = dialog;
+      if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open', '');
+      cancel.focus();
+    });
+  }
+
   function failed(error, current, fallback) {
     if (!live(current)) return;
     if (error?.status === 401) { listing = null; view.replaceChildren(loginNotice()); say(''); return; }
@@ -228,9 +267,13 @@ export function mountMyChild({
     if (listing.entries.length) {
       const clear = button('모두 삭제', null);
       clear.dataset.myChildDeleteAll = '';
-      let armed = false;
       clear.addEventListener('click', async () => {
-        if (!armed) { armed = true; clear.textContent = '정말 모두 삭제'; say('한 번 더 누르면 저장한 학교·유치원과 알레르기 설정이 모두 지워져요.'); return; }
+        const confirmed = await confirmDelete({
+          title: '저장한 곳을 모두 삭제할까요?',
+          message: '저장한 학교·유치원과 알레르기 설정이 모두 지워져요. 다시 저장할 때 저장 안내에 동의를 다시 받아요.',
+          confirmLabel: '모두 삭제', returnFocus: clear,
+        });
+        if (!confirmed || !clear.isConnected) return;
         clear.disabled = true;
         try {
           await deleteAllMyChildren(sessionToken, fetchImpl);
@@ -700,9 +743,13 @@ export function mountMyChild({
     edit.dataset.myChildEdit = '';
     const remove = button('삭제', null);
     remove.dataset.myChildDelete = '';
-    let armed = false;
     remove.addEventListener('click', async () => {
-      if (!armed) { armed = true; remove.textContent = '정말 삭제'; say('한 번 더 누르면 이 항목과 알레르기 설정이 지워져요.'); return; }
+      const confirmed = await confirmDelete({
+        title: `${current_entry.nickname}${objectParticle(current_entry.nickname)} 삭제할까요?`,
+        message: '이 학교·유치원과 알레르기 설정이 지워져요. 되돌릴 수 없어요.',
+        confirmLabel: '삭제', returnFocus: remove,
+      });
+      if (!confirmed || !remove.isConnected) return;
       remove.disabled = true;
       try {
         await deleteMyChild(sessionToken, current_entry.id, fetchImpl);
