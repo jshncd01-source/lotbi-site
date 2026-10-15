@@ -667,20 +667,22 @@ try {
     assert.equal(r.blank.keyboardClass, false, 'desktop: focusing the composer never engages the keyboard layout');
     for (const [key, g] of [['home placeholder', r.blank.placeholder], ['home one line', r.blank.oneLine], ['home several lines', r.blank.multiLine], ['conversation placeholder', r.conv.placeholder], ['conversation several lines', r.conv.multiLine]]) {
       assertText(g, `desktop-1280x900 ${key}`);
-      assert.ok(g.plusSharesRow || key.includes('several'), `desktop ${key}: + sits beside the text`);
+      // SITE-MAIN-HOME-REDESIGN-01: on desktop the text has its own row and the
+      // attach / send buttons sit on the row below it (assertText checks the gap).
+      assert.ok(!g.plusSharesRow && g.plusBelowText >= 4, `desktop ${key}: + sits below the text (${g.plusBelowText}px)`);
     }
     assert.ok(r.blank.multiLine.lines >= 3, `desktop: the long draft wrapped (${r.blank.multiLine.lines})`);
-    // The desktop composer keeps the box measured before this change (f296c4ce,
-    // 1280x900): 680x70, + 8px from the left edge, send 11px from the right and
-    // 9px from the top. The + now shares the send button's row (its bottom was
-    // 7px lower, under the text row, while it was absolutely placed).
+    // SITE-MAIN-HOME-REDESIGN-01 (approved design 2026-10-14): one two-row box for
+    // Home and conversation — 640-840px wide (54vw), text row on top, attach at
+    // the bottom-left and send at the bottom-right of the same bottom row, both
+    // 11px from their edge (1px border + 10px padding).
     for (const [key, b] of [['home', r.blank.box], ['conversation', r.conv.box]]) {
-      assert.equal(Math.round(b.composer.width), 680, `desktop ${key}: composer width unchanged (${b.composer.width})`);
-      assert.equal(Math.round(b.composer.height), 70, `desktop ${key}: composer height unchanged (${b.composer.height})`);
-      assert.ok(Math.abs(b.plus.left - b.composer.left - 8) <= 1, `desktop ${key}: + stays at the left edge (${b.plus.left - b.composer.left})`);
-      assert.ok(Math.abs(b.composer.right - b.send.right - 11) <= 1, `desktop ${key}: send stays at the right edge (${b.composer.right - b.send.right})`);
-      assert.ok(Math.abs(b.send.top - b.composer.top - 9) <= 1, `desktop ${key}: send stays where it was vertically (${b.send.top - b.composer.top})`);
-      assert.ok(Math.abs(b.plus.bottom - b.send.bottom) <= 1, `desktop ${key}: + and send share one row (${b.plus.bottom} / ${b.send.bottom})`);
+      assert.ok(b.composer.width >= 639 && b.composer.width <= 841, `desktop ${key}: composer width 640-840 (${b.composer.width})`);
+      assert.ok(b.composer.height >= 100 && b.composer.height <= 140, `desktop ${key}: two-row composer height (${b.composer.height})`);
+      assert.ok(Math.abs(b.plus.left - b.composer.left - 11) <= 1, `desktop ${key}: attach at the left edge (${b.plus.left - b.composer.left})`);
+      assert.ok(Math.abs(b.composer.right - b.send.right - 11) <= 1, `desktop ${key}: send at the right edge (${b.composer.right - b.send.right})`);
+      assert.ok(Math.abs(b.composer.bottom - b.send.bottom - 11) <= 1, `desktop ${key}: send on the bottom row (${b.composer.bottom - b.send.bottom})`);
+      assert.ok(Math.abs(b.plus.bottom - b.send.bottom) <= 1, `desktop ${key}: attach and send share one row (${b.plus.bottom} / ${b.send.bottom})`);
     }
     assert.ok(r.overflow.page <= 0 && r.overflow.main <= 0, `desktop: no horizontal scroll ${JSON.stringify(r.overflow)}`);
     const g = r.conv.placeholder;

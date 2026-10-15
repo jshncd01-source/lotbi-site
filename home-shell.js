@@ -260,4 +260,16 @@
     syncMobileViewport();
   }, {passive: true});
   syncMobileViewport();
+
+  // SITE-MAIN-HOME-REDESIGN-01: the phone composer is one row, so its hint is
+  // the short form; wider screens keep the full sentence from index.html.
+  const promptHintFull = prompt?.getAttribute('placeholder') || '';
+  const promptHintShort = '필요한 도움을 말씀해 주세요.';
+  const phoneComposerQuery = window.matchMedia('(max-width: 600px)');
+  const syncPromptHint = () => {
+    if (!prompt || !promptHintFull) return;
+    prompt.setAttribute('placeholder', phoneComposerQuery.matches ? promptHintShort : promptHintFull);
+  };
+  phoneComposerQuery.addEventListener?.('change', syncPromptHint);
+  syncPromptHint();
 })();

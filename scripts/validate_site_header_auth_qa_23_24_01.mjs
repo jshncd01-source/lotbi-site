@@ -409,19 +409,22 @@ try {
     const body = document.body;
     if (!shell || !body) return null;
     return {shell: getComputedStyle(shell).backgroundColor, ink: getComputedStyle(body).color, bodyHasTheme: body.hasAttribute('data-site-theme'),
-      state: document.querySelector('.account-actions')?.dataset.authState || '', bootstrap: document.documentElement.dataset.siteThemeBootstrap || ''};
+      state: document.querySelector('.account-actions')?.dataset.authState || '', bootstrap: document.documentElement.dataset.siteThemeBootstrap || '',
+      // Head stylesheets block the first paint, so a value read before they all load was never on screen.
+      sheetsReady: [...document.querySelectorAll('head link[rel="stylesheet"]')].every(link => link.sheet)};
   })()`;
   for (const [label, theme, scheme, expected] of [
     ['Dark', 'dark', '', 'rgb(33, 33, 33)'],
     ['System + dark OS', 'system', 'dark', 'rgb(33, 33, 33)'],
-    ['Light (unchanged)', 'light', '', 'rgb(255, 255, 255)'],
-    ['System + light OS (unchanged)', 'system', 'light', 'rgb(255, 255, 255)'],
+    // SITE-MAIN-HOME-REDESIGN-01 (owner-approved 2026-10-15): the Light Home canvas is #F6F7F9.
+    ['Light (unchanged)', 'light', '', 'rgb(246, 247, 249)'],
+    ['System + light OS (unchanged)', 'system', 'light', 'rgb(246, 247, 249)'],
   ]) {
     await scenario(executable, origin, workDir, `#theme ${label}, slow Account, signed out: the home has its own colour while 계정 확인 중 (no white page with light ink)`, {account: 'signed-out', statusDelay: 3000, theme, scheme}, async ({evaluate}) => {
       const early = await waitFor(async () => {
         const value = await evaluate(SHELL_PROBE);
         // The first painted frame: the shell has a colour once the stylesheets apply.
-        return value && value.state === 'checking' && value.shell !== 'rgba(0, 0, 0, 0)' ? value : false;
+        return value && value.sheetsReady && value.state === 'checking' && value.shell !== 'rgba(0, 0, 0, 0)' ? value : false;
       }, 'checking state, painted', 4000);
       assert.equal(early.shell, expected, `first look: ${JSON.stringify(early)}`);
       await delay(1500);
@@ -444,11 +447,11 @@ try {
         const sidebar = document.querySelector('.chat-sidebar-desktop'); const footer = sidebar?.querySelector('.sidebar-account-footer');
         const slot = document.querySelector('.sidebar-account-slot');
         if (!sidebar || !footer || !slot) return null;
-        return {sidebar: getComputedStyle(sidebar).backgroundColor, footer: getComputedStyle(footer).backgroundColor, state: slot.dataset.authState || '', bodyHasTheme: document.body.hasAttribute('data-site-theme')};
+        return {sidebar: getComputedStyle(sidebar).backgroundColor, footer: getComputedStyle(footer).backgroundColor, state: slot.dataset.authState || '', bodyHasTheme: document.body.hasAttribute('data-site-theme'), sheetsReady: [...document.querySelectorAll('head link[rel="stylesheet"]')].every(link => link.sheet)};
       })()`;
       const early = await waitFor(async () => {
         const value = await evaluate(PC_PROBE);
-        return value && value.state === 'checking' && value.footer !== 'rgba(0, 0, 0, 0)' ? value : false;
+        return value && value.sheetsReady && value.state === 'checking' && value.footer !== 'rgba(0, 0, 0, 0)' ? value : false;
       }, 'PC sidebar checking, painted', 4000);
       assert.equal(early.footer, expected, `account row, first look: ${JSON.stringify(early)}`);
       await delay(1500);

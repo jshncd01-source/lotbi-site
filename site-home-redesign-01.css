@@ -1,0 +1,506 @@
+/* SITE-MAIN-HOME-REDESIGN-01 — owner-approved Home design (2026-10-14, design canvas
+   "LOTBI 메인 대화 홈 시안 01"). Loaded last so it can restyle the Home without
+   touching each feature owner's sheet:
+   - no Home title; the existing 3D LOTBI character sits on a round stage;
+   - the composer lives at the bottom of the Home (above the footer on desktop,
+     at the bottom of the screen on phones) with a clear focus / send state;
+   - the attachment choices open inside the composer (nothing is covered);
+   - the safety line is readable (13px) and the footer is centred;
+   - the left menu categories get colour tiles (order, names, icons unchanged);
+   - on phones the profile menu rises from the bottom as a sheet.
+   Colours follow the Life Wallet 02 design tokens. Dark mode changes colours only. */
+
+body.chat-home-page {
+  --hr-bg: #F6F7F9;
+  --hr-side: #FFFFFF;
+  --hr-card: #FFFFFF;
+  --hr-subtle: #F2F4F7;
+  --hr-hover: #EEF1F5;
+  --hr-line: #E4E7EC;
+  --hr-line2: #C9CED6;
+  --hr-tx: #1E2228;
+  --hr-tx2: #4E5663;
+  --hr-tx3: #667085;
+  --hr-acc: #2563EB;
+  --hr-acc-press: #1D4ED8;
+  --hr-acc-tx: #1D4ED8;
+  --hr-acc-soft: #EAF1FF;
+  --hr-ring: rgba(37, 99, 235, .2);
+  --hr-err: #B42318;
+  --hr-err-bg: #FEF3F2;
+  --hr-err-line: #FDD3CF;
+  --hr-off-bg: #E4E7EC;
+  --hr-off-ic: #98A2B3;
+  --hr-stage: #EBF0F8;
+  --hr-stage-shadow: rgba(16, 24, 40, .12);
+  --hr-col: min(clamp(640px, 54vw, 840px), 100%);
+  --hr-stage-size: clamp(260px, 22vw, 340px);
+  --hr-tile-new-bg: #2563EB; --hr-tile-new-fg: #FFFFFF;
+  --hr-tile-cal-bg: #EAF1FF; --hr-tile-cal-fg: #2563EB;
+  --hr-tile-wallet-bg: #E4F5EA; --hr-tile-wallet-fg: #15803D;
+  --hr-tile-scam-bg: #FFEFE3; --hr-tile-scam-fg: #C2410C;
+  --hr-tile-trouble-bg: #F0EAFF; --hr-tile-trouble-fg: #6D28D9;
+  --hr-tile-care-bg: #FFEBF2; --hr-tile-care-fg: #BE185D;
+  --hr-tile-life-bg: #E1F4F4; --hr-tile-life-fg: #0F766E;
+  --hr-tile-other-bg: #F2F4F7; --hr-tile-other-fg: #4E5663;
+}
+
+body.chat-home-page[data-site-theme="dark"],
+html[data-site-theme-bootstrap="dark"] body.chat-home-page:not([data-site-theme]) {
+  --hr-bg: #212121;
+  --hr-side: #212121; /* the site Dark surface, so the account row and the menu are one colour */
+  --hr-card: #2A2A2A;
+  --hr-subtle: #333333;
+  --hr-hover: #383838;
+  --hr-line: #424242;
+  --hr-line2: #5B5B5B;
+  --hr-tx: #F5F5F5;
+  --hr-tx2: #C7C7C7;
+  --hr-tx3: #A3A3A3;
+  --hr-acc-tx: #8AB4FF;
+  --hr-acc-soft: #1E2A44;
+  --hr-ring: rgba(138, 180, 255, .3);
+  --hr-err: #FCA5A5;
+  --hr-err-bg: #3A1B1D;
+  --hr-err-line: #6B2B2F;
+  --hr-off-bg: #3A3A3A;
+  --hr-off-ic: #7A7A7A;
+  --hr-stage: #2A2F38;
+  --hr-stage-shadow: rgba(0, 0, 0, .45);
+  --hr-tile-cal-bg: #1E2A44; --hr-tile-cal-fg: #8AB4FF;
+  --hr-tile-wallet-bg: #183225; --hr-tile-wallet-fg: #6EE7A0;
+  --hr-tile-scam-bg: #3A2416; --hr-tile-scam-fg: #FDBA74;
+  --hr-tile-trouble-bg: #2C2342; --hr-tile-trouble-fg: #C4B5FD;
+  --hr-tile-care-bg: #3A1E2A; --hr-tile-care-fg: #F9A8C8;
+  --hr-tile-life-bg: #163234; --hr-tile-life-fg: #7DD3D0;
+  --hr-tile-other-bg: #333333; --hr-tile-other-fg: #C7C7C7;
+}
+
+/* "System" follows the device: on a Dark device the Home takes the same Dark colours.
+   Both Dark blocks also cover the moment before site-conversation.js sets
+   body[data-site-theme] (the head bootstrap already knows the saved theme). */
+@media (prefers-color-scheme: dark) {
+  body.chat-home-page[data-site-theme="system"],
+  html[data-site-theme-bootstrap="system"] body.chat-home-page:not([data-site-theme]) {
+    --hr-bg: #212121;
+    --hr-side: #212121; /* the site Dark surface, so the account row and the menu are one colour */
+    --hr-card: #2A2A2A;
+    --hr-subtle: #333333;
+    --hr-hover: #383838;
+    --hr-line: #424242;
+    --hr-line2: #5B5B5B;
+    --hr-tx: #F5F5F5;
+    --hr-tx2: #C7C7C7;
+    --hr-tx3: #A3A3A3;
+    --hr-acc-tx: #8AB4FF;
+    --hr-acc-soft: #1E2A44;
+    --hr-ring: rgba(138, 180, 255, .3);
+    --hr-err: #FCA5A5;
+    --hr-err-bg: #3A1B1D;
+    --hr-err-line: #6B2B2F;
+    --hr-off-bg: #3A3A3A;
+    --hr-off-ic: #7A7A7A;
+    --hr-stage: #2A2F38;
+    --hr-stage-shadow: rgba(0, 0, 0, .45);
+    --hr-tile-cal-bg: #1E2A44; --hr-tile-cal-fg: #8AB4FF;
+    --hr-tile-wallet-bg: #183225; --hr-tile-wallet-fg: #6EE7A0;
+    --hr-tile-scam-bg: #3A2416; --hr-tile-scam-fg: #FDBA74;
+    --hr-tile-trouble-bg: #2C2342; --hr-tile-trouble-fg: #C4B5FD;
+    --hr-tile-care-bg: #3A1E2A; --hr-tile-care-fg: #F9A8C8;
+    --hr-tile-life-bg: #163234; --hr-tile-life-fg: #7DD3D0;
+    --hr-tile-other-bg: #333333; --hr-tile-other-fg: #C7C7C7;
+  }
+}
+
+/* ---------- canvas colours ---------- */
+body.chat-home-page:not(.conversation-active),
+body.chat-home-page:not(.conversation-active) .chat-app-shell,
+body.chat-home-page:not(.conversation-active) .chat-home-shell,
+body.chat-home-page:not(.conversation-active) .chat-topbar { background: var(--hr-bg) !important; }
+body.chat-home-page .chat-sidebar-desktop,
+body.chat-home-page .mobile-nav-drawer { background: var(--hr-side) !important; }
+body.chat-home-page .chat-sidebar-desktop { border-right: 1px solid var(--hr-line); }
+
+/* ---------- left menu: colour tile behind each category icon ---------- */
+body.chat-home-page .consumer-primary-nav .nav-item { gap: 12px; min-height: 46px; padding: 8px 10px; border-radius: 12px; font-size: 14.5px; font-weight: 500; color: var(--hr-tx); }
+body.chat-home-page .consumer-primary-nav .nav-item:hover { background: var(--hr-hover); }
+body.chat-home-page .consumer-primary-nav .nav-item-primary { background: var(--hr-subtle); font-weight: 600; }
+body.chat-home-page .consumer-primary-nav .nav-icon {
+  box-sizing: border-box;
+  width: 30px; height: 30px; padding: 6px;
+  flex: 0 0 30px;
+  border-radius: 9px;
+  opacity: 1;
+  background: var(--hr-tile-other-bg);
+  color: var(--hr-tile-other-fg);
+}
+body.chat-home-page .consumer-primary-nav [data-new-conversation] .nav-icon { background: var(--hr-tile-new-bg); color: var(--hr-tile-new-fg); }
+body.chat-home-page .consumer-primary-nav [data-calendar-view] .nav-icon { background: var(--hr-tile-cal-bg); color: var(--hr-tile-cal-fg); }
+body.chat-home-page .consumer-primary-nav [data-consumer-section="wallet"] .nav-icon { background: var(--hr-tile-wallet-bg); color: var(--hr-tile-wallet-fg); }
+body.chat-home-page .consumer-primary-nav [data-scam-open] .nav-icon { background: var(--hr-tile-scam-bg); color: var(--hr-tile-scam-fg); }
+body.chat-home-page .consumer-primary-nav [data-trouble-open] .nav-icon { background: var(--hr-tile-trouble-bg); color: var(--hr-tile-trouble-fg); }
+body.chat-home-page .consumer-primary-nav [data-consumer-section="care"] .nav-icon { background: var(--hr-tile-care-bg); color: var(--hr-tile-care-fg); }
+body.chat-home-page .consumer-primary-nav [data-consumer-section="life"] .nav-icon { background: var(--hr-tile-life-bg); color: var(--hr-tile-life-fg); }
+
+/* Empty recent list says what will appear there (once the restore has run). */
+body.chat-home-page[data-conversation-restore="ready"] .nav-history-list[data-recent-conversations]:empty::before {
+  content: "대화를 시작하면 여기에 보여요.";
+  display: block;
+  padding: 6px 12px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--hr-tx3);
+}
+
+/* ---------- Home: character stage in the open area ---------- */
+body.chat-home-page:not(.conversation-active) .chat-hero {
+  flex: 1 0 auto;
+  justify-content: flex-start;
+  min-height: 0;
+  padding: 0 0 20px;
+}
+body.chat-home-page:not([data-conversation-restore="pending"]):not(.conversation-active) .home-avatar-anchor {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: calc(var(--hr-stage-size) + 24px);
+  order: 0;
+}
+body.chat-home-page:not([data-conversation-restore="pending"]):not(.conversation-active) .home-avatar-anchor::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--hr-stage-size);
+  height: var(--hr-stage-size);
+  border-radius: 50%;
+  background: var(--hr-stage);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+body.chat-home-page:not([data-conversation-restore="pending"]):not(.conversation-active) .home-avatar-anchor::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--hr-stage-size) * .32);
+  width: calc(var(--hr-stage-size) * .3);
+  height: calc(var(--hr-stage-size) * .05);
+  border-radius: 50%;
+  background: var(--hr-stage-shadow);
+  filter: blur(4px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+body.chat-home-page:not([data-conversation-restore="pending"]):not(.conversation-active) .chat-character-wrap {
+  position: relative;
+  z-index: 1;
+  width: calc(var(--hr-stage-size) * .6);
+  height: calc(var(--hr-stage-size) * .72);
+  margin: 0 0 calc(var(--hr-stage-size) * .06);
+}
+body.chat-home-page:not([data-conversation-restore="pending"]):not(.conversation-active) .chat-character-logo {
+  width: calc(var(--hr-stage-size) * .6);
+  height: calc(var(--hr-stage-size) * .6);
+  object-fit: contain;
+}
+/* With the keyboard up and very little room left, the character leaves (as before). */
+body.chat-home-page.mobile-keyboard-tight:not(.conversation-active) .home-avatar-anchor { display: none !important; }
+/* Before the conversation restore finishes the static mark stands on the same stage. */
+body.chat-home-page[data-conversation-restore="pending"]:not(.conversation-active) .consumer-brand-fallback {
+  display: block;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: var(--hr-stage-size);
+  height: var(--hr-stage-size);
+  margin: auto;
+  padding: calc(var(--hr-stage-size) * .18);
+  border-radius: 50%;
+  background: var(--hr-stage);
+  object-fit: contain;
+}
+
+/* ---------- Home composer: bottom of the Home, clear states ---------- */
+body.chat-home-page .chat-composer-stack,
+body.chat-home-page:not(.conversation-active) .chat-composer-stack { width: var(--hr-col); }
+body.chat-home-page:not(.conversation-active) .chat-composer-stack { order: 5; margin-top: 0; }
+
+body.chat-home-page .chat-composer,
+body.chat-home-page:not(.conversation-active) .chat-composer {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto;
+  align-items: center;
+  gap: 0;
+  min-height: 0;
+  padding: 6px 10px 10px;
+  border: 1px solid var(--hr-line2);
+  border-radius: 16px;
+  background: var(--hr-card);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+}
+body.chat-home-page .chat-composer:focus-within {
+  border-color: var(--hr-acc) !important;
+  box-shadow: 0 0 0 3px var(--hr-ring) !important;
+}
+/* Dark keeps the site's Dark focus contract (SITE-CHAT-COMPOSER-DARK-FOCUS-01):
+   the rounded composer edge turns the Dark focus colour, with no blue glow. */
+body.chat-home-page[data-site-theme="dark"] .chat-composer:focus-within,
+html[data-site-theme-bootstrap="dark"] body.chat-home-page:not([data-site-theme]) .chat-composer:focus-within {
+  border-color: var(--lotbi-focus-ring) !important;
+  box-shadow: none !important;
+}
+@media (prefers-color-scheme: dark) {
+  body.chat-home-page[data-site-theme="system"] .chat-composer:focus-within,
+  html[data-site-theme-bootstrap="system"] body.chat-home-page:not([data-site-theme]) .chat-composer:focus-within {
+    border-color: var(--lotbi-focus-ring) !important;
+    box-shadow: none !important;
+  }
+}
+body.chat-home-page .chat-input,
+body.chat-home-page:not(.conversation-active) .chat-input {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-height: 52px;
+  padding: 12px 10px 4px;
+  color: var(--hr-tx);
+}
+body.chat-home-page .chat-input::placeholder { color: var(--hr-tx3); opacity: 1; }
+body.chat-home-page .composer-actions .attachment-control { display: contents; }
+body.chat-home-page .composer-actions [data-attachment-trigger] { grid-column: 1; grid-row: 3; justify-self: start; }
+body.chat-home-page .composer-actions .response-grade-control { grid-column: 3; grid-row: 3; }
+body.chat-home-page .composer-actions .send-button { grid-column: 4; grid-row: 3; }
+
+/* Attach: a labelled button on wide screens. */
+body.chat-home-page .composer-button.attachment-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 14px 0 10px;
+  border-radius: 12px;
+  color: var(--hr-tx2);
+  font-size: 14px;
+  font-weight: 500;
+}
+body.chat-home-page .composer-button.attachment-button svg { width: 20px; height: 20px; flex: 0 0 auto; }
+body.chat-home-page .composer-button.attachment-button[aria-expanded="true"] { background: var(--hr-acc-soft); color: var(--hr-acc-tx); }
+body.chat-home-page .attachment-button-label { line-height: 1; }
+
+/* Send: 44px rounded square; grey when there is nothing to send, blue when ready. */
+body.chat-home-page .composer-button.send-button,
+body.chat-home-page:not(.conversation-active) .composer-button.send-button:disabled,
+body.chat-home-page:not(.conversation-active) .composer-button.send-button:not(:disabled) {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border-color: transparent;
+  box-shadow: none;
+  opacity: 1;
+}
+body.chat-home-page .composer-button.send-button:disabled,
+body.chat-home-page:not(.conversation-active) .composer-button.send-button:disabled { background: var(--hr-off-bg); color: var(--hr-off-ic); }
+body.chat-home-page .composer-button.send-button:not(:disabled),
+body.chat-home-page:not(.conversation-active) .composer-button.send-button:not(:disabled) { background: var(--hr-acc); color: #FFFFFF; }
+body.chat-home-page .composer-button.send-button:not(:disabled):hover { background: var(--hr-acc-press); }
+
+/* Attachment choices open inside the composer, below the buttons: nothing is covered. */
+body.chat-home-page .attachment-menu {
+  position: static;
+  inset: auto;
+  grid-column: 1 / -1;
+  grid-row: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: auto;
+  min-width: 0;
+  margin: 8px 0 0;
+  padding: 12px 0 0;
+  border: 0;
+  border-top: 1px solid var(--hr-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+body.chat-home-page .attachment-menu[hidden] { display: none; }
+body.chat-home-page .attachment-menu [role="menuitem"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  min-height: 44px;
+  padding: 0 16px 0 12px;
+  border: 1px solid var(--hr-line);
+  border-radius: 12px;
+  background: var(--hr-card);
+  color: var(--hr-tx);
+  font-size: 14px;
+  font-weight: 500;
+}
+body.chat-home-page .attachment-menu [role="menuitem"]:hover,
+body.chat-home-page .attachment-menu [role="menuitem"]:focus-visible { background: var(--hr-hover); }
+body.chat-home-page .attachment-menu [role="menuitem"]::before {
+  content: "";
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  background: var(--hr-tx2);
+  -webkit-mask: var(--hr-menu-icon) center / contain no-repeat;
+  mask: var(--hr-menu-icon) center / contain no-repeat;
+}
+body.chat-home-page .attachment-menu [data-attachment-action="camera"] { --hr-menu-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8.5h3.2L8.7 6h6.6l1.5 2.5H20v10.5H4Z'/%3E%3Ccircle cx='12' cy='13.5' r='3.3'/%3E%3C/svg%3E"); }
+body.chat-home-page .attachment-menu [data-attachment-action="photos"] { --hr-menu-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='5' width='17' height='14' rx='2'/%3E%3Ccircle cx='9' cy='10' r='1.6'/%3E%3Cpath d='m20.5 16-5-5-8 8'/%3E%3C/svg%3E"); }
+body.chat-home-page .attachment-menu [data-attachment-action="files"] { --hr-menu-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 3.5h7l4.5 4.5v12.5H7Z'/%3E%3Cpath d='M14 3.5V8h4.5M9.5 13h6M9.5 16.5h6'/%3E%3C/svg%3E"); }
+body.chat-home-page .attachment-menu-hint { display: none; grid-column: 1 / -1; grid-row: 5; margin: 8px 2px 0; font-size: 12.5px; line-height: 19px; color: var(--hr-tx3); }
+body.chat-home-page .attachment-menu:not([hidden]) ~ .attachment-menu-hint { display: block; }
+/* A camera only exists on touch devices; on a mouse-driven computer the choice opens a file picker. */
+@media (hover: hover) and (pointer: fine) {
+  body.chat-home-page .attachment-menu [data-attachment-action="camera"] { display: none; }
+}
+
+/* Attachment problems were only announced to screen readers; now they are shown too. */
+body.chat-home-page .chat-attachment-error {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--hr-err-line);
+  border-radius: 12px;
+  background: var(--hr-err-bg);
+  color: var(--hr-err);
+  font-size: 13.5px;
+  line-height: 20px;
+}
+body.chat-home-page .chat-attachment-error[hidden] { display: none; }
+body.chat-home-page .chat-attachment-error::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 7.5v5.5M12 16.3v.2'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 7.5v5.5M12 16.3v.2'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Safety line: readable, with an info icon. */
+body.chat-home-page .chat-safety-copy,
+body.chat-home-page:not(.conversation-active) .chat-safety-copy {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 12px auto 0;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--hr-tx2);
+  text-align: center;
+}
+body.chat-home-page .chat-safety-copy::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+  background: var(--hr-tx3);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 11v5M12 7.9v.1'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 11v5M12 7.9v.1'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* ---------- footer: centred, lighter ---------- */
+body.chat-home-page .chat-home-footer { border-top: 1px solid var(--hr-line); padding: 14px 24px max(18px, env(safe-area-inset-bottom)); text-align: center; }
+body.chat-home-page .chat-home-footer .footer-links { justify-content: center; gap: 4px 18px; font-size: 12.5px; font-weight: 500; color: var(--hr-tx3); }
+body.chat-home-page .chat-home-footer .footer-links a { color: var(--hr-tx3); }
+body.chat-home-page .chat-home-footer .footer-links a[href="/privacy"] { font-weight: 700; color: var(--hr-tx2); }
+body.chat-home-page .chat-home-footer .company-legal { align-items: center; text-align: center; }
+body.chat-home-page .chat-home-footer .company-legal-row { justify-content: center; font-size: 11.5px; line-height: 18px; color: var(--hr-tx3); }
+body.chat-home-page .chat-home-footer .company-separator { color: var(--hr-line2); }
+
+/* ---------- phones and narrow windows ---------- */
+@media (max-width: 900px) {
+  body.chat-home-page { --hr-stage-size: 236px; --hr-col: 100%; }
+  /* The Home fills the visible screen: character in the middle, composer at the bottom. */
+  body.chat-home-page:not(.conversation-active) .chat-hero {
+    min-height: calc(var(--lotbi-visible-viewport-height, 100svh) - 64px);
+    justify-content: flex-end;
+    padding: 0;
+  }
+  /* On a phone the open area gives way when the composer grows (attachments, long text). */
+  body.chat-home-page:not([data-conversation-restore="pending"]):not(.conversation-active) .home-avatar-anchor { min-height: 0; overflow: hidden; }
+  body.chat-home-page:not(.conversation-active) .chat-composer-stack {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    padding: 10px 0 max(14px, env(safe-area-inset-bottom));
+    background: var(--hr-bg);
+  }
+  /* Profile menu rises from the bottom as a sheet. */
+  body.chat-home-page .profile-popover-layer { background: rgba(16, 24, 40, .42); }
+  body.chat-home-page[data-site-theme="dark"] .profile-popover-layer,
+  html[data-site-theme-bootstrap="dark"] body.chat-home-page:not([data-site-theme]) .profile-popover-layer { background: rgba(0, 0, 0, .62); }
+  body.chat-home-page .profile-popover {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    max-height: 80svh;
+    padding: 12px 12px max(20px, env(safe-area-inset-bottom));
+    border-radius: 20px 20px 0 0;
+    border-width: 1px 0 0;
+  }
+  body.chat-home-page .profile-popover::after { display: none; }
+  body.chat-home-page .profile-popover [role="menuitem"] { min-height: 52px; font-size: 15px; }
+}
+@media (max-width: 600px) {
+  /* One row: [+][text][send]; the choices open above it. */
+  body.chat-home-page .chat-composer,
+  body.chat-home-page:not(.conversation-active) .chat-composer { padding: 3px; align-items: end; }
+  body.chat-home-page .chat-input,
+  body.chat-home-page:not(.conversation-active) .chat-input { grid-column: 2; grid-row: 4; min-height: 44px; margin: 0 8px; padding: 10px 4px; }
+  body.chat-home-page .composer-actions [data-attachment-trigger] { grid-column: 1; grid-row: 4; }
+  body.chat-home-page .composer-actions .response-grade-control { grid-column: 3; grid-row: 4; }
+  body.chat-home-page .composer-actions .send-button { grid-column: 4; grid-row: 4; }
+  body.chat-home-page .composer-button.attachment-button { width: 44px; padding: 0; justify-content: center; }
+  body.chat-home-page .composer-button.attachment-button svg { width: 22px; height: 22px; }
+  body.chat-home-page .attachment-button-label { display: none; }
+  body.chat-home-page .attachment-menu {
+    grid-row: 1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0 0 4px;
+    padding: 8px 6px 0;
+    border-top: 0;
+  }
+  body.chat-home-page .attachment-menu[hidden] { display: none; }
+  body.chat-home-page .attachment-menu [role="menuitem"] {
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    min-height: 72px;
+    padding: 6px 4px;
+    background: var(--hr-subtle);
+    font-size: 13px;
+    text-align: center;
+  }
+  body.chat-home-page .attachment-menu [role="menuitem"]::before { width: 22px; height: 22px; }
+  body.chat-home-page .attachment-menu-hint { grid-row: 2; margin: 6px 8px 8px; font-size: 12px; line-height: 18px; text-align: left; }
+  body.chat-home-page:not(.conversation-active) .chat-safety-copy { justify-content: flex-start; margin: 8px 4px 0; text-align: left; }
+  body.chat-home-page .chat-home-footer .company-legal-row { flex-direction: column; align-items: center; row-gap: 2px; font-size: 12px; line-height: 20px; }
+  body.chat-home-page .chat-home-footer .company-separator { display: none; }
+}
+
+@media (max-width: 900px) and (prefers-color-scheme: dark) {
+  body.chat-home-page[data-site-theme="system"] .profile-popover-layer,
+  html[data-site-theme-bootstrap="system"] body.chat-home-page:not([data-site-theme]) .profile-popover-layer { background: rgba(0, 0, 0, .62); }
+}

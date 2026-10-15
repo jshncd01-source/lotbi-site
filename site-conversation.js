@@ -842,6 +842,20 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const attachmentTrigger = document.querySelector('[data-attachment-trigger]');
   const attachmentMenu = document.querySelector('[data-attachment-menu]');
   const attachmentPreview = document.querySelector('[data-attachment-preview]');
+  // SITE-MAIN-HOME-REDESIGN-01: attachment problems were only written to the
+  // screen-reader status; the composer now shows them too.
+  const attachmentErrorBox = document.querySelector('[data-attachment-error]');
+  const showAttachmentError = message => {
+    setStatus(message);
+    if (!attachmentErrorBox) return;
+    attachmentErrorBox.textContent = message;
+    attachmentErrorBox.hidden = false;
+  };
+  const clearAttachmentError = () => {
+    if (!attachmentErrorBox || attachmentErrorBox.hidden) return;
+    attachmentErrorBox.hidden = true;
+    attachmentErrorBox.textContent = '';
+  };
   const attachmentInputs = [...document.querySelectorAll('[data-attachment-input]')];
   const micButton = document.querySelector('.mic-button');
   const wakeButton = document.querySelector('[data-wake-toggle]');
@@ -5224,18 +5238,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (inFlight || attachmentUploadsInFlight) return;
     const files = Array.from(fileList || []);
     if (!files.length) return;
+    clearAttachmentError();
     let validated;
     try {
       validated = await validateAttachmentFiles(files, selectedAttachments);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '첨부 파일을 확인하지 못했습니다.');
+      showAttachmentError(error instanceof Error ? error.message : '첨부 파일을 확인하지 못했습니다.');
       return;
     }
     let guestToken = '';
     try {
       if (!sessionToken) guestToken = await ensureGuestSession();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '첨부 파일 세션을 시작하지 못했습니다.');
+      showAttachmentError(error instanceof Error ? error.message : '첨부 파일 세션을 시작하지 못했습니다.');
       return;
     }
     attachmentUploadsInFlight = validated.length;
@@ -5264,7 +5279,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         releaseComposerPreviewUrl(entry.previewUrl);
         if (isSessionError(error)) dropSessionToken();
         if (isGuestSessionError(error)) clearGuestSession();
-        setStatus(error instanceof Error ? error.message : '첨부 파일을 업로드하지 못했습니다.');
+        showAttachmentError(error instanceof Error ? error.message : '첨부 파일을 업로드하지 못했습니다.');
       } finally {
         pendingAttachmentPreviews = pendingAttachmentPreviews.filter(candidate => candidate !== entry);
         attachmentUploadsInFlight = Math.max(0, attachmentUploadsInFlight - 1);
