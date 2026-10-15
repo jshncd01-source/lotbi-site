@@ -14,12 +14,14 @@
 // This table is the only list of routes: the parser, the URL builder, the
 // login return allowlist (site-auth.js) and the conversation's openers
 // (site-conversation.js) all read it.
-import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-ac2a98a2ffa1';
+import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-72c7dc1a3cb6';
 
 export const SITE_ROUTES = Object.freeze([
   'calendar',
   'wallet',
   'scam',
+  // TROUBLE-HELPER-PAGE-01: 분쟁·사고 도우미 is a page (workspace), not a dialog.
+  'trouble',
   'care',
   'pets',
   'life',
