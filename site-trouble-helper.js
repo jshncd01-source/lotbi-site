@@ -52,7 +52,7 @@ import {
   telHref,
   visibleQuestions,
   visibleSteps,
-} from './site-trouble-helper-model.js?v=aset-a5a7175d3f1d';
+} from './site-trouble-helper-model.js?v=aset-9f4d58455fd7';
 
 const RESET_CONFIRM_MS = 6000;
 const SITUATION_ICONS = Object.freeze({
@@ -787,7 +787,7 @@ export function mountTroubleHelper(root, {resume = false} = {}) {
   }
 
   async function loadKakaoShare() {
-    try { return await import('./site-kakao-share.js?v=aset-a5a7175d3f1d'); } catch { return null; }
+    try { return await import('./site-kakao-share.js?v=aset-9f4d58455fd7'); } catch { return null; }
   }
   // Opening the 정리표 readies the KakaoTalk SDK, so the tap on 카카오로 보내기
   // reaches Kakao within the same gesture (see site-kakao-share.js).
