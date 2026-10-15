@@ -623,8 +623,12 @@ export function mountScamShield(root) {
     inputRefs.hint.hidden = !hint;
   }
 
-  function focusPanel() {
-    queueMicrotask(() => (root.querySelector('#scam-text') || root.querySelector('#scam-url') || root.querySelector('[data-scam-pick="photo"]'))?.focus());
+  // Focus never scrolls the page: it opens at the top with 대화로 돌아가기 in
+  // view. When the page itself just opened (not a tap inside it), a touch
+  // screen keeps its keyboard down: nothing is focused there.
+  function focusPanel({opened = false} = {}) {
+    if (opened && globalThis.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches) return;
+    queueMicrotask(() => (root.querySelector('#scam-text') || root.querySelector('#scam-url') || root.querySelector('[data-scam-pick="photo"]'))?.focus({preventScroll: true}));
   }
 
   function targetLabel() {
@@ -995,7 +999,7 @@ export function mountScamShield(root) {
     releasePreview();
     Object.assign(state, {phase: 'input', tab: 'text', text: '', url: '', file: null, fileKind: '', fileError: '', fieldError: '',
       incident: '', device: '', stage: 0, result: null, context: null, failure: null, moreDo: false, moreIncident: false, contactsOpen: false, open: {sig: true}, lastForm: null});
-    render(); toTop(); focusPanel();
+    render(); toTop(); focusPanel({opened: true});
     announce('확인할 내용을 입력해 주세요.');
   }
 
@@ -1009,7 +1013,7 @@ export function mountScamShield(root) {
     if (state.phase !== 'login' && state.phase !== 'checking') return;
     state.phase = 'input';
     render();
-    focusPanel();
+    focusPanel({opened: true});
     announce('로그인했어요. 확인할 내용을 입력해 주세요.');
   };
   window.addEventListener('lotbi:site-session-state', onSession);
@@ -1019,7 +1023,7 @@ export function mountScamShield(root) {
     if (disposed) return;
     state.phase = authenticated ? 'input' : 'login';
     render();
-    if (authenticated) { focusPanel(); announce('확인할 내용을 입력해 주세요.'); }
+    if (authenticated) { toTop(); focusPanel({opened: true}); announce('확인할 내용을 입력해 주세요.'); }
   });
 
   return {
