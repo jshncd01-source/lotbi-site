@@ -76,11 +76,12 @@ assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 assert.doesNotMatch(read('site-consumer-layout.css'), /\.consumer-shortcuts \{ grid-template-columns: minmax\(0, 1fr\); \}/);
 assert.match(css, /min-height: 44px/);
 assert.match(css, /input:focus-visible/);
-assert.match(read('site-scam-shield.js'), /scamOutsideBound/);
-const scam = read('site-scam-shield.js');
-assert.match(scam, /function restoreDialogFocus\(\)/, 'all close paths share visible-trigger focus restoration');
-assert.match(scam, /visibleTrigger \? dialogTrigger : document\.querySelector\('\[data-mobile-nav-open\]'\)/, 'a hidden mobile trigger must fall back to the visible menu button');
-assert.match(scam, /target\?\.focus\?\.\(\)/);
-assert.match(scam, /dialog\.addEventListener\('close', restoreDialogFocus\)/, 'native close restores focus');
-assert.match(scam, /dialog\.removeAttribute\('aria-modal'\);\s*restoreDialogFocus\(\);/, 'fallback close restores focus');
+// SCAM-PHISHING-REDESIGN-02 — 사기·피싱 확인 is a workspace page: every close path
+// (header ←, in-page 대화로 돌아가기, Escape, back) goes through closeSurface,
+// which restores focus to the control that opened it.
+const conversationSource = read('site-conversation.js');
+assert.match(conversationSource, /installSurfaceBehavior\(backdrop, panel, \{workspace: 'scam', route: 'scam'/);
+assert.match(conversationSource, /surfaceRestoreFocus = initiatingFocus;/, 'the opener is remembered');
+assert.match(conversationSource, /if \(restoreTarget\) queueMicrotask\(\(\) => \{ if \(restoreTarget\.isConnected\) restoreTarget\.focus\(\); \}\);/, 'closing restores focus');
+assert.match(conversationSource, /if \(isScamShieldOpen\(\)\) leaveSiteRoute\('', \(\) => \{ if \(isScamShieldOpen\(\)\) closeSurface\(\); \}\);/, 'in-page close shares the same path');
 console.log('CONSUMER_SECTIONS_02 PASS — entry UX and safety source contracts, not backend E2E');

@@ -1,6 +1,6 @@
 // SITE-REFRESH-ROUTE-RESTORE-01 — a reload keeps the screen the reader was on.
 //
-// The Site is one document (/). Its screens (캘린더 · Life Wallet · 진위확인 ·
+// The Site is one document (/). Its screens (캘린더 · Life Wallet · 사기·피싱 확인 ·
 // 안심케어 · 반려동물 · 생활정보 · 축제·행사) are surfaces over the
 // conversation and are now named by the URL fragment (site-route.js), so
 // reload, a typed URL, a new tab and back/forward reach the same screen.
@@ -65,7 +65,7 @@ assert.ok(openersStart > 0 && openersEnd > openersStart, 'siteRouteOpeners table
 const openerKeys = [...conversation.slice(openersStart, openersEnd).matchAll(/^\s*'?([a-z-]+)'?: \(\) =>/gmu)].map(match => match[1]);
 assert.deepEqual(openerKeys, EXPECTED_ROUTES, 'one opener per route, same order as site-route.js');
 const surfaceRoutes = [...conversation.matchAll(/route: '([a-z-]+)'/gu)].map(match => match[1]);
-assert.deepEqual([...new Set(surfaceRoutes)].sort(), ['calendar', 'ev-chargers', 'festival', 'onnuri', 'pets', 'real-estate', 'subway', 'subway-station', 'trouble'].sort());
+assert.deepEqual([...new Set(surfaceRoutes)].sort(), ['calendar', 'ev-chargers', 'festival', 'onnuri', 'pets', 'real-estate', 'subway', 'scam', 'subway-station', 'trouble'].sort());
 for (const route of surfaceRoutes) assert.ok(isSiteRoute(route), route);
 assert.match(conversation, /installSurfaceBehavior\(backdrop, panel, \{workspace: section, route, onClose/u, 'wallet/care/life surfaces carry their section route');
 assert.match(conversation, /const route = section === 'care' && careTab === 'pets' \? 'pets' : section;/u);
@@ -73,12 +73,15 @@ assert.match(conversation, /window\.addEventListener\('popstate', \(\) => \{/u);
 assert.match(conversation, /window\.history\.pushState\(\{lotbiRoute: visible, lotbiRouteFrom: inUrl, lotbiRouteKey: key\}, '', siteRouteUrl\(visible\)\)/u);
 assert.match(conversation, /routeEntriesPushedHere\.has\(entry\.lotbiRouteKey\) && entry\.lotbiRouteFrom === visible/u, 'history.back() only into an entry this document wrote');
 assert.doesNotMatch(conversation, /location\.hash\s*=(?!=)/u, 'routes are written through the History API only');
+// 사기·피싱 확인 is a routed workspace page like the others (SCAM-PHISHING-REDESIGN-02):
+// the conversation owns its route, and the page module only asks to open or close.
 const scam = read('site-scam-shield.js');
-assert.match(scam, /window\.addEventListener\('lotbi:scam-shield-open-request', \(\) => \{\s*if \(dialog && !dialog\.hasAttribute\('open'\)\) void openDialog\(\);/u);
-assert.match(scam, /window\.addEventListener\('lotbi:scam-shield-close-request', \(\) => \{\s*if \(dialog\?\.hasAttribute\('open'\)\) closeDialog\(\);/u);
-assert.doesNotMatch(scam, /^\s*(export|import)\s/mu, 'site-scam-shield.js stays a plain script (validate_scam_shield_mvp_01 runs it in a vm)');
-assert.match(scam, /if \(dialog\.open\) dialog\.close\(\);\s*finishDialogClose\(\);/u, 'native dialog close updates the route without waiting for its close event');
-assert.match(scam, /function finishDialogClose\(\) \{[\s\S]*?if \(!wasVisible\) return;[\s\S]*?notifyScamShieldVisibility\(\);/u, 'native close event cleanup is idempotent');
+assert.match(scam, /^export function mountScamShield\(root\) \{/mu, 'site-scam-shield.js mounts into the workspace the conversation opens');
+assert.doesNotMatch(scam, /history\.(?:pushState|replaceState|back)|location\.hash/u, 'the page module never writes the route itself');
+assert.match(conversation, /installSurfaceBehavior\(backdrop, panel, \{workspace: 'scam', route: 'scam', onClose: \(\) => mounted\?\.dispose\(\)\}\);/u);
+assert.match(conversation, /window\.addEventListener\('lotbi:scam-shield-open-request', \(\) => \{ void openScamShieldPage\(\); \}\);/u);
+assert.match(conversation, /window\.addEventListener\('lotbi:scam-shield-close-request', \(\) => \{\s*if \(isScamShieldOpen\(\)\) leaveSiteRoute\('', \(\) => \{ if \(isScamShieldOpen\(\)\) closeSurface\(\); \}\);\s*\}\);/u, 'closing from the page goes through the route history');
+assert.match(conversation, /const openScamShieldPage = \(\) => \{\s*if \(isScamShieldOpen\(\)\) return;/u, 'a second open request keeps the one page');
 
 // ── Login return target: a closed set on / ──────────────────────────────
 const {
@@ -253,7 +256,7 @@ const FLASH_PROBE = `(() => {
     const want = expected();
     if (want && !probe.opened) {
       probe.frames += 1;
-      const open = want === 'scam' ? document.querySelector('[data-scam-dialog]')?.open : document.querySelector('[data-site-route="' + want + '"]');
+      const open = document.querySelector('[data-site-route="' + want + '"]');
       if (open) probe.opened = true;
       else {
         const prompt = document.getElementById('lotbi-prompt');
@@ -279,7 +282,7 @@ const AGREEMENT_PROBE = `(() => {
   const probe = window.__routeAgreement = {looks: 0, pops: 0, mismatches: []};
   window.addEventListener('popstate', () => { probe.pops += 1; });
   const urlRoute = () => { const hash = location.hash; if (hash === '' || hash === '#') return ''; return routes.has(hash.slice(1)) ? hash.slice(1) : null; };
-  const onScreen = () => (document.querySelector('[data-scam-dialog]')?.open ? 'scam' : [...document.querySelectorAll('[data-site-route]')].at(-1)?.dataset.siteRoute || '');
+  const onScreen = () => [...document.querySelectorAll('[data-site-route]')].at(-1)?.dataset.siteRoute || '';
   const look = when => {
     if (!document.body || document.documentElement.hasAttribute('data-site-route-pending')) return;
     const url = urlRoute();
@@ -403,9 +406,9 @@ async function runCase(browser, origin, workDir, testCase) {
       auth: document.body?.dataset.siteAuthState || '',
       pending: document.documentElement.hasAttribute('data-site-route-pending'),
       routes: [...document.querySelectorAll('[data-site-route]')].map(node => node.dataset.siteRoute),
-      scam: Boolean(document.querySelector('[data-scam-dialog]')?.open),
-      scamGate: Boolean(document.querySelector('[data-scam-dialog]')?.open && !document.querySelector('[data-scam-login-gate]')?.hidden),
-      scamWorkspace: Boolean(document.querySelector('[data-scam-dialog]')?.open && !document.querySelector('[data-scam-workspace]')?.hidden),
+      scam: Boolean(document.querySelector('[data-site-route="scam"]')),
+      scamGate: document.querySelector('[data-site-route="scam"] .scam-page')?.dataset.scamPhase === 'login' && Boolean(document.querySelector('[data-site-route="scam"] [data-scam-login-gate]')),
+      scamWorkspace: document.querySelector('[data-site-route="scam"] .scam-page')?.dataset.scamPhase === 'input' && Boolean(document.querySelector('[data-site-route="scam"] [data-scam-submit]')),
       careTab: document.querySelector('[data-site-route] [data-care-tab][aria-selected="true"]')?.dataset.careTab || '',
       surfaceText: (document.querySelector('[data-site-route]')?.textContent || '').replace(/\\s+/g, ' ').slice(0, 400),
       homeVisible: (() => { const prompt = document.getElementById('lotbi-prompt'); const block = prompt?.closest('#main-content > *'); return Boolean(prompt && block && getComputedStyle(prompt).visibility === 'visible' && Number(getComputedStyle(block).opacity) > 0.01); })(),
@@ -415,7 +418,7 @@ async function runCase(browser, origin, workDir, testCase) {
       authedCoreCalls: (window.__routeTestRequests || []).filter(item => item.auth).map(item => item.path),
       thread: [...document.querySelectorAll('#conversation-thread .chat-message')].map(node => node.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(-4),
     }))()`);
-    const visibleRoute = state => (state.scam ? 'scam' : state.routes.at(-1) || '');
+    const visibleRoute = state => state.routes.at(-1) || '';
     // The route the URL names: '' (no fragment) or a route; a fragment that is
     // not a route (#does-not-exist) leaves the home on screen.
     const urlRoute = state => parseSiteRouteHash(state.url.includes('#') ? state.url.slice(state.url.indexOf('#')) : '');
@@ -481,8 +484,7 @@ async function runCase(browser, origin, workDir, testCase) {
       }
     };
     const closeScreen = async route => {
-      if (route === 'scam') await tapSelector('[data-scam-dialog] [data-scam-close]');
-      else await tapSelector(`[data-site-route="${route}"] .site-modal-close`);
+      await tapSelector(`[data-site-route="${route}"] .site-modal-close`);
     };
     const flashCheck = (state, label) => {
       check(`${label}: no home frame before the screen`, state.flash && state.flash.homeFrames === 0, state.flash);
@@ -651,7 +653,7 @@ async function runCase(browser, origin, workDir, testCase) {
     await closeScreen('calendar');
     await settled('', 'L calendar closed');
 
-    // 진위확인: ×, 취소 and Escape before the step lands → one step back home.
+    // 사기·피싱 확인: 대화로 돌아가기 twice, 취소 and Escape before the step lands → one step back home.
     await openFromMenu('scam');
     await settled('scam', 'L scam');
     const scamFocusTarget = testCase.mobile
@@ -666,10 +668,10 @@ async function runCase(browser, origin, workDir, testCase) {
     indexBefore = await historyIndex();
     popsBefore = await popCount();
     await evaluate(`(() => {
-      const dialog = document.querySelector('[data-scam-dialog]');
-      dialog.querySelector('[data-scam-close]').click();
-      dialog.querySelector('[data-scam-close]').click();
-      dialog.querySelector('[data-scam-login-cancel]')?.click();
+      const screen = document.querySelector('[data-site-route="scam"]');
+      screen.querySelector('.site-modal-close').click();
+      screen.querySelector('.site-modal-close').click();
+      screen.querySelector('[data-scam-login-cancel]')?.click();
       document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));
       return true;
     })()`);
@@ -679,8 +681,8 @@ async function runCase(browser, origin, workDir, testCase) {
     indexAfter = await historyIndex();
     pops = await popCount() - popsBefore;
     const focusRestores = await evaluate('window.__scamFocusRestores');
-    check('L 진위확인 ×, ×, 취소 and Escape before the step lands → one step back home', state.url === '/' && !state.scam && indexAfter === indexBefore - 1 && pops === 1 && state.docId === doc, {state, indexBefore, indexAfter, pops});
-    check('L 네이티브 close 이벤트가 보이는 진입점으로 초점을 한 번만 복원', focusRestores === 1, {focusRestores, scamFocusTarget});
+    check('L 사기·피싱 확인 돌아가기, 돌아가기, 취소 and Escape before the step lands → one step back home', state.url === '/' && !state.scam && indexAfter === indexBefore - 1 && pops === 1 && state.docId === doc, {state, indexBefore, indexAfter, pops});
+    check('L 페이지를 닫으면 보이는 진입점으로 초점을 한 번만 복원', focusRestores === 1, {focusRestores, scamFocusTarget});
 
     // Escape with the focus outside the screen (the document's own Escape).
     await openFromMenu('life');
@@ -807,17 +809,17 @@ async function runCase(browser, origin, workDir, testCase) {
     state = await settled('wallet', 'wallet after login', 20000);
     check('I 로그인하기 on /#wallet → /auth/start/#wallet → back on Life Wallet, signed in', handoffs.length === handoffsBefore + 1 && state.url === '/#wallet' && state.auth === 'authenticated' && !/로그인하기/u.test(state.surfaceText), {handoffs: handoffs.length, state});
     await flashCheck(state, 'wallet login return');
-    // 진위확인's login starts the handoff from the page itself.
+    // 사기·피싱 확인's login starts the handoff from the page itself.
     await evaluate("localStorage.setItem('__routeTestMode', 'anonymous'); true");
     await navigate('about:blank');
     await navigate(`${origin}/#scam`);
     state = await settled('scam', 'guest scam');
-    check('I guest /#scam → 진위확인 login gate', state.scamGate && state.authedCoreCalls.length === 0, state);
+    check('I guest /#scam → 사기·피싱 확인 login gate', state.scamGate && state.authedCoreCalls.length === 0, state);
     await evaluate("localStorage.setItem('__routeTestMode', 'authenticated'); sessionStorage.setItem('__routeExpect', 'scam'); true");
     handoffsBefore = handoffs.length;
-    await tapSelector('[data-scam-dialog] [data-scam-login]');
+    await tapSelector('[data-site-route="scam"] [data-scam-login]');
     state = await settled('scam', 'scam after login', 20000);
-    check('I login from /#scam → back on 진위확인, signed in', handoffs.length === handoffsBefore + 1 && state.url === '/#scam' && state.scamWorkspace && state.auth === 'authenticated', {handoffs: handoffs.length, state});
+    check('I login from /#scam → back on 사기·피싱 확인, signed in', handoffs.length === handoffsBefore + 1 && state.url === '/#scam' && state.scamWorkspace && state.auth === 'authenticated', {handoffs: handoffs.length, state});
     await flashCheck(state, 'login return');
     await closeScreen('scam');
     await settled('', 'scam closed signed in');

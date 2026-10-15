@@ -30,13 +30,17 @@ assert.match(authStart, /color: #212121/);
 assert.match(authStart, /max-width: 460px/);
 assert.match(authStart, /a:focus-visible/);
 assert.match(authStart, /\[hidden\] \{ display: none !important/);
-assert.match(read('site-scam-shield.js'), /분석 근거 자세히 보기/);
+// SCAM-PHISHING-REDESIGN-02 — the technical evidence stays one tap away, folded
+// under 상세 분석 (closed by default) below the plain-language result.
+assert.match(read('site-scam-shield.js'), /section\('tech', '상세 분석', '기술 정보 · 필요할 때만 보세요'/);
+assert.match(read('site-scam-shield.js'), /open: \{sig: true\}/);
 // LIFE-MEDICAL-AUTO-SEARCH-01: a life request is sent at once, never drafted for a second tap.
 assert.match(read('site-consumer-sections.js'), /롯비에게 물어보기/);
 assert.match(read('site-consumer-sections.js'), /누르면 바로 롯비에게 물어봐요/);
 assert.doesNotMatch(read('site-consumer-sections.js'), /질문 준비하기|다음 화면에서 질문을 확인한 뒤 보내세요/);
 // Conditional scam questions must stay hidden until the user chooses the incident path.
-assert.match(read('site-scam-shield.css'), /\.scam-dialog \[hidden\]\s*\{\s*display:\s*none\s*!important/);
+assert.match(read('site-scam-shield.css'), /\.scam-page\.sp-root \[hidden\]\s*\{\s*display:\s*none\s*!important/);
+assert.match(read('site-scam-shield.js'), /state\.incident === 'yes' \? followUp\(\) : null/);
 const layout = read('site-consumer-layout.css');
 const manager = read('site-calendar-manager.js');
 // LIFE UX 01: the phone toolbar is two rows (‹ month › 오늘 ⚙ / 월 주 목록); the

@@ -804,14 +804,15 @@ async function runFlow(browser, origin, dir, testCase) {
       out.measure = __th.measure();
       __th.click('[data-trouble-scam-shield]');
       await __th.wait(() => !__th.ws(), 'page closed for 사기·피싱 확인');
-      await __th.sleep(200);
-      out.scamOpen = Boolean(document.querySelector('dialog.scam-dialog[open], [data-scam-dialog][open]'));
+      // 사기·피싱 확인 is its own page (#scam) since SCAM-PHISHING-REDESIGN-02.
+      await __th.wait(() => document.querySelector('[data-site-route="scam"] .scam-page'), '사기·피싱 확인 page');
+      out.scamOpen = Boolean(document.querySelector('.consumer-workspace[data-workspace="scam"]')) && !document.querySelector('dialog[open]');
       out.hash = location.hash;
       return out;
     })()`);
 
     // 그 밖의 법률 고민: no emergency line, 잘 모르겠어요 added, goto 월급 못 받음.
-    await evaluate("(async () => { document.querySelectorAll('dialog[open]').forEach(d => d.close()); await __th.sleep(300); return true; })()");
+    await evaluate("(async () => { document.querySelector('[data-site-route=\"scam\"] .site-modal-close')?.click(); await __th.wait(() => !document.querySelector('[data-site-route=\"scam\"]'), 'scam page closed'); document.querySelectorAll('dialog[open]').forEach(d => d.close()); await __th.sleep(300); return true; })()");
     r.reopen = await evaluate(OPEN(testCase.mobile));
     r.other = await evaluate(`(async () => {
       await __th.onView('hub');

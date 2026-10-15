@@ -38,14 +38,17 @@ check('#5 drawer keeps the connected-services name', () => {
 
 // #4 — 진위확인 closes the mobile drawer before its dialog opens, the way every
 // other drawer item (openConsumerSection → closeMobileDrawer) already does.
-check('#4 scam dialog closes the drawer first', () => {
-  const body = scam.slice(scam.indexOf('async function openDialog('), scam.indexOf('function resetScamFlow('));
-  const close = body.indexOf("document.querySelector('[data-mobile-nav-close]')");
-  const modal = body.indexOf('dialog.showModal()');
-  assert.ok(close > 0 && modal > close, 'drawer close must run before showModal');
-  assert.match(body, /classList\.contains\('nav-drawer-open'\) && drawerClose instanceof HTMLButtonElement\) drawerClose\.click\(\)/);
-  // The focus fallback that makes closing the drawer safe stays in place.
-  assert.match(scam, /const target = visibleTrigger \? dialogTrigger : document\.querySelector\('\[data-mobile-nav-open\]'\);/);
+// SCAM-PHISHING-REDESIGN-02 — 사기·피싱 확인 is now a workspace page opened from
+// site-conversation.js: it closes the drawer before the page shell is built,
+// and the workspace close restores focus like every other page.
+check('#4 scam page closes the drawer first', () => {
+  const conversation = read('site-conversation.js');
+  const body = conversation.slice(conversation.indexOf('const openScamShieldPage = () => {'), conversation.indexOf("window.addEventListener('lotbi:scam-shield-open-request'"));
+  const close = body.indexOf('closeMobileDrawer();');
+  const shell = body.indexOf("modalShell('사기·피싱 확인')");
+  assert.ok(close > 0 && shell > close, 'drawer close must run before the page opens');
+  assert.match(conversation, /const restoreTarget = surfaceRestoreFocus instanceof HTMLElement && surfaceRestoreFocus\.isConnected \? surfaceRestoreFocus : undefined;/);
+  assert.doesNotMatch(scam, /showModal/);
 });
 
 // #21 — the gate's mark is a padlock, not a lone dot.
