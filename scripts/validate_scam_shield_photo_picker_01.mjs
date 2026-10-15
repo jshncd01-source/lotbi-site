@@ -98,9 +98,13 @@ const MOCK = `(() => {${BASE_MOCK}
       officialSources: [], doubleCheck: null, policeStatistics: null,
     };
     const answer = () => { event.detail.resolve(response); window.__scamResolved.push(marker); };
-    const delay = slow ? 1500 : (fast ? 30 : 0);
-    if (delay) setTimeout(answer, delay); else answer();
+    // A slow request is answered only when the check releases it (after the
+    // newer result is on screen), never by a timer a busy gate can outrun.
+    if (slow) (window.__scamSlow = window.__scamSlow || []).push(answer);
+    else if (fast) setTimeout(answer, 30);
+    else answer();
   });
+  window.__releaseSlow = () => { const held = window.__scamSlow || []; window.__scamSlow = []; held.forEach(answer => answer()); return held.length; };
 })();`;
 
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
@@ -480,6 +484,7 @@ async function runCase(browser, origin, workDir, files, testCase) {
       await waitFor(async () => (await sentCount()) === beforeRace + 2, 'second text request');
       await waitResult(state => state.summary.includes('빠른 두 번째 검사 (같은 화면)'), 'latest result visible');
       check('the slow response was still pending when the newer result showed', !(await p.evaluate('window.__scamResolved')).includes('느린 첫 검사 (같은 화면)'), {});
+      check('the slow response is released after the newer result', (await p.evaluate('window.__releaseSlow()')) === 1, {});
       await waitFor(() => p.evaluate("window.__scamResolved.includes('느린 첫 검사 (같은 화면)')"), 'slow response answered');
       await sleep(150);
       const raced = await p.evaluate(RESULT);
@@ -499,6 +504,7 @@ async function runCase(browser, origin, workDir, files, testCase) {
       await p.tap('[data-scam-submit]');
       await waitResult(state => state.summary.includes('빠른 두 번째 검사 (돌아온 뒤)'), 'result after coming back');
       check('the left page\'s request was still pending when the new result showed', !(await p.evaluate('window.__scamResolved')).includes('느린 첫 검사 (돌아가기 전)'), {});
+      check('the left page request is released after the new result', (await p.evaluate('window.__releaseSlow()')) === 1, {});
       await waitFor(() => p.evaluate("window.__scamResolved.includes('느린 첫 검사 (돌아가기 전)')"), 'left request answered');
       await sleep(150);
       const returned = await p.evaluate(RESULT);
