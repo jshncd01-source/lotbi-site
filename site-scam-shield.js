@@ -13,7 +13,7 @@
 // Requests still go through window events answered by site-conversation.js,
 // which owns the session token.
 
-import {scamOfficialUrl} from './site-core.js?v=aset-9f4d58455fd7';
+import {scamOfficialUrl} from './site-core.js?v=aset-66255ae7fee8';
 
 const allowedFileTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'text/plain', 'text/html', 'application/xhtml+xml', 'application/pdf']);
 const allowedFileExtensions = new Set(['jpg', 'jpeg', 'png', 'webp', 'pdf', 'txt', 'html', 'htm']);
