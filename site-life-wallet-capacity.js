@@ -1,4 +1,4 @@
-import {CORE_ORIGIN} from './site-core.js?v=aset-769a42fd66ce';
+import {CORE_ORIGIN} from './site-core.js?v=aset-7ce47b43cff4';
 
 const MESSAGES = Object.freeze({
   LIFE_WALLET_ITEM_LIMIT_REACHED: 'Life Wallet 저장 한도에 도달했습니다. 기존 자료는 그대로 보관되며 새 자료만 추가할 수 없습니다.',
