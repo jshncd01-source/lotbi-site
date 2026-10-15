@@ -39,7 +39,8 @@ const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const {SITE_ROUTES, isSiteRoute, parseSiteRouteHash, siteRouteHash, siteRouteUrl} = await import('../site-route.js');
 const {LIFE_LOCAL_CARD_ENABLED} = await import('../site-feature-flags.js');
 // REGIONAL-INFO-BACK-NAVIGATION-01: the screens inside 지역정보 and 온누리 have routes.
-const EXPECTED_ROUTES = ['calendar', 'wallet', 'scam', 'care', 'pets', 'life', 'life-medical', 'life-news', 'life-local', 'life-my-child', 'life-education', 'festival', 'onnuri', 'real-estate', 'real-estate-apartment', 'ev-chargers', 'subway', 'subway-station'];
+// TROUBLE-HELPER-PAGE-01: 분쟁·사고 도우미 is a page (#trouble) right after 진위확인.
+const EXPECTED_ROUTES = ['calendar', 'wallet', 'scam', 'trouble', 'care', 'pets', 'life', 'life-medical', 'life-news', 'life-local', 'life-my-child', 'life-education', 'festival', 'onnuri', 'real-estate', 'real-estate-apartment', 'ev-chargers', 'subway', 'subway-station'];
 assert.deepEqual([...SITE_ROUTES], EXPECTED_ROUTES);
 assert.ok(Object.isFrozen(SITE_ROUTES));
 for (const route of SITE_ROUTES) {
@@ -64,7 +65,7 @@ assert.ok(openersStart > 0 && openersEnd > openersStart, 'siteRouteOpeners table
 const openerKeys = [...conversation.slice(openersStart, openersEnd).matchAll(/^\s*'?([a-z-]+)'?: \(\) =>/gmu)].map(match => match[1]);
 assert.deepEqual(openerKeys, EXPECTED_ROUTES, 'one opener per route, same order as site-route.js');
 const surfaceRoutes = [...conversation.matchAll(/route: '([a-z-]+)'/gu)].map(match => match[1]);
-assert.deepEqual([...new Set(surfaceRoutes)].sort(), ['calendar', 'ev-chargers', 'festival', 'onnuri', 'pets', 'real-estate', 'subway', 'subway-station'].sort());
+assert.deepEqual([...new Set(surfaceRoutes)].sort(), ['calendar', 'ev-chargers', 'festival', 'onnuri', 'pets', 'real-estate', 'subway', 'subway-station', 'trouble'].sort());
 for (const route of surfaceRoutes) assert.ok(isSiteRoute(route), route);
 assert.match(conversation, /installSurfaceBehavior\(backdrop, panel, \{workspace: section, route, onClose/u, 'wallet/care/life surfaces carry their section route');
 assert.match(conversation, /const route = section === 'care' && careTab === 'pets' \? 'pets' : section;/u);
@@ -735,7 +736,11 @@ async function runCase(browser, origin, workDir, testCase) {
     await settled('', 'home for conversation');
     await evaluate(`(() => { const prompt = document.getElementById('lotbi-prompt'); prompt.value = '새로고침 경로 테스트 질문'; prompt.dispatchEvent(new Event('input', {bubbles: true})); return true; })()`);
     await tapSelector('.send-button');
-    state = await waitFor(async () => { const s = await snapshot(); return s.thread.some(text => text.includes('경로 테스트 답변')) ? s : {ok: false, s}; }, 'guest answer');
+    // A synthetic touch on a loaded 2-CPU gate runner is sometimes dropped; tap again only
+    // while the question is still sitting unsent in the composer (never a double send).
+    const asked = await waitFor(async () => { const s = await snapshot(); return s.thread.some(text => text.includes('새로고침 경로 테스트 질문')) ? s : {ok: false, s}; }, 'guest question shown', 5000).catch(() => null);
+    if (!asked && String(await evaluate("document.getElementById('lotbi-prompt')?.value || ''")).includes('새로고침 경로 테스트 질문')) await tapSelector('.send-button');
+    state = await waitFor(async () => { const s = await snapshot(); return s.thread.some(text => text.includes('경로 테스트 답변')) ? s : {ok: false, s}; }, 'guest answer', 30000);
     await reload();
     state = await waitFor(async () => { const s = await snapshot(); return s.ready && s.thread.some(text => text.includes('새로고침 경로 테스트 질문')) ? s : {ok: false, s}; }, 'conversation after reload');
     check('F conversation reload → same conversation', state.url === '/' && state.thread.some(text => text.includes('경로 테스트 답변')), state);

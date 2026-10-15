@@ -23,6 +23,7 @@ for (const [, selector, rule] of css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/
   assert.ok(selector.includes('body:not([data-site-theme="dark"])'), 'palette must exclude dark');
   assert.ok(/care|person-care-surface|pet-family-surface/.test(selector), 'palette must be family-scoped');
 }
+const personUiSource = () => read('site-person-ui.js');
 const styles = name => [...read(name).matchAll(/href="(?:\/)?(site-[^"?]+\.css)\?v=/g)].map(match => match[1]);
 const entry = styles('index.html');
 const callback = styles('auth/callback/index.html');
@@ -31,6 +32,9 @@ for (const list of [entry, callback]) {
   assert.ok(position >= 0);
   assert.equal(list[position + 1], 'site-family-guardian.css');
 }
+// FAMILY-GUARDIAN-DESIGN-UNIFY-01: the approved design system loads last in both entries.
+for (const list of [entry, callback]) assert.equal(list[list.length - 1], 'site-family-guardian-ds.css', 'design system stylesheet loads last');
+assert.ok(!personUiSource().includes('globalThis.confirm') && !read('site-family-location-ui.js').includes('globalThis.confirm'), 'no browser confirm() in 가족 지킴이');
 assert.deepEqual(entry.filter(name => /pet|person|safecare|family-guardian/.test(name)),
   callback.filter(name => /pet|person|safecare|family-guardian/.test(name)), 'both entries load family styles in identical order');
 for (const name of ['index.html', 'about.html', 'subscribe.html', 'site-person.js', 'site-person-ui.js', 'site-pet-ui.js']) {
@@ -45,11 +49,11 @@ for (const copy of [
   '다양한 각도와 상황의 사진을 최대 10장까지 등록하면 인식에 도움이 될 수 있어요.',
 ]) assert.ok(personBulk.includes(copy), `approved photo copy: ${copy}`);
 for (const copy of [
-  '사진을 등록해 주세요',
+  '사진 5장을 골라 주세요',
   '참고 이미지 사진입니다.',
   '사진을 선택하면 등록할 사람의 사진으로 변경됩니다.',
   '인식을 돕는 사진 더 추가하기 (선택)',
-  '실종 신고 접수',
+  '실종 상태로 전환',
 ]) assert.ok(personUi.includes(copy), `approved screen copy: ${copy}`);
 assert.ok(personGuides.includes('PERSON_REQUIRED_EXAMPLE_SLOTS') && personGuides.includes('PERSON_OPTIONAL_EXAMPLE_SLOTS'),
   'five required examples and optional capacity stay structurally separate');

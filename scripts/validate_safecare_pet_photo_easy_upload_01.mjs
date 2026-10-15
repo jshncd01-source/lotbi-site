@@ -265,7 +265,7 @@ class Cdp {
 
 const FORBIDDEN = ['100%', '확정', '일치합니다', '찾았습니다', '찾았어요', '동일 개체'];
 const TEN_REQUIRED = ['10장을 모두', '남은 사진', '/ 10', '/10', '사진 10장'];
-const RECOMMEND = '다음 단계로 넘어갈 수 있어요. 사진을 더 올리면(최대 10장) 찾을 확률을 높일 수 있어요.';
+const RECOMMEND = '다음 단계로 넘어갈 수 있어요. 사진을 더 올리면(최대 10장) 비교에 도움이 될 수 있어요.';
 const SHOTS = process.env.SAFECARE_SCREENSHOT_DIR ? path.resolve(process.env.SAFECARE_SCREENSHOT_DIR) : '';
 if (SHOTS) fs.mkdirSync(SHOTS, {recursive: true});
 const VIEWPORTS = [['mobile-360', 360, 780], ['mobile-390', 390, 844], ['mobile-412', 412, 915], ['desktop-1440', 1440, 900]]
@@ -333,7 +333,7 @@ try {
           filled: [...document.querySelectorAll('[data-pet-draft-slot][data-pet-slot-filled="true"]')].map(tile => tile.dataset.petDraftSlot).sort(),
           deleteButtons: document.querySelectorAll('[data-pet-draft-slot-delete]').length};
       `);
-      assert.equal(r.before.step, '반려동물 등록 2단계 / 4단계 · 사진', where);
+      assert.equal(r.before.step, '반려동물 등록 2단계 / 4단계 · 식별 사진', where);
       assert.deepEqual(r.before.counter, {text: '얼굴 0/3 · 몸 0/2 · 지금 0장 (10장까지)', complete: 'false'}, where);
       assert.equal(r.before.next, true, `${where}: nothing yet, no next step`);
       assert.equal(r.before.tileControls, 0, `${where}: the ten tiles are examples without a picker`);
@@ -418,7 +418,7 @@ try {
       assert.deepEqual(r.posts, ['face', 'face', 'body', 'body'], where);
       assert.deepEqual(r.rows.map(row => row.state), ['STORED', 'STORED', 'STORED', 'STORED'], where);
       assert.equal(r.count, '얼굴 3/3 · 몸 2/2 · 지금 7장', where);
-      assert.equal(r.note, '실종 상태로 전환할 수 있어요. 사진을 더 올리면(최대 10장) 찾을 확률을 높일 수 있어요.', where);
+      assert.equal(r.note, '실종 상태로 전환할 수 있어요. 사진을 더 올리면(최대 10장) 비교에 도움이 될 수 있어요.', where);
     }
     console.log(`  ${label}: pet registration batch (five-photo set), refusals with next steps, room, 사진 갱신·관리 PASS`);
   }
