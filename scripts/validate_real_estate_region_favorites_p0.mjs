@@ -74,7 +74,7 @@ const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
   assert.doesNotMatch(screen, /setItem\([^)]*latitude|savedLifeRegion|lotbi\.calendar\.weather-region/u, 'the LOTBI 기본 생활지역 is never written');
 
   const sections = read('site-consumer-sections.js');
-  assert.match(sections, /\{id: 'real-estate', label: '부동산 실거래가', description: '우리 동네 실제 거래 가격', icon: 'building'\}/u);
+  assert.match(sections, /\{id: 'real-estate', label: '부동산 실거래가', description: '우리 동네 아파트 실제 거래', icon: 'building'\}/u);
   assert.match(sections, /item\.id === 'real-estate' \? onRealEstate\?\.\(\)/u);
   const routes = read('site-route.js');
   assert.match(routes, /'real-estate',\n\s+'real-estate-apartment',/u);
@@ -524,8 +524,8 @@ async function runCase(browser, origin, dir, testCase) {
     const shortcut = state.shortcuts.find(item => item.id === 'real-estate');
     assert.deepEqual({title: shortcut.title, description: shortcut.description, accessibleName: shortcut.accessibleName}, {
       title: '부동산 실거래가',
-      description: '우리 동네 실제 거래 가격',
-      accessibleName: '부동산 실거래가. 우리 동네 실제 거래 가격',
+      description: '우리 동네 아파트 실제 거래',
+      accessibleName: '부동산 실거래가. 우리 동네 아파트 실제 거래',
     });
     if (testCase.width <= 600) {
       const tops = [...new Set(state.shortcuts.map(item => Math.round(item.box.y)))];

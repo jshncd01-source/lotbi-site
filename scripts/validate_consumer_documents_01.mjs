@@ -30,7 +30,7 @@ assert.match(sections, /openLifeDetail\(item\)/);
 assert.match(sections, /queryForm\.addEventListener\('submit'/);
 assert.match(sections, /event\.preventDefault\(\)/);
 assert.match(sections, /if \(disposed\) return/);
-assert.match(sections, /home\.append\(location, heading, grid\)/, 'the approved category home contains only location, heading, and grid');
+assert.match(sections, /home\.append\(location, locationNote, heading, grid, privacyNote\)/, 'the approved category home (REGIONAL-INFO-UNIFY-01) holds only the region bar, its note, the heading, the grid and the location note');
 assert.match(sections, /root\.replaceChildren\(home\)/, 'back restores the approved category home only');
 assert.match(sections, /출발지.*서울역/);
 assert.match(sections, /목적지.*전주 한옥마을/);

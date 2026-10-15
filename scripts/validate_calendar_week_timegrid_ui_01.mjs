@@ -78,6 +78,7 @@ try {
     timezone: 'Asia/Seoul', now: new Date('2026-09-21T01:00:00Z'),
   });
   await wait(() => root.querySelector('.calendar-week-agenda'), 'week mounted');
+  await wait(() => root.querySelectorAll('[data-calendar-fixed-expense="week"] .calendar-amount-category').length === 6, 'week expense settled');
   const result = {ok: true, viewport: {width: innerWidth, height: innerHeight}};
   const section = root.querySelector('.calendar-week-agenda');
   const amountSlot = root.querySelector('.calendar-amount-slot');
@@ -85,6 +86,22 @@ try {
   const calendarViewport = root.querySelector('.calendar-viewport');
   const actionRect = actionSlot?.getBoundingClientRect();
   const weekRect = section?.getBoundingClientRect();
+  const fixedExpense = amountSlot?.querySelector('[data-calendar-fixed-expense="week"]');
+  const fixedExpenseBox = fixedExpense?.getBoundingClientRect();
+  result.fixedExpense = {
+    visible: Boolean(fixedExpense) && !amountSlot?.hidden,
+    total: fixedExpense?.querySelector('.calendar-amount-line-amount')?.textContent || '',
+    categories: fixedExpense?.querySelectorAll('.calendar-amount-category').length || 0,
+    position: amountSlot ? getComputedStyle(amountSlot).position : '',
+    belowWeek: Boolean(fixedExpenseBox && weekRect) && fixedExpenseBox.top >= weekRect.bottom - 1,
+    boxes: fixedExpenseBox && weekRect ? {
+      expenseTop: fixedExpenseBox.top,
+      expenseBottom: fixedExpenseBox.bottom,
+      weekTop: weekRect.top,
+      weekBottom: weekRect.bottom,
+      viewportBottom: calendarViewport?.getBoundingClientRect().bottom ?? null,
+    } : null,
+  };
   result.weekActions = {
     labels: [...(actionSlot?.querySelectorAll('.calendar-add-button') || [])].map(node => node.textContent.trim()),
     placement: actionSlot?.dataset.calendarActionBar || '',
@@ -235,6 +252,10 @@ try {
     if (v.stripCount !== 0) throw new Error(`${where}: Week must not duplicate dates in a separate strip`);
     if (v.toggleCount !== 0) throw new Error(`${where}: Week must not require a secondary layout toggle`);
     if (!v.gridPresent) throw new Error(`${where}: Week must render the weekly hour grid`);
+    if (!v.fixedExpense.visible || v.fixedExpense.total !== '0원' || v.fixedExpense.categories !== 6
+      || v.fixedExpense.position !== 'relative' || !v.fixedExpense.belowWeek) {
+      throw new Error(`${where}: Week must keep the six-category expense summary fixed below the time grid, got ${JSON.stringify(v.fixedExpense)}`);
+    }
     if (v.firstVisibleHour !== '06:00' || v.initialScrollTop !== 0) throw new Error(`${where}: Week must begin with 06:00 without scroll positioning, got "${v.firstVisibleHour}" at scrollTop=${v.initialScrollTop}`);
     const expectedHours = Array.from({length: 24}, (_, index) => `${String((6 + index) % 24).padStart(2, '0')}:00`);
     if (JSON.stringify(v.hourOrder) !== JSON.stringify(expectedHours)) throw new Error(`${where}: Week hours must run 06:00-23:00 then 00:00-05:00, got ${JSON.stringify(v.hourOrder)}`);

@@ -80,15 +80,24 @@ const SCAM_RISK_LEVELS = Object.freeze([
 ]);
 
 // SCAM-SHIELD-DOUBLE-CHECK-P0 — the second, independent check that Core runs
-// before answering. Every field is optional so an older Core still renders,
-// and only https government (.go.kr / .or.kr) pages become links.
-const SCAM_OFFICIAL_LINK_HOST = /(?:^|\.)(?:go|or)\.kr$/u;
+// before answering. Every field is optional so an older Core still renders.
+// SCAM-PHISHING-REDESIGN-02 — only an exact, pre-approved official host becomes
+// a link (the owner-approved report/consult channels plus the hosts in Core's
+// reviewed official registry); any other address, the checked suspicious one
+// included, stays plain text.
+export const SCAM_OFFICIAL_LINK_HOSTS = Object.freeze([
+  'www.counterscam112.go.kr', 'counterscam112.go.kr', 'ecrm.police.go.kr', 'www.police.go.kr', 'police.go.kr',
+  'www.boho.or.kr', 'boho.or.kr', 'www.fsc.go.kr', 'fsc.go.kr',
+  'www.scourt.go.kr', 'scourt.go.kr', 'ecfs.scourt.go.kr', 'www.spo.go.kr', 'spo.go.kr', 'sci.go.kr',
+  'www.nts.go.kr', 'nts.go.kr', 'www.hometax.go.kr', 'hometax.go.kr', 'www.fss.or.kr', 'fss.or.kr', 'fine.fss.or.kr',
+  'www.gov.kr', 'm.gov.kr', 'www.data.go.kr', 'data.go.kr',
+]);
 
-function scamOfficialUrl(value) {
+export function scamOfficialUrl(value) {
   if (typeof value !== 'string') return '';
   try {
     const url = new URL(value);
-    if (url.protocol !== 'https:' || url.username || url.password || !SCAM_OFFICIAL_LINK_HOST.test(url.hostname)) return '';
+    if (url.protocol !== 'https:' || url.username || url.password || url.port || !SCAM_OFFICIAL_LINK_HOSTS.includes(url.hostname)) return '';
     return url.href;
   } catch {
     return '';
@@ -108,6 +117,7 @@ function normalizeScamSources(value) {
     checkedAt: scamText(item.checked_at),
     stale: item.stale === true,
     statement: scamText(item.statement),
+    relevance: scamText(item.relevance),
   })).filter(item => item.agency && item.title).slice(0, 8);
 }
 
@@ -225,6 +235,12 @@ export async function analyzeScamShield(sessionToken, formData, fetchImpl = glob
     const error = errorFromResponse(response, payload, '사기·피싱 확인을 완료하지 못했습니다.');
     announceInvalidSiteSession(error);
     throw error;
+  }
+  // SCAM-PHISHING-REDESIGN-02 — 202: the same input is still being checked
+  // (Core will not run it twice). It is not a result; say so instead of
+  // reporting a broken response.
+  if (response.status === 202) {
+    throw new SiteCoreError('같은 내용을 아직 확인하고 있어요. 잠시 후 다시 눌러 주세요.', {code: 'SCAM_ANALYSIS_RESULT_PENDING', status: 202, retryable: true});
   }
   return normalizeScamShieldResult(payload);
 }
@@ -601,6 +617,9 @@ export function normalizeSmartCalendarDraft(value) {
       amountMinor,
       currency,
       expenseCategory,
+      // CALENDAR-DESIGN-04: Core가 사진 종류로 제안하는 예정/실제 지출. 모르는 값이나
+      // 옛 Core(값 없음)는 제안 없음(null) -- 확인 창이 날짜로 기본값을 정한다.
+      expenseStatus: amountMinor !== null && (entry?.expense_status === 'PLANNED' || entry?.expense_status === 'PAID') ? entry.expense_status : null,
       memo,
       place,
       merchant,

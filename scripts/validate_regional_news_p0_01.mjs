@@ -30,7 +30,7 @@ assert.equal((index.match(/<span class="nav-item-label">지역정보<\/span>/gu)
 assert.equal((index.match(/data-consumer-section="life" aria-label="지역정보"/gu) || []).length, 2);
 assert.doesNotMatch(index, />생활정보</u);
 const conversation = read('site-conversation.js');
-assert.match(conversation, /life: \['지역정보', '저장한 지역과 내 주변의 필요한 정보를 찾아보세요\.'\]/u);
+assert.match(conversation, /life: \['지역정보', '병원부터 지하철·축제까지, 내 지역 생활 정보를 한곳에서 찾아요\.'\]/u);
 assert.doesNotMatch(conversation, /'생활정보로 돌아가기'/u);
 assert.match(read('subscribe.html'), /<th scope="row">지역정보 · /u);
 // Internal ids stay: the route, the section key and the storage keys are unchanged.
@@ -40,7 +40,7 @@ assert.match(conversation, /openConsumerSection\('life'\)/u);
 // ── 지역뉴스 shortcut and screen ──────────────────────────────────────────
 const ids = LIFE_SHORTCUTS.map(item => item.id);
 assert.equal(ids[ids.indexOf('festivals') + 1], 'news', '지역뉴스 sits right after 축제·행사');
-assert.deepEqual(LIFE_SHORTCUTS.find(item => item.id === 'news'), {id: 'news', label: '지역뉴스', description: '내 지역의 중요한 소식', icon: 'news'});
+assert.deepEqual(LIFE_SHORTCUTS.find(item => item.id === 'news'), {id: 'news', label: '지역뉴스', description: '내 지역의 오늘 소식', icon: 'news'});
 const sections = read('site-consumer-sections.js');
 assert.match(sections, /news: \['M4 5h13v14/u, 'a line news icon in the shortcut icon set');
 assert.match(sections, /item\.id === 'news' \? openNewsEntry\(item\)/u);
@@ -68,6 +68,9 @@ assert.equal(newsListUrl({region: '전북', category: 'sports', offset: 20}, 'ht
 assert.deepEqual(feedListItems([{title: '나중', source_label: 'a', url: 'https://a.kr/1', published_at: '2026-10-10T01:00:00+09:00'},
   {title: '링크 없음', url: 'javascript:alert(1)'}, {title: '먼저', source_label: 'b', url: 'https://b.kr/2', published_at: '2026-10-10T05:00:00+09:00'}]).map(item => item.title),
   ['나중', '먼저'], "the feed keeps Core's order (sports / photo last under 전체) and drops unlinkable items");
+assert.deepEqual(feedListItems([{title: '사진', url: 'https://a.kr/1', image_url: 'https://img.a.kr/1.jpg', category_label: '경제'}, {title: '사진 아님', url: 'https://a.kr/2', image_url: 'http://img.a.kr/2.jpg'},
+  {title: '스크립트', url: 'https://a.kr/3', image_url: 'javascript:alert(1)'}]).map(item => [item.image, item.category]),
+  [['https://img.a.kr/1.jpg', '경제'], ['', ''], ['', '']], 'REGIONAL-INFO-UNIFY-01: only an https picture of the article itself becomes its thumbnail');
 assert.deepEqual(visibleCategories([{id: 'all', label: '전체', count: 3}, {id: 'politics', label: '행정·정치', count: 2}, {id: 'culture', label: '문화·축제·관광', count: 0}]).map(entry => entry.id),
   ['all', 'politics'], 'a 분야 with no story is hidden');
 assert.deepEqual(visibleCategories([{id: 'all', count: 0}, {id: 'culture', count: 0}], 'culture').map(entry => entry.id), ['all', 'culture'], 'the picked 분야 stays');
@@ -367,6 +370,7 @@ const PROBE = `(() => {
     items: [...newsRoot.querySelectorAll('.lotbi-news-item')].map(a => ({href: a.href, target: a.target, rel: a.rel, box: box(a),
       title: a.querySelector('.lotbi-news-item-title')?.textContent || '', meta: a.querySelector('.lotbi-news-item-meta')?.textContent || '',
       titleLines: (() => { const t = a.querySelector('.lotbi-news-item-title'); return t ? Math.round(t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight)) : 0; })(),
+      thumb: (() => { const t = a.querySelector('.lotbi-news-thumb'); if (!t) return null; const r = t.getBoundingClientRect(); return {kind: t.dataset.newsThumb || '', label: t.textContent, w: r.width, h: r.height}; })(),
       titleColor: color(a.querySelector('.lotbi-news-item-title'))})),
     tabs: [...newsRoot.querySelectorAll('[data-news-category]')].map(b => ({id: b.dataset.newsCategory, label: b.textContent, pressed: b.getAttribute('aria-pressed'), h: b.getBoundingClientRect().height})),
     tabsHidden: Boolean(newsRoot.querySelector('.lotbi-news-categories')?.hidden),
@@ -567,12 +571,12 @@ async function runCase(browser, origin, dir, testCase) {
     await openLife();
     let state = await probe();
     assert.equal(state.title, '지역정보');
-    assert.equal(state.description, '저장한 지역과 내 주변의 필요한 정보를 찾아보세요.');
+    assert.equal(state.description, '병원부터 지하철·축제까지, 내 지역 생활 정보를 한곳에서 찾아요.');
     const news = state.shortcuts.find(item => item.id === 'news');
     assert.ok(news, `${testCase.label}: 지역뉴스 card`);
     assert.equal(news.label, '지역뉴스');
-    assert.equal(news.description, '내 지역의 중요한 소식');
-    assert.equal(news.accessibleName, '지역뉴스. 내 지역의 중요한 소식');
+    assert.equal(news.description, '내 지역의 오늘 소식');
+    assert.equal(news.accessibleName, '지역뉴스. 내 지역의 오늘 소식');
     assert.equal(news.icon, true);
     assert.equal(news.lines, 1, `${testCase.label}: label on one line`);
     assert.equal(news.clipped, false);
@@ -612,6 +616,7 @@ async function runCase(browser, origin, dir, testCase) {
         assert.ok(item.titleLines >= 1 && item.titleLines <= 2, `${testCase.label}: ${step}: ${item.title} at most two lines (${item.titleLines})`);
         assert.match(item.meta, /^\S.* · (?:\d{1,2}월 \d{1,2}일 )?(?:오전|오후) \d{1,2}:\d{2}$/u, `${testCase.label}: ${step}: outlet · time (${item.meta})`);
         assert.ok(item.box.h >= 44, `${testCase.label}: ${step}: touch target ${item.box.h}`);
+        assert.ok(item.thumb && item.thumb.w >= 48 && item.thumb.h >= 48 && (item.thumb.kind === 'photo' || (item.thumb.kind === 'default' && item.thumb.label.length > 0)), `${testCase.label}: ${step}: every story has its picture or the default tile (${JSON.stringify(item.thumb)})`);
         assert.ok(item.box.x >= 0 && item.box.right <= value.viewport.w + 0.5, `${testCase.label}: ${step}: row inside the viewport`);
       }
       assert.ok(value.pageOverflowX <= 0 && value.panelOverflowX <= 0, `${testCase.label}: ${step}: no sideways scroll`);

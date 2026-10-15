@@ -46,9 +46,16 @@ const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const marks = text => (text.match(/dataset\.subviewBack = ''/gu) || []).length;
 await check('each in-screen layer marks its own back / close control, one per layer', () => {
   const wallet = read('site-life-wallet.js');
-  assert.equal(marks(wallet), 3, 'Life Wallet: add-limit, card detail, 통관부호 detail');
-  assert.match(wallet, /function renderDetail\(card\) \{[\s\S]{0,300}?toList\.dataset\.subviewBack = ''/u);
-  assert.match(wallet, /function renderCustomsDetail\(customs\) \{[\s\S]{0,300}?toList\.dataset\.subviewBack = ''/u);
+  // LIFE-WALLET-REDESIGN-02: every sub-screen's back goes through backButton() (자료 추가·정보 수정·
+  // 설정·통관부호 화면), the item page and the add-limit page keep their own, and a dialog's 취소
+  // (종류 바꾸기·자료 삭제) is the last one on the page, so the phone's back closes it first.
+  assert.equal(marks(wallet), 4, 'Life Wallet: backButton, add-limit, item detail, dialog 취소');
+  assert.match(wallet, /function backButton\(label, onBack\) \{[\s\S]{0,300}?back\.dataset\.subviewBack = ''/u);
+  assert.match(wallet, /function renderDetail\(card, title = '', message = ''\) \{[\s\S]{0,600}?toList\.dataset\.subviewBack = ''/u);
+  assert.match(wallet, /function renderCustomsDetail\(customs\) \{[\s\S]{0,300}?const toList = backButton\('목록으로'/u);
+  assert.match(wallet, /function dialogCancel\(close\) \{[\s\S]{0,200}?cancel\.dataset\.subviewBack = ''/u);
+  const wifiScreens = read('site-life-wallet-wifi.js');
+  assert.match(wifiScreens, /function screen\(title, \.\.\.children\) \{[\s\S]{0,500}?back\.dataset\.subviewBack = ''/u, 'Life Wallet Wi-Fi screens go back to 생활정보');
   const person = read('site-person-ui.js');
   assert.equal(marks(person), 2, '안심케어 사람: the back bar and 등록 취소');
   assert.match(person, /const backBar = [^\n]*back\.dataset\.subviewBack = ''/u);
@@ -62,7 +69,9 @@ await check('each in-screen layer marks its own back / close control, one per la
   const child = read('site-life-my-child.js');
   assert.equal(marks(child), 3, '내 아이: add, overview and its edit (취소 → overview)');
   const calendar = read('site-calendar-manager.js');
-  assert.equal(marks(calendar), 7, '캘린더: day sheet, settings, readonly, editor, delete confirm, photo confirm, amount');
+  // CALENDAR-DESIGN-04 adds two: the shared close of its dialogs (일정 상세 ·
+  // 지출 내역 · 사진 확인) and the 취소 of its delete confirmation.
+  assert.equal(marks(calendar), 9, '캘린더: day sheet, settings, readonly, editor, delete confirm, photo confirm, amount, design-04 dialog close, design-04 delete confirm');
   for (const cls of ['calendar-day-close', 'calendar-settings-close', 'calendar-readonly-done', 'calendar-editor-close', 'calendar-delete-confirm-cancel', 'calendar-photo-confirm-close', 'calendar-amount-close']) {
     assert.match(calendar, new RegExp(`'${cls}'[^\\n]*\\n(?:[^\\n]*\\n){0,2}[^\\n]*\\.dataset\\.subviewBack = ''`, 'u'), cls);
   }
@@ -220,7 +229,7 @@ const SNAPSHOT = `(() => {
     // Not by layout: with html[data-subview-back-shell] a module may hide its
     // own back control by style and leave the header ← to press it (축제 UX).
     festivalBack: [...document.querySelectorAll('.festival-back-button[data-subview-back]')].some(node => node.isConnected && !node.closest('[hidden]')),
-    calendar: Boolean(document.querySelector('[data-site-route="calendar"]')), editor: shown('.calendar-editor-close'), calendarSettings: shown('.calendar-settings-close'),
+    calendar: Boolean(document.querySelector('[data-site-route="calendar"]')), editor: shown('.calendar-editor-close') || shown('.c4-editor'), calendarSettings: shown('.calendar-settings-close'),
   };
 })()`;
 
@@ -453,7 +462,8 @@ async function runCase(browser, origin, workDir, testCase) {
     done.push('calendar-settings');
     // A guest picks a day first: where the day opens as a closable sheet that
     // sheet is a layer of its own; its '+ 기록' opens the editor over it.
-    await tapSelector('.calendar-date-trigger', {settle: true});
+    // Design 04 (the calendar workspace) draws month cells as .c4-mc; the day is listed in the page.
+    await tapSelector('.calendar-date-trigger, .c4-mc[data-current-month="true"]', {settle: true});
     await waitFor(() => evaluate("[...document.querySelectorAll('[data-calendar-add]')].some(node => node.getClientRects().length)"), `${label}: calendar '+ 기록'`, 20000);
     const daySheet = await evaluate("Boolean(document.querySelector('.calendar-day-close'))");
     const dayIndex = calendarIndex + (daySheet ? 1 : 0);

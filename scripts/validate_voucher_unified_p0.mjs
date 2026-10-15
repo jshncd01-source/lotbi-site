@@ -43,7 +43,7 @@ const same = (actual, expected, message) => { assert.deepEqual(actual, expected,
 {
   const card = LIFE_SHORTCUTS.find(item => item.id === 'onnuri');
   check(['온누리상품권·지역화폐', '온누리·지역화폐'].includes(card.label), `menu card label (${card.label})`);
-  same(card.description, '사용처와 혜택을 찾아요', 'menu card description');
+  same(card.description, '쓸 수 있는 가맹점 찾기', 'menu card description');
   same(card.brandSlot, 'onnuri', 'brand slot kept for the approved logo');
   same(card.icon, 'voucher', 'QA 2026-10-10 #12: a plain LOTBI voucher icon until then');
   same(VOUCHER_HUB_TITLE, '온누리상품권·지역화폐');
@@ -551,8 +551,8 @@ async function runCase(browser, origin, workDir, testCase) {
     await load();
     let v = await probe();
     check(['온누리상품권·지역화폐', '온누리·지역화폐'].includes(v.shortcut.label), `${testCase.label}: card label ${v.shortcut.label}`);
-    same(v.shortcut.description, '사용처와 혜택을 찾아요', `${testCase.label}: card description`);
-    same(v.shortcut.accessibleName, '온누리상품권·지역화폐. 사용처와 혜택을 찾아요', `${testCase.label}: card accessible name`);
+    same(v.shortcut.description, '쓸 수 있는 가맹점 찾기', `${testCase.label}: card description`);
+    same(v.shortcut.accessibleName, '온누리상품권·지역화폐. 쓸 수 있는 가맹점 찾기', `${testCase.label}: card accessible name`);
     check(!v.shortcut.clipped, `${testCase.label}: card label not clipped (${v.shortcut.columns} columns, ${v.shortcut.lines} line(s))`);
     check(v.shortcut.box.right <= v.viewport.w && v.shortcut.box.x >= 0, `${testCase.label}: card inside the viewport`);
     check(v.shortcut.box.h >= 44, `${testCase.label}: card touch target`);

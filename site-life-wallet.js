@@ -1,7 +1,7 @@
-import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-72c7dc1a3cb6';
-import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-72c7dc1a3cb6';
-import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-72c7dc1a3cb6';
-import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-72c7dc1a3cb6';
+import {createWalletDocumentScanner, isWalletPhotoKind, sniffWalletFile} from './site-life-wallet-scan-ui.js?v=aset-a5a7175d3f1d';
+import {generateShareKeyPair, importSharePrivateKey, openWalletShareItem} from './site-life-wallet-share-crypto.js?v=aset-a5a7175d3f1d';
+import {createWalletShare, hasWalletShareIntent, takeWalletShareIntent} from './site-life-wallet-share.js?v=aset-a5a7175d3f1d';
+import {WIFI_MAX_ENTRIES, createWalletWifi, validateWifiEntry} from './site-life-wallet-wifi.js?v=aset-a5a7175d3f1d';
 
 const DATABASE_NAME = 'lotbi-life-wallet-site-v1';
 const DATABASE_VERSION = 1;
@@ -361,9 +361,37 @@ export class MemoryWalletRepository {
 // its kind with the save date, so new items do not all read "저장 자료". Nothing is read from
 // the image itself.
 export function walletCardTitle(card) {
-  const memo = String(card.note || '').split(/\r?\n/u).map(line => line.trim()).find(Boolean);
-  if (memo) return memo.length > 24 ? `${memo.slice(0, 24)}…` : memo;
+  const own = walletOwnTitle(card);
+  if (own) return own;
+  const memo = walletMemoTitle(card);
+  if (memo) return memo;
   return walletShareLabel(card);
+}
+
+// The title the owner typed (LIFE-WALLET-REDESIGN-02). Older items carry their kind's label as
+// the name ("저장 자료"); that is not a title.
+export function walletOwnTitle(card) {
+  const name = String(card?.name || '').trim();
+  const kindLabel = CARD_KINDS.find(([value]) => value === card?.kind)?.[1];
+  return name && name !== kindLabel ? name : '';
+}
+
+function walletMemoTitle(card) {
+  const memo = String(card?.note || '').split(/\r?\n/u).map(line => line.trim()).find(Boolean);
+  return memo ? (memo.length > 24 ? `${memo.slice(0, 24)}…` : memo) : '';
+}
+
+// What each item is called in the list and on its own page: the owner's title, else the first
+// line of its memo, else its kind and its number in the order saved ("명함 3"), so the list never
+// repeats "저장 자료 · 날짜". Nothing is read from the picture.
+export function walletItemTitles(cards) {
+  const counters = new Map(); const titles = new Map();
+  for (const card of cards.slice().sort((left, right) => left.updatedAt.localeCompare(right.updatedAt))) {
+    const category = walletItemCategory(card);
+    const number = (counters.get(category) || 0) + 1; counters.set(category, number);
+    titles.set(card.id, walletOwnTitle(card) || walletMemoTitle(card) || `${walletCategoryLabel(card)} ${number}`);
+  }
+  return titles;
 }
 
 // What a share request calls an item by default. Core keeps the label as it is and the
@@ -488,6 +516,15 @@ export class LifeWalletVault {
     }
     rawMasterKey.fill(0);
     await this.repository.putVault({...vault, failedAttempts: 0, pinBlocked: false, retryAfter: undefined});
+  }
+
+  // What the lock screen says before a PIN is typed: tries used so far and any wait. Read from
+  // the vault record, which already keeps these counters; nothing new is stored.
+  async attemptState(accountId) {
+    const vault = await this.repository.getVault(await accountScope(accountId));
+    const failedAttempts = Number(vault?.failedAttempts || 0);
+    const waitMs = vault?.retryAfter ? Math.max(0, Date.parse(vault.retryAfter) - Date.now()) : 0;
+    return Object.freeze({failedAttempts, waitMs: Number.isFinite(waitMs) ? waitMs : 0, blocked: vault?.pinBlocked === true, remaining: Math.max(0, MAX_PIN_FAILURES - failedAttempts)});
   }
 
   lock({preserveSession = false} = {}) {
@@ -833,20 +870,54 @@ function button(label, onClick, secondary = false) {
   return value;
 }
 
-function walletActionIcon(name) {
+// One line-icon set for the whole wallet (24px grid, stroke 2), never emoji.
+const WALLET_ICONS = Object.freeze({
+  lock: 'M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z',
+  settings: 'M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4a2 2 0 1 0 0 4a2 2 0 1 0 0-4zM9 10a2 2 0 1 0 0 4a2 2 0 1 0 0-4zM17 16a2 2 0 1 0 0 4a2 2 0 1 0 0-4z',
+  search: 'M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14zM20 20l-3.5-3.5',
+  plus: 'M12 5v14M5 12h14',
+  camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 9.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7z',
+  folder: 'M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM12 10v6M9 13h6',
+  check: 'M5 12.5l4.5 4.5L19 7.5',
+  close: 'M6 6l12 12M18 6L6 18',
+  info: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 11v5M12 8v.5',
+  alert: 'M12 4L2.5 20h19zM12 10v4.5M12 17.5v.5',
+  clock: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 7v5l3 2',
+  shield: 'M12 3l8 3v6c0 5-3.4 8.3-8 9-4.6-.7-8-4-8-9V6z',
+  key: 'M8 11a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM11 12l9-9M17 6l3 3',
+  eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z',
+  eyeOff: 'M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.9 8.3 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6',
+  edit: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
+  share: 'M12 3v12M7 8l5-5 5 5M5 13v7h14v-7',
+  trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+  chevron: 'M9 5l7 7-7 7',
+  back: 'M15 5l-7 7 7 7',
+  erase: 'M9 5h11v14H9l-6-7zM12 9l5 6M17 9l-5 6',
+  identity: 'M3 5h18v14H3zM8.5 9a2 2 0 1 0 0 4a2 2 0 1 0 0-4zM6 16c.6-1.3 1.5-2 2.5-2s1.9.7 2.5 2M14 10h4M14 14h3',
+  'business-card': 'M3 6h18v12H3zM7 10.5h7M7 14h10',
+  document: 'M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6',
+  other: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+  customs: 'M3 7.5L12 3l9 4.5v9L12 21l-9-4.5zM3 7.5l9 4.5 9-4.5M12 12v9',
+  wifi: 'M2 9a15 15 0 0 1 20 0M5.5 12.5a10 10 0 0 1 13 0M9 16a5 5 0 0 1 6 0M12 19.5h.01',
+  arrow: 'M5 12h14M13 6l6 6-6 6',
+  rotate: 'M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4',
+  crop: 'M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14',
+  swap: 'M4 12a8 8 0 0 1 14-5.3M20 4v4h-4M20 12a8 8 0 0 1-14 5.3M4 20v-4h4',
+  expand: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+  download: 'M12 4v11M7 10l5 5 5-5M5 19h14',
+  upload: 'M12 20V9M7 14l5-5 5 5M5 5h14',
+  cloudUp: 'M7 18a5 5 0 0 1-.6-10A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9zM12 16v-5M9.5 13.5L12 11l2.5 2.5',
+  cloudDown: 'M7 18a5 5 0 0 1-.6-10A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9zM12 11v5M9.5 13.5L12 16l2.5-2.5',
+});
+function walletIcon(name) {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('focusable', 'false');
-  const paths = name === 'lock'
-    ? ['M7 10V8a5 5 0 0 1 10 0v2', 'M6 10h12a2 2 0 0 1 2 2v8H4v-8a2 2 0 0 1 2-2Z', 'M12 14v2.5']
-    : ['M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z', 'M12 2v3', 'M12 19v3', 'M4.93 4.93l2.12 2.12', 'M16.95 16.95l2.12 2.12', 'M2 12h3', 'M19 12h3', 'M4.93 19.07l2.12-2.12', 'M16.95 7.05l2.12-2.12'];
-  for (const value of paths) {
-    const path = document.createElementNS(ns, 'path');
-    path.setAttribute('d', value);
-    svg.append(path);
-  }
+  const path = document.createElementNS(ns, 'path');
+  path.setAttribute('d', WALLET_ICONS[name] || WALLET_ICONS.info);
+  svg.append(path);
   return svg;
 }
 
@@ -933,7 +1004,12 @@ function documentPickerAvailable() {
   catch { return false; }
 }
 
-export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}, onPickerOpen = () => {}, onPickerClose = () => {}} = {}) {
+// layout 'start' (LIFE-WALLET-REDESIGN-02, the add form): two large choices (카메라로 찍기, 내 파일에서
+// 고르기) until a file is chosen; then the file's row with 파일 변경 and the scanner embedded as
+// the preview frame — no separate confirm step: onState reports each check and readDataUrl()
+// answers once the item may be saved.
+export function createWalletPhotoPicker({onError = () => {}, onReady = () => {}, onPickerOpen = () => {}, onPickerClose = () => {}, onState = () => {}, layout = 'menu'} = {}) {
+  const embedded = layout === 'start';
   const fieldShell = element('div', 'wallet-field wallet-attach-field');
   const label = element('span', 'wallet-attach-label', '자료 첨부');
   label.id = `wallet-attach-${randomId()}`;
@@ -972,7 +1048,22 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {},
   menu.append(...options);
   attach.append(cameraInput, filesInput, zone, menu);
   const scannerHost = element('div', 'wallet-photo-scanner-host');
-  fieldShell.append(label, help, attach, scannerHost);
+  fieldShell.append(label, help);
+  if (embedded) {
+    const choices = element('div', 'wallet-attach-choices');
+    const touch = Boolean(globalThis.matchMedia?.('(pointer: coarse)').matches);
+    const sources = [['camera', '카메라로 찍기', '신분증·명함을 바로 촬영', 'camera'], ['files', '내 파일에서 고르기', '사진(JPG·PNG·HEIC) 또는 PDF', 'folder']];
+    for (const [source, name, note, icon] of touch ? sources : sources.reverse()) {
+      const choice = element('button', 'wallet-attach-choice'); choice.type = 'button'; choice.dataset.walletAttachChoice = source;
+      const iconBox = element('span'); iconBox.append(walletIcon(icon));
+      const text = element('span'); text.append(element('strong', '', name), element('small', '', note));
+      choice.append(iconBox, text);
+      choice.addEventListener('click', () => void openSource(source));
+      choices.append(choice);
+    }
+    fieldShell.append(choices);
+  }
+  fieldShell.append(attach, scannerHost);
 
   let scanner = null;
   let confirmedDataUrl = '';
@@ -983,8 +1074,9 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {},
 
   function paint() {
     zone.dataset.state = state;
+    if (embedded) fieldShell.dataset.layout = state === 'empty' ? 'start' : 'review';
     mark.hidden = state !== 'empty';
-    preview.hidden = state !== 'ready';
+    preview.hidden = state !== 'ready' || embedded;
     change.hidden = state === 'empty';
     title.textContent = state === 'empty' ? '카메라 또는 내 파일에서 선택' : selectedName;
     zone.setAttribute('aria-label', state === 'empty' ? '자료 첨부: 카메라 또는 내 파일 선택' : `첨부한 자료 ${selectedName}, 파일 변경`);
@@ -1074,11 +1166,21 @@ export function createWalletPhotoPicker({onError = () => {}, onReady = () => {},
     scanner = createWalletDocumentScanner({
       file,
       kind,
+      embedded,
+      onState(scan) {
+        if (current !== choice || destroyed) return;
+        confirmedDataUrl = scan.ready ? scan.dataUrl : '';
+        state = scan.ready ? 'ready' : 'scanning'; paint();
+        onReady(scan.ready);
+        onState(scan);
+      },
       onConfirm(dataUrl) {
         confirmedDataUrl = dataUrl;
-        clearScanner();
-        preview.src = dataUrl;
-        preview.alt = `보정된 ${name} 미리보기`;
+        if (!embedded) {
+          clearScanner();
+          preview.src = dataUrl;
+          preview.alt = `보정된 ${name} 미리보기`;
+        }
         state = 'ready'; paint();
         onReady(true);
       },
@@ -1126,137 +1228,158 @@ function savedDateLabel(card) {
   return `${saved.getFullYear()}.${String(saved.getMonth() + 1).padStart(2, '0')}.${String(saved.getDate()).padStart(2, '0')} 등록`;
 }
 
-// A vertical real-wallet deck: the selected item is whole and the next items expose their title
-// edges above it. Up/down drag and keys move through an endless loop; pictures never rotate.
-export function createWalletCardDeck({cards, onOpen, initialSelectedId = '', initialFilter = 'all', onStateChange = () => {}}) {
-  const shell = element('section', 'wallet-deck-shell');
-  shell.setAttribute('aria-label', '저장 자료');
-  const filters = element('div', 'wallet-deck-filters'); filters.setAttribute('role', 'group'); filters.setAttribute('aria-label', '자료 종류');
-  const deck = element('div', 'wallet-deck'); deck.tabIndex = 0; deck.setAttribute('aria-roledescription', '카드 덱'); deck.setAttribute('aria-label', '저장 자료 카드');
-  const empty = element('p', 'wallet-deck-filter-empty', '이 종류에 저장된 자료가 없습니다.'); empty.hidden = true;
-  const info = element('div', 'wallet-deck-info');
-  const title = element('strong', 'wallet-deck-title'); const date = element('span', 'wallet-deck-date');
-  const gestureHint = element('span', 'wallet-deck-gesture-hint', '↕ 위아래로 넘겨보세요');
-  const position = element('span', 'wallet-card-position'); position.setAttribute('aria-live', 'polite');
-  const open = button('상세 보기', () => { const card = visible[index]; if (card) onOpen(card); }); open.classList.add('wallet-deck-open');
-  info.append(gestureHint, title, date, position, open);
-  shell.append(filters, deck, empty, info);
+// LIFE-WALLET-REDESIGN-02: the saved items as a list the owner can scan, search and sort — a
+// grid of cards on a wide screen, one row per item on a phone. Pictures are blurred in the list
+// (a press on one shows it for a moment); the full picture is on the item's own page.
+export const WALLET_ITEM_SORTS = Object.freeze([['recent', '최근 추가순'], ['title', '이름순'], ['kind', '종류순']]);
+const WALLET_KIND_EXAMPLES = Object.freeze({
+  identity: ['주민등록증·운전면허증·여권', '면허증·여권'],
+  'business-card': ['받은 명함·내 명함', '받은 명함'],
+  document: ['재직증명서·등본·계약서 PDF', '증명서·계약서'],
+  other: ['회원증·보험증권 같은 생활자료', '회원증·보험증권'],
+});
+const WALLET_KIND_SUBJECT = Object.freeze({identity: '신분증이', 'business-card': '명함이', document: '증명서·문서가', other: '기타 자료가'});
+const ITEM_REVEAL_MS = 30_000;
 
-  const shapes = new Map();
+// 을/를 and 으로/로 after a Korean word (the last syllable's final consonant decides).
+function hasFinalConsonant(word) {
+  const code = String(word || '').trim().at(-1)?.charCodeAt(0) ?? 0;
+  return code >= 0xac00 && code <= 0xd7a3 && (code - 0xac00) % 28 !== 0;
+}
+export function withObjectParticle(word) { return `${word}${hasFinalConsonant(word) ? '을' : '를'}`; }
+export function withDirectionParticle(word) {
+  const code = String(word || '').trim().at(-1)?.charCodeAt(0) ?? 0;
+  const final = code >= 0xac00 && code <= 0xd7a3 ? (code - 0xac00) % 28 : 0;
+  return `${word}${final === 0 || final === 8 ? '로' : '으로'}`;
+}
+
+function walletSearchText(value) { return String(value || '').normalize('NFKC').toLocaleLowerCase('ko'); }
+
+export function filterWalletItems(cards, {filter = 'all', query = '', sort = 'recent', titles = walletItemTitles(cards)} = {}) {
+  const needle = walletSearchText(query).trim();
+  const order = WALLET_ITEM_CATEGORY_IDS;
+  const visible = cards.filter(card => (filter === 'all' || walletItemCategory(card) === filter)
+    && (!needle || walletSearchText(`${titles.get(card.id) || ''} ${card.note || ''} ${walletCategoryLabel(card)}`).includes(needle)));
+  if (sort === 'title') visible.sort((left, right) => (titles.get(left.id) || '').localeCompare(titles.get(right.id) || '', 'ko'));
+  else if (sort === 'kind') visible.sort((left, right) => order.indexOf(walletItemCategory(left)) - order.indexOf(walletItemCategory(right)) || right.updatedAt.localeCompare(left.updatedAt));
+  else visible.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  return visible;
+}
+
+export function createWalletItems({cards, onOpen, onAdd = () => {}, initialFilter = 'all', onStateChange = () => {}}) {
+  const titles = walletItemTitles(cards);
+  const panel = element('div', 'wallet-items'); panel.dataset.walletPanel = 'items';
+  panel.setAttribute('role', 'tabpanel'); panel.id = 'wallet-panel-items';
+
+  const toolbar = element('div', 'wallet-toolbar');
+  const search = element('label', 'wallet-search');
+  const searchInput = element('input'); searchInput.type = 'search'; searchInput.placeholder = '제목·메모로 찾기';
+  searchInput.setAttribute('aria-label', '자료 찾기'); searchInput.autocomplete = 'off'; searchInput.spellcheck = false; searchInput.dataset.walletSearch = '';
+  search.append(walletIcon('search'), searchInput);
+  const add = button('', () => onAdd('')); add.classList.add('wallet-add-action'); add.setAttribute('aria-label', '자료 추가');
+  add.append(walletIcon('plus'), element('span', 'wallet-add-label-desktop', '자료 '), '추가');
+  toolbar.append(search, add);
+
+  const filters = element('div', 'wallet-filters'); filters.setAttribute('role', 'group'); filters.setAttribute('aria-label', '자료 종류');
+  const head = element('div', 'wallet-list-head');
+  const count = element('p', 'wallet-list-count'); count.setAttribute('aria-live', 'polite');
+  const sortLabel = element('label', 'wallet-sort'); const sortSelect = element('select'); sortSelect.setAttribute('aria-label', '정렬'); sortSelect.dataset.walletSort = '';
+  for (const [value, label] of WALLET_ITEM_SORTS) { const option = element('option', '', label); option.value = value; sortSelect.append(option); }
+  sortLabel.append(walletIcon('swap'), sortSelect);
+  head.append(count, sortLabel);
+  const grid = element('ul', 'wallet-grid'); grid.setAttribute('aria-label', '저장 자료');
+  const empty = element('div'); empty.hidden = true;
+  panel.append(toolbar, filters, head, grid, empty);
+
   let filter = initialFilter === 'all' || WALLET_ITEM_CATEGORY_IDS.includes(initialFilter) ? initialFilter : 'all';
-  let visible = filter === 'all' ? cards.slice() : cards.filter(card => walletItemCategory(card) === filter);
-  if (!visible.length && cards.length && filter !== 'all') { filter = 'all'; visible = cards.slice(); }
-  let index = Math.max(0, visible.findIndex(card => card.id === initialSelectedId));
-  let suppressClick = false;
+  if (filter !== 'all' && !cards.some(card => walletItemCategory(card) === filter)) filter = 'all';
+  let query = ''; let sort = 'recent';
+  const revealTimers = new Map();
 
-  const faces = new Map(cards.map((card, cardIndex) => {
-    const face = element('button', 'wallet-deck-card'); face.type = 'button'; face.dataset.walletDeckCard = card.id;
-    face.dataset.category = walletItemCategory(card);
-    const peek = element('span', 'wallet-deck-peek-label', walletCardTitle(card));
-    const body = element('span', 'wallet-deck-face');
-    const photo = element('img', 'wallet-deck-photo'); photo.src = card.frontDataUrl; photo.alt = `${cardIndex + 1}번째 저장 자료`; photo.draggable = false;
-    body.append(photo); face.append(peek, body);
-    face.addEventListener('click', event => {
-      if (suppressClick) { event.preventDefault(); return; }
-      const at = visible.indexOf(card);
-      if (at === index) onOpen(card); else if (at >= 0) show(at);
-    });
-    // Picture shape decides presentation only: a card fills the face and a page becomes a
-    // document face. The owner-selected category is independent and never changes the image.
-    const measure = () => {
-      const shape = card.shape || walletItemShape(photo.naturalWidth, photo.naturalHeight);
-      if (!shape || shapes.get(card.id) === shape) return;
-      shapes.set(card.id, shape); face.dataset.shape = shape;
-      if (shape === 'document') {
-        const text = element('span', 'wallet-deck-doc-text');
-        text.append(element('span', 'wallet-deck-doc-kind', walletCategoryLabel(card)), element('strong', '', walletCardTitle(card)), element('span', '', savedDateLabel(card)));
-        photo.className = 'wallet-deck-doc-thumb';
-        body.replaceChildren(text, photo);
-      }
+  function itemNode(card) {
+    const title = titles.get(card.id) || walletCardTitle(card);
+    const item = element('li', 'wallet-item'); item.dataset.walletItem = card.id; item.dataset.category = walletItemCategory(card);
+    const thumb = element('button', 'wallet-item-thumb'); thumb.type = 'button'; thumb.dataset.walletItemReveal = '';
+    const photo = element('img', 'wallet-item-photo'); photo.src = card.frontDataUrl; photo.alt = ''; photo.draggable = false; photo.decoding = 'async';
+    const veil = element('span', 'wallet-item-veil'); veil.append(walletIcon('eyeOff'), element('span', 'wallet-veil-text', '눌러서 보기'));
+    const hide = element('span', 'wallet-item-hide'); hide.append(walletIcon('eye'), '가리기');
+    const masked = value => {
+      clearTimeout(revealTimers.get(card.id));
+      photo.dataset.masked = String(value); veil.hidden = !value; hide.hidden = value;
+      thumb.setAttribute('aria-pressed', String(!value));
+      thumb.setAttribute('aria-label', value ? `${title} 사진 잠깐 보기` : `${title} 사진 가리기`);
+      if (!value) revealTimers.set(card.id, setTimeout(() => { if (photo.isConnected) masked(true); }, ITEM_REVEAL_MS));
     };
-    if (card.shape || (photo.complete && photo.naturalWidth)) measure(); else photo.addEventListener('load', measure, {once: true});
-    deck.append(face);
-    return [card, face];
-  }));
+    thumb.addEventListener('click', () => masked(photo.dataset.masked !== 'true'));
+    thumb.append(photo, veil, hide);
+    masked(true);
+    const open = element('button', 'wallet-item-open'); open.type = 'button'; open.dataset.walletItemOpen = card.id;
+    open.setAttribute('aria-label', `${title} 열기`);
+    const line = element('span', 'wallet-item-line');
+    line.append(element('span', 'wallet-item-title', title), element('span', 'wallet-kind-badge', walletCategoryLabel(card)));
+    const meta = element('span', 'wallet-item-meta');
+    const metaKind = element('span', 'wallet-kind-badge wallet-item-meta-kind', walletCategoryLabel(card));
+    const memo = walletOwnTitle(card) ? walletMemoTitle(card) : '';
+    meta.append(metaKind, memo ? `${savedDateLabel(card)} · ${memo}` : savedDateLabel(card));
+    const chevron = walletIcon('chevron'); chevron.classList.add('wallet-item-chevron');
+    const text = element('span', 'wallet-item-text'); text.append(line, meta);
+    open.append(text, chevron);
+    open.addEventListener('click', () => onOpen(card, title));
+    item.append(thumb, open);
+    return item;
+  }
+  const nodes = new Map(cards.map(card => [card.id, itemNode(card)]));
 
   function renderFilters() {
     filters.replaceChildren(...[['all', '전체'], ...WALLET_ITEM_CATEGORIES].map(([id, label]) => {
-      const chip = button(label, () => applyFilter(id), id !== filter); chip.classList.add('wallet-deck-filter'); chip.dataset.walletDeckFilter = id;
+      const total = id === 'all' ? cards.length : cards.filter(card => walletItemCategory(card) === id).length;
+      const chip = element('button', 'wallet-filter'); chip.type = 'button'; chip.dataset.walletFilter = id;
+      chip.append(label, element('span', 'wallet-filter-count', String(total)));
       chip.setAttribute('aria-pressed', String(id === filter));
+      chip.addEventListener('click', () => { filter = id; onStateChange({filter, selectedId: ''}); paint(); });
       return chip;
     }));
   }
 
-  function applyFilter(id) {
-    const front = visible[index];
-    filter = id === 'all' || WALLET_ITEM_CATEGORY_IDS.includes(id) ? id : 'all';
-    visible = filter === 'all' ? cards.slice() : cards.filter(card => walletItemCategory(card) === filter);
-    index = Math.max(0, visible.indexOf(front));
-    renderFilters(); layout();
-  }
-
-  function layout() {
-    for (const [card, face] of faces) {
-      const at = visible.indexOf(card);
-      const depth = at < 0 || !visible.length ? -1 : (at - index + visible.length) % visible.length;
-      face.hidden = at < 0;
-      face.dataset.depth = at < 0 ? '' : String(Math.min(depth, 4));
-      face.style.transform = '';
-      face.tabIndex = depth === 0 ? 0 : -1;
-      face.setAttribute('aria-hidden', String(depth < 0 || depth > 3));
-      face.setAttribute('aria-label', depth === 0 ? `${walletCardTitle(card)} 열기` : `${walletCardTitle(card)} 앞으로 가져오기`);
-      if (depth === 0) face.setAttribute('aria-current', 'true'); else face.removeAttribute('aria-current');
+  function emptyFor(kind) {
+    const box = element('section', 'wallet-kind-empty'); box.dataset.walletEmpty = query ? 'search' : 'kind';
+    const icon = element('span', 'wallet-kind-icon'); icon.append(walletIcon(query ? 'search' : kind));
+    if (query) {
+      const clear = button('검색어 지우기', () => { searchInput.value = ''; query = ''; paint(); searchInput.focus(); }, true);
+      const more = button('', () => onAdd('')); more.append(walletIcon('plus'), '자료 추가');
+      const actions = element('div', 'wallet-form-actions'); actions.append(clear, more);
+      box.append(icon, element('h3', '', `‘${query}’에 맞는 자료가 없어요`), element('p', '', '다른 말로 찾아보거나, 자료를 새로 넣어 주세요.'), actions,
+        element('p', 'wallet-search-note', '제목·메모에서만 찾아요. 사진 속 글자는 찾지 않아요.'));
+      return box;
     }
-    const card = visible[index];
-    title.textContent = card ? walletCardTitle(card) : '';
-    date.textContent = card ? savedDateLabel(card) : '';
-    position.textContent = visible.length ? `${index + 1} / ${visible.length}` : '';
-    shell.classList.toggle('wallet-deck-single', visible.length < 2);
-    deck.hidden = !card; info.hidden = !card; empty.hidden = Boolean(card);
-    onStateChange({filter, selectedId: card?.id || ''});
+    const label = WALLET_ITEM_CATEGORIES.find(([value]) => value === kind)?.[1] || '자료';
+    const put = button('', () => onAdd(kind)); put.append(walletIcon('plus'), `${label} 넣기`);
+    const hint = element('div', 'wallet-kind-hint');
+    const copy = element('div'); copy.append(element('strong', '', `${withObjectParticle(label)} 다른 종류로 넣었나요?`),
+      element('span', '', '자료를 열어 종류 바꾸기를 누르면 다시 올리지 않아도 여기로 옮겨져요.'));
+    const all = button('전체 보기', () => { filter = 'all'; onStateChange({filter, selectedId: ''}); paint(); }, true);
+    hint.append(copy, all);
+    box.append(icon, element('h3', '', `${WALLET_KIND_SUBJECT[kind] || '자료가'} 아직 없어요`),
+      element('p', '', '사진이나 PDF로 넣어 두면 필요할 때 바로 꺼내 볼 수 있어요.'), put, hint);
+    return box;
   }
 
-  function show(next) {
-    if (!visible.length) return;
-    index = ((next % visible.length) + visible.length) % visible.length;
-    layout();
+  function paint() {
+    renderFilters();
+    const visible = filterWalletItems(cards, {filter, query, sort, titles});
+    grid.replaceChildren(...visible.map(card => nodes.get(card.id)));
+    const label = filter === 'all' ? '자료' : WALLET_ITEM_CATEGORIES.find(([value]) => value === filter)?.[1];
+    count.textContent = query ? `‘${query}’ 결과 ${visible.length}개` : `${label} ${visible.length}개`;
+    grid.hidden = !visible.length; head.hidden = !visible.length && !query;
+    empty.replaceChildren(); empty.hidden = Boolean(visible.length);
+    if (!visible.length) empty.append(emptyFor(filter));
   }
 
-  deck.addEventListener('keydown', event => {
-    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
-    event.preventDefault();
-    show(index + (event.key === 'ArrowDown' ? 1 : -1));
-  });
-  // A finger, pen or mouse moves the front card vertically. No pointer capture: it would
-  // retarget a plain tap. The card image is never rotated during or after the gesture.
-  let drag = null;
-  const move = event => {
-    if (!drag || event.pointerId !== drag.pointerId) return;
-    const distance = event.clientY - drag.y;
-    if (!drag.moved && Math.abs(distance) < 8) return;
-    drag.moved = true; deck.dataset.dragging = 'true';
-    drag.face.style.transform = `translateY(${distance}px)`;
-  };
-  const end = event => {
-    if (!drag || event.pointerId !== drag.pointerId) return;
-    const {moved, y, face} = drag; drag = null;
-    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end);
-    delete deck.dataset.dragging; face.style.transform = '';
-    if (!moved) return;
-    suppressClick = true; setTimeout(() => { suppressClick = false; }, 0);
-    const distance = event.clientY - y;
-    if (Math.abs(distance) > Math.min(72, deck.clientHeight * .18)) show(index + (distance < 0 ? 1 : -1));
-  };
-  deck.addEventListener('pointerdown', event => {
-    if (drag || (event.pointerType === 'mouse' && event.button !== 0) || visible.length < 2) return;
-    const face = faces.get(visible[index]);
-    if (!face || !face.contains(event.target)) return;
-    drag = {pointerId: event.pointerId, y: event.clientY, face, moved: false};
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
-  });
-
-  renderFilters(); layout();
-  return shell;
+  let typing = 0;
+  searchInput.addEventListener('input', () => { clearTimeout(typing); typing = setTimeout(() => { query = searchInput.value.trim(); paint(); }, 120); });
+  sortSelect.addEventListener('change', () => { sort = sortSelect.value; paint(); });
+  paint();
+  return panel;
 }
 
 function downloadBackup(serialized) {
@@ -1357,6 +1480,9 @@ export function walletAddBlocked(subscription, count) {
 
 export function mountLifeWallet({root, authenticated = false, accountId = '', sessionExpiresAt = '', sessionToken = '', subscription = null, customsCode = CUSTOMS_CODE_RELEASED} = {}) {
   const vault = new LifeWalletVault(new IndexedDbWalletRepository());
+  // LIFE-WALLET-REDESIGN-02: the wallet's colour and type tokens (site-life-wallet.css) hang on
+  // this class; it leaves with the wallet, so other sections that reuse the root keep their look.
+  root.classList.add('wallet-root');
   const walletViewStateKey = accountId ? accountScope(accountId).then(scope => `${WALLET_VIEW_STATE_PREFIX}${scope}`).catch(() => '') : Promise.resolve('');
   // Sharing needs the signed-in session (share requests live on LOTBI Core). An original
   // leaves this device only sealed for the accepted recipient's key (site-life-wallet-share-crypto.js).
@@ -1370,11 +1496,11 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     newId: () => randomId(),
   });
   // LIFE-WALLET-WIFI-CARD-01: saved Wi-Fi (device only), for every member including Free.
-  const wifi = createWalletWifi({root, vault, accountId, onBack: () => void renderWallet(), activity: () => activity(), isOpen: () => unlocked && !disposed});
+  const wifi = createWalletWifi({root, vault, accountId, onBack: (message = '') => void renderWallet(message, {tab: 'life'}), activity: () => activity(), isOpen: () => unlocked && !disposed});
   const share = sessionToken ? createWalletShare({root, sessionToken, wallet: shareWallet, onBack: () => void renderWallet(), onActivity: () => activity()}) : null;
   // LIFE-WALLET-ENCRYPTED-BACKUP-01: the sealed server backup (loaded only for a signed-in
   // session). Core sees the envelope, never the backup password, the key or an item.
-  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-72c7dc1a3cb6') : null;
+  const serverBackupModule = sessionToken ? import('./site-life-wallet-backup.js?v=aset-a5a7175d3f1d') : null;
   let serverBackupClient = null;
   const serverBackup = async () => {
     const module = await serverBackupModule;
@@ -1468,7 +1594,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
   }
 
   function renderNotice(title, copy, actionNode) {
-    const state = element('section', 'wallet-gate');
+    const state = element('section', 'wallet-gate wallet-notice');
     state.append(lockMark(), element('h3', '', title), element('p', '', copy));
     if (actionNode) state.append(actionNode);
     root.replaceChildren(state);
@@ -1525,16 +1651,86 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     void requestPersistentWalletStorage().then(result => { root.dataset.walletStorage = result; });
   }
 
+  // LIFE-WALLET-REDESIGN-02: the lock card says what is locked and why on the left (on a phone,
+  // above), and takes the PIN on the right: dots, a number pad (digits and 지움 only) and one
+  // wide 열기/다음 button under it. A hardware keyboard types into the hidden field.
+  function lockInfo(mark, title, copy, points) {
+    const info = element('div', 'wallet-lock-info');
+    const list = element('ul', 'wallet-lock-points');
+    for (const [icon, text, tone] of points) {
+      const item = element('li'); if (tone) item.dataset.tone = tone;
+      item.append(walletIcon(icon), text); list.append(item);
+    }
+    info.append(mark, element('h3', '', title), element('p', '', copy), list);
+    return info;
+  }
+
+  function pinDots() {
+    const dots = element('div', 'wallet-pin-dots');
+    const paint = length => {
+      dots.replaceChildren(...[0, 1, 2, 3].map(index => {
+        const dot = element('span', 'wallet-pin-dot', index < length ? '●' : '○');
+        dot.dataset.filled = String(index < length);
+        return dot;
+      }));
+      dots.setAttribute('aria-label', `PIN ${length}자리 입력됨`);
+    };
+    paint(0);
+    return {dots, paint};
+  }
+
+  // The pad in its own order (1-9, 지움, 0, then the wide confirm button); the stylesheet puts 0
+  // in the middle and 지움 on the right of the bottom row, and the confirm button under the pad.
+  function pinKeypad(target, confirm) {
+    const keypad = element('div', 'wallet-keypad'); keypad.setAttribute('aria-label', '숫자 키패드');
+    for (const digit of ['1','2','3','4','5','6','7','8','9','지움','0','열기']) {
+      if (digit === '열기') { keypad.append(confirm); continue; }
+      const key = button(digit, () => {
+        const pin = target();
+        if (/^\d$/u.test(digit) && pin.value.length < 4) pin.value += digit;
+        if (digit === '지움') pin.value = pin.value.slice(0, -1);
+        pin.dispatchEvent(new Event('input', {bubbles: true}));
+      }, digit === '지움');
+      key.classList.add(digit === '지움' ? 'wallet-key-erase' : 'wallet-key'); key.dataset.key = digit;
+      if (digit === '지움') { key.setAttribute('aria-label', '한 칸 지우기'); key.prepend(walletIcon('erase')); }
+      keypad.append(key);
+    }
+    return keypad;
+  }
+
+  function forgotPinHelp() {
+    const help = element('details', 'wallet-lock-help');
+    help.append(element('summary', '', 'PIN을 잊었나요?'), element('p', '', 'PIN을 되찾는 방법은 없어요. 자료를 지우지 말고 LOTBI 지원에 문의해 주세요. 백업 파일을 만들어 두었다면 새 PIN으로 복원할 수 있어요.'));
+    return help;
+  }
+
   function renderSetup(message = '') {
-    const wrap = element('section', 'wallet-gate');
-    wrap.append(lockMark(), element('h3', '', '4자리 월렛 PIN 만들기'), element('p', '', '월렛은 계정 로그인과 별도로 월렛 전용 PIN으로만 열립니다. 계정 로그인 비밀번호와 다른 숫자 4자리를 사용해 주세요.'));
+    const wrap = element('section', 'wallet-gate wallet-setup-gate');
+    const info = lockInfo(lockMark(), 'Life Wallet PIN 만들기', '계정 비밀번호와 다른 숫자 4자리를 정해 주세요.', [
+      ['key', 'PIN은 이 기기에서만 쓰고, 저장하거나 보내지 않아요'],
+      ['clock', '10분 동안 쓰지 않으면 자동으로 잠겨요'],
+      ['alert', 'PIN을 잊으면 되찾을 수 없어요. 설정에서 백업을 만들어 두세요', 'warn'],
+    ]);
     // Why a new PIN, on an account that already has a wallet somewhere else.
-    wrap.append(element('p', 'wallet-setup-why', '이 브라우저에는 아직 이 계정의 월렛이 없습니다. 월렛은 기기·브라우저마다 따로 저장되어, 다른 기기나 브라우저, 저장 데이터가 지워진 브라우저(시크릿 창 포함)에서는 PIN을 새로 만들어야 합니다. 다른 곳에 저장한 자료는 그곳의 ⚙ 설정 → 암호화 백업 파일로 옮겨 올 수 있습니다.'));
-    const form = element('form', 'wallet-pin-form');
+    info.append(element('p', 'wallet-setup-why', '이 브라우저에는 아직 이 계정의 월렛이 없어요. 월렛은 기기·브라우저마다 따로 저장되어, 다른 기기나 브라우저, 저장 데이터가 지워진 브라우저(시크릿 창 포함)에서는 PIN을 새로 만들어야 해요. 다른 곳에 저장한 자료는 그곳의 설정에서 만든 암호화 백업 파일로 옮겨 올 수 있어요.'));
+    const form = element('form', 'wallet-pin-form wallet-setup-form');
     const pin = pinInput('새 월렛 PIN'); const confirmation = pinInput('새 월렛 PIN 확인'); const status = errorRegion();
     if (message) status.textContent = message;
-    const submit = button('PIN 설정하고 열기'); submit.type = 'submit';
-    form.append(field('새 PIN', pin), field('PIN 다시 입력', confirmation), submit, status);
+    let step = 1;
+    const active = () => (step === 1 ? pin : confirmation);
+    const head = element('div', 'wallet-pin-head'); const headLabel = element('span', '', '새 PIN 4자리'); const stepLabel = element('span', 'wallet-pin-step', '1 / 2');
+    head.append(headLabel, stepLabel);
+    const {dots, paint} = pinDots();
+    const hint = element('p', 'wallet-pin-hint', '한 번 더 입력해서 확인해요');
+    const submit = button('다음'); submit.type = 'submit'; submit.classList.add('wallet-key-confirm');
+    const keypad = pinKeypad(active, submit);
+    for (const input of [pin, confirmation]) input.addEventListener('input', () => { if (input === active()) paint(input.value.length); });
+    const showStep = next => {
+      step = next; headLabel.textContent = next === 1 ? '새 PIN 4자리' : 'PIN 한 번 더'; stepLabel.textContent = `${next} / 2`;
+      submit.textContent = next === 1 ? '다음' : 'PIN 설정하고 열기'; hint.hidden = next === 2;
+      paint(active().value.length); focusUnlessTouch(active());
+    };
+    form.append(pin, confirmation, head, dots, status, hint, keypad);
     let setupBackup = null;
     if (serverBackupModule) {
       void describeServerBackup().then(meta => {
@@ -1542,26 +1738,36 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         setupBackup = meta;
         const notice = element('p', 'wallet-server-backup-notice', `서버에 백업한 월렛이 있습니다 (${serverBackupTime(meta)}). PIN을 만든 뒤 바로 불러올 수 있습니다.`);
         notice.dataset.walletServerBackupNotice = '';
-        form.before(notice);
+        info.append(notice);
       });
     }
     form.addEventListener('submit', async event => {
-      event.preventDefault(); status.textContent = '';
+      event.preventDefault(); status.textContent = ''; delete form.dataset.state;
       try {
         validateWalletPin(pin.value);
-        if (pin.value !== confirmation.value) throw new Error('두 PIN이 일치하지 않습니다.');
+        // A first PIN moves to the second step; both typed (keyboard, assistive tech) go on.
+        if (step === 1 && confirmation.value.length < 4) { showStep(2); return; }
+        if (pin.value !== confirmation.value) {
+          confirmation.value = ''; showStep(2);
+          throw new Error('두 PIN이 일치하지 않습니다.');
+        }
         setBusy(form, true); await vault.create(accountId, pin.value);
         pin.value = ''; confirmation.value = ''; unlocked = true; activity(); keepWalletStorage();
         if (setupBackup) renderServerRestore(setupBackup); else await renderWallet();
-      } catch (error) { status.textContent = safeMessage(error, 'PIN을 설정하지 못했습니다.'); setBusy(form, false); pin.focus(); }
+      } catch (error) { form.dataset.state = 'error'; status.textContent = safeMessage(error, 'PIN을 설정하지 못했습니다.'); setBusy(form, false); focusUnlessTouch(active()); }
     });
-    wrap.append(form, element('p', 'wallet-security-note', 'PIN은 저장하거나 전송하지 않습니다. 임의의 256비트 암호화 키를 이 브라우저에 묶어 보호합니다. PIN 분실 시 현재 PC Web에는 안전한 복구 경로가 없으므로 자료를 지우지 말고 LOTBI 지원에 문의해 주세요.'));
-    root.replaceChildren(wrap); focusUnlessTouch(pin);
+    wrap.append(info, form);
+    root.replaceChildren(wrap); showStep(1);
   }
 
   function renderUnlock(message = '') {
     const wrap = element('section', 'wallet-gate wallet-unlock-gate');
-    wrap.append(lockMark(), element('h3', '', 'PIN을 입력해 주세요'), element('p', '', '등록한 자료를 안전하게 보려면 4자리 PIN을 입력하세요.'));
+    const info = lockInfo(lockMark(), 'Life Wallet이 잠겨 있어요', 'PIN 4자리를 입력하면 열려요.', [
+      ['shield', '자료는 이 기기에만 암호화해 보관해요'],
+      ['clock', '10분 동안 쓰지 않으면 자동으로 잠겨요'],
+      ['key', 'PIN은 저장하거나 보내지 않아요'],
+    ]);
+    info.append(forgotPinHelp());
     const form = element('form', 'wallet-pin-form wallet-unlock-form');
     const pin = pinInput('월렛 PIN'); const status = errorRegion(); if (message) status.textContent = message;
     // The PIN is entered on the keypad below, so the phone's on-screen keyboard stays down
@@ -1569,36 +1775,128 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     // screens the field is not focused automatically.
     pin.inputMode = 'none';
     const focusPin = () => { if (!window.matchMedia?.('(pointer: coarse)').matches) pin.focus(); };
-    const dots = element('div', 'wallet-pin-dots');
-    const refreshDots = () => { dots.textContent = '●'.repeat(pin.value.length) + '○'.repeat(4 - pin.value.length); };
-    pin.addEventListener('input', refreshDots); refreshDots();
-    const keypad = element('div', 'wallet-keypad'); keypad.setAttribute('aria-label', '숫자 키패드');
-    for (const digit of ['1','2','3','4','5','6','7','8','9','지움','0','열기']) {
-      const key = button(digit, () => {
-        if (/^\d$/u.test(digit) && pin.value.length < 4) pin.value += digit;
-        if (digit === '지움') pin.value = pin.value.slice(0, -1);
-        pin.dispatchEvent(new Event('input', {bubbles: true}));
-        if (digit === '열기') form.requestSubmit();
-      }, digit === '지움');
-      if (digit === '열기') key.classList.add('wallet-key-confirm');
-      keypad.append(key);
-    }
-    form.append(pin, dots, keypad, status);
+    const head = element('div', 'wallet-pin-head'); head.append(element('span', '', 'PIN 4자리'));
+    const {dots, paint} = pinDots();
+    pin.addEventListener('input', () => paint(pin.value.length));
+    const tries = element('p', 'wallet-pin-tries');
+    const open = button('열기'); open.type = 'submit'; open.classList.add('wallet-key-confirm');
+    const keypad = pinKeypad(() => pin, open);
+    form.append(pin, head, dots, status, tries, keypad, element('p', 'wallet-pin-keyboard-hint', '키보드 숫자로도 입력할 수 있어요'));
+    // Tries left and any wait, from the counters the vault already keeps.
+    let waitTimer = 0;
+    const holdKeys = held => {
+      keypad.setAttribute('aria-disabled', String(held));
+      for (const key of keypad.querySelectorAll('button')) key.disabled = held;
+      open.disabled = held;
+    };
+    const paintAttempts = async () => {
+      let state;
+      try { state = await vault.attemptState(accountId); } catch { return; }
+      if (!form.isConnected) return;
+      clearInterval(waitTimer);
+      if (state.blocked) { form.dataset.state = 'error'; tries.textContent = ''; holdKeys(true); return; }
+      tries.textContent = state.failedAttempts ? `남은 시도 ${state.remaining}번 · ${MAX_PIN_FAILURES}번 틀리면 월렛이 잠겨요` : '';
+      if (state.waitMs <= 0) { holdKeys(false); open.textContent = '열기'; return; }
+      const until = Date.now() + state.waitMs;
+      const tick = () => {
+        const left = Math.ceil((until - Date.now()) / 1000);
+        if (left <= 0 || !form.isConnected) { clearInterval(waitTimer); holdKeys(false); open.textContent = '열기'; return; }
+        holdKeys(true); open.textContent = `${left}초 뒤에 다시 입력`;
+      };
+      tick(); waitTimer = setInterval(tick, 1000);
+    };
     form.addEventListener('submit', async event => {
-      event.preventDefault(); status.textContent = '';
+      event.preventDefault(); status.textContent = ''; delete form.dataset.state;
       try {
         validateWalletPin(pin.value); setBusy(form, true); await vault.unlock(accountId, pin.value);
-        pin.value = ''; unlocked = true; activity(); keepWalletStorage(); await renderWallet();
-      } catch (error) { status.textContent = safeMessage(error, '잠금을 해제하지 못했습니다.'); setBusy(form, false); pin.value = ''; refreshDots(); focusPin(); }
+        clearInterval(waitTimer); pin.value = ''; unlocked = true; activity(); keepWalletStorage(); await renderWallet();
+      } catch (error) {
+        form.dataset.state = 'error'; status.textContent = safeMessage(error, '잠금을 해제하지 못했습니다.'); setBusy(form, false); pin.value = ''; paint(0); focusPin();
+        void paintAttempts();
+      }
     });
-    wrap.append(form);
-    root.replaceChildren(wrap); focusPin();
+    wrap.append(info, form);
+    root.replaceChildren(wrap); focusPin(); void paintAttempts();
   }
 
-  async function renderWallet(message = '') {
+  // A finished step says so in a green note that leaves after a few seconds and never follows
+  // the owner to another screen (it is part of this render only).
+  function doneNote(text) {
+    const note = element('p', 'wallet-message wallet-toast', text);
+    note.dataset.tone = 'done'; note.setAttribute('role', 'status'); note.setAttribute('aria-live', 'polite');
+    setTimeout(() => { note.hidden = true; }, 3500);
+    return note;
+  }
+
+  function backButton(label, onBack) {
+    const back = button('', onBack, true); back.classList.add('wallet-back', 'wallet-text-action');
+    back.append(walletIcon('back'), label);
+    back.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
+    return back;
+  }
+
+  function pageHead(title, onBack, backLabel = '목록으로', extra = null) {
+    const head = element('div', 'wallet-page-head');
+    head.append(backButton(backLabel, onBack), element('h3', '', title));
+    if (extra) head.append(extra);
+    return head;
+  }
+
+  function safeLine(text) {
+    const line = element('p', 'wallet-safe-line'); line.append(walletIcon('shield'), text);
+    return line;
+  }
+
+  // One way in for every kind: the four tiles, each opening the add form with its kind chosen.
+  function emptyItems(backupMeta) {
+    const empty = element('section', 'wallet-empty'); empty.dataset.walletEmpty = 'wallet';
+    const copy = element('div', 'wallet-empty-copy');
+    copy.append(element('h3', '', '첫 자료를 넣어 보세요'), element('p', '', '신분증·명함·증명서를 사진이나 PDF로 넣어 두면 필요할 때 바로 꺼내 볼 수 있어요.'));
+    const tiles = element('div', 'wallet-kind-tiles');
+    for (const [kind, label] of WALLET_ITEM_CATEGORIES) {
+      const tile = element('button', 'wallet-kind-tile'); tile.type = 'button'; tile.dataset.walletAddKind = kind;
+      const icon = element('span', 'wallet-kind-icon'); icon.append(walletIcon(kind));
+      tile.append(icon, element('strong', '', label), element('span', '', WALLET_KIND_EXAMPLES[kind][0]), element('em', '', `+ ${label} 넣기`));
+      tile.addEventListener('click', () => openAdd(kind));
+      tiles.append(tile);
+    }
+    const first = button('', () => openAdd('')); first.append(walletIcon('plus'), '첫 자료 등록하기'); first.classList.add('wallet-add-first');
+    const foot = element('div', 'wallet-empty-foot');
+    const restore = button('백업에서 복원', renderImport, true); restore.classList.add('wallet-text-action');
+    foot.append(element('span', '', '종류는 넣은 뒤에도 바꿀 수 있어요.'), element('span', '', '다른 기기에서 쓰던 월렛이 있나요?'), restore);
+    empty.append(copy, tiles, first, foot);
+    if (backupMeta) {
+      const serverRestore = button('서버 백업 불러오기', () => renderServerRestore(backupMeta), true); serverRestore.dataset.walletServerBackup = 'restore';
+      empty.append(element('p', 'wallet-server-backup-notice', `서버에 ${serverBackupTime(backupMeta)} 백업한 월렛이 있습니다.`), serverRestore);
+    }
+    return empty;
+  }
+
+  function lifePanel(customs, customsUnreadable, wifiSection) {
+    const life = element('section', 'wallet-life'); life.dataset.walletPanel = 'life';
+    life.setAttribute('role', 'tabpanel'); life.id = 'wallet-panel-life'; life.setAttribute('aria-label', '생활정보');
+    const grid = element('div', 'wallet-life-grid');
+    if (customsCode) grid.append(customsCard(customs, customsUnreadable));
+    grid.append(wifiSection);
+    const note = element('div', 'wallet-life-note');
+    const more = element('details'); more.append(element('summary', '', '자세히'),
+      element('p', '', `${customsCode ? '개인통관고유부호는 백업 파일에만 함께 암호화되어 들어가고, 서버 백업과 공유에는 들어가지 않아요. ' : ''}와이파이는 어떤 백업이나 공유에도 들어가지 않아요.`));
+    note.append(walletIcon('shield'), element('span', '', '생활정보도 내 자료와 같은 PIN으로 잠기고, 이 기기에만 암호화해 보관해요.'), more);
+    life.append(element('p', 'wallet-life-intro', '결제할 때, 손님이 왔을 때 바로 꺼내 쓰는 번호와 비밀번호예요.'), grid, note);
+    return life;
+  }
+
+  // The last screen's data, for the settings screen and the add form's "명함 5" hint.
+  let walletContext = {cards: [], customs: null, backupMeta: null};
+  let walletTab = 'items';
+  const openAdd = (preset = '') => (walletAddBlocked(subscription, walletContext.cards.length) ? renderAddLimit() : renderAdd(preset));
+
+  async function renderWallet(message = '', {tab = ''} = {}) {
     const generation = ++renderGeneration;
+    if (tab) walletTab = tab;
     root.dataset.walletState = 'unlocked';
-    root.replaceChildren(element('p', 'wallet-message', '암호화된 자료를 여는 중입니다.'));
+    const loading = element('p', 'wallet-message', '암호화된 자료를 여는 중입니다.'); loading.dataset.tone = 'progress';
+    root.replaceChildren(loading);
     try {
       const cards = await vault.list(accountId);
       // A code that cannot be opened is reported on its own card; the rest of the wallet opens.
@@ -1610,109 +1908,60 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       if (disposed || !unlocked || generation !== renderGeneration) return;
       const backupMeta = await describeServerBackup();
       if (disposed || !unlocked || generation !== renderGeneration) return;
-      // Read before the toolbar: its late updates (the share count) need the screen in place.
       const wifiSection = await wifi.section();
       if (disposed || !unlocked || generation !== renderGeneration) return;
       const viewStorageKey = await walletViewStateKey;
       if (disposed || !unlocked || generation !== renderGeneration) return;
       const viewState = readWalletViewState(availableLocalStorage(), viewStorageKey);
-      const shell = element('section', 'wallet-shell');
-      const toolbar = element('div', 'wallet-toolbar');
-      const storageCount = element('span', 'wallet-storage-count', `저장 자료 ${cards.length}개`);
-      const reassurance = element('div', 'wallet-storage-reassurance');
-      reassurance.append(...(backupMeta ? [
-        element('strong', '', '자료는 이 기기에 저장되고, 서버에는 암호화된 백업만 보관됩니다.'),
-        element('span', '', 'LOTBI 관리자도 원본과 백업 내용을 볼 수 없습니다. 새 기기에서는 같은 계정으로 로그인한 뒤 백업 비밀번호로 불러올 수 있습니다.'),
-      ] : [
-        element('strong', '', '안전하게 이 기기에만 저장됩니다.'),
-        element('span', '', 'LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다.'),
-      ]));
-      // Said only once Core answers that the relay is on (it stays off until the owner turns it on).
-      const shareNote = share ? element('span', 'wallet-storage-share-note', '공유를 수락한 상대에게 암호화해 전달할 때만 서버를 거칩니다.') : null;
-      if (shareNote) { shareNote.hidden = true; shareNote.dataset.walletShareRelay = 'pending'; reassurance.append(shareNote); }
-      const settings = element('div', 'wallet-settings');
-      const settingsMenu = element('div', 'wallet-settings-menu');
-      settingsMenu.hidden = true; settingsMenu.setAttribute('role', 'menu'); settingsMenu.setAttribute('aria-label', 'Life Wallet 설정');
-      const settingsToggle = button('설정', () => {
-        settingsMenu.hidden = !settingsMenu.hidden;
-        settingsToggle.setAttribute('aria-expanded', String(!settingsMenu.hidden));
-        if (!settingsMenu.hidden) settingsMenu.querySelector('button:not(:disabled)')?.focus();
-      }, true);
-      settingsToggle.classList.add('wallet-toolbar-icon-action');
-      settingsToggle.prepend(walletActionIcon('settings'));
-      settingsToggle.setAttribute('aria-haspopup', 'menu'); settingsToggle.setAttribute('aria-expanded', 'false');
-      const pinAction = button('PIN 변경', renderChangePin, true); pinAction.setAttribute('role', 'menuitem');
-      const backupAction = button('암호화 백업 파일 만들기', () => renderBackup(Boolean(customs)), true); backupAction.setAttribute('role', 'menuitem');
-      backupAction.disabled = !canExportWalletBackup(cards, customs ? 1 : 0);
-      if (backupAction.disabled) backupAction.title = '저장된 자료가 있을 때 백업할 수 있습니다.';
-      const importAction = button('백업에서 복원', renderImport, true); importAction.setAttribute('role', 'menuitem');
-      settingsMenu.append(pinAction, backupAction, importAction);
-      if (backupAction.disabled) settingsMenu.append(element('small', 'wallet-settings-help', '저장된 자료가 있을 때 백업 파일을 만들 수 있습니다.'));
-      if (serverBackupModule) {
-        const keepAction = button('서버에 백업하기', () => renderServerBackup(backupMeta), true); keepAction.setAttribute('role', 'menuitem'); keepAction.dataset.walletServerBackup = 'keep';
-        keepAction.disabled = !canExportWalletBackup(cards);
-        settingsMenu.append(keepAction);
-        if (backupMeta) {
-          const restoreAction = button('서버 백업 불러오기', () => renderServerRestore(backupMeta), true); restoreAction.setAttribute('role', 'menuitem'); restoreAction.dataset.walletServerBackup = 'restore';
-          const deleteAction = button('서버 백업 삭제', () => renderServerBackupDelete(), true); deleteAction.setAttribute('role', 'menuitem'); deleteAction.dataset.walletServerBackup = 'delete';
-          settingsMenu.append(restoreAction, deleteAction);
-        }
-        settingsMenu.append(element('small', 'wallet-settings-help', backupMeta ? `마지막 서버 백업: ${serverBackupTime(backupMeta)}` : '서버에 보관한 백업이 없습니다.'));
-      }
-      settings.addEventListener('keydown', event => {
-        if (event.key !== 'Escape' || settingsMenu.hidden) return;
-        settingsMenu.hidden = true; settingsToggle.setAttribute('aria-expanded', 'false'); settingsToggle.focus();
+      walletContext = {cards, customs, backupMeta};
+      const shell = element('section', 'wallet-shell'); shell.dataset.walletActiveTab = walletTab;
+      const lifeCount = (customs ? 1 : 0) + Number(wifiSection.dataset.walletWifiCount || 0);
+      const topbar = element('div', 'wallet-topbar');
+      const tabs = element('div', 'wallet-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'Life Wallet 영역');
+      const tabButtons = [['items', '내 자료', cards.length], ['life', '생활정보', lifeCount]].map(([id, label, total]) => {
+        const tabButton = element('button', 'wallet-tab'); tabButton.type = 'button'; tabButton.dataset.walletTab = id;
+        tabButton.setAttribute('role', 'tab'); tabButton.setAttribute('aria-controls', `wallet-panel-${id}`); tabButton.id = `wallet-tab-${id}`;
+        tabButton.append(label, element('span', 'wallet-tab-count', String(total)));
+        tabButton.addEventListener('click', () => showTab(id));
+        return tabButton;
       });
-      let shareAction = null;
-      if (share) {
-        shareAction = button('공유', () => void share.openHub(), true); shareAction.dataset.walletShareOpen = ''; shareAction.setAttribute('role', 'menuitem');
-        settingsMenu.append(shareAction);
-      }
-      reassurance.classList.add('wallet-settings-help');
-      settingsMenu.append(reassurance);
-      settings.append(settingsToggle, settingsMenu);
-      const openAdd = () => (walletAddBlocked(subscription, cards.length) ? renderAddLimit() : renderAdd());
-      // One way to add: 첫 자료 등록하기 on an empty wallet, + 자료 추가 once something is saved.
+      tabs.append(...tabButtons);
       const actions = element('div', 'wallet-toolbar-actions');
-      if (cards.length) {
-        const addAction = button('', openAdd); addAction.classList.add('wallet-add-action');
-        addAction.append(element('span', 'wallet-add-label-desktop', '+ 자료 추가'), element('span', 'wallet-add-label-mobile', '+ 추가'));
-        actions.append(addAction);
-      }
-      if (share) {
-        void share.pendingCount().then(count => {
-          if (count && shareAction.isConnected) shareAction.textContent = `공유 ${count}`;
-          if (shareNote) { const on = share.transferAvailable(); shareNote.hidden = !on; shareNote.dataset.walletShareRelay = on ? 'on' : 'off'; }
-        });
-      }
-      const lockAction = button('잠그기', () => void lockAndRender(), true); lockAction.classList.add('wallet-toolbar-icon-action'); lockAction.prepend(walletActionIcon('lock'));
+      const lockAction = button('', () => void lockAndRender(), true); lockAction.classList.add('wallet-icon-button', 'wallet-toolbar-icon-action');
+      lockAction.setAttribute('aria-label', '잠그기'); lockAction.append(walletIcon('lock'), element('span', 'wallet-action-label', '잠그기'));
+      const settingsAction = button('', () => renderSettings(), true); settingsAction.classList.add('wallet-icon-button', 'wallet-toolbar-icon-action');
+      settingsAction.setAttribute('aria-label', '설정'); settingsAction.dataset.walletSettingsOpen = '';
+      settingsAction.append(walletIcon('settings'), element('span', 'wallet-action-label', '설정'));
+      const settings = element('div', 'wallet-settings'); settings.append(settingsAction);
       actions.append(lockAction, settings);
-      toolbar.append(storageCount, actions);
-      shell.append(toolbar);
-      if (message) shell.append(element('p', 'wallet-message', message));
-      if (!cards.length) {
-        const empty = element('section', 'wallet-empty');
-        empty.append(element('h3', '', '아직 등록한 자료가 없습니다'), element('p', '', '사용자가 직접 등록한 실제 자료만 여기에 표시됩니다.'), button('첫 자료 등록하기', openAdd));
-        if (backupMeta) {
-          const restore = button('서버 백업 불러오기', () => renderServerRestore(backupMeta), true); restore.dataset.walletServerBackup = 'restore';
-          empty.append(element('p', 'wallet-server-backup-notice', `서버에 ${serverBackupTime(backupMeta)} 백업한 월렛이 있습니다.`), restore);
+      topbar.append(tabs, actions);
+      shell.append(element('span', 'wallet-storage-count', `저장 자료 ${cards.length}개`), topbar);
+      if (message) shell.append(doneNote(message));
+      const items = cards.length ? createWalletItems({
+        cards,
+        onOpen: (card, title) => renderDetail(card, title),
+        onAdd: kind => openAdd(kind),
+        initialFilter: viewState.filter,
+        onStateChange: state => writeWalletViewState(availableLocalStorage(), viewStorageKey, state),
+      }) : (() => { const panel = element('div', 'wallet-items'); panel.dataset.walletPanel = 'items'; panel.setAttribute('role', 'tabpanel'); panel.id = 'wallet-panel-items'; panel.append(emptyItems(backupMeta)); return panel; })();
+      const life = lifePanel(customs, customsUnreadable, wifiSection);
+      const showTab = id => {
+        walletTab = id; shell.dataset.walletActiveTab = id;
+        for (const tabButton of tabButtons) {
+          const selected = tabButton.dataset.walletTab === id;
+          tabButton.setAttribute('aria-selected', String(selected)); tabButton.tabIndex = selected ? 0 : -1;
         }
-        shell.append(empty);
-      } else {
-        shell.append(createWalletCardDeck({
-          cards,
-          onOpen: renderDetail,
-          initialSelectedId: viewState.selectedId,
-          initialFilter: viewState.filter,
-          onStateChange: state => writeWalletViewState(availableLocalStorage(), viewStorageKey, state),
-        }));
-      }
-      const lifeInfo = element('section', 'wallet-life-info');
-      lifeInfo.append(element('h3', 'wallet-life-info-title', '생활정보'));
-      if (customsCode) lifeInfo.append(customsCard(customs, customsUnreadable));
-      lifeInfo.append(wifiSection);
-      shell.append(lifeInfo);
-      shell.append(element('p', 'wallet-security-note', '화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다. 10분간 사용하지 않으면 다시 잠깁니다.'));
+        items.hidden = id !== 'items'; life.hidden = id !== 'life';
+        items.setAttribute('aria-labelledby', 'wallet-tab-items'); life.setAttribute('aria-labelledby', 'wallet-tab-life');
+      };
+      tabs.addEventListener('keydown', event => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const next = walletTab === 'items' ? 'life' : 'items'; showTab(next);
+        tabButtons.find(tabButton => tabButton.dataset.walletTab === next)?.focus();
+      });
+      shell.append(items, life, element('p', 'wallet-security-note', '화면 이동·새로고침·백그라운드 전환 후에도 잠금 해제 상태가 유지됩니다. 10분간 사용하지 않으면 다시 잠깁니다.'));
+      showTab(walletTab);
       root.replaceChildren(shell);
       // A share link opened before (#wallet-share=…) continues here once the wallet is open.
       const intent = share ? takeWalletShareIntent() : null;
@@ -1720,6 +1969,83 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     } catch (error) {
       await lockAndRender(safeMessage(error, '자료를 불러오지 못해 다시 잠갔습니다.'));
     }
+  }
+
+  // 설정: everything that used to sit in a small menu, as one screen. Each row opens the same
+  // screen as before (PIN 변경, the two backups, 공유); the table says what each backup carries.
+  function renderSettings() {
+    const {cards, customs, backupMeta} = walletContext;
+    const page = element('section', 'wallet-settings-page'); page.dataset.walletView = 'settings';
+    const row = (icon, title, note, onClick, {disabled = false, tone = '', data = null} = {}) => {
+      const item = element('button', 'wallet-settings-row'); item.type = 'button';
+      const iconBox = element('span'); iconBox.append(walletIcon(icon));
+      const text = element('span'); text.append(element('b', '', title), element('small', '', note));
+      item.append(iconBox, text);
+      if (tone) item.dataset.tone = tone;
+      if (data) for (const [name, value] of Object.entries(data)) item.dataset[name] = value;
+      if (onClick && !disabled) item.addEventListener('click', onClick);
+      item.disabled = disabled;
+      if (onClick) item.append(walletIcon('chevron')); else item.dataset.static = 'true';
+      return item;
+    };
+    const group = (title, ...rows) => { const box = element('section', 'wallet-settings-group'); box.append(element('h4', '', title), ...rows); return box; };
+    const lockGroup = group('잠금',
+      row('key', 'PIN 변경', '지금 PIN을 넣고 새 PIN 4자리로 바꿔요', renderChangePin, {data: {walletSettings: 'pin'}}),
+      row('clock', '자동 잠금 10분', '10분 동안 쓰지 않으면 잠겨요 · 새로고침해도 10분 안에는 열린 채로', null));
+    const forgot = element('div', 'wallet-settings-help');
+    forgot.append(element('b', '', 'PIN을 잊었다면'), 'PIN을 되찾는 방법은 없어요. 자료를 지우지 말고 LOTBI 지원에 문의해 주세요. 미리 백업 파일을 만들어 두면 새 PIN으로 복원할 수 있어요.');
+    lockGroup.append(forgot);
+    const canBackup = canExportWalletBackup(cards, customs ? 1 : 0);
+    const backupRows = [
+      row('download', '백업 파일 만들기', canBackup ? '이 기기에 암호화 파일로 저장 · 와이파이 제외' : '저장된 자료가 있을 때 백업할 수 있습니다.', () => renderBackup(Boolean(customs)), {disabled: !canBackup, data: {walletSettings: 'backup'}}),
+      row('upload', '백업 파일로 복원', '백업 파일과 백업 전용 암호가 필요해요', renderImport, {data: {walletSettings: 'import'}}),
+    ];
+    if (serverBackupModule) {
+      backupRows.push(row('cloudUp', '서버에 백업하기', backupMeta ? `마지막 서버 백업: ${serverBackupTime(backupMeta)} · 내 자료만` : '서버에 보관한 백업이 없습니다. · 내 자료만', () => renderServerBackup(backupMeta), {disabled: !canExportWalletBackup(cards), data: {walletServerBackup: 'keep'}}));
+      if (backupMeta) {
+        backupRows.push(row('cloudDown', '서버 백업 불러오기', '백업 비밀번호로 이 기기에 불러와요', () => renderServerRestore(backupMeta), {data: {walletServerBackup: 'restore'}}));
+        backupRows.push(row('trash', '서버 백업 삭제', '월렛 PIN을 확인한 뒤 지워요', renderServerBackupDelete, {tone: 'danger', data: {walletServerBackup: 'delete'}}));
+      }
+    }
+    const backupGroup = group('백업', ...backupRows);
+    const reassurance = element('div', 'wallet-settings-help wallet-storage-reassurance');
+    reassurance.append(...(backupMeta ? [
+      element('strong', '', '자료는 이 기기에 저장되고, 서버에는 암호화된 백업만 보관됩니다.'),
+      element('span', '', 'LOTBI 관리자도 원본과 백업 내용을 볼 수 없습니다. 새 기기에서는 같은 계정으로 로그인한 뒤 백업 비밀번호로 불러올 수 있습니다.'),
+    ] : [
+      element('strong', '', '안전하게 이 기기에만 저장됩니다.'),
+      element('span', '', 'LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다.'),
+    ]));
+    // Said only once Core answers that the relay is on (it stays off until the owner turns it on).
+    const shareNote = share ? element('span', 'wallet-storage-share-note', '공유를 수락한 상대에게 암호화해 전달할 때만 서버를 거칩니다.') : null;
+    if (shareNote) { shareNote.hidden = true; shareNote.dataset.walletShareRelay = 'pending'; reassurance.append(shareNote); }
+    backupGroup.append(reassurance);
+    const left = element('div'); left.append(lockGroup);
+    if (share) {
+      const shareRow = row('share', '받은·보낸 공유', '내 자료만 공유돼요 · 생활정보는 공유되지 않아요', () => void share.openHub(), {data: {walletShareOpen: ''}});
+      const pending = element('span', 'wallet-share-count'); shareRow.insertBefore(pending, shareRow.lastChild);
+      left.append(group('공유', shareRow));
+      void share.pendingCount().then(count => {
+        if (count && pending.isConnected) pending.textContent = `대기 ${count}`;
+        if (shareNote) { const on = share.transferAvailable(); shareNote.hidden = !on; shareNote.dataset.walletShareRelay = on ? 'on' : 'off'; }
+      });
+    }
+    const matrix = element('section', 'wallet-matrix'); matrix.setAttribute('aria-label', '저장 항목별 백업·공유 포함 여부');
+    const table = element('div'); table.setAttribute('role', 'table'); table.setAttribute('aria-label', '어디에 들어가나요');
+    const header = element('div'); header.setAttribute('role', 'row');
+    for (const label of ['', '파일 백업', '서버 백업', '공유']) { const cell = element('span', '', label); cell.setAttribute('role', 'columnheader'); header.append(cell); }
+    table.append(header);
+    for (const [name, cells] of [['내 자료 (사진·PDF)', [true, true, true]], ...(customsCode ? [['개인통관고유부호', [true, false, false]]] : []), ['와이파이', [false, false, false]]]) {
+      const line = element('div'); line.setAttribute('role', 'row');
+      const head = element('span', '', name); head.setAttribute('role', 'rowheader'); line.append(head);
+      for (const included of cells) { const cell = element('span', '', included ? '포함' : '제외'); cell.setAttribute('role', 'cell'); cell.dataset.in = String(included); line.append(cell); }
+      table.append(line);
+    }
+    matrix.append(element('h4', '', '어디에 들어가나요?'), table);
+    const right = element('div'); right.append(backupGroup, matrix);
+    const columns = element('div', 'wallet-settings-columns'); columns.append(left, right);
+    page.append(pageHead('설정', () => void renderWallet(), 'Life Wallet'), columns);
+    root.replaceChildren(page); activity();
   }
 
   function renderAddLimit() {
@@ -1733,123 +2059,339 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     root.replaceChildren(view); back.focus(); activity();
   }
 
-  function renderAdd() {
-    const form = element('form', 'wallet-editor'); const status = errorRegion();
-    form.dataset.walletView = 'add';
+  // 종류: four cards, none chosen until the owner picks one (or came from a kind's own button).
+  // The picture's shape only marks a suggestion: a page or a PDF is pre-chosen as 증명서·문서, a
+  // card is suggested as 신분증 or 명함 (the shape cannot tell those apart). This is the owner's
+  // sealed choice; nothing is read from the picture.
+  function kindChoice(name, selected = '') {
+    const box = element('fieldset', 'wallet-kind-choice');
+    const legend = element('legend', '', '자료 종류'); legend.append(element('small', '', '필수'));
+    const suggest = element('p', 'wallet-kind-suggest');
+    const grid = element('div', 'wallet-kind-options');
+    const choices = WALLET_ITEM_CATEGORIES.map(([value, label]) => {
+      const option = element('label', 'wallet-kind-option'); option.dataset.walletKindOption = value;
+      const input = element('input'); input.type = 'radio'; input.name = name; input.value = value; input.checked = value === selected;
+      input.dataset.walletCategoryChoice = value;
+      const text = element('span'); text.append(element('b', '', label), element('small', '', WALLET_KIND_EXAMPLES[value][1]));
+      const rec = element('span', 'wallet-kind-rec', '추천'); rec.hidden = true;
+      option.append(input, text, rec); grid.append(option);
+      return {value, input, rec};
+    });
+    box.append(legend, suggest, grid);
+    return {
+      element: box, suggest,
+      value: () => choices.find(choice => choice.input.checked)?.value || '',
+      choose: value => { for (const choice of choices) choice.input.checked = choice.value === value; },
+      recommend: values => { for (const choice of choices) choice.rec.hidden = !values.includes(choice.value); },
+      onChange: listener => { for (const choice of choices) choice.input.addEventListener('change', listener); },
+    };
+  }
+
+  function stepsBar(current) {
+    const bar = element('ol', 'wallet-steps-bar'); bar.setAttribute('aria-label', '자료 추가 단계');
+    const steps = [['1', '파일 고르기'], ['2', '확인하고 저장']].map(([number, label], index) => {
+      const step = element('li'); const mark = element('b', '', number);
+      if (index + 1 === current) step.setAttribute('aria-current', 'step');
+      if (index + 1 < current) { step.dataset.done = 'true'; mark.textContent = ''; mark.append(walletIcon('check')); }
+      step.append(mark, label); return step;
+    });
+    bar.append(steps[0], element('i'), steps[1]);
+    return bar;
+  }
+
+  function nextTitleHint(kind) {
+    if (!kind) return '선택 · 비우면 종류와 번호가 붙어요';
+    const label = WALLET_ITEM_CATEGORIES.find(([value]) => value === kind)?.[1] || '자료';
+    const next = walletContext.cards.filter(card => walletItemCategory(card) === kind).length + 1;
+    return `선택 · 비우면 ‘${label} ${next}’처럼 붙어요`;
+  }
+
+  // 자료 추가 (LIFE-WALLET-REDESIGN-02): 카메라 또는 내 파일 → the same preview frame for a photo
+  // or a PDF (회전 · 자르기 조정) → 종류 → 제목·메모 → one 암호화하여 저장. A reason under/next to the
+  // button says what is still missing.
+  function renderAdd(preset = '') {
+    const form = element('form', 'wallet-editor wallet-add'); const status = errorRegion();
+    form.dataset.walletView = 'add'; form.dataset.step = 'start'; form.noValidate = true;
     pickerOpen = false;
-    // This is owner-selected encrypted metadata. It neither inspects the image nor
-    // changes an existing item, PIN, device key, or backup envelope.
-    const category = element('select');
-    for (const [value, label] of WALLET_ITEM_CATEGORIES) {
-      const option = element('option', '', label);
-      option.value = value;
-      category.append(option);
-    }
-    let save;
+    let scan = {state: 'empty', ready: false};
+    const kinds = kindChoice('wallet-category', WALLET_ITEM_CATEGORY_IDS.includes(preset) ? preset : '');
+    let kindTouched = Boolean(preset);
+    const reason = element('p', 'wallet-reason'); reason.setAttribute('role', 'status'); reason.setAttribute('aria-live', 'polite');
+    const pdfNote = element('p', 'wallet-pdf-note'); pdfNote.hidden = true;
+    const titleInput = element('input'); titleInput.type = 'text'; titleInput.maxLength = 80; titleInput.autocomplete = 'off'; titleInput.dataset.walletItemTitle = '';
+    const titleHint = element('small', 'wallet-field-hint');
+    const titleField = element('label', 'wallet-field'); titleField.append(element('span', '', '제목'), titleInput, titleHint);
+    const note = element('textarea'); note.maxLength = 1000; note.rows = 2;
+    const noteLabel = element('span', '', '메모 '); noteLabel.append(element('small', '', '선택'));
+    const noteField = element('label', 'wallet-field'); noteField.append(noteLabel, note);
+    const cancel = button('취소', () => { photoPicker.destroy(); void renderWallet(); }, true);
+    const save = button(''); save.type = 'submit'; save.classList.add('wallet-add-save'); save.append(walletIcon('lock'), '암호화하여 저장');
+    const refresh = () => {
+      const kind = kinds.value();
+      titleHint.textContent = nextTitleHint(kind);
+      titleInput.placeholder = kind === 'business-card' ? '예: 디자인 회사 명함' : kind === 'document' ? '예: 재직증명서' : kind === 'identity' ? '예: 운전면허증' : '예: 도서관 회원증';
+      const missing = !scan.ready
+        ? (scan.state === 'analysing' || scan.state === 'scanning' ? '사진을 확인하고 있어요' : scan.state === 'empty' ? '자료 사진을 골라 주세요' : '저장할 수 있는 사진을 골라 주세요')
+        : !kind ? '자료 종류를 골라 주세요' : '';
+      reason.replaceChildren(); if (missing) reason.append(walletIcon('info'), missing);
+      save.disabled = Boolean(missing);
+    };
+    kinds.onChange(() => { kindTouched = true; refresh(); });
     const photoPicker = createWalletPhotoPicker({
+      layout: 'start',
       onError: message => { status.textContent = message; },
-      // 암호화하여 저장 turns on only when a checked item is ready.
-      onReady: ready => { if (save) save.disabled = !ready; },
+      onReady: () => refresh(),
+      onState: next => {
+        scan = next; form.dataset.step = 'review';
+        if (next.state === 'review' || next.state === 'error') {
+          const page = next.shape === 'document' || next.pdf;
+          const card = next.shape === 'card';
+          kinds.recommend(page ? ['document'] : card ? ['identity', 'business-card'] : []);
+          if (page && !kindTouched) kinds.choose('document');
+          kinds.suggest.textContent = page ? '문서 모양이라 ‘증명서·문서’를 골라 두었어요. 맞는지 확인해 주세요.'
+            : card ? '카드 모양이라 신분증·명함을 추천했어요. 맞는 것을 골라 주세요.' : '';
+          pdfNote.hidden = !(next.pdf && next.pdfPages > 1);
+          pdfNote.replaceChildren(walletIcon('alert'), `이 PDF는 ${next.pdfPages}쪽이에요. 첫 쪽만 저장돼요.`);
+        }
+        refresh();
+      },
       onPickerOpen: () => { pickerOpen = true; },
       onPickerClose: () => { pickerOpen = false; },
     });
-    const note = element('textarea'); note.maxLength = 1000; note.rows = 4;
-    const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => { photoPicker.destroy(); void renderWallet(); }, true));
-    save = button('암호화하여 저장'); save.type = 'submit'; save.disabled = true; actions.append(save);
-    form.append(element('h3', '', '자료 추가'), field('자료 종류', category), photoPicker.element, field('메모 · 선택', note), actions, status,
-      element('p', 'wallet-security-note', '기울기·원근·여백과 화질을 이 브라우저에서만 보정합니다. 원본과 보정 사진은 LOTBI 서버나 대화창으로 전송되지 않습니다.'));
+    const intro = element('div', 'wallet-add-intro');
+    intro.append(element('h4', '', '어떻게 넣을까요?'), element('p', '', '사진이나 PDF 한 장을 고르면, 다음 화면에서 미리 보고 종류를 정해요.'));
+    const facts = element('ul', 'wallet-add-facts');
+    for (const [tone, icon, title, text] of [['ok', 'check', '넣을 수 있어요', '신분증 · 명함 · 증명서 · 계약서 · 회원증'], ['no', 'close', '넣을 수 없어요', '영수증 · 글자가 없는 일반 사진'], ['info', 'info', '알아 두세요', 'PDF는 첫 쪽만 저장돼요 · 사진 30MB · PDF 20MB까지']]) {
+      const fact = element('li'); fact.dataset.tone = tone;
+      const text2 = element('span'); text2.append(element('b', '', title), text);
+      fact.append(walletIcon(icon), text2); facts.append(fact);
+    }
+    const media = element('div', 'wallet-add-media'); media.append(photoPicker.element, pdfNote);
+    const details = element('div', 'wallet-add-details'); details.append(kinds.element, titleField, noteField);
+    const grid = element('div', 'wallet-add-grid'); grid.append(media, details);
+    const actions = element('div', 'wallet-form-actions'); actions.append(cancel, save);
+    const bar = element('div', 'wallet-form-bar'); bar.append(safeLine('이 기기에만 암호화해 보관 · LOTBI 서버로 보내지 않아요'), reason, actions);
+    const back = backButton('내 자료', () => { photoPicker.destroy(); void renderWallet(); });
+    const head = element('div', 'wallet-page-head'); head.append(back, element('h3', '', '자료 추가'), stepsBar(1));
+    form.append(head, intro, grid, facts, status,
+      element('p', 'wallet-security-note', '기울기·원근·여백과 화질을 이 브라우저에서만 보정합니다. 원본과 보정 사진은 LOTBI 서버나 대화창으로 전송되지 않습니다.'), bar);
+    const stepObserver = new MutationObserver(() => { head.lastChild.replaceWith(stepsBar(form.dataset.step === 'review' ? 2 : 1)); });
+    stepObserver.observe(form, {attributes: true, attributeFilter: ['data-step']});
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
       try {
+        const category = kinds.value();
+        if (!category) throw new Error('자료 종류를 골라 주세요.');
         setBusy(form, true);
         if (resuming) await resuming;
         const frontDataUrl = await photoPicker.readDataUrl();
-        await vault.save(accountId, {id: randomId(), kind: 'document', category: category.value, note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
-        photoPicker.destroy();
-        await renderWallet('자료를 암호화하여 저장했습니다.');
-      } catch (error) { status.textContent = safeMessage(error, '자료를 저장하지 못했습니다.'); setBusy(form, false); }
+        await vault.save(accountId, {id: randomId(), kind: 'document', category, name: titleInput.value.trim(), note: note.value, frontDataUrl, updatedAt: new Date().toISOString()});
+        photoPicker.destroy(); stepObserver.disconnect();
+        await renderWallet('자료를 암호화하여 저장했습니다.', {tab: 'items'});
+      } catch (error) { status.textContent = safeMessage(error, '자료를 저장하지 못했습니다.'); setBusy(form, false); refresh(); }
     });
-    root.replaceChildren(form); category.focus(); activity();
+    refresh();
+    root.replaceChildren(form); activity();
   }
 
-  function renderDetail(card) {
-    const detail = element('section', 'wallet-detail');
-    const toList = button('목록으로', () => void renderWallet(), true);
-    toList.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
-    const header = element('div', 'wallet-detail-header'); header.append(toList, element('h3', '', walletCardTitle(card)));
-    detail.append(header);
-    const images = element('div', 'wallet-detail-images');
-    const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${walletCardTitle(card)} 자료 사진 원본`; front.append(frontImage); if (card.backDataUrl) front.append(element('figcaption', '', '앞면'));
-    images.append(front);
-    if (card.backDataUrl) { const back = element('figure'); const backImage = element('img'); backImage.src = card.backDataUrl; backImage.alt = `${walletCardTitle(card)} 뒷면 원본`; back.append(backImage, element('figcaption', '', '뒷면')); images.append(back); }
-    detail.append(images);
-    // 크게 보기: the photo at its own size, scrolled inside the frame (small print, a number).
-    const zoom = button('크게 보기', () => {
-      const zoomed = images.classList.toggle('wallet-detail-zoomed');
-      zoom.textContent = zoomed ? '맞춰 보기' : '크게 보기'; zoom.setAttribute('aria-pressed', String(zoomed));
-    }, true);
-    zoom.setAttribute('aria-pressed', 'false');
-    const facts = element('p', 'wallet-detail-facts', savedDateLabel(card));
-    detail.append(facts, zoom, categoryChoice(card));
-    if (card.note) detail.append(element('p', 'wallet-card-note', card.note));
-    // Deleting asks for the wallet PIN on the page itself: it cannot be undone, and embedded
-    // browsers and app WebViews silently cancel window.confirm.
-    const removal = element('form', 'wallet-delete-confirm'); removal.hidden = true;
-    const removalPin = pinInput('월렛 PIN'); const removalStatus = errorRegion();
-    const remove = button('자료 삭제', () => { remove.hidden = true; removal.hidden = false; removalPin.value = ''; removalStatus.textContent = ''; removalPin.focus(); }, true);
-    remove.classList.add('wallet-danger-action');
-    const removalActions = element('div', 'wallet-form-actions');
-    removalActions.append(button('취소', () => { removal.hidden = true; remove.hidden = false; remove.focus(); }, true));
-    const removalSubmit = button('삭제'); removalSubmit.type = 'submit'; removalSubmit.classList.add('wallet-danger-confirm'); removalActions.append(removalSubmit);
-    removal.append(element('p', '', '이 자료를 삭제하려면 월렛 PIN을 입력해 주세요. 별도로 내보낸 백업은 삭제되지 않습니다.'), field('월렛 PIN', removalPin), removalActions, removalStatus);
-    removal.addEventListener('submit', async event => {
-      event.preventDefault(); removalStatus.textContent = '';
-      try {
-        validateWalletPin(removalPin.value); setBusy(removal, true);
-        await vault.verifyPin(accountId, removalPin.value);
-        await vault.remove(accountId, card.id); await renderWallet('자료를 삭제했습니다.');
-      } catch (error) { removalStatus.textContent = safeMessage(error, '자료를 삭제하지 못했습니다.'); setBusy(removal, false); removalPin.value = ''; removalPin.focus(); }
+  // A changed item replaces its old copy, so its title and number on the page follow the change.
+  function remember(saved) {
+    walletContext = {...walletContext, cards: walletContext.cards.map(card => (card.id === saved.id ? saved : card))};
+    return saved;
+  }
+
+  // A dialog over the page (a sheet from the bottom on a phone). Its 취소 carries the phone's back.
+  function openDialog(label, build) {
+    const backdrop = element('div', 'wallet-dialog-backdrop');
+    const dialog = element('form', 'wallet-dialog'); dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-label', label);
+    dialog.noValidate = true;
+    const close = () => { backdrop.remove(); document.removeEventListener('keydown', onKey, true); };
+    // A lock clears the page (and the dialog with it); the key listener then leaves on its own.
+    const onKey = event => {
+      if (!backdrop.isConnected) { document.removeEventListener('keydown', onKey, true); return; }
+      if (event.key === 'Escape') { event.preventDefault(); close(); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    backdrop.addEventListener('pointerdown', event => { if (event.target === backdrop) close(); });
+    backdrop.append(dialog); build(dialog, close);
+    root.append(backdrop); activity();
+    return close;
+  }
+
+  function dialogCancel(close) {
+    const cancel = button('취소', close, true);
+    cancel.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: back closes the dialog first.
+    return cancel;
+  }
+
+  // 종류 바꾸기: the picture stays as it is; only the sealed category changes (the save time too).
+  function openKindDialog(card, onSaved) {
+    openDialog('종류 바꾸기', (dialog, close) => {
+      const current = walletItemCategory(card);
+      const kinds = kindChoice('wallet-category-fix', current);
+      kinds.element.classList.add('wallet-kind-list');
+      const now = kinds.element.querySelector(`[data-wallet-kind-option="${current}"]`);
+      now?.append(element('span', 'wallet-kind-now', '지금 종류'));
+      const status = errorRegion();
+      const save = button('암호화하여 저장'); save.type = 'submit';
+      const actions = element('div', 'wallet-form-actions'); actions.append(dialogCancel(close), save);
+      dialog.append(element('h3', '', '종류 바꾸기'), element('p', '', '사진은 그대로 두고 종류만 바꿔요. 다시 올리지 않아도 돼요.'), kinds.element, status, actions);
+      dialog.addEventListener('submit', async event => {
+        event.preventDefault(); status.textContent = '';
+        const category = kinds.value();
+        if (!category || category === walletItemCategory(card)) { close(); return; }
+        try {
+          setBusy(dialog, true);
+          const saved = remember(await vault.save(accountId, {...card, category}));
+          close();
+          onSaved(saved, `${withDirectionParticle(WALLET_ITEM_CATEGORIES.find(([value]) => value === category)?.[1] || '기타')} 바꿨어요.`);
+        } catch (error) { status.textContent = safeMessage(error, '종류를 바꾸지 못했습니다.'); setBusy(dialog, false); }
+      });
     });
+  }
+
+  // Deleting asks for the wallet PIN in the dialog itself: it cannot be undone, and embedded
+  // browsers and app WebViews silently cancel window.confirm.
+  function openDeleteDialog(card) {
+    openDialog('자료 삭제', (dialog, close) => {
+      dialog.classList.add('wallet-delete-confirm');
+      const removalPin = pinInput('월렛 PIN'); const removalStatus = errorRegion();
+      const removalSubmit = button('삭제'); removalSubmit.type = 'submit'; removalSubmit.classList.add('wallet-danger-confirm');
+      const actions = element('div', 'wallet-form-actions'); actions.append(dialogCancel(close), removalSubmit);
+      dialog.append(element('h3', '', '이 자료를 지울까요?'), element('p', '', '이 자료를 삭제하려면 월렛 PIN을 입력해 주세요. 별도로 내보낸 백업은 삭제되지 않습니다.'), field('월렛 PIN', removalPin), actions, removalStatus);
+      dialog.addEventListener('submit', async event => {
+        event.preventDefault(); removalStatus.textContent = '';
+        try {
+          validateWalletPin(removalPin.value); setBusy(dialog, true);
+          await vault.verifyPin(accountId, removalPin.value);
+          await vault.remove(accountId, card.id); close(); await renderWallet('자료를 삭제했습니다.');
+        } catch (error) { removalStatus.textContent = safeMessage(error, '자료를 삭제하지 못했습니다.'); setBusy(dialog, false); removalPin.value = ''; focusUnlessTouch(removalPin); }
+      });
+      focusUnlessTouch(removalPin);
+    });
+  }
+
+  function renderDetail(card, title = '', message = '') {
+    title ||= walletItemTitles(walletContext.cards).get(card.id) || walletCardTitle(card);
+    const detail = element('section', 'wallet-detail'); detail.dataset.walletView = 'detail';
+    const toList = button('', () => void renderWallet(), true); toList.classList.add('wallet-back', 'wallet-text-action');
+    toList.append(walletIcon('back'), '목록으로');
+    toList.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
+    const header = element('div', 'wallet-detail-header');
+    header.append(toList, element('h3', '', title), element('span', 'wallet-kind-badge', walletCategoryLabel(card)));
+    detail.append(header);
+    if (message) detail.append(doneNote(message));
+    const images = element('div', 'wallet-detail-images'); images.dataset.masked = 'false';
+    const front = element('figure'); const frontImage = element('img'); frontImage.src = card.frontDataUrl; frontImage.alt = `${title} 자료 사진 원본`; front.append(frontImage); if (card.backDataUrl) front.append(element('figcaption', '', '앞면'));
+    images.append(front);
+    if (card.backDataUrl) { const back = element('figure'); const backImage = element('img'); backImage.src = card.backDataUrl; backImage.alt = `${title} 뒷면 원본`; back.append(backImage, element('figcaption', '', '뒷면')); images.append(back); }
+    // 크게 보기: the photo at its own size, scrolled inside the frame (small print, a number).
+    const zoom = button('', () => {
+      const zoomed = images.classList.toggle('wallet-detail-zoomed');
+      zoom.replaceChildren(walletIcon('expand'), zoomed ? '맞춰 보기' : '크게 보기'); zoom.setAttribute('aria-pressed', String(zoomed));
+    }, true);
+    zoom.append(walletIcon('expand'), '크게 보기'); zoom.setAttribute('aria-pressed', 'false');
+    const veil = button('', () => {
+      const masked = images.dataset.masked !== 'true';
+      images.dataset.masked = String(masked);
+      veil.replaceChildren(walletIcon(masked ? 'eye' : 'eyeOff'), masked ? '보기' : '가리기'); veil.setAttribute('aria-pressed', String(masked));
+    }, true);
+    veil.append(walletIcon('eyeOff'), '가리기'); veil.setAttribute('aria-pressed', 'false');
+    const tools = element('div', 'wallet-detail-tools'); tools.append(zoom, veil, element('small', '', '화면을 떠나면 다시 가려져요'));
+    const media = element('section', 'wallet-detail-media'); media.append(images, tools);
+    const facts = element('dl', 'wallet-detail-facts');
+    const kindValue = element('dd'); kindValue.append(walletCategoryLabel(card));
+    const change = button('바꾸기', () => openKindDialog(card, (saved, done) => renderDetail(saved, '', done)), true);
+    change.classList.add('wallet-text-action'); change.dataset.walletKindChange = '';
+    kindValue.append(change);
+    facts.append(element('dt', '', '종류'), kindValue, element('dt', '', '메모'), element('dd', 'wallet-card-note', card.note || '없음'),
+      element('dt', '', '등록일'), element('dd', '', savedDateLabel(card).replace(' 등록', '')));
+    const actions = element('div', 'wallet-detail-actions');
+    const edit = button('', () => renderEditItem(card, title), true); edit.append(walletIcon('edit'), '정보 수정'); edit.dataset.walletItemEdit = '';
+    actions.append(edit);
     if (share) {
-      const shareAction = button('공유하기', () => share.openShareItem(card, walletCardTitle(card), walletShareLabel(card)), true); shareAction.dataset.walletShareItem = '';
-      detail.append(shareAction);
+      const shareAction = button('', () => share.openShareItem(card, walletCardTitle(card), walletShareLabel(card)), true); shareAction.dataset.walletShareItem = '';
+      shareAction.append(walletIcon('share'), '공유하기');
+      actions.append(shareAction);
     }
-    detail.append(remove, removal);
+    const remove = button('', () => openDeleteDialog(card), true);
+    remove.classList.add('wallet-danger-action'); remove.append(walletIcon('trash'), '자료 삭제');
+    const danger = element('div', 'wallet-detail-danger'); danger.append(remove);
+    const info = element('section', 'wallet-detail-info'); info.append(element('h4', '', '정보'), facts, actions, danger);
+    const layout = element('div', 'wallet-detail-layout'); layout.append(media, info);
+    detail.append(layout);
     root.replaceChildren(detail); activity();
   }
 
-  // The owner-selected category is sealed with the item. It changes neither the corrected image
-  // nor the PIN/device-key envelope, and legacy items without one safely appear under 기타.
-  function categoryChoice(card) {
-    const row = element('div', 'wallet-detail-shape'); row.setAttribute('role', 'group'); row.setAttribute('aria-label', '자료 종류');
-    const status = element('p', 'wallet-detail-shape-status'); status.setAttribute('aria-live', 'polite');
-    const choices = WALLET_ITEM_CATEGORIES.map(([category, label]) => {
-      const choice = button(label, () => void choose(category), true);
-      choice.classList.add('wallet-deck-filter'); choice.dataset.walletCategoryChoice = category; return choice;
-    });
-    let current = card;
-    const paint = () => {
-      const category = walletItemCategory(current);
-      for (const choice of choices) {
-        const selected = choice.dataset.walletCategoryChoice === category;
-        choice.setAttribute('aria-pressed', String(selected));
-        choice.classList.toggle('consumer-action-secondary', !selected);
-      }
-    };
-    const choose = async category => {
-      if (current.category === category) return;
-      status.textContent = '';
+  // A picture turned a quarter to the right, in this browser (JPEG like every saved picture).
+  async function rotateDataUrl(dataUrl) {
+    const image = new Image(); image.src = dataUrl; await image.decode();
+    const canvas = document.createElement('canvas'); canvas.width = image.naturalHeight; canvas.height = image.naturalWidth;
+    const context = canvas.getContext('2d'); context.translate(canvas.width, 0); context.rotate(Math.PI / 2); context.drawImage(image, 0, 0);
+    const turned = canvas.toDataURL('image/jpeg', 0.92); canvas.width = 0; canvas.height = 0;
+    return turned;
+  }
+
+  // 정보 수정: title, kind and memo, and the picture turned or replaced — without adding the item
+  // again. The save time (shown as 등록일) stays as it was.
+  function renderEditItem(card, title) {
+    const form = element('form', 'wallet-editor wallet-add wallet-edit'); form.dataset.walletView = 'edit'; form.dataset.step = 'review'; form.noValidate = true;
+    const status = errorRegion();
+    let picture = card.frontDataUrl; let replacing = null; let replaceReady = true;
+    const kinds = kindChoice('wallet-category-edit', walletItemCategory(card));
+    const titleInput = element('input'); titleInput.type = 'text'; titleInput.maxLength = 80; titleInput.autocomplete = 'off'; titleInput.value = walletOwnTitle(card);
+    titleInput.placeholder = title;
+    const titleField = element('label', 'wallet-field'); titleField.append(element('span', '', '제목'), titleInput, element('small', 'wallet-field-hint', '비우면 종류와 번호가 붙어요'));
+    const note = element('textarea'); note.maxLength = 1000; note.rows = 3; note.value = card.note || '';
+    const noteField = element('label', 'wallet-field'); noteField.append(element('span', '', '메모'), note);
+    const thumb = element('img'); thumb.src = picture; thumb.alt = `${title} 사진`;
+    const pictureRow = element('div', 'wallet-edit-photo');
+    const replaceHost = element('div', 'wallet-edit-replace');
+    const save = button(''); save.type = 'submit'; save.append(walletIcon('lock'), '암호화하여 저장');
+    const reason = element('p', 'wallet-reason');
+    const refresh = () => { const missing = replacing && !replaceReady ? '바꿀 사진을 확인하고 있어요' : ''; reason.replaceChildren(); if (missing) reason.append(walletIcon('info'), missing); save.disabled = Boolean(missing); };
+    const rotate = button('', async () => {
+      try { setBusy(form, true); picture = await rotateDataUrl(picture); thumb.src = picture; }
+      catch { status.textContent = '사진을 돌리지 못했습니다.'; }
+      finally { setBusy(form, false); refresh(); }
+    }, true);
+    rotate.append(walletIcon('rotate'), '회전');
+    const replace = button('', () => {
+      if (replacing) return;
+      replaceReady = false;
+      replacing = createWalletPhotoPicker({
+        layout: 'start',
+        onError: message => { status.textContent = message; },
+        onReady: ready => { replaceReady = ready; refresh(); },
+        onPickerOpen: () => { pickerOpen = true; },
+        onPickerClose: () => { pickerOpen = false; },
+      });
+      replaceHost.replaceChildren(replacing.element); refresh();
+    }, true);
+    replace.append(walletIcon('swap'), '파일 교체');
+    pictureRow.append(thumb, replace, rotate);
+    const photoLabel = element('span', 'wallet-field', '사진');
+    const media = element('div', 'wallet-add-media'); media.append(photoLabel, pictureRow, replaceHost, element('small', 'wallet-field-hint', '다시 올리지 않아도 종류·제목을 바꿀 수 있어요'));
+    const details = element('div', 'wallet-add-details'); details.append(titleField, kinds.element, noteField);
+    const grid = element('div', 'wallet-add-grid'); grid.append(details, media);
+    const back = () => { replacing?.destroy(); renderDetail(card, title); };
+    const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', back, true), save);
+    const bar = element('div', 'wallet-form-bar'); bar.append(safeLine('이 기기에만 암호화해 보관 · LOTBI 서버로 보내지 않아요'), reason, actions);
+    form.append(pageHead('정보 수정', back, '자료로'), grid, status, bar);
+    form.addEventListener('submit', async event => {
+      event.preventDefault(); status.textContent = '';
       try {
-        setBusy(row, true);
-        current = await vault.save(accountId, {...current, category});
-        status.textContent = `${WALLET_ITEM_CATEGORIES.find(([value]) => value === category)?.[1] || '기타'}로 옮겼습니다.`;
-      } catch (error) { status.textContent = safeMessage(error, '분류를 바꾸지 못했습니다.'); }
-      finally { setBusy(row, false); paint(); activity(); }
-    };
-    row.append(element('span', 'wallet-detail-shape-label', '분류'), ...choices);
-    paint();
-    const wrap = element('div', 'wallet-detail-shape-wrap'); wrap.append(row, status);
-    return wrap;
+        const category = kinds.value() || walletItemCategory(card);
+        setBusy(form, true);
+        if (resuming) await resuming;
+        const frontDataUrl = replacing ? await replacing.readDataUrl() : picture;
+        const saved = remember(await vault.save(accountId, {...card, category, name: titleInput.value.trim(), note: note.value, frontDataUrl}));
+        replacing?.destroy();
+        renderDetail(saved, '', '정보를 암호화하여 저장했어요.');
+      } catch (error) { status.textContent = safeMessage(error, '정보를 저장하지 못했습니다.'); setBusy(form, false); refresh(); }
+    });
+    refresh();
+    root.replaceChildren(form); activity();
   }
 
   // The number shown masked (last four digits) until 번호 보기, which shows it for 30 seconds.
@@ -1906,7 +2448,9 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     card.dataset.walletCustoms = customs ? 'saved' : unreadable ? 'unreadable' : 'empty';
     const title = element('h3', 'wallet-customs-title', '개인통관고유부호'); title.id = `wallet-customs-${randomId()}`;
     card.setAttribute('aria-labelledby', title.id);
-    const head = element('div', 'wallet-customs-head'); head.append(title);
+    const mark = element('span', 'wallet-life-mark'); mark.append(walletIcon('customs'));
+    const name = element('div', 'wallet-customs-name'); name.append(title, element('small', '', '해외직구 결제 때 붙여넣기'));
+    const head = element('div', 'wallet-customs-head'); head.append(mark, name);
     card.append(head);
     if (unreadable) {
       card.append(element('p', 'wallet-customs-hint', '저장한 번호를 열 수 없습니다. 삭제한 뒤 관세청에서 확인한 번호로 다시 등록해 주세요.'), customsRemoval(null));
@@ -1921,36 +2465,42 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       return card;
     }
     const manage = button('관리', () => renderCustomsDetail(customs), true); manage.dataset.walletCustomsAction = 'manage';
+    manage.classList.add('wallet-text-action');
     head.append(manage);
     card.append(customsNumber(customs));
     const notice = customsRenewalNotice(customs.expiresOn);
     if (notice && notice.state !== 'later') {
       const renewal = element('p', 'wallet-customs-renewal', notice.text); renewal.dataset.renewal = notice.state;
+      renewal.prepend(walletIcon('clock'));
       renewal.append(' ', customsPortalLink('관세청에서 갱신'));
       card.append(renewal);
+    } else if (notice) {
+      const expiry = element('p', 'wallet-customs-expiry'); expiry.append(walletIcon('clock'), notice.text); card.append(expiry);
     }
-    card.append(customsPortalLink('관세청 공식 조회·갱신'));
+    card.append(element('p', 'wallet-customs-hint', '형식(P와 숫자 12자리)만 확인한 번호예요. 관세청에 등록된 번호인지는 LOTBI가 확인하지 않아요.'),
+      customsPortalLink('관세청 공식 조회·갱신'));
     return card;
   }
 
   function renderCustomsDetail(customs) {
     const detail = element('section', 'wallet-detail wallet-customs-detail'); detail.dataset.walletView = 'customs';
-    const toList = button('목록으로', () => void renderWallet(), true);
-    toList.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
+    const toList = backButton('목록으로', () => void renderWallet('', {tab: 'life'}));
     const header = element('div', 'wallet-detail-header'); header.append(toList, element('h3', '', '개인통관고유부호'));
-    detail.append(header, customsNumber(customs));
+    const numberCard = element('section', 'wallet-customs-panel'); numberCard.append(customsNumber(customs));
     const facts = element('dl', 'wallet-customs-facts');
     const notice = customsRenewalNotice(customs.expiresOn);
     for (const [term, value] of [['등록', customsDateLabel(customs.createdAt)], ['마지막 변경', customsDateLabel(customs.updatedAt)], ['입력한 만료일', notice ? notice.text : '입력하지 않음']]) {
       facts.append(element('dt', '', term), element('dd', '', value));
     }
-    detail.append(facts,
-      element('p', 'wallet-customs-caution', '번호 형식(P와 숫자 12자리)만 확인했습니다. 관세청에 등록된 번호인지, 지금 쓸 수 있는지, 본인 번호인지는 LOTBI가 확인할 수 없으니 관세청에서 확인해 주세요.'),
-      customsOfficialList());
+    numberCard.append(facts,
+      element('p', 'wallet-customs-caution', '번호 형식(P와 숫자 12자리)만 확인했습니다. 관세청에 등록된 번호인지, 지금 쓸 수 있는지, 본인 번호인지는 LOTBI가 확인할 수 없으니 관세청에서 확인해 주세요.'));
     const actions = element('div', 'wallet-form-actions wallet-customs-manage');
-    const edit = button('번호·만료일 변경', () => renderCustomsEditor(customs), true); edit.dataset.walletCustomsAction = 'edit';
+    const edit = button('', () => renderCustomsEditor(customs), true); edit.dataset.walletCustomsAction = 'edit';
+    edit.append(walletIcon('edit'), '번호·만료일 변경');
     actions.append(edit);
-    detail.append(actions, customsRemoval(customs));
+    numberCard.append(actions, customsRemoval(customs));
+    const layout = element('div', 'wallet-customs-detail-layout'); layout.append(numberCard, customsOfficialList());
+    detail.append(header, layout);
     root.replaceChildren(detail); activity();
   }
 
@@ -1959,7 +2509,8 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const wrap = element('div', 'wallet-customs-removal');
     const removal = element('form', 'wallet-delete-confirm'); removal.hidden = true;
     const removalPin = pinInput('월렛 PIN'); const removalStatus = errorRegion();
-    const remove = button('번호 삭제', () => { remove.hidden = true; removal.hidden = false; removalPin.value = ''; removalStatus.textContent = ''; focusUnlessTouch(removalPin); }, true);
+    const remove = button('', () => { remove.hidden = true; removal.hidden = false; removalPin.value = ''; removalStatus.textContent = ''; focusUnlessTouch(removalPin); }, true);
+    remove.append(walletIcon('trash'), '번호 삭제');
     remove.classList.add('wallet-danger-action'); remove.dataset.walletCustomsAction = 'delete';
     const removalActions = element('div', 'wallet-form-actions');
     removalActions.append(button('취소', () => { removal.hidden = true; remove.hidden = false; remove.focus(); }, true));
@@ -1970,11 +2521,21 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       try {
         validateWalletPin(removalPin.value); setBusy(removal, true);
         await vault.removeCustomsCode(accountId, removalPin.value);
-        await renderWallet('개인통관고유부호를 삭제했습니다.');
+        await renderWallet('개인통관고유부호를 삭제했습니다.', {tab: 'life'});
       } catch (error) { removalStatus.textContent = safeMessage(error, '번호를 삭제하지 못했습니다.'); setBusy(removal, false); removalPin.value = ''; focusUnlessTouch(removalPin); }
     });
     wrap.append(remove, removal);
     return wrap;
+  }
+
+  // One numbered part of the 통관부호 form: ① 번호 ② 만료일 ③ 동의 (or the PIN when changing).
+  function customsPart(number, title, hint, ...body) {
+    const part = element('section', 'wallet-customs-part');
+    const head = element('div', 'wallet-customs-part-head');
+    const label = element('div'); label.append(element('strong', '', title)); if (hint) label.append(element('small', '', hint));
+    head.append(element('b', '', String(number)), label);
+    part.append(head, ...body);
+    return part;
   }
 
   // Typed in by the owner from the portal. The field is a plain text field kept away from
@@ -1991,40 +2552,81 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     codeInput.setAttribute('aria-label', '개인통관고유부호 P 뒤 숫자 12자리');
     codeInput.placeholder = '숫자 12자리';
     if (existing) codeInput.value = existing.code.slice(1);
+    const count = element('span', 'wallet-customs-count'); count.setAttribute('aria-hidden', 'true');
     const formatStatus = element('small', 'wallet-customs-format'); formatStatus.id = `wallet-customs-format-${randomId()}`; formatStatus.setAttribute('aria-live', 'polite');
     codeInput.setAttribute('aria-describedby', formatStatus.id);
+    const consent = element('input'); consent.type = 'checkbox';
+    const pin = pinInput('월렛 PIN');
+    const reason = element('p', 'wallet-reason'); reason.setAttribute('role', 'status'); reason.setAttribute('aria-live', 'polite');
+    const save = button(''); save.type = 'submit'; save.append(walletIcon('lock'), '암호화하여 저장');
+    const previewNumber = element('p', 'wallet-customs-preview-number', 'P •••• •••• ••••');
+    let codeOk = false;
     const paintFormat = () => {
       const typed = codeInput.value.trim();
-      if (!typed) { formatStatus.textContent = 'P 뒤 숫자 12자리를 입력하세요.'; formatStatus.dataset.format = 'empty'; return; }
-      try {
-        normalizeCustomsCode(typed);
-        formatStatus.textContent = '형식이 맞습니다(P와 숫자 12자리). 관세청에서 확인된 번호라는 뜻은 아닙니다.'; formatStatus.dataset.format = 'ok';
-      } catch {
-        const digits = typed.normalize('NFKC').replace(/\D/gu, '').length;
-        formatStatus.textContent = `형식이 맞지 않습니다. P 뒤 숫자 12자리여야 합니다(지금 숫자 ${digits}자리).`; formatStatus.dataset.format = 'invalid';
+      const digits = typed.normalize('NFKC').replace(/\D/gu, '').length;
+      count.textContent = `${Math.min(digits, 99)} / 12`;
+      codeOk = false;
+      if (!typed) { formatStatus.textContent = 'P 뒤 숫자 12자리를 입력하세요.'; formatStatus.dataset.format = 'empty'; }
+      else {
+        try {
+          const code = normalizeCustomsCode(typed); codeOk = true;
+          formatStatus.textContent = '형식이 맞습니다(P와 숫자 12자리). 관세청에서 확인된 번호라는 뜻은 아닙니다.'; formatStatus.dataset.format = 'ok';
+          previewNumber.textContent = maskCustomsCode(code);
+        } catch {
+          formatStatus.textContent = `형식이 맞지 않습니다. P 뒤 숫자 12자리여야 합니다(지금 숫자 ${digits}자리).`; formatStatus.dataset.format = 'invalid';
+        }
       }
+      if (!codeOk) previewNumber.textContent = 'P •••• •••• ••••';
+      count.dataset.format = formatStatus.dataset.format; codeRow.dataset.format = formatStatus.dataset.format;
+      refresh();
+    };
+    // The reason beside the button says what is still missing; the checks on submit stay.
+    const refresh = () => {
+      const missing = [];
+      if (!codeOk) missing.push('번호 12자리');
+      if (!existing && !consent.checked) missing.push('보관 동의');
+      if (existing && !/^\d{4}$/u.test(pin.value)) missing.push('월렛 PIN 4자리');
+      reason.replaceChildren(); if (missing.length) reason.append(walletIcon('info'), `${missing.join('와 ')}가 필요해요`);
+      save.disabled = missing.length > 0;
     };
     codeInput.addEventListener('input', paintFormat);
-    const codeRow = element('div', 'wallet-customs-code-row'); codeRow.append(element('span', 'wallet-customs-prefix', 'P'), codeInput);
-    const codeField = element('label', 'wallet-field'); codeField.append(element('span', '', '개인통관고유부호'), codeRow, formatStatus);
+    consent.addEventListener('change', refresh); pin.addEventListener('input', refresh);
+    const codeRow = element('div', 'wallet-customs-code-row'); codeRow.append(element('span', 'wallet-customs-prefix', 'P'), codeInput, count);
+    const codeField = element('label', 'wallet-field'); codeField.append(element('span', 'wallet-visually-hidden', '개인통관고유부호'), codeRow);
+    const pinField = element('label', 'wallet-field wallet-customs-pin'); pinField.append(element('span', 'wallet-visually-hidden', '월렛 PIN'), pin);
     const expiry = element('input'); expiry.type = 'date'; expiry.min = '2025-01-01'; expiry.max = '2099-12-31'; expiry.value = existing?.expiresOn || '';
-    const expiryField = field('유효기간 만료일 · 선택', expiry);
-    expiryField.append(element('small', 'wallet-customs-hint', '관세청에서 확인한 만료일을 넣으면 갱신할 때를 알려 드립니다. 비워 두어도 됩니다. LOTBI는 만료일을 짐작하지 않습니다.'));
-    const consent = element('input'); consent.type = 'checkbox';
+    expiry.setAttribute('aria-label', '유효기간 만료일 · 선택');
     const consentField = element('label', 'wallet-customs-consent');
-    consentField.append(consent, element('span', '', '개인통관고유부호를 이 기기의 Life Wallet에 암호화해 보관하는 데 동의합니다. 번호는 LOTBI 서버·대화창·쇼핑몰로 보내지 않으며, 언제든 삭제할 수 있습니다.'));
-    const pin = pinInput('월렛 PIN');
-    const actions = element('div', 'wallet-form-actions');
-    actions.append(button('취소', () => { if (existing) renderCustomsDetail(existing); else void renderWallet(); }, true));
-    const save = button('암호화하여 저장'); save.type = 'submit'; actions.append(save);
+    consentField.append(consent, element('span', '', '개인통관고유부호를 이 기기의 Life Wallet에 암호화해 보관하는 데 동의합니다.'));
+    const consentMore = element('details', 'wallet-consent-more');
+    consentMore.append(element('summary', '', '자세히'), element('p', '', '번호는 LOTBI 서버·대화창·쇼핑몰로 보내지 않습니다. 백업 파일을 만들면 그 파일 안에만 암호화되어 들어가고, 언제든 삭제할 수 있습니다.'));
+    const relation = element('div', 'wallet-customs-relation');
+    const relationText = element('div');
+    const relationLine = element('p'); relationLine.append(customsPortalLink('관세청에서 내 번호 확인'), walletIcon('arrow'), element('span', '', '확인한 번호를 여기에 직접 입력'));
+    relationText.append(relationLine, element('small', '', 'LOTBI는 번호를 조회하거나 대신 발급받지 않습니다.'));
+    relation.append(walletIcon('info'), relationText);
+    const parts = element('div', 'wallet-customs-parts');
+    parts.append(
+      customsPart(1, '번호 입력', 'P 뒤에 숫자 12자리 · 띄어 써도 괜찮아요', codeField, formatStatus),
+      customsPart(2, '만료일', '선택 · 비워도 돼요', expiry, element('small', 'wallet-customs-hint', '넣어 두면 만료 30일 전부터 갱신을 알려 드려요. LOTBI는 만료일을 짐작하지 않습니다.')),
+      existing ? customsPart(3, '월렛 PIN', '저장한 번호를 바꿀 때 필요해요', pinField) : customsPart(3, '보관 동의', '', consentField, consentMore),
+    );
+    const preview = element('aside', 'wallet-customs-preview');
+    const previewCard = element('div', 'wallet-customs-preview-card');
+    previewCard.append(element('small', '', '개인통관고유부호'), previewNumber);
+    const howTo = element('ol', 'wallet-customs-howto');
+    for (const step of ['쇼핑몰 결제 화면에서 통관부호 칸을 찾아요', 'Life Wallet을 열어 번호 복사를 눌러요', '칸에 붙여넣어요']) howTo.append(element('li', '', step));
+    preview.append(element('h4', '', '저장하면 이렇게 써요'), previewCard, howTo, element('small', 'wallet-customs-hint', '복사한 번호는 클립보드에 남고 LOTBI가 지우지 않아요.'));
+    const main = element('div', 'wallet-customs-form-main'); main.append(relation, parts);
+    const grid = element('div', 'wallet-customs-form-grid'); grid.append(main, preview);
+    const back = () => { if (existing) renderCustomsDetail(existing); else void renderWallet('', {tab: 'life'}); };
+    const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', back, true), save);
+    const bar = element('div', 'wallet-form-bar'); bar.append(safeLine('이 기기에만 암호화해 보관 · LOTBI 서버로 보내지 않아요'), reason, actions);
     form.append(
-      element('h3', '', existing ? '개인통관고유부호 변경' : '개인통관고유부호 등록'),
-      element('p', 'wallet-form-intro', '관세청 전자상거래 통관포털에서 본인 번호를 확인한 뒤 직접 입력해 주세요. LOTBI는 번호를 조회하거나 대신 발급받지 않습니다.'),
-      customsPortalLink('관세청에서 내 번호 확인'),
-      codeField, expiryField,
-      existing ? field('월렛 PIN · 저장한 번호를 바꿀 때 필요합니다', pin) : consentField,
-      actions, status,
+      pageHead(existing ? '개인통관고유부호 변경' : '개인통관고유부호 등록', back, existing ? '번호 관리' : '생활정보'),
+      grid, status,
       element('p', 'wallet-security-note', '번호는 이 기기의 Life Wallet에만 암호화해 저장합니다. 번호 형식이 맞아도 관세청에서 유효한지, 본인 번호인지는 확인되지 않습니다.'),
+      bar,
     );
     paintFormat();
     form.addEventListener('submit', async event => {
@@ -2036,8 +2638,8 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
         setBusy(form, true);
         await vault.saveCustomsCode(accountId, {code, expiresOn: expiry.value, consent: consent.checked, pin: pin.value});
         codeInput.value = ''; pin.value = '';
-        await renderWallet(existing ? '개인통관고유부호를 바꿔 저장했습니다.' : '개인통관고유부호를 암호화하여 저장했습니다.');
-      } catch (error) { status.textContent = safeMessage(error, '번호를 저장하지 못했습니다.'); setBusy(form, false); pin.value = ''; }
+        await renderWallet(existing ? '개인통관고유부호를 바꿔 저장했습니다.' : '개인통관고유부호를 암호화하여 저장했습니다.', {tab: 'life'});
+      } catch (error) { status.textContent = safeMessage(error, '번호를 저장하지 못했습니다.'); setBusy(form, false); pin.value = ''; refresh(); }
     });
     root.replaceChildren(form); focusUnlessTouch(codeInput); activity();
   }
@@ -2047,7 +2649,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const current = pinInput('현재 월렛 PIN'); const next = pinInput('새 월렛 PIN'); const confirmation = pinInput('새 월렛 PIN 확인');
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
     const submit = button('PIN 변경'); submit.type = 'submit'; actions.append(submit);
-    form.append(element('h3', '', '월렛 PIN 변경'), field('현재 PIN', current), field('새 PIN', next), field('새 PIN 다시 입력', confirmation), actions, status);
+    form.append(pageHead('월렛 PIN 변경', () => renderSettings(), '설정'), field('현재 PIN', current), field('새 PIN', next), field('새 PIN 다시 입력', confirmation), actions, status);
     form.addEventListener('submit', async event => {
       event.preventDefault(); status.textContent = '';
       try {
@@ -2067,7 +2669,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
     const submit = button('내 기기에 백업 파일 저장'); submit.type = 'submit'; actions.append(submit);
     form.append(
-      element('h3', '', '암호화 백업 파일 만들기'),
+      pageHead('암호화 백업 파일 만들기', () => renderSettings(), '설정'),
       element('p', 'wallet-form-intro', '기기 변경이나 브라우저 초기화에 대비해 Life Wallet 자료를 암호화된 파일로 저장합니다.'),
       field('새 백업 전용 암호 · 8자 이상', password),
       field('백업 전용 암호 확인', confirmation),
@@ -2098,7 +2700,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
     const submit = button('서버에 백업하기'); submit.type = 'submit'; actions.append(submit);
     form.append(
-      element('h3', '', '서버에 백업하기'),
+      pageHead('서버에 백업하기', () => renderSettings(), '설정'),
       element('p', 'wallet-form-intro', '월렛 자료 전체를 이 브라우저에서 암호화한 뒤, 암호화된 내용만 LOTBI 서버에 보관합니다. 새 기기에서 같은 계정으로 로그인하고 백업 비밀번호를 입력하면 불러올 수 있습니다. LOTBI는 백업 비밀번호와 자료 내용을 볼 수 없습니다.'),
       ...(meta ? [element('p', 'wallet-backup-warning', `${serverBackupTime(meta)}에 만든 서버 백업이 있습니다. 새로 백업하면 이전 백업을 대신합니다.`)] : []),
       field('백업 비밀번호 · 10자 이상, 문자·숫자·기호 중 2가지 이상', password), strength,
@@ -2137,7 +2739,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const actions = element('div', 'wallet-form-actions'); actions.append(button('나중에', () => void renderWallet(), true));
     const submit = button('불러오기'); submit.type = 'submit'; actions.append(submit);
     form.append(
-      element('h3', '', '서버 백업 불러오기'),
+      pageHead('서버 백업 불러오기', () => void renderWallet(), 'Life Wallet'),
       element('p', 'wallet-form-intro', `${serverBackupTime(meta)}에 서버에 백업한 월렛을 이 기기로 불러옵니다. 백업할 때 정한 백업 비밀번호를 입력해 주세요.`),
       field('백업 비밀번호 (월렛 4자리 PIN이 아닙니다)', password),
       element('p', 'wallet-backup-warning', '불러온 자료는 이 기기에 암호화되어 저장되고, 이 기기의 월렛 PIN으로 열립니다.'),
@@ -2172,7 +2774,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
     const submit = button('서버 백업 삭제'); submit.type = 'submit'; submit.classList.add('wallet-danger-confirm'); actions.append(submit);
     form.append(
-      element('h3', '', '서버 백업 삭제'),
+      pageHead('서버 백업 삭제', () => renderSettings(), '설정'),
       element('p', 'wallet-form-intro', '서버에 보관한 암호화 백업을 지웁니다. 이 기기의 월렛 자료는 그대로 남습니다. 지운 백업은 되살릴 수 없습니다.'),
       field('월렛 PIN', pin), actions, status,
     );
@@ -2197,7 +2799,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
     const actions = element('div', 'wallet-form-actions'); actions.append(button('취소', () => void renderWallet(), true));
     const submit = button('Life Wallet 자료 복원'); submit.type = 'submit'; actions.append(submit);
     form.append(
-      element('h3', '', '백업에서 Life Wallet 복원'),
+      pageHead('백업에서 Life Wallet 복원', () => void renderWallet(), 'Life Wallet'),
       element('p', 'wallet-form-intro', '이전에 저장한 .lotbiwallet 백업 파일과 파일을 만들 때 설정한 백업 전용 암호가 모두 필요합니다.'),
       field('1. 저장된 백업 파일 찾기', fileInput),
       field('2. 백업 전용 암호 입력', password),
@@ -2229,6 +2831,7 @@ export function mountLifeWallet({root, authenticated = false, accountId = '', se
       window.removeEventListener('pagehide', pagehideListener);
       window.removeEventListener('pageshow', pageshowListener);
       root.replaceChildren();
+      root.classList.remove('wallet-root');
     },
   };
 }

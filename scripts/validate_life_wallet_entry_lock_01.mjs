@@ -84,8 +84,11 @@ assert.equal(simplifiedCard.name, '증명서', 'the selected kind must provide t
 assert.equal(simplifiedCard.backDataUrl, '', 'the single-photo flow must preserve an empty legacy back image');
 // The owner selects the category for a new item. This is sealed metadata only: the picker
 // still owns image confirmation, and existing encrypted legacy kinds remain readable.
-assert.match(walletSource, /field\('자료 종류', category\)/u, 'the add form must expose the category choices');
-assert.match(walletSource, /kind: 'document', category: category\.value, note: note\.value/u, 'new items must preserve the owner-selected category without changing the legacy envelope kind');
+// LIFE-WALLET-REDESIGN-02: the kinds are four radios with none chosen until the owner picks one
+// (a page or PDF only pre-chooses 증명서·문서); saving needs a chosen kind.
+assert.match(walletSource, /const kinds = kindChoice\('wallet-category', WALLET_ITEM_CATEGORY_IDS\.includes\(preset\) \? preset : ''\)/u, 'the add form must expose the category choices, none chosen by default');
+assert.match(walletSource, /if \(!category\) throw new Error\('자료 종류를 골라 주세요\.'\)/u, 'an item is never saved without the owner choosing its kind');
+assert.match(walletSource, /kind: 'document', category, name: titleInput\.value\.trim\(\), note: note\.value/u, 'new items must preserve the owner-selected category and title without changing the legacy envelope kind');
 assert.match(walletSource, /\['identity', '신분증'\].*\['business-card', '명함'\].*\['document', '증명서·문서'\].*\['other', '기타'\]/su, 'the category choices must include identity, business card, document, and other');
 await simplifiedWallet.save('simplified-add-account', {
   id: 'neutral-document', kind: 'document', note: '',
@@ -186,9 +189,11 @@ assert.match(walletSource, /await vault\.resumeUnlock\(accountId\)/u, 'mount mus
 assert.match(walletSource, /PIN을 입력해 주세요/u, 'the PIN lock gate must keep the approved entry title');
 assert.match(walletSource, /\['1','2','3','4','5','6','7','8','9','지움','0','열기'\]/u, 'the keypad must provide one explicit open action');
 assert.doesNotMatch(walletSource, /const submit = button\('PIN으로 열기'\)/u, 'the lock gate must not duplicate the keypad open action');
-assert.match(walletCssSource, /\.wallet-gate \{[^}]*width: min\(100%, 565px\)[^}]*border-radius: 24px/su, 'the lock gate must match the approved responsive card proportion');
-assert.match(walletCssSource, /\.wallet-lock-mark \{[^}]*border-radius: 50%[^}]*background: #eaf3ff/su, 'the lock mark must use the approved circular blue accent treatment');
-assert.match(walletSource, /등록한 자료를 안전하게 보려면 4자리 PIN을 입력하세요\./u, 'the final approved PIN explanation must be present');
+// LIFE-WALLET-REDESIGN-02 (owner-approved 2026-10-14): a two-column card on a PC — what the
+// wallet keeps on a tinted panel, the keypad beside it — one column on a phone.
+assert.match(walletCssSource, /\.wallet-gate \{[^}]*width: min\(100%, 880px\)[^}]*border-radius: 24px/su, 'the lock gate must match the approved responsive card proportion');
+assert.match(walletCssSource, /\.wallet-lock-mark \{[^}]*border-radius: 50%[^}]*background: var\(--w-card\)/su, 'the lock mark must use the approved circular treatment on the tinted panel');
+assert.match(walletSource, /'Life Wallet이 잠겨 있어요', 'PIN 4자리를 입력하면 열려요\.'/u, 'the final approved PIN explanation must be present');
 assert.match(walletSource, /vault\.lock\(\{preserveSession: true\}\)/u, 'page transitions must preserve the same-tab unlock grant');
 assert.match(walletSource, /window\.addEventListener\('pagehide'/u);
 assert.match(walletSource, /window\.addEventListener\('pageshow'/u);
@@ -215,12 +220,12 @@ assert.match(walletSource, /안전하게 이 기기에만 저장됩니다\./u);
 assert.match(walletSource, /LOTBI 관리자도 원본을 볼 수 없으며, 기기 변경 시에는 다시 등록하거나 암호화 백업으로 복원해야 합니다\./u);
 assert.match(walletCssSource, /\.wallet-storage-reassurance\s*\{/u, 'wallet storage reassurance must have a separate layout block');
 assert.match(conversationSource, /wallet: \['Life Wallet', '내 생활자료를 안전하게 보관해요\.'\]/u, 'wallet subtitle must match the approved design');
-assert.match(walletSource, /위아래로 넘겨보세요/u, 'the approved vertical gesture hint must be present');
+assert.match(walletSource, /searchInput\.placeholder = '제목·메모로 찾기'/u, 'the approved list has a search field (title and memo, in memory only)');
 assert.doesNotMatch(walletSource, /wallet-card-dots|walletCarouselDot/u, 'unapproved carousel dots must not remain');
 assert.doesNotMatch(walletSource, /예시 신분증은 넣지 않습니다\./u);
-assert.match(walletSource, /사용자가 직접 등록한 실제 자료만 여기에 표시됩니다\./u);
-assert.match(walletSource, /aria-haspopup.*menu/u, 'wallet management must open from an accessible settings menu');
-assert.match(walletSource, /wallet-settings-menu/u, 'wallet management actions must live in the settings menu');
+assert.match(walletSource, /첫 자료를 넣어 보세요/u, 'an empty wallet shows the four kinds to start from, no sample item');
+assert.match(walletSource, /function renderSettings\(\) \{/u, 'wallet management must open as its own settings screen');
+assert.match(walletSource, /wallet-settings-page/u, 'wallet management actions must live on the settings screen');
 assert.doesNotMatch(walletSource, /const manage = element\('div', 'wallet-manage'\)/u, 'management actions must not remain as a bottom button row');
 assert.match(walletSource, /암호화 백업 파일 만들기/u);
 assert.match(walletSource, /새 백업 전용 암호 · 8자 이상/u);

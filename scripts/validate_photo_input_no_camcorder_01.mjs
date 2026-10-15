@@ -156,7 +156,9 @@ const DOCUMENT = 'document — keeps PDF/document types';
 const OTHER = 'not a photo input';
 const KNOWN = new Map([
   ['index.html#attachment-photos', PHOTO_PICKER],
-  ['index.html#scam-photo', PHOTO_PICKER],
+  // SCAM-PHISHING-REDESIGN-02 — 사기·피싱 확인 is a workspace page; its pickers
+  // are built in site-scam-shield.js.
+  ['site-scam-shield.js#scamFile=photo', PHOTO_PICKER],
   ['site-calendar-manager.js#calendarImagePicker', PHOTO_PICKER],
   ['site-conversation.js#profilePhotoInput', PHOTO_SOURCES],
   // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the per-tile person picker
@@ -168,11 +170,11 @@ const KNOWN = new Map([
   ['site-pet-ui.js#petFoundInput', PHOTO_PICKER],
   ['site-life-wallet-wifi.js#walletWifiPhotoInput', PHOTO_PICKER],
   ['index.html#attachment-camera', PHOTO_CAMERA],
-  ['index.html#scam-camera', PHOTO_CAMERA],
+  ['site-scam-shield.js#scamFile=camera', PHOTO_CAMERA],
   ['site-life-wallet.js#cameraInput@689', PHOTO_CAMERA],
   ['site-pet-ui.js#petPhotoSourceInput=camera', PHOTO_CAMERA],
   ['index.html#attachment-files', DOCUMENT],
-  ['index.html#scam-document', DOCUMENT],
+  ['site-scam-shield.js#scamFile=document', DOCUMENT],
   ['site-life-wallet.js#filesInput@691', DOCUMENT],
   ['site-life-wallet.js#fileInput@1647', OTHER],
   // PET-FILE-INPUT-IMAGE-ONLY-01 — owner decision ("캠코더 없이 사진첩만"): the
@@ -221,10 +223,11 @@ for (const key of KNOWN.keys()) assert.ok(inputs.some(input => keyOf(input) === 
 // 진위확인's own menu: each item does only its own thing where the browser
 // lets the page decide.
 const html = read('index.html');
-const scam = id => rows.find(row => row.key === `index.html#${id}`);
-const scamPhoto = scam('scam-photo');
-const scamCamera = scam('scam-camera');
-const scamDocument = scam('scam-document');
+const scam = kind => rows.find(row => row.key === `site-scam-shield.js#scamFile=${kind}`);
+const scamPhoto = scam('photo');
+const scamCamera = scam('camera');
+const scamDocument = scam('document');
+const scamSource = read('site-scam-shield.js');
 assert.deepEqual(scamPhoto.current, ['photo-picker'], '사진·스크린샷 선택 (current Android Chrome): photo picker only, no camera');
 assert.deepEqual(scamPhoto.deprecated, ['camera', 'files'], '사진·스크린샷 선택 (older engine, e.g. Samsung Internet): camera + files — the camera entry is added by the browser and cannot be removed by any accept value');
 assert.deepEqual(iosModel(scamPhoto.accept, false), ['photo-library', 'take-photo', 'files'], '사진·스크린샷 선택 (iPhone): Photo Library / Take Photo / Choose File');
@@ -252,14 +255,14 @@ assert.deepEqual(scamDocument.current, ['files'], '문서·PDF 선택하기 (cur
 assert.deepEqual(iosModel(scamDocument.accept, false), ['files'], '문서·PDF 선택하기 (iPhone): Files opens directly');
 // The closest the page can get on the older engine and iPhone: say which
 // entry to tap. Phones only.
-assert.match(html, /<p id="scam-photo-picker-hint" class="scam-field-help scam-picker-hint" data-scam-picker-hint>고르는 창에 카메라가 함께 보이면 ‘파일’\(iPhone은 ‘사진 보관함’\)을 눌러 사진을 골라 주세요\.<\/p>/u);
-assert.match(html, /name="scamPhoto"[^>]*aria-describedby="scam-photo-help scam-photo-picker-hint"/u);
+assert.match(scamSource, /attrs: \{'data-scam-picker-hint': ''\}\}, icon\('info', 'sp-ic-s'\), el\('span', \{text: '고르는 창에 카메라가 함께 보이면 ‘파일’\(iPhone은 ‘사진 보관함’\)을 눌러 사진을 골라 주세요\.'\}\)/u, 'the picker hint stays under the photo choices');
 const scamCss = read('site-scam-shield.css');
-assert.match(scamCss, /\.scam-picker-hint \{ display: none; \}\r?\n@media \(hover: none\) and \(pointer: coarse\) \{ \.scam-picker-hint \{ display: block;/u, 'the hint shows on phones only');
+assert.match(scamCss, /\.scam-page\.sp-root \.sp-touch-only \{ display: none; \}\r?\n@media \(hover: none\) and \(pointer: coarse\) \{ \.scam-page\.sp-root \.sp-touch-only \{ display: flex; \} \}/u, 'the hint shows on phones only');
 
 // What each photo picker tells the owner about formats is unchanged; the
 // format check after choosing still decides.
-assert.match(html, /사진\(JPEG·PNG·WEBP\) · 최대 10MB/u, '진위확인 still names the supported formats');
+assert.match(scamSource, /사진 JPG·PNG·WEBP/u, '사기·피싱 확인 still names the supported photo formats');
+assert.match(scamSource, /1개 · 10MB까지/u, '사기·피싱 확인 still names the size limit');
 assert.match(read('site-scam-shield.js'), /const allowedFileTypes = new Set\(\['image\/jpeg', 'image\/png', 'image\/webp'/u, '진위확인 still checks the chosen file type');
 assert.match(read('site-attachments.js'), /export const ATTACHMENT_MEDIA_TYPES = Object\.freeze\(\[\s*'image\/jpeg',\s*'image\/png',/u, 'attachments still accept only JPEG/PNG images');
 assert.match(read('site-pet.js'), /if \(!PET_PHOTO_MIME_TYPES\.includes\(file\.type\)\)/u, 'pet photos still checked after choosing');

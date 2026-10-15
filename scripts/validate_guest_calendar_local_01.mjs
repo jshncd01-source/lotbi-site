@@ -143,6 +143,8 @@ assert.deepEqual(v1Compatible.list()[0].entry, {
   amount_minor: null,
   currency: 'KRW',
   expense_category: null,
+  // CALENDAR-DESIGN-04: 금액이 없으면 예정/실제 구분도 없다.
+  expense_status: null,
   memo: null,
   place: null,
   merchant: null,
@@ -189,6 +191,8 @@ assert.throws(
   });
   assert.equal(saved.entry.expense_category, 'OTHER');
   assert.equal(guest.list()[0].entry.expense_category, 'OTHER');
+  // CALENDAR-DESIGN-04: 구분 없이 저장한 금액은 실제 지출(PAID)로 읽는다.
+  assert.equal(saved.entry.expense_status, 'PAID');
   // A category nobody offers is still refused: the fix widened the list by one
   // named value, it did not stop checking.
   assert.throws(

@@ -1,8 +1,8 @@
-import {mountLifeWallet} from './site-life-wallet.js?v=aset-72c7dc1a3cb6';
-import {savedLifeRegionLabel} from './site-life-location.js?v=aset-72c7dc1a3cb6';
-import {chooseRegion} from './site-location-allow.js?v=aset-72c7dc1a3cb6';
-import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-72c7dc1a3cb6';
-import {fgIcon} from './site-family-guardian-ui.js?v=aset-72c7dc1a3cb6';
+import {mountLifeWallet} from './site-life-wallet.js?v=aset-a5a7175d3f1d';
+import {savedLifeRegionLabel} from './site-life-location.js?v=aset-a5a7175d3f1d';
+import {chooseRegion} from './site-location-allow.js?v=aset-a5a7175d3f1d';
+import {LIFE_LOCAL_CARD_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-a5a7175d3f1d';
+import {fgIcon} from './site-family-guardian-ui.js?v=aset-a5a7175d3f1d';
 
 // Presentation only. Actions delegate to the existing feature owners; this
 // module never uploads identity documents or invents account/connection data.
@@ -44,23 +44,23 @@ import {fgIcon} from './site-family-guardian-ui.js?v=aset-72c7dc1a3cb6';
 // (site-consumer-design.css), so no cell is empty either way.
 export const LIFE_SHORTCUTS = Object.freeze([
   // LIFE-MEDICAL-MERGE-01: 병원·응급실·약국 in one screen (site-life-medical-list.js), no chat.
-  {id: 'medical', label: '병원·응급실·약국', description: '진료과와 운영 중인 곳을 찾아요', icon: 'hospital'},
+  {id: 'medical', label: '병원·응급실·약국', description: '진료 시간인 곳과 응급실 병상', icon: 'hospital'},
   // EV-CHARGER-NEARBY-LIST-P0: nearest stations from 한국환경공단 data, no chat.
-  {id: 'ev-chargers', label: '전기차 충전소', description: '가까운 충전기와 사용 상태', icon: 'ev'},
-  {id: 'festivals', label: '축제·행사', description: '이번 주 우리 동네 즐길 거리', icon: 'calendar'},
+  {id: 'ev-chargers', label: '전기차 충전소', description: '충전 가능 여부와 가까운 거리', icon: 'ev'},
+  {id: 'festivals', label: '축제·행사', description: '진행 중·이번 주말 행사', icon: 'calendar'},
   // REGIONAL-NEWS-SCREEN-LIST-01: lists 광역시·도 news titles itself (site-life-news.js).
-  {id: 'news', label: '지역뉴스', description: '내 지역의 중요한 소식', icon: 'news'},
+  {id: 'news', label: '지역뉴스', description: '내 지역의 오늘 소식', icon: 'news'},
   // SUBWAY-LIFE-INFO-P0: its own screen (site-life-subway.js) — nearby and
   // searched stations, official real-time arrivals, average congestion. No chat.
-  {id: 'subway', label: '지하철 정보', description: '노선과 도착 정보를 확인해요', icon: 'subway'},
+  {id: 'subway', label: '지하철 정보', description: '가까운 역과 실시간 도착', icon: 'subway'},
   // ONNURI-MERCHANT-01: its own search surface (site-life-onnuri.js). The
   // official logo is not used before approval; brandSlot names the place it
   // takes then. LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: 온누리상품권 + 지역화폐 in
   // one card. QA 2026-10-10 #12: until then a plain voucher icon (LOTBI's own
   // line icon, not the official mark) so it is not the one card without one.
-  {id: 'onnuri', label: '온누리상품권·지역화폐', description: '사용처와 혜택을 찾아요', icon: 'voucher', brandSlot: 'onnuri'},
+  {id: 'onnuri', label: '온누리상품권·지역화폐', description: '쓸 수 있는 가맹점 찾기', icon: 'voucher', brandSlot: 'onnuri'},
   // REAL-ESTATE-REGION-FAVORITES-P0: 국토교통부 실거래가 list + 관심 아파트, no chat.
-  {id: 'real-estate', label: '부동산 실거래가', description: '우리 동네 실제 거래 가격', icon: 'building'},
+  {id: 'real-estate', label: '부동산 실거래가', description: '우리 동네 아파트 실제 거래', icon: 'building'},
   // TRAFFIC-CCTV P0: official ITS road cameras by road, route and 구간, no chat.
   // The screen is titled 실시간 도로 CCTV; the card says 도로 CCTV so the label
   // stays on one line in the approved two-column grid at 360 px. Hidden while
@@ -72,7 +72,7 @@ export const LIFE_SHORTCUTS = Object.freeze([
   // 2026-10-10 — LOTBI serves the whole country, not 전북 only). The 전북 official
   // record cards shown in a conversation answer stay.
   // MY-CHILD-SCHOOL-01: the saved schools / 유치원 screen, opened at once. Last.
-  {id: 'my-child', label: '내 아이 학교·유치원', description: '가까운 교육시설과 정보', icon: 'backpack'},
+  {id: 'my-child', label: '내 아이 학교·유치원', description: '급식·알레르기·학사일정', icon: 'backpack'},
 ]);
 
 // REGIONAL-INFO-BACK-NAVIGATION-01 — the screens inside 지역정보, each a route of
@@ -271,8 +271,22 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
     const locationLabel = node('span', 'consumer-life-location-label');
     const regionButton = node('button', 'consumer-life-region-change');
     regionButton.type = 'button';
-    regionButton.append(node('span', '', '지역 변경'), node('span', 'consumer-life-region-chevron', '›'));
-    const showRegion = name => { locationLabel.textContent = `현재 위치 · ${name || '지역 미설정'}`; };
+    const regionButtonLabel = node('span', '', '지역 변경');
+    regionButton.append(regionButtonLabel, node('span', 'consumer-life-region-chevron', '›'));
+    // REGIONAL-INFO-UNIFY-01: this is the region the reader saved, not a GPS fix —
+    // it says so (「내가 정한 지역」); each screen offers 「현재 위치」 itself. With
+    // nothing saved yet the bar asks for one first.
+    const locationTag = node('span', 'consumer-life-location-tag', '내가 정한 지역');
+    const locationNote = node('p', 'consumer-life-location-note');
+    const showRegion = name => {
+      locationLabel.textContent = name || '내 지역을 정해 주세요';
+      locationTag.hidden = !name;
+      location.dataset.lifeRegion = name ? 'set' : 'unset';
+      regionButtonLabel.textContent = name ? '지역 변경' : '지역 고르기';
+      locationNote.textContent = name
+        ? '아래 정보는 이 지역부터 보여 드려요. 화면 안에서 「현재 위치」로 바꿀 수 있어요.'
+        : '한 번 정하면 병원·뉴스·축제가 그 지역부터 나와요.';
+    };
     showRegion(savedLifeRegionLabel());
     regionButton.addEventListener('click', async () => {
       if (disposed || regionButton.disabled) return;
@@ -291,7 +305,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
         if (!disposed) regionButton.disabled = false;
       }
     });
-    locationChip.append(icon('pin'), locationLabel);
+    locationChip.append(icon('pin'), locationLabel, locationTag);
     location.append(locationChip, regionButton);
     const items = Object.fromEntries(LIFE_SHORTCUTS.map(item => [item.id, item]));
     let view = 'life';
@@ -380,7 +394,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-medical');
       detail.append(host);
       root.replaceChildren(detail); setView('life-medical');
-      import('./site-life-medical-list.js?v=aset-72c7dc1a3cb6').then(({mountMedicalList}) => {
+      import('./site-life-medical-list.js?v=aset-a5a7175d3f1d').then(({mountMedicalList}) => {
         if (disposed || current !== generation) return null;
         return mountMedicalList({root: host}).then(mounted => {
           if (disposed || current !== generation) { mounted.dispose(); return; }
@@ -402,7 +416,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-news');
       detail.append(host);
       root.replaceChildren(detail); setView('life-news');
-      import('./site-life-news.js?v=aset-72c7dc1a3cb6').then(({mountRegionalNews}) => {
+      import('./site-life-news.js?v=aset-a5a7175d3f1d').then(({mountRegionalNews}) => {
         if (disposed || current !== generation) return;
         const mounted = mountRegionalNews({root: host});
         releaseNews = mounted.dispose;
@@ -423,7 +437,7 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       const host = node('div', 'consumer-life-education');
       detail.append(title, host);
       root.replaceChildren(detail); setView('life-education'); title.focus();
-      import('./site-life-education.js?v=aset-72c7dc1a3cb6').then(({mountEducation}) => {
+      import('./site-life-education.js?v=aset-a5a7175d3f1d').then(({mountEducation}) => {
         if (disposed || current !== generation) return;
         releaseEducation = mountEducation({root: host, onAsk, accountId}).dispose;
       }).catch(() => {
@@ -484,7 +498,8 @@ export function mountConsumerSection({section, root, onAsk, onFestival, onOnnuri
       grid.append(button);
     }
     const heading = node('h3', 'consumer-section-label', '생활에 필요한 정보');
-    home.append(location, heading, grid);
+    const privacyNote = node('p', 'consumer-life-privacy-note', '현재 위치는 「현재 위치」를 누를 때만 쓰고, 이번 검색이 끝나면 저장하지 않아요.');
+    home.append(location, locationNote, heading, grid, privacyNote);
     root.append(home);
     // A reload or back/forward of a 'life-*' URL opens that screen directly.
     if (lifeView !== 'life' && LIFE_VIEW_PARENT[lifeView]) showLifeView(lifeView);

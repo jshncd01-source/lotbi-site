@@ -25,13 +25,16 @@ check('C9 pinned chats carry no second 고정 badge', () => {
 });
 
 check('D4 technical checks fold away and the result scrolls into view', () => {
-  assert.match(scam, /collapsedList\('확인된 내용', payload\.confirmedFacts\)/);
-  assert.doesNotMatch(scam, /\blist\('확인된 내용'/);
-  assert.match(scam, /function revealResult\(\)[\s\S]*?scrollIntoView/);
-  const submit = scam.slice(scam.indexOf('async function submitAnalysis'), scam.indexOf('function returnToMethods'));
-  assert.match(submit, /render\(payload\);\s*revealResult\(\);/);
-  assert.match(submit, /renderUsageLimit\(error\);\s*revealResult\(\);/);
-  assert.match(scam, /prefers-reduced-motion: reduce/, 'no smooth scroll for reduced motion');
+  // SCAM-PHISHING-REDESIGN-02 — Core's technical checks (confirmed facts and
+  // evidence) sit under 상세 분석, folded by default; the result is its own
+  // screen and starts at the top of the page (no smooth scroll).
+  assert.match(scam, /const technical = \[\.\.\.\(payload\.confirmedFacts \|\| \[\]\)/);
+  assert.match(scam, /section\('tech', '상세 분석'/);
+  assert.match(scam, /const toTop = \(\) => \{ try \{ scrollHost\(\)\?\.scrollTo\?\.\(\{top: 0, behavior: 'auto'\}\); \} catch \{\} \};/);
+  const submit = scam.slice(scam.indexOf('async function submitAnalysis'), scam.indexOf('function handleFailure'));
+  assert.match(submit, /phase: 'result'\}\);\s*render\(\); toTop\(\);/);
+  assert.match(scam, /state\.phase = 'limit'; render\(\); toTop\(\);/);
+  assert.match(read('site-scam-shield.css'), /prefers-reduced-motion: reduce/, 'no motion for reduced motion');
 });
 
 check('E2 the nine footer pages share one top menu and no English eyebrow', () => {

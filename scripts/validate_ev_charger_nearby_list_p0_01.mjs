@@ -60,7 +60,7 @@ await check('지역정보: 전기차 충전소 right after 병원·응급실·�
   assert.equal(ids.indexOf('ev-chargers'), ids.indexOf('medical') + 1);
   const card = sections.LIFE_SHORTCUTS.find(item => item.id === 'ev-chargers');
   assert.equal(card.label, '전기차 충전소');
-  assert.equal(card.description, '가까운 충전기와 사용 상태');
+  assert.equal(card.description, '충전 가능 여부와 가까운 거리');
   assert.equal(card.icon, 'ev');
   for (const key of ['ask', 'prompt', 'choices', 'children']) assert.equal(card[key], undefined, key);
 });
@@ -562,7 +562,7 @@ async function runCase(browser, origin, workDir, testCase) {
       assert.ok(grid.rows.every(count => count === grid.columns), JSON.stringify(grid));
       assert.ok(grid.heights.every(height => height >= 44), JSON.stringify(grid.heights));
       assert.equal(grid.evLabel, '전기차 충전소');
-      assert.equal(grid.evAccessibleName, '전기차 충전소. 가까운 충전기와 사용 상태');
+      assert.equal(grid.evAccessibleName, '전기차 충전소. 충전 가능 여부와 가까운 거리');
       assert.ok(grid.evIcon);
     });
 

@@ -84,8 +84,8 @@ try {
   assert.equal(find(emptyLine, 'calendar-amount-line-amount').textContent, '0원');
   const emptyBlock = calendarAmountSummaryBlock({state: 'ready', summary: {currencies: [], entriesWithoutAmount: 2}, month: 9, onOpen: () => {}});
   assert.deepEqual(findAll(emptyBlock, 'calendar-amount-category').map(node => [node.dataset.expenseCategory, text(node.children[1])]),
-    [['FOOD', '0원'], ['TRAVEL', '0원'], ['SHOPPING', '0원'], ['LIVING', '0원'], ['OTHER', '0원']],
-    'an empty month keeps the five fixed 0원 slots');
+    [['UNCLASSIFIED', '0원'], ['FOOD', '0원'], ['TRAVEL', '0원'], ['SHOPPING', '0원'], ['LIVING', '0원'], ['OTHER', '0원']],
+    'an empty month keeps the six fixed 0원 slots');
   const failed = calendarAmountSummaryLine({state: 'error', errorMessage: '생활비 합계를 불러오지 못했어요.'});
   assert.equal(failed.attributes.role, 'status');
   assert.equal(failed.textContent, '생활비 합계를 불러오지 못했어요.');
@@ -98,11 +98,13 @@ try {
     text(node.children[0]),
     text(node.children[1]),
   ]), [
+    ['UNCLASSIFIED', '미분류', '0원'],
     ['FOOD', '음식', '4,200원'],
     ['TRAVEL', '여행', '0원'],
     ['SHOPPING', '쇼핑', '0원'],
     ['LIVING', '생활비', '80,000원'],
     ['OTHER', '기타', '0원'],
+    ['UNCLASSIFIED', '미분류', '0 USD'],
     ['FOOD', '음식', '0 USD'],
     ['TRAVEL', '여행', '0 USD'],
     ['SHOPPING', '쇼핑', '12 USD'],
