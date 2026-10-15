@@ -118,12 +118,18 @@ const browser = browserPath();
 const workDir = makeWorkDir('scam-incident');
 const srv = startServer();
 const runs = [];
+const openings = [];
 try {
   const origin = await srv.origin;
   for (const viewport of VIEWPORTS) {
     const p = await openPage({browser, origin, workDir, viewport, theme: viewport.theme, mock: MOCK});
     try {
       await waitTheme(p.evaluate, viewport.theme.dark, viewport.theme.label);
+      // The page opens at its top (대화로 돌아가기 in view); a touch screen keeps
+      // its keyboard down. Production 10-15 opened scrolled 252px to the field.
+      await freshInput(p);
+      await sleep(400);
+      openings.push({viewport, ...(await p.evaluate(`(() => { const ws = document.querySelector('.consumer-workspace[data-workspace="scam"]'); const back = ws.querySelector('.site-modal-close'); return {scrollTop: ws.scrollTop, backTop: Math.round(back.getBoundingClientRect().top), active: document.activeElement?.id || document.activeElement?.tagName || ''}; })()`))});
       for (const testCase of CASES) {
         await p.evaluate(`window.__payload = ${JSON.stringify(PAYLOADS[testCase.payload])}; true`);
         await freshInput(p);
@@ -162,6 +168,10 @@ try {
   await removeDir(workDir);
 }
 
+for (const opening of openings) {
+  assert.ok(opening.scrollTop === 0 && opening.backTop >= 0, `${opening.viewport.label}: the page opens at its top with 대화로 돌아가기 in view ${JSON.stringify(opening)}`);
+  if (opening.viewport.mobile) assert.notEqual(opening.active, 'scam-text', `${opening.viewport.label}: opening the page does not raise the keyboard`);
+}
 if (process.env.SCAM_INCIDENT_DEBUG) for (const run of runs) console.log(run.viewport.label, run.innerHeight, run.testCase.name, JSON.stringify({vp: run.viewport, tiles: run.tiles.map(t => t.rect), scroll: run.scrollTop, list: run.incidentList, doNow: run.doNowBox}));
 const PURPOSES = {pay: ['송금 피해', '돈을 보낸 금융회사 고객센터'], sos: ['보이스피싱·스미싱 통합 신고·상담', '1394'], emergency: ['즉시 출동이 필요한 긴급 상황', '112'], kisa: ['사이버 보안·스미싱 상담', '118'], ecrm: ['사이버범죄 온라인 신고', '경찰청 ECRM']};
 for (const run of runs) {
