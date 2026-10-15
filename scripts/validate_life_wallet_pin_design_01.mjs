@@ -30,14 +30,17 @@ for (const viewport of [{width:1200,height:900},{width:390,height:844,mobile:tru
   assert.deepEqual(result.keys, ['1','2','3','4','5','6','7','8','9','지움','0','열기'], detail);
   assert.equal(result.dots, '●●○○', detail);
   assert.equal(result.input.type, 'text', detail); assert.equal(result.input.inputMode, 'none', detail); assert.equal(result.input.autocomplete, 'off', detail); assert.equal(result.input.mask, 'disc', detail); assert.equal(result.input.maxLength, 4, detail);
-  assert.equal(result.markBackground, 'rgb(234, 243, 255)', `lock mark must use the approved circular blue tint: ${detail}`);
-  assert.equal(result.dotColor, 'rgb(15, 23, 42)', `PIN dots must follow the approved mockup: ${detail}`);
-  assert.equal(result.confirmBackground, 'rgb(22, 119, 255)', `open button must use the wallet accent: ${detail}`);
+  // LIFE-WALLET-REDESIGN-02 (owner-approved 2026-10-14): the mark is a white circle on the tinted
+  // panel on a PC and a tinted circle on a phone; the accent is #2563EB (white text 5.2:1).
+  assert.equal(result.markBackground, viewport.width > 600 ? 'rgb(255, 255, 255)' : 'rgb(238, 244, 255)', `lock mark must use the approved circular treatment: ${detail}`);
+  assert.equal(result.markRadius, '50%', detail);
+  assert.equal(result.dotColor, 'rgb(30, 34, 40)', `PIN dots must follow the approved mockup: ${detail}`);
+  assert.equal(result.confirmBackground, 'rgb(37, 99, 235)', `open button must use the wallet accent: ${detail}`);
   assert.equal(result.confirmColor, 'rgb(255, 255, 255)', detail);
   assert.equal(result.overflow, false, detail);
   if (viewport.width > 430) {
-    assert.ok(result.width >= 550 && result.width <= 565, `desktop gate must match the approved card width: ${detail}`);
-    assert.ok(result.height >= 620 && result.height <= 720, `desktop gate must match the approved PIN-card proportion: ${detail}`);
+    assert.ok(result.width >= 870 && result.width <= 880, `desktop gate must match the approved two-column card width: ${detail}`);
+    assert.ok(result.height >= 560 && result.height <= 760, `desktop gate must match the approved PIN-card proportion: ${detail}`);
     assert.notEqual(result.shadow, 'none', detail);
   } else {
     assert.equal(result.borderWidth, '0px', `mobile PIN screen must not look like a nested oversized card: ${detail}`);

@@ -56,8 +56,9 @@ try {
   const empty = await wait(() => root.querySelector('.wallet-empty'), 'empty wallet');
   const emptyButtons = buttons(root);
   const lockButton = () => [...root.querySelectorAll('button')].find(button => button.textContent === '잠그기');
+  // LIFE-WALLET-REDESIGN-02: 설정 is its own screen; PIN 변경 is its first row.
   root.querySelector('.wallet-settings > button').click();
-  [...root.querySelectorAll('button')].find(button => button.textContent === 'PIN 변경').click();
+  (await wait(() => root.querySelector('[data-wallet-settings="pin"]'), 'settings screen')).click();
   const change = await wait(() => root.querySelector('form.wallet-editor'), 'change form'); await sleep(100);
   const changeFields = [...change.querySelectorAll('input')].map(describe);
   [...change.querySelectorAll('button')].find(button => button.textContent === '취소').click();
@@ -212,7 +213,9 @@ try {
   const form = await wait(() => root.querySelector('[data-wallet-view="add"]'), 'add form 2');
   const zone = form.querySelector('.wallet-attach-zone');
   const camera = countClicks(form.querySelectorAll('.wallet-attach input[type=file]')[0]);
-  zone.click(); form.querySelector('[data-wallet-attach-source="camera"]').click();
+  // LIFE-WALLET-REDESIGN-02: the add form opens on two large choices, 카메라로 찍기 first on a phone.
+  const firstChoice = form.querySelector('[data-wallet-attach-choice]')?.dataset.walletAttachChoice;
+  form.querySelector('[data-wallet-attach-choice="camera"]').click();
   setVisibility('hidden'); await sleep(400);
   const duringTrip = {formKept: form.isConnected, cameraClicks: camera.count};
   // The camera returns its shot before the page is shown again.
@@ -221,6 +224,10 @@ try {
   scanner.querySelector('[data-wallet-scan-confirm]').click();
   await wait(() => zone.dataset.state === 'ready', 'trip ready');
   const save = form.querySelector('button[type=submit]');
+  // The kind is the owner's choice (a card shape only suggests 신분증·명함); saving waits for it.
+  duringTrip.waitsForKind = save.disabled && form.querySelector('.wallet-reason').textContent === '자료 종류를 골라 주세요';
+  duringTrip.suggested = [...form.querySelectorAll('.wallet-kind-option')].filter(option => !option.querySelector('.wallet-kind-rec').hidden).map(option => option.dataset.walletKindOption);
+  form.querySelector('input[name="wallet-category"][value="identity"]').click();
   duringTrip.saveEnabled = !save.disabled;
   save.click();
   const status = await wait(() => form.querySelector('.wallet-message')?.textContent, 'save refused while hidden');
@@ -231,14 +238,14 @@ try {
   await wait(() => !save.disabled, 'save enabled again');
   save.click();
   await wait(() => root.textContent.includes('저장 자료 1개'), 'saved one item');
-  const afterSave = {buttons: buttons(root)};
+  const afterSave = {buttons: buttons(root), add: root.querySelector('.wallet-add-action')?.innerText.replace(/\\s+/gu, ' ').trim(), firstChoice, toast: root.querySelector('.wallet-shell > .wallet-toast')?.textContent};
 
   // Lock, unlock with the keypad, the item decrypts; delete asks for the PIN in a masked field.
   click('잠그기');
   const unlock = await wait(() => root.querySelector('.wallet-unlock-form'), 'unlock form');
   for (const digit of '2580') [...unlock.querySelectorAll('.wallet-keypad button')].find(button => button.textContent === digit).click();
   [...unlock.querySelectorAll('.wallet-keypad button')].find(button => button.textContent === '열기').click();
-  const card = await wait(() => root.querySelector('.wallet-deck-card[data-depth="0"]'), 'deck');
+  const card = await wait(() => root.querySelector('[data-wallet-item-open]'), 'list');
   card.click();
   const image = await wait(() => root.querySelector('.wallet-detail-images img'), 'detail image');
   await image.decode();
@@ -256,7 +263,7 @@ try {
   click('첫 자료 등록하기');
   const form3 = await wait(() => root.querySelector('[data-wallet-view="add"]'), 'add form 3');
   countClicks(form3.querySelectorAll('.wallet-attach input[type=file]')[0]);
-  form3.querySelector('.wallet-attach-zone').click(); form3.querySelector('[data-wallet-attach-source="camera"]').click();
+  form3.querySelector('[data-wallet-attach-choice="camera"]').click();
   setVisibility('hidden'); await sleep(400);
   sessionStorage.clear();
   setVisibility('visible');
@@ -326,9 +333,11 @@ assert.equal(flow.ok, true, flow.error);
 {
   const detail = JSON.stringify(flow);
   assert.equal(flow.plainBackgroundCleared, true, `going to the background without a chooser still clears the wallet screen: ${detail}`);
-  assert.deepEqual(flow.duringTrip, {formKept: true, cameraClicks: 1, saveEnabled: true, saveRefusedWhileHidden: true, stillOnForm: true}, `the add form survives a camera trip, the key does not: ${detail}`);
+  assert.deepEqual(flow.duringTrip, {formKept: true, cameraClicks: 1, waitsForKind: true, suggested: ['identity', 'business-card'], saveEnabled: true, saveRefusedWhileHidden: true, stillOnForm: true}, `the add form survives a camera trip, the key does not: ${detail}`);
   assert.deepEqual(flow.afterTrip, {formKept: true, state: 'unlocked'}, detail);
-  assert.ok(flow.afterSave.buttons.includes('+ 추가') && !flow.afterSave.buttons.includes('첫 자료 등록하기'), `with an item, the mobile +추가 action is the way to add: ${detail}`);
+  assert.equal(flow.afterSave.firstChoice, 'camera', `on a phone 카메라로 찍기 comes first: ${detail}`);
+  assert.ok(flow.afterSave.add === '추가' && !flow.afterSave.buttons.includes('첫 자료 등록하기'), `with an item, the mobile 추가 action is the way to add: ${detail}`);
+  assert.equal(flow.afterSave.toast, '자료를 암호화하여 저장했습니다.', `a finished save says so in the green note: ${detail}`);
   assert.equal(flow.decrypted, true, `the saved item decrypts after locking and unlocking: ${detail}`);
   assert.deepEqual(flow.removalField, {type: 'text', mask: 'disc', autocomplete: 'off'}, detail);
   assert.equal(flow.wrongPin, '월렛 PIN을 확인해 주세요.', detail);
