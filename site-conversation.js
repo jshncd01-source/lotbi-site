@@ -1,24 +1,46 @@
-import {beginSiteHandoff, markSiteLogoutSuppression} from './site-auth.js?v=aset-de88e6e1b0a7';
-import * as siteCore from './site-core.js?v=aset-de88e6e1b0a7';
-import './site-scam-shield.js?v=aset-de88e6e1b0a7';
-import {mountConsumerSection} from './site-consumer-sections.js?v=aset-de88e6e1b0a7';
-import {buildGoogleMapsDirectionsUrl, buildKakaoNaviHandoffUrl, buildNaverMapsWebSearchUrl, buildVerifiedPhoneHref, isPlaceResultFresh, isTmapHandoffAvailable, normalizePlaceResult, openGoogleMapsPlace, openKakaoNaviPlace, openNaverMapsPlace, openTmapPlace} from './site-navigation.js?v=aset-de88e6e1b0a7';
-import * as siteAttachments from './site-attachments.js?v=aset-de88e6e1b0a7';
-import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-de88e6e1b0a7';
-import {deterministicReply} from './site-deterministic.js?v=aset-de88e6e1b0a7';
-import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-de88e6e1b0a7';
-import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-de88e6e1b0a7';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-de88e6e1b0a7';
-import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-de88e6e1b0a7';
-import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-de88e6e1b0a7';
-import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-de88e6e1b0a7';
-import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-de88e6e1b0a7';
-import {createReusableOutputCard} from './site-output-card.js?v=aset-de88e6e1b0a7';
-import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-de88e6e1b0a7';
-import {createReadAloudController, READ_ALOUD_STATE} from './site-read-aloud-controller.js?v=aset-de88e6e1b0a7';
-import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-de88e6e1b0a7';
-const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
+import {beginSiteHandoff, markSiteLogoutSuppression, registerSiteSessionAdopter, SITE_SESSION_RENEWAL_REQUEST_EVENT} from './site-auth.js?v=aset-7ce47b43cff4';
+import * as siteCore from './site-core.js?v=aset-7ce47b43cff4';
+import {mountScamShield} from './site-scam-shield.js?v=aset-7ce47b43cff4';
+import {mountConsumerSection, LIFE_VIEW_PARENT, lifeBackLabel} from './site-consumer-sections.js?v=aset-7ce47b43cff4';
+import {parseSiteRouteHash, siteRouteHash, siteRouteUrl, captureWalletShareIntent, captureFamilyInviteIntent, hasFamilyInviteIntent} from './site-route.js?v=aset-7ce47b43cff4';
+import {buildDefaultMapHref, buildVerifiedPhoneHref, defaultMapProviderPresentation, isPlaceResultFresh, normalizePlaceResult, placeLifeBadges, buildNaverPlaceSearchUrl, placeCategoryLabel} from './site-navigation.js?v=aset-7ce47b43cff4';
+import {readDefaultMapProvider} from './site-location-preference.js?v=aset-7ce47b43cff4';
+import {millisecondsUntilNextThemeBoundary, readThemePreference, resolveThemePreference, writeThemePreference} from './site-theme-preference.js?v=aset-7ce47b43cff4';
+import * as siteAttachments from './site-attachments.js?v=aset-7ce47b43cff4';
+import {formatConversationTimestamp, millisecondsUntilNextLocalMidnight, shouldShowConversationSeparator, timestampedConversationMessage} from './site-conversation-timeline.js?v=aset-7ce47b43cff4';
+import {deterministicReply} from './site-deterministic.js?v=aset-7ce47b43cff4';
+import {ensureDurableAnonymousConversationNamespace, guestConversationThreadClaimed, markConversationTabEntry, prepareGuestConversationClaimIntent} from './site-conversation-storage.js?v=aset-7ce47b43cff4';
+import {executeLifeCalendarCommand, getLifeToday, isExplicitLifeCalendarCommand, previewLifeCalendarCommand} from './site-calendar.js?v=aset-7ce47b43cff4';
+import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-7ce47b43cff4';
+import {calendarActionInFlight, createAvailableCalendarAction, normalizePersistedCalendarAction, recoverCalendarActionAfterReload, runCalendarAction} from './site-calendar-actions.js?v=aset-7ce47b43cff4';
+import {CALENDAR_DRAFT_WRITE_STATE, registerCalendarDraft} from './site-calendar-draft-write.js?v=aset-7ce47b43cff4';
+import {mountLifeCalendarManager} from './site-calendar-ui.js?v=aset-7ce47b43cff4';
+import {createIconButton, createSafeMessageBody, enhanceExpandableUserMessage} from './site-message-body.js?v=aset-7ce47b43cff4';
+import {createReusableOutputCard} from './site-output-card.js?v=aset-7ce47b43cff4';
+import {createWakeListener, readWakePreference, stripWakePrefix, wakeListeningSupported, writeWakePreference} from './site-voice-wake.js?v=aset-7ce47b43cff4';
+import {createThinkingPresentation, selectThinkingKind} from './site-chat-thinking.js?v=aset-7ce47b43cff4';
+import {createBackdropDismissGuard} from './site-surface-dismiss.js?v=aset-7ce47b43cff4';
+import {resolveLifeLocationContext, lifeLocationIntent, resetLifeLocationPromptMemory} from './site-life-location.js?v=aset-7ce47b43cff4';
+import {clearSchoolPreference, compactSchoolResultMeta, createSchoolResultCard, readSchoolPreference, schoolContextForMessage, writeSchoolPreference} from './site-life-school.js?v=aset-7ce47b43cff4';
+import {createEmergencyCallNotice, medicalStatusLines} from './site-life-medical.js?v=aset-7ce47b43cff4';
+import {LOTBI_BOX_UI_ENABLED, TRAFFIC_CCTV_UI_ENABLED} from './site-feature-flags.js?v=aset-7ce47b43cff4';
+import {compactProductLookupMeta, createProductImageComparison} from './site-product-lookup.js?v=aset-7ce47b43cff4';
+import {createMessageReadAloudButton, stopMessageReadAloud} from './site-message-read-aloud.js?v=aset-7ce47b43cff4';
+import {compactNewsResultMeta, createNewsResultCards} from './site-regional-news.js?v=aset-7ce47b43cff4';
+import {compactRegionalContactMeta, compactRegionalFoodMeta, createRegionalContactCard, createRegionalFoodCard} from './site-life-regional.js?v=aset-7ce47b43cff4';
+const {analyzeScamShield, createGuestConversationSession, deleteConversationAttachment, deleteSiteProfilePhoto, fetchSiteProfilePhotoObjectUrl, getCurrentSiteUser, getCurrentSubscription, getProductCards, logoutSiteSession, saveSiteProfilePhoto, normalizeCalendarPartialCandidate, normalizeReusableOutput, normalizeSmartCalendarDraft, reviewProductCard, searchProductCards, searchPublicProductCards, sendConversationMessage, sendGuestConversationMessage, uploadConversationAttachment, SiteCoreError} = siteCore;
 const {adoptAttachmentPreviewUrl, attachmentDisplayPresentation, createAttachmentPreviewUrl, isPreviewableImageAttachment, releaseAllAttachmentPreviewUrls, releaseComposerPreviewUrl, releaseRenderedPreviewUrls, validateAttachmentFiles} = siteAttachments;
+
+// TROUBLE-HELPER-PAGE-01 — 분쟁·사고 도우미 is a page (a workspace, route
+// #trouble, like Life Wallet · 지역정보), not a dialog: openTroubleHelperPage
+// below. Its module loads only when first needed — the first tap on a menu
+// button, or the address naming it — never at boot, so the boot timing of every
+// other request stays as it was. A failure there never stops this module.
+let troubleHelperModule = null;
+const loadTroubleHelper = () => {
+  troubleHelperModule ||= import('./site-trouble-helper.js?v=aset-7ce47b43cff4').catch(() => { troubleHelperModule = null; return null; });
+  return troubleHelperModule;
+};
 
 // SITE-IMAGE-ATTACHMENT-THUMBNAIL-01 — an image-only turn carries this
 // placeholder as its conversation text. The composer builds the same sentence
@@ -37,21 +59,24 @@ const attachmentOnlyPlaceholder = count => `첨부 파일 ${count}개를 확인�
 //
 // It is deliberately not the same answer as '기기모드', which follows the OS.
 // This one follows the clock, which is what 대표 asked for. Both stay on offer.
-const AUTO_THEME_DARK_HOUR = 18;
-const AUTO_THEME_LIGHT_HOUR = 7;
+//
+// LOTBI-CONSUMER-THEME-SYNC-01 — the clock and its 07:00 / 22:00 boundaries now
+// live in site-theme-preference.js, which Account mirrors, so the Site and
+// Account cannot switch at different times.
 function resolveScheduledTheme(now = new Date()) {
-  const hour = now.getHours();
-  return hour >= AUTO_THEME_DARK_HOUR || hour < AUTO_THEME_LIGHT_HOUR ? 'dark' : 'light';
+  return resolveThemePreference('auto', now);
 }
-// When the next switch is due, so a tab left open overnight turns dark at 18:00
-// instead of waiting for a reload.
-function millisecondsUntilNextThemeBoundary(now = new Date()) {
-  const hour = now.getHours();
-  const next = new Date(now.getTime());
-  next.setMinutes(0, 0, 0);
-  next.setHours(hour < AUTO_THEME_LIGHT_HOUR || hour >= AUTO_THEME_DARK_HOUR ? AUTO_THEME_LIGHT_HOUR : AUTO_THEME_DARK_HOUR);
-  if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
-  return next.getTime() - now.getTime();
+
+// LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode chosen in Account settings is
+// the shared lotbi_theme_preference_v1 cookie, and it wins over anything this
+// origin stored on its own. Never throws: a blocked cookie jar falls back to the
+// old per-origin key rather than stopping the page.
+function sharedThemePreference() {
+  try {
+    return readThemePreference(globalThis.document?.cookie ?? '');
+  } catch {
+    return undefined;
+  }
 }
 
 // SITE-THEME-BOOTSTRAP-FIRST-PAINT-01 — the authoritative copy of this lives
@@ -61,7 +86,7 @@ function millisecondsUntilNextThemeBoundary(now = new Date()) {
 // module also runs on pages that do not carry the inline block, and re-running
 // it is harmless — it writes the same attribute from the same value.
 try {
-  const stored = globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
+  const stored = sharedThemePreference() ?? globalThis.localStorage?.getItem?.('lotbi.site.theme.bootstrap.v1');
   const savedTheme = stored === 'auto' ? resolveScheduledTheme() : stored;
   if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
     document.documentElement.dataset.siteThemeBootstrap = savedTheme;
@@ -119,6 +144,21 @@ function resolveNamespaceTheme(storedTheme, durableTheme) {
   return 'system';
 }
 
+// LOTBI-CONSUMER-THEME-SYNC-01 — someone who chose on this origin before the
+// shared cookie existed keeps that choice: an explicit Light, Dark or 자동 is
+// carried into the shared store, marked as imported so Account (where the
+// screen mode is chosen now) can still prefer its own older explicit choice.
+// 'system' is not carried: it is also the value written when nothing was ever
+// chosen, so it says nothing about the user.
+function adoptLegacyTheme(legacyTheme) {
+  if (legacyTheme === 'light' || legacyTheme === 'dark' || legacyTheme === 'auto') {
+    try {
+      writeThemePreference(document, legacyTheme, {hostname: location.hostname, protocol: location.protocol, imported: true});
+    } catch {}
+  }
+  return legacyTheme;
+}
+
 const SESSION_STATE_EVENT = 'lotbi:site-session-state';
 const SIDEBAR_RENDERED_EVENT = 'lotbi:sidebar-auth-rendered';
 const STORAGE_PREFIX = 'lotbi.site.ux.v1';
@@ -129,12 +169,28 @@ const THREAD_TITLE_LIMIT = 60;
 // which is exactly where the profile modal's removed account-management button
 // used to point.
 const ACCOUNT_MANAGE_URL = 'https://account.lotbiai.com/account';
+const ACCOUNT_MANAGE_ORIGIN = 'https://account.lotbiai.com';
+function isProfilePhotoEmbed() {
+  return window.parent !== window && (
+    new URLSearchParams(window.location.search).get('embed') === 'profile-photo'
+    || window.location.hash === '#profile-photo'
+  );
+}
+if (isProfilePhotoEmbed()) document.documentElement.dataset.profilePhotoEmbed = 'true';
 const PHOTO_BYTES_LIMIT = 20 * 1024 * 1024;
 const PHOTO_DIMENSION_LIMIT = 8192;
 const PHOTO_PIXEL_LIMIT = 40_000_000;
 const PROFILE_PHOTO_SOURCE_OPTIONS = Object.freeze([
   ['camera', '카메라'], ['gallery', '갤러리'], ['files', '내 파일'],
 ]);
+// SITE-CONNECTED-SERVICES-HIDE-01 — SWITCH. 연결 서비스's three partners (RAD, 지평선몰, 생생장터) are
+// all still being prepared, so the menu entries that lead to them stay out of sight until one is
+// really open (USER_FIRST 13: a visitor is not sent to something that is not ready). The entries
+// stay in the markup and the account menu; this one constant shows or hides all three of them
+// (drawer on desktop, drawer on phones, account menu). Account's /connected-services page itself
+// is untouched. Set to true when a partner opens.
+const CONNECTED_SERVICES_MENU_VISIBLE = true;
+for (const entry of document.querySelectorAll('[data-consumer-section="mall"]')) entry.hidden = !CONNECTED_SERVICES_MENU_VISIBLE;
 const COLOR_OPTIONS = Object.freeze([
   ['default', '기본'], ['blue', '파랑'], ['purple', '보라'], ['green', '초록'],
   ['orange', '오렌지'], ['pink', '분홍'], ['gray', '회색'],
@@ -167,7 +223,7 @@ function ensureConversationStyles() {
   if (document.querySelector('link[data-site-conversation-styles]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/site-conversation.css?v=aset-de88e6e1b0a7';  link.dataset.siteConversationStyles = 'true';
+  link.href = '/site-conversation.css?v=aset-7ce47b43cff4';  link.dataset.siteConversationStyles = 'true';
   document.head.appendChild(link);}
 
 const performanceNow = () => globalThis.performance?.now?.() ?? Date.now();
@@ -242,28 +298,14 @@ function resolvePlaceOrbitPointerIndex({
   return target;
 }
 
-// SITE-MESSAGE-SHARE-ACTIONS-01 — the icon row LOTBI answers carry.
-// Copy is local to the browser. Share hands the answer to the OS share sheet,
-// where KakaoTalk appears next to every other installed target, so it needs no
-// Kakao app key and no registered JavaScript SDK domain. Desktop browsers have
-// no share sheet, so they fall back to copying the answer plus the site link.
-// SITE-VOICE-BROWSER-TTS-01 — reading answers aloud, with the voice the
-// browser already has. Core's /v2/live/tts still is not reachable from a Site
-// session and its provider credentials are not configured, so waiting for it
-// means shipping nothing. speechSynthesis needs no key, no network call of our
-// own and no new environment variable, and where a browser does not have it the
-// control simply is not built — an answer that cannot be read aloud should not
-// grow a button that says it can.
-//
-// When the approved provider does arrive, this is the fallback it falls back
-// to, not code to delete.
-// (superseding) "소리내어 읽기" was absent while Core's /v2/live/tts was unreachable
-// from a Site session; a permanently dead button is worse than no button.
+// SITE-MESSAGE-SHARE-ACTIONS-02 — the answer share control always offers an
+// explicit canonical-link copy. KakaoTalk is added only after explicit Kakao
+// Share readiness is confirmed; it never falls back to copying.
 const MESSAGE_ACTION_SHARE_URL = 'https://lotbiai.com/';
 const MESSAGE_ACTION_ICON_COPY = 'M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1Zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16h-9V7h9v14Z';
 const MESSAGE_ACTION_ICON_SHARE = 'M12 2 7.5 6.5l1.4 1.4L11 5.8V16h2V5.8l2.1 2.1 1.4-1.4L12 2ZM5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8h-2v8H7v-8H5Z';
-const MESSAGE_ACTION_ICON_SPEAK = 'M4 9v6h4l5 4V5L8 9H4Zm11.5 3a4 4 0 0 0-2-3.46v6.92A4 4 0 0 0 15.5 12Zm-2-7.77v2.06A6 6 0 0 1 13.5 18.3v2.06a8 8 0 0 0 0-15.6Z';
-const MESSAGE_ACTION_ICON_STOP = 'M6 6h12v12H6V6Z';
+const SHARE_MENU_ICON_LINK = 'M10.59 13.41a2 2 0 0 1 0-2.82l3-3a2 2 0 0 1 2.82 2.82l-1.29 1.3 1.41 1.41 1.3-1.29a4 4 0 0 0-5.66-5.66l-3 3a4 4 0 0 0 0 5.66l.12.12 1.42-1.42-.12-.12Zm2.82-2.82-.12-.12-1.42 1.42.12.12a2 2 0 0 1 0 2.82l-3 3a2 2 0 1 1-2.82-2.82l1.29-1.3-1.41-1.41-1.3 1.29a4 4 0 0 0 5.66 5.66l3-3a4 4 0 0 0 0-5.66Z';
+const SHARE_MENU_ICON_KAKAO = 'M12 3C6.48 3 2 6.46 2 10.73c0 2.76 1.86 5.19 4.67 6.56l-.95 3.49a.42.42 0 0 0 .64.46l4.22-2.79c.46.05.93.08 1.42.08 5.52 0 10-3.46 10-7.8S17.52 3 12 3Z';
 // SITE-MESSAGE-CALENDAR-ACTION-01 — a footer shortcut into the same editor
 // every other Calendar entry point already opens through (openCalendar with
 // initialDraft). It never registers by itself: only fields already known to
@@ -271,71 +313,37 @@ const MESSAGE_ACTION_ICON_STOP = 'M6 6h12v12H6V6Z';
 // address) are pre-filled, and a message with neither opens a blank entry.
 const MESSAGE_ACTION_ICON_CALENDAR = 'M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5c0-1.1-.9-2-2-2Zm0 16H5V8h14v11Z';
 const MESSAGE_ACTION_FEEDBACK_MS = 2600;
-// Chrome stops a long utterance partway through, so answers are read in
-// sentence-sized pieces queued back to back. cancel() still clears the whole
-// queue, which keeps the stop control honest.
-const SPEECH_CHUNK_LIMIT = 180;
+let shareMenuSequence = 0;
 
-function speechSupported() {
-  return typeof globalThis.speechSynthesis !== 'undefined'
-    && typeof globalThis.SpeechSynthesisUtterance === 'function';
+async function shareMessageWithKakao(options) {
+  const {shareWithKakaoTalk} = await import('./site-kakao-share.js?v=aset-7ce47b43cff4');
+  return shareWithKakaoTalk(options);
 }
 
-// Privacy-safe read-aloud telemetry: event name, playbackId, chunk index and
-// error/fallback reason codes only — never the answer text, never a voice
-// name, never anything that could sit alongside a session token or a full
-// voice list. Reuses the same performance.mark-as-diagnostics idiom
-// site-continuity.js already uses for auth timing, rather than inventing a
-// second telemetry channel for one feature.
-function reportReadAloudTelemetry(event, detail) {
+// Fail closed: config, SDK or import failures mean the KakaoTalk menu item is
+// not exposed to pointer, keyboard or accessibility navigation. A ready item
+// already has the SDK loaded, so choosing it shares within the same tap.
+async function prepareKakaoShare() {
   try {
-    globalThis.performance?.mark?.(`lotbi-read-aloud:${event}`, {detail: Object.freeze({...detail})});
-  } catch { /* diagnostic-only, must never affect playback */ }
+    const module = await import('./site-kakao-share.js?v=aset-7ce47b43cff4');
+    return Boolean(await module.prepareKakaoShare());
+  } catch {
+    return false;
+  }
 }
 
-// One playback owner for the whole page — SITE-VOICE-READ-ALOUD-RELIABILITY-02
-// (folding in SITE-VOICE-READALOUD-PLAYBACK-OWNER-01's single-owner fix:
-// window.speechSynthesis is one queue no matter how many "읽어주기" buttons
-// exist, so starting answer B must force answer A's own button back to idle
-// immediately, without waiting for A's onend/onerror — Chrome does not
-// reliably fire either after cancel()). Created in mountConversation(), not
-// here — this sits inside a source range a standalone regression test
-// (validate_home_refresh_persistence_01.mjs) evaluates in isolation, without
-// the module's imports available.
-let readAloud;
+// LOTBI-KAKAO-SHARE-ACTUAL-01 — says what leaves LOTBI before it does: this
+// answer (its first 200 characters) and the public lotbiai.com address, never
+// the conversation, its address or anything about the account.
+const KAKAO_SHARE_NOTE = '이 답변 내용과 LOTBI 주소만 보내요';
 
-const READ_ALOUD_ERROR_MESSAGE = {
-  VOICES_NOT_READY: '음성을 준비하지 못했습니다. 다시 눌러 주세요.',
-  NO_KOREAN_VOICE: '이 기기에 설치된 한국어 음성이 없어 읽어 드릴 수 없습니다.',
-  NETWORK_ERROR: '네트워크 음성을 불러오지 못해 읽어 드리지 못했습니다.',
-  VOICE_UNAVAILABLE: '선택된 음성을 사용할 수 없어 읽어 드리지 못했습니다.',
-  INTERRUPTED: '읽기가 중단되었습니다.',
-};
-const READ_ALOUD_ERROR_MESSAGE_DEFAULT = '읽어 드리지 못했습니다.';
-
-// Picking the best of whatever ko-KR voices the device already has —
-// SITE-VOICE-BROWSER-TTS-QUALITY-01, see site-voice-tts.js for why.
-
-function splitForSpeech(value) {
-  const text = String(value ?? '').replace(/\s+/gu, ' ').trim();
-  if (!text) return [];
-  const chunks = [];
-  let current = '';
-  for (const piece of text.split(/(?<=[.!?。？！]|다\.|요\.)\s+/u)) {
-    if (!piece) continue;
-    if ((current + ' ' + piece).trim().length <= SPEECH_CHUNK_LIMIT) {
-      current = (current ? current + ' ' : '') + piece;
-      continue;
-    }
-    if (current) chunks.push(current);
-    // A single sentence longer than the limit still has to be broken, or the
-    // engine truncates it silently.
-    if (piece.length <= SPEECH_CHUNK_LIMIT) { current = piece; continue; }
-    for (let i = 0; i < piece.length; i += SPEECH_CHUNK_LIMIT) chunks.push(piece.slice(i, i + SPEECH_CHUNK_LIMIT));
-    current = '';
-  }
-  if (current) chunks.push(current);
-  return chunks;
+function describeShareMenuItem(item, id, note) {
+  const hint = document.createElement('small');
+  hint.className = 'lotbi-share-menu-hint';
+  hint.id = id;
+  hint.textContent = note;
+  item.querySelector('span')?.append(hint);
+  item.setAttribute('aria-describedby', id);
 }
 
 async function writeMessageTextToClipboard(text) {
@@ -358,22 +366,13 @@ async function writeMessageTextToClipboard(text) {
   if (!copied) throw new Error('복사를 완료하지 못했습니다.');
 }
 
-async function shareMessageText(text, {includeUrl = true} = {}) {
-  const value = typeof text === 'string' ? text.trim() : '';
-  if (!value) throw new Error('공유할 내용이 없습니다.');
-  const shareData = includeUrl
-    ? {title: 'LOTBI', text: value, url: MESSAGE_ACTION_SHARE_URL}
-    : {text: value};
-  if (typeof navigator.share === 'function') {
-    try {
-      await navigator.share(shareData);
-      return 'shared';
-    } catch (error) {
-      if (error && error.name === 'AbortError') return 'cancelled';
-    }
-  }
-  await writeMessageTextToClipboard(includeUrl ? `${value}\n\n${MESSAGE_ACTION_SHARE_URL}` : value);
-  return 'copied';
+function createShareMenuItem(label, iconPath, action) {
+  const item = createIconButton({className: 'lotbi-share-menu-item', label, iconPath, dataset: {shareAction: action}});
+  item.setAttribute('role', 'menuitem');
+  const text = document.createElement('span');
+  text.textContent = label;
+  item.appendChild(text);
+  return item;
 }
 
 function createMessageActions(text, announce, {calendarDraft = null, openCalendarDraft} = {}) {
@@ -413,102 +412,119 @@ function createMessageActions(text, announce, {calendarDraft = null, openCalenda
   });
 
   const share = createIconButton({className: 'chat-message-action', label: '공유하기', iconPath: MESSAGE_ACTION_ICON_SHARE, dataset: {messageAction: 'share'}});
-  share.addEventListener('click', () => {
-    // shareMessageText calls navigator.share synchronously before its first await,
-    // preserving the user gesture required by mobile share sheets.
-    void shareMessageText(value).then(result => {
-      if (result === 'cancelled') return;
-      if (result === 'copied') {
-        report('이 브라우저에는 공유 시트가 없어 답변과 링크를 복사했습니다. 카카오톡에 붙여넣어 주세요.');
-        return;
-      }
-      report('공유 앱으로 보냈습니다.');
-    }).catch(() => report('공유를 완료하지 못했습니다.', 'error'));
-  });
 
   // Calendar is a launcher, never a writer: it always opens the same editor
   // dialog every other Calendar entry point uses, pre-filled with only the
   // fields this message already carries, and it never calls a register/save
-  // function directly from here.
-  const calendar = createIconButton({className: 'chat-message-action', label: '캘린더에 추가', iconPath: MESSAGE_ACTION_ICON_CALENDAR, dataset: {messageAction: 'calendar'}});
-  calendar.addEventListener('click', () => {
+  // function directly from here. CONVERSATION-ANSWER-UX-01 (QA #8): only an
+  // answer with a schedule in it offers it; a "where?" or place answer has none.
+  const calendar = calendarDraft ? createIconButton({className: 'chat-message-action', label: '캘린더에 추가', iconPath: MESSAGE_ACTION_ICON_CALENDAR, dataset: {messageAction: 'calendar'}}) : null;
+  calendar?.addEventListener('click', () => {
     if (typeof openCalendarDraft !== 'function') return;
     void openCalendarDraft(calendarDraft).catch(() => report('캘린더를 열지 못했습니다.', 'error'));
   });
 
-  // Built only where the browser can actually speak. No dialog, no disabled
-  // button, no promise the page cannot keep — just the copy and share tools.
-  if (speechSupported() && readAloud) {
-    const speak = createIconButton({className: 'chat-message-action', label: '읽어주기', iconPath: MESSAGE_ACTION_ICON_SPEAK, dataset: {messageAction: 'speak'}});
-    const speakIcon = speak.querySelector('path');
-    // Plain action-button semantics with a live label: this toggles between
-    // two genuinely different actions (start reading / stop reading), which
-    // is exactly what aria-pressed on a button describes, so it stays.
-    const setSpeakUi = active => {
-      speak.setAttribute('aria-label', active ? '읽기 멈추기' : '읽어주기');
-      speak.title = active ? '읽기 멈추기' : '읽어주기';
-      speak.setAttribute('aria-pressed', String(active));
-      speakIcon?.setAttribute('d', active ? MESSAGE_ACTION_ICON_STOP : MESSAGE_ACTION_ICON_SPEAK);
-      if (active) speak.dataset.speaking = 'true'; else delete speak.dataset.speaking;
-    };
-    setSpeakUi(false);
+  // CHAT-READ-ALOUD-RESTORE-P0 — reads this answer on the device, only when
+  // pressed; see site-message-read-aloud.js. Last in the row so the share
+  // menu stays anchored under 공유하기.
+  const readAloud = createMessageReadAloudButton(value, {report});
 
-    // This button's identity within the single shared controller — referential
-    // equality only, never persisted, never sent anywhere.
-    const token = Symbol('read-aloud-token');
-    readAloud.onStateChange(({state, token: activeToken, reason}) => {
-      const mine = activeToken === token;
-      if (mine && state === READ_ALOUD_STATE.ERROR) {
-        report(READ_ALOUD_ERROR_MESSAGE[reason] || READ_ALOUD_ERROR_MESSAGE_DEFAULT, 'error');
-      }
-      setSpeakUi(mine && (state === READ_ALOUD_STATE.PLAYING || state === READ_ALOUD_STATE.PREPARING));
-    });
+  const shareMenu = document.createElement('div');
+  shareMenu.className = 'lotbi-share-menu';
+  shareMenu.id = `lotbi-share-menu-${++shareMenuSequence}`;
+  shareMenu.setAttribute('role', 'menu');
+  shareMenu.setAttribute('aria-label', '공유 방법');
+  shareMenu.hidden = true;
+  share.setAttribute('aria-haspopup', 'menu');
+  share.setAttribute('aria-controls', shareMenu.id);
+  share.setAttribute('aria-expanded', 'false');
 
-    speak.addEventListener('click', () => {
-      // PREPARING or PLAYING, and this button's own request: the button is the
-      // stop/cancel control from the first click onward — no waiting for a
-      // long answer to get it back.
-      const current = readAloud.getState();
-      if (current.token === token && current.state !== READ_ALOUD_STATE.IDLE) {
-        readAloud.stop();
-        report('읽기를 멈췄습니다.');
-        return;
-      }
-      const chunks = splitForSpeech(value);
-      if (!chunks.length) { report('읽을 내용이 없습니다.', 'error'); return; }
-      report('답변을 읽어 드립니다.');
-      // Starting this request unconditionally stops whatever else the page
-      // was reading — two answers at once is noise, and this controller is
-      // the page's only playback owner.
-      void readAloud.play(chunks, {lang: 'ko-KR', token});
-    });
-    actions.append(copy, share, speak, calendar, feedback);
-    return actions;
-  }
+  // LOTBI-KAKAO-SHARE-ACTUAL-01 — KakaoTalk first, then 링크 복사.
+  const kakao = createShareMenuItem('카카오톡 공유하기', SHARE_MENU_ICON_KAKAO, 'kakaotalk');
+  const linkCopy = createShareMenuItem('링크 복사', SHARE_MENU_ICON_LINK, 'link-copy');
+  describeShareMenuItem(kakao, `${shareMenu.id}-kakao-note`, KAKAO_SHARE_NOTE);
+  shareMenu.append(linkCopy);
 
-  actions.append(copy, share, calendar, feedback);
+  const syncKakaoShareMenuItem = async () => {
+    const ready = await prepareKakaoShare();
+    if (ready) {
+      if (!shareMenu.contains(kakao)) shareMenu.prepend(kakao);
+    } else {
+      kakao.remove();
+    }
+  };
+
+  const menuItems = () => [...shareMenu.querySelectorAll('[role="menuitem"]')];
+  const closeShareMenu = ({restoreFocus = false} = {}) => {
+    if (shareMenu.hidden) return;
+    shareMenu.hidden = true;
+    share.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('pointerdown', onOutsideShareMenu);
+    if (restoreFocus) share.focus();
+  };
+  const onOutsideShareMenu = event => {
+    if (!actions.contains(event.target)) closeShareMenu();
+  };
+  const openShareMenu = () => {
+    void syncKakaoShareMenuItem();
+    shareMenu.hidden = false;
+    share.setAttribute('aria-expanded', 'true');
+    document.addEventListener('pointerdown', onOutsideShareMenu);
+    menuItems()[0]?.focus();
+  };
+  share.addEventListener('click', () => {
+    if (shareMenu.hidden) openShareMenu(); else closeShareMenu({restoreFocus: true});
+  });
+  shareMenu.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { event.preventDefault(); closeShareMenu({restoreFocus: true}); return; }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const items = menuItems();
+    const current = Math.max(0, items.indexOf(document.activeElement));
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : event.key === 'ArrowDown' ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
+    items[next]?.focus();
+  });
+  linkCopy.addEventListener('click', async () => {
+    closeShareMenu();
+    try { await writeMessageTextToClipboard(MESSAGE_ACTION_SHARE_URL); report('링크를 복사했습니다.'); }
+    catch { report('링크를 복사하지 못했습니다.', 'error'); }
+  });
+  kakao.addEventListener('click', async () => {
+    closeShareMenu();
+    try {
+      await shareMessageWithKakao({text: value, url: MESSAGE_ACTION_SHARE_URL});
+      // Kakao hands over to KakaoTalk (or its share window) and reports no
+      // result back, so this never claims the message was sent.
+      report('카카오톡에서 보낼 친구나 채팅방을 선택해 주세요.');
+    } catch {
+      report('카카오톡 공유를 열지 못했어요. 링크 복사를 이용해 주세요.', 'error');
+    }
+  });
+
+  actions.append(...[copy, share, calendar, readAloud, feedback, shareMenu].filter(Boolean));
   return actions;
 }
 
-// Only fields this message already has, never a guess: a settled calendar
-// draft wins outright (it already went through CHATPERF-05's own contract),
-// otherwise the first place result lends its name and address and nothing
-// else — no date, no time, nothing this message never said.
-//
-// Always an object, never null: openCalendar's editor only opens itself when
-// initialDraft is an object (site-calendar-manager.js's openDeepTarget), so a
-// message with nothing to pre-fill still has to reach the blank 일정 등록
-// editor rather than silently landing on the plain calendar view.
-function calendarDraftHintFromMessage(message, place) {
+// Only fields this message already has, never a guess: the schedule Core
+// read from it (CHATPERF-05's calendar draft) - a title or a date. An answer
+// without one (a "where?" question, a place list, the weather) offers no
+// 캘린더에 추가 at all (CONVERSATION-ANSWER-UX-01, QA #8), so this is null.
+// When it is an object it is what openCalendar's editor opens with.
+function calendarDraftHintFromMessage(message) {
   const draft = message?.meta?.calendarDraft;
   if (draft && typeof draft === 'object' && (draft.title || draft.localDate)) {
     return {title: draft.title, localDate: draft.localDate, localTime: draft.localTime, entry: draft.entry};
   }
-  const primaryPlace = place?.results?.[0];
-  if (primaryPlace?.name) {
-    return {title: primaryPlace.name, entry: primaryPlace.address ? {place: primaryPlace.address} : undefined};
-  }
-  return {};
+  return null;
+}
+
+// CONVERSATION-ANSWER-UX-01 (QA #7): Core says why it asks where
+// (follow_up.reason / intent.clarification). Only "no location at all" gets
+// [현재 위치 사용] [지역 선택]; a name several 시·도 share is answered in words.
+function answerLocationRequest(response, question) {
+  const reason = response?.followUp?.reason || response?.intent?.clarification;
+  const text = typeof question === 'string' ? question.trim().slice(0, 1000) : '';
+  return reason === 'LOCATION_REQUIRED' && text ? {question: text} : null;
 }
 
 function createAttachmentIcon(attachment) {
@@ -521,6 +537,8 @@ function createAttachmentIcon(attachment) {
     : (mediaType === 'application/pdf' ? 'PDF' : '파일');
   return icon;
 }
+
+const ANIMAL_HOSPITAL_NEARBY_PROMPT = '근처 동물병원 찾아줘';
 
 function petConversationAction(text, attachments = []) {
   const value = typeof text === 'string' ? text.trim() : '';
@@ -679,6 +697,9 @@ function userFacingErrorMessage(error) {
 // firing instantly would put the wrong question to LOTBI. A short window lets
 // the person stop it, and any move toward the textarea stops it too.
 const VOICE_AUTOSEND_DELAY_MS = 2500;
+// SITE-SESSION-REQUEST-STORM-P0-01 — the Calendar badge is a side read; asks
+// that arrive closer together than this fold into one follow-up read.
+const NAVIGATION_CALENDAR_MIN_INTERVAL_MS = 1500;
 const VOICE_AUTOSEND_PENDING_MESSAGE = '곧 보낼게요.';
 const VOICE_AUTOSEND_CANCELLED_MESSAGE = '보내지 않았습니다. 고친 뒤 전송을 눌러 주세요.';
 const VOICE_NOTHING_HEARD_MESSAGE = '잘 못 들었어요. 다시 말씀해 주시거나 입력해 주세요.';
@@ -687,6 +708,7 @@ const VOICE_PERMISSION_TIMEOUT_MS = 10000;
 const VOICE_RECOGNITION_START_TIMEOUT_MS = 5000;
 const VOICE_ENGINE_SILENT_MESSAGE = '이 브라우저에서는 음성 인식이 동작하지 않네요. 아래에 입력해 주시면 제가 바로 답해 드릴게요.';
 const VOICE_PERMISSION_TIMEOUT_MESSAGE = '마이크 권한 확인이 끝나지 않았습니다. 아래에 입력해 주시면 제가 바로 답해 드릴게요.';
+const PUBLIC_SITE_VOICE_RELEASE_ENABLED = false;
 
 // Carries a message already written for the person, so voiceErrorMessage can
 // hand it straight through instead of flattening it to the generic failure.
@@ -813,7 +835,6 @@ function trapFocus(container, event) {
 }
 
 function mountConversation({sessionToken: initialSessionToken, initialText = '', autoSend = false, identityKey = ''} = {}) {
-  readAloud = speechSupported() ? createReadAloudController({onTelemetry: reportReadAloudTelemetry}) : null;
   ensureConversationStyles();
   const prompt = document.getElementById('lotbi-prompt');
   const sendButton = document.querySelector('.send-button');
@@ -821,6 +842,20 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const attachmentTrigger = document.querySelector('[data-attachment-trigger]');
   const attachmentMenu = document.querySelector('[data-attachment-menu]');
   const attachmentPreview = document.querySelector('[data-attachment-preview]');
+  // SITE-MAIN-HOME-REDESIGN-01: attachment problems were only written to the
+  // screen-reader status; the composer now shows them too.
+  const attachmentErrorBox = document.querySelector('[data-attachment-error]');
+  const showAttachmentError = message => {
+    setStatus(message);
+    if (!attachmentErrorBox) return;
+    attachmentErrorBox.textContent = message;
+    attachmentErrorBox.hidden = false;
+  };
+  const clearAttachmentError = () => {
+    if (!attachmentErrorBox || attachmentErrorBox.hidden) return;
+    attachmentErrorBox.hidden = true;
+    attachmentErrorBox.textContent = '';
+  };
   const attachmentInputs = [...document.querySelectorAll('[data-attachment-input]')];
   const micButton = document.querySelector('.mic-button');
   const wakeButton = document.querySelector('[data-wake-toggle]');
@@ -836,7 +871,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const avatar = document.querySelector('[data-lotbi-avatar-container]');
   if (
     !(prompt instanceof HTMLTextAreaElement) || !(sendButton instanceof HTMLButtonElement)
-    || !(micButton instanceof HTMLButtonElement) || !(attachmentControl instanceof HTMLElement)
+    || !(attachmentControl instanceof HTMLElement)
     || !(attachmentTrigger instanceof HTMLButtonElement) || !(attachmentMenu instanceof HTMLElement)
     || !(attachmentPreview instanceof HTMLElement) || attachmentInputs.length !== 3
     || attachmentInputs.some(input => !(input instanceof HTMLInputElement))
@@ -850,9 +885,17 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
   const storage = safeStorage();
   let sessionToken = typeof initialSessionToken === 'string' && initialSessionToken.trim() ? initialSessionToken.trim() : undefined;
+  // AUTH-SESSION-CONTINUITY-P0-02 — Core refused the Site bearer (its 30
+  // minutes ran out, or it was revoked). Drop it and ask site-continuity.js to
+  // renew it in place; only Account saying "no session" shows the login button.
+  const dropSessionToken = () => {
+    if (!sessionToken) return;
+    sessionToken = undefined;
+    window.dispatchEvent(new CustomEvent(SITE_SESSION_RENEWAL_REQUEST_EVENT));
+  };
   let namespace = normalizedNamespace(identityKey);
   let state = {threads: [], activeThreadId: null, draft: ''};
-  let preferences = {color: 'default', theme: 'system', displayName: '', photo: '', responseGrade: DEFAULT_RESPONSE_GRADE};
+  let preferences = {color: 'default', theme: 'system', displayName: '', responseGrade: DEFAULT_RESPONSE_GRADE};
   let serverIdentity, serverSubscription;
   let stateReady = false, inFlight = false, voiceRequesting = false, voiceListening = false, voiceRecognition, voiceStartDeadline, voiceAutoSendTimer, activeVoiceConsumer;
   let lastRenderedCreatedAt;
@@ -869,6 +912,26 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
   const setStatus = message => { if (statusRegion) statusRegion.textContent = message; };
   const threadRecord = () => state.threads.find(item => item.id === state.activeThreadId);
+  // SITE-CHAT-ANSWER-RECOVERY-01 — /?conversation=<thread id> opens that
+  // conversation of this browser (a notification or a shared tab can point at
+  // it). Only ids of conversations stored here can match; anything else is
+  // ignored, and the parameter is removed once used.
+  let requestedConversationId = (() => {
+    try {
+      const value = new URLSearchParams(window.location.search).get('conversation') || '';
+      return /^thread-[A-Za-z0-9-]{8,80}$/.test(value) ? value : '';
+    } catch { return ''; }
+  })();
+  const consumeRequestedConversation = () => {
+    if (!requestedConversationId) return;
+    if (state.threads.some(item => item.id === requestedConversationId)) state.activeThreadId = requestedConversationId;
+    requestedConversationId = '';
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('conversation');
+      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    } catch { /* the conversation is open either way */ }
+  };
   const guestSessionStorageKey = () => {
     const owner = normalizedNamespace(namespace) || anonymousConversationNamespace();
     return storageKey(owner, 'guest-session');
@@ -908,10 +971,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const resolve = typeof detail.resolve === 'function' ? detail.resolve : () => {};
     const reject = typeof detail.reject === 'function' ? detail.reject : () => {};
     try {
-      if (!sessionToken) throw new SiteCoreError('진위확인은 개인정보 보호를 위해 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
+      if (!sessionToken) throw new SiteCoreError('사기·피싱 확인은 개인정보 보호를 위해 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
       resolve(await analyzeScamShield(sessionToken, detail.formData));
     } catch (error) {
-      if (error instanceof SiteCoreError && isSessionError(error)) sessionToken = undefined;
+      if (error instanceof SiteCoreError && isSessionError(error)) dropSessionToken();
       reject(error);
     }
   });
@@ -956,6 +1019,128 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return beginSiteHandoff(pendingText);
   };
   const saveState = () => { if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'threads'), JSON.stringify(state)); };
+  // CONVERSATION-ACCOUNT-SYNC-01 — a signed-in reader's conversations are kept
+  // on the account (site-conversation-sync.js); the browser copy stays what the
+  // screen shows. The sync code loads only once a signed-in profile is
+  // confirmed, so guests and the first paint never fetch it.
+  let conversationSync = null;
+  let conversationSyncUi = null;
+  let conversationSyncLoading = null;
+  const conversationSyncDeps = {
+    storage,
+    namespace: () => namespace,
+    token: () => sessionToken,
+    threads: () => state.threads,
+    setThreads: threads => { state.threads = threads; },
+    activeThreadId: () => state.activeThreadId,
+    busy: () => inFlight,
+    commit: ({rerenderActive = false} = {}) => { sortThreads(); saveState(); renderRecent(); if (rerenderActive) renderActiveThread(); },
+    onActiveRemoved: () => { state.activeThreadId = null; if (!inFlight) showBlankHome(); },
+    newId,
+    threadLimit: THREAD_LIMIT,
+    messageLimit: MESSAGE_LIMIT,
+    askImport: count => waitForQuietScreen().then(ready => (ready && conversationSyncUi
+      ? conversationSyncUi.askDeviceUpload({count, modalShell, installSurfaceBehavior, closeSurface})
+      : null)),
+    onStatus: () => renderConversationSyncUi(),
+  };
+  const loadConversationSync = () => {
+    if (conversationSync) return Promise.resolve(conversationSync);
+    if (!conversationSyncLoading) {
+      conversationSyncLoading = Promise.all([
+        import('./site-conversation-sync.js?v=aset-7ce47b43cff4'),
+        import('./site-conversation-sync-ui.js?v=aset-7ce47b43cff4'),
+      ]).then(([engine, ui]) => {
+        conversationSyncUi = ui;
+        ui.ensureConversationSyncStyles();
+        conversationSync = engine.createConversationSync(conversationSyncDeps);
+        return conversationSync;
+      }).catch(() => {
+        // Not reachable now (offline): the device copy keeps working; the next
+        // signed-in profile check tries again.
+        conversationSyncLoading = null;
+        return null;
+      });
+    }
+    return conversationSyncLoading;
+  };
+  // The one-time upload question waits until nothing else is on screen.
+  function waitForQuietScreen() {
+    return new Promise(resolve => {
+      let tries = 0;
+      const check = () => {
+        if (!openSurface && !inFlight) { resolve(true); return; }
+        tries += 1;
+        if (tries > 120) { resolve(false); return; }
+        setTimeout(check, 1000);
+      };
+      check();
+    });
+  }
+  function renderConversationSyncUi() {
+    if (!conversationSync || !conversationSyncUi) return;
+    conversationSyncUi.renderConversationSyncControls({
+      status: conversationSync.status(),
+      signedIn: conversationSync.running(),
+      onOpenSettings: trigger => conversationSyncUi.openConversationSyncSettings({
+        sync: conversationSync, modalShell, installSurfaceBehavior, closeSurface, trigger, setStatus,
+        onDeleteAll: () => {
+          cancelActiveTurn('conversation-delete-all');
+          state.threads = []; state.activeThreadId = null; state.draft = ''; prompt.value = '';
+          prompt.dispatchEvent(new Event('input', {bubbles: true}));
+          saveState(); showBlankHome(); renderRecent();
+        },
+      }),
+    });
+  }
+  // SITE-CHAT-ANSWER-RECOVERY-01 — a question sent just before the reader left
+  // (tab closed, phone locked, another app) was answered by Core and stored on
+  // its logical request, but the page that asked was gone, so the answer never
+  // reached the conversation. The request key is kept here until the answer is
+  // shown; coming back re-sends the same request with the same key, which
+  // Core answers from what it already stored instead of working again.
+  const PENDING_TURN_MAX_AGE_MS = 30 * 60 * 1000;
+  const PENDING_TURN_RETRY_MS = 2500;
+  const PENDING_TURN_MAX_RETRIES = 24;
+  const pendingTurnRetries = new Map();
+  const pendingTurnStorageKey = () => (namespace ? storageKey(namespace, 'pending-turns') : '');
+  const readPendingTurns = () => {
+    try {
+      const key = pendingTurnStorageKey();
+      const parsed = storage && key ? JSON.parse(storage.getItem(key) || '{}') : {};
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch { return {}; }
+  };
+  const writePendingTurns = turns => {
+    try {
+      const key = pendingTurnStorageKey();
+      if (!storage || !key) return;
+      if (Object.keys(turns).length) storage.setItem(key, JSON.stringify(turns)); else storage.removeItem(key);
+    } catch { /* storage full or blocked: the answer is still shown if the page stays */ }
+  };
+  const rememberPendingTurn = turn => {
+    if (!turn.threadId || !turn.key) return;
+    const turns = readPendingTurns();
+    turns[turn.threadId] = turn;
+    writePendingTurns(turns);
+  };
+  const forgetPendingTurn = key => {
+    const turns = readPendingTurns();
+    let changed = false;
+    for (const [threadId, turn] of Object.entries(turns)) {
+      if (!turn || turn.key === key || Date.now() - Number(turn.turnCreatedAt || 0) > PENDING_TURN_MAX_AGE_MS) {
+        delete turns[threadId];
+        changed = true;
+      }
+    }
+    if (changed) writePendingTurns(turns);
+    pendingTurnRetries.delete(key);
+  };
+  const answerStillRunning = error => error instanceof SiteCoreError
+    && (error.code === 'GUEST_AI_REQUEST_IN_PROGRESS' || error.code === 'AI_REQUEST_IN_FLIGHT');
+  const interruptedByLeaving = error => document.visibilityState === 'hidden'
+    && error instanceof SiteCoreError
+    && (error.code === 'WEB_CONVERSATION_NETWORK_ERROR' || error.code === 'GUEST_CONVERSATION_NETWORK_ERROR');
   const savePreferences = () => {
     if (storage && namespace && stateReady) storage.setItem(storageKey(namespace, 'preferences'), JSON.stringify(preferences));
     try { globalThis.localStorage?.setItem?.(SITE_THEME_BOOTSTRAP_KEY, preferences.theme); } catch {}
@@ -992,7 +1177,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   // SITE-THEME-AUTO-SCHEDULE-02 — only armed while '자동모드' is selected, and
   // always re-armed from the clock rather than a fixed interval, so a machine
-  // that slept through 18:00 corrects itself on the next tick instead of drifting.
+  // that slept through 22:00 corrects itself on the next tick instead of drifting.
   const scheduleThemeBoundary = storedTheme => {
     if (themeBoundaryTimer) { clearTimeout(themeBoundaryTimer); themeBoundaryTimer = undefined; }
     if (storedTheme !== 'auto' || typeof setTimeout !== 'function') return;
@@ -1014,6 +1199,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     syncResponseGradeUi();
     document.body.dataset.responseGrade = preferences.responseGrade;
   };
+  // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode can change in Account while
+  // this tab waits in the background, and '자동모드' can cross a boundary while
+  // the machine sleeps. Coming back to the tab re-reads the shared choice and
+  // re-resolves the clock, so the two origins never stay apart.
+  const syncSharedTheme = () => {
+    if (!stateReady) return;
+    const shared = sharedThemePreference();
+    if (shared && shared !== preferences.theme) { preferences.theme = shared; savePreferences(); }
+    applyPreferences();
+  };
+  window.addEventListener('focus', syncSharedTheme);
+  window.addEventListener('pageshow', syncSharedTheme);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncSharedTheme(); });
   const restoreAvatarHome = () => { if (avatar.parentElement !== homeAvatarAnchor) homeAvatarAnchor.appendChild(avatar); };
   const showThread = () => { thread.hidden = false; document.body.classList.add('conversation-active'); };
   const resetBlankHomeScroll = () => {
@@ -1023,8 +1221,21 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (!document.body.classList.contains('conversation-active')) mainScrollHost.scrollTop = 0;
     });
   };
+  // CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 — the newest question, while it is where
+  // the reader reads from (see setTurnAnchor below). The space element sits
+  // between the thread and the composer and is only ever as tall as the room
+  // that question needs to reach the top of the screen.
+  let turnAnchor = null;
+  let holdTurnAnchor = false;
+  const turnSpace = document.createElement('div');
+  turnSpace.className = 'conversation-turn-space';
+  turnSpace.setAttribute('aria-hidden', 'true');
+  thread.after(turnSpace);
+  const releaseTurnAnchor = () => { turnAnchor = null; holdTurnAnchor = false; turnSpace.style.height = '0px'; };
   const showBlankHome = () => {
+    stopMessageReadAloud('HOME_CLEARED');
     restoreAvatarHome(); thread.replaceChildren(); lastRenderedCreatedAt = undefined; thread.hidden = true; document.body.classList.remove('conversation-active');
+    releaseTurnAnchor();
     resetBlankHomeScroll();
   };
   window.addEventListener('pageshow', resetBlankHomeScroll);
@@ -1048,16 +1259,343 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   // is refreshed on every scroll and never by the growth itself: content
   // getting taller does not move scrollTop and so fires no scroll event, which
   // is exactly what makes the pre-growth answer survive long enough to act on.
+  //
+  // SITE-CHAT-ANSWER-QUALITY-P0 (D/E) — on iPhone the intent was being switched
+  // off by scrolls the reader never made: iOS scrolls the page to reveal the
+  // composer when it gains focus, and clamps scrollTop while the keyboard
+  // animates. Each of those fired a scroll event more than 72px from the
+  // bottom, so the next answer, its sources and its action row were left under
+  // the composer. Only the reader's own scrolling (a drag, the wheel, a scroll
+  // key, the scrollbar) may now switch following off; reaching the bottom by
+  // any means switches it back on.
   let followThreadBottom = true;
-  mainScrollHost.addEventListener('scroll', () => {
-    followThreadBottom = isThreadNearBottom();
+  let readerScrollUntil = 0;
+  const READER_SCROLL_WINDOW_MS = 700;
+  const READER_SCROLL_KEYS = new Set(['PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'Home', 'End', ' ']);
+  const readerScrollActive = () => performance.now() <= readerScrollUntil;
+  // CHAT-IOS-TOUCH-SCROLL-KEYBOARD-01 — 실사용(iPhone 카카오톡): "대화 중 스크롤이
+  // 되지 않는다". A thumb resting on the composer is where a phone scroll often
+  // starts - with the keyboard open the composer is a large part of what is
+  // left of the screen. Touches there used to count as "not the reader", so a
+  // reader following the newest message was snapped back to it by the next
+  // growth, and the composer-tap hold below put a reader back on the line they
+  // had left, 20ms after every move, for the whole drag. A finger that travels
+  // is the reader scrolling wherever it came down; only a tap (no travel)
+  // keeps the composer's own handling.
+  const READER_DRAG_SLOP = 8;
+  let touchOrigin = null;
+  mainScrollHost.addEventListener('touchstart', event => {
+    const touch = event.touches.length === 1 ? event.touches[0] : null;
+    touchOrigin = touch ? {x: touch.clientX, y: touch.clientY} : null;
   }, {passive: true});
-  const stickThreadToBottom = () => { scrollThread(); followThreadBottom = true; };
+  const markReaderScroll = event => {
+    if (event?.type === 'touchmove' && event.target instanceof Element && event.target.closest('.chat-composer-stack')) {
+      const touch = event.touches[0];
+      if (!touchOrigin || !touch || Math.hypot(touch.clientX - touchOrigin.x, touch.clientY - touchOrigin.y) < READER_DRAG_SLOP) return;
+    }
+    readerScrollUntil = performance.now() + READER_SCROLL_WINDOW_MS;
+  };
+  mainScrollHost.addEventListener('wheel', markReaderScroll, {passive: true});
+  mainScrollHost.addEventListener('touchmove', markReaderScroll, {passive: true});
+  mainScrollHost.addEventListener('pointerdown', event => { if (event.target === mainScrollHost) markReaderScroll(event); }, {passive: true});
+  mainScrollHost.addEventListener('keydown', event => {
+    const editable = event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]');
+    if (!editable && READER_SCROLL_KEYS.has(event.key)) markReaderScroll(event);
+  });
+  // CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 — 실사용: "답변이 길어지면 화면이 답변
+  // 마지막 문장까지 계속 내려가서, 방금 보낸 질문과 답변 시작을 보려면 다시
+  // 올려야 한다". Sending a question used to switch following on, so a long
+  // answer carried the reader to its last line and pushed the question off the
+  // top.
+  //
+  // Sending now anchors instead: the question is brought to the top of the
+  // reading area (under the sticky bar) and held there while the answer, its
+  // cards and its images arrive below it. The hold survives growth, the
+  // keyboard opening or closing and the answer completing; the reader's own
+  // scrolling releases it, and so does a scroll the page itself makes
+  // elsewhere (movedAwayFromTurnAnchor). From then on nothing moves the reading position
+  // but the reader, the ↓ 최신 답변 control, and the next question. Following
+  // the bottom still exists, but a reader only gets it by scrolling to the end
+  // themselves (or by opening a conversation, which lands on its newest message).
+  const TURN_ANCHOR_GAP = 12;
+  const topbar = document.querySelector('.chat-topbar');
+  const readingAreaTop = () => {
+    const hostTop = mainScrollHost.getBoundingClientRect().top;
+    return topbar instanceof HTMLElement ? Math.max(hostTop, topbar.getBoundingClientRect().bottom) : hostTop;
+  };
+  // The scrollTop that puts the anchored question at the top of the reading
+  // area, wherever the reader is now.
+  const turnAnchorScrollTop = () => {
+    if (!(turnAnchor instanceof HTMLElement) || !turnAnchor.isConnected || thread.hidden) return null;
+    return Math.max(0, Math.round(mainScrollHost.scrollTop + turnAnchor.getBoundingClientRect().top - readingAreaTop() - TURN_ANCHOR_GAP));
+  };
+  // A question near the end of a long conversation cannot reach the top while
+  // its answer is shorter than the screen: there is nothing below it to scroll
+  // into. turnSpace supplies exactly the missing height and shrinks as the
+  // answer grows, so it never causes a jump. It stays after the answer
+  // completes, because taking it away would clamp the reader back down.
+  const syncTurnSpace = () => {
+    const target = turnAnchorScrollTop();
+    if (target === null) { if (turnSpace.style.height !== '0px') turnSpace.style.height = '0px'; return; }
+    let space = Number.parseFloat(turnSpace.style.height) || 0;
+    // Part of the space can be absorbed by the free room a short conversation
+    // already has, so measure again until the question can really get there.
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const next = Math.max(0, Math.round(space + target - (mainScrollHost.scrollHeight - mainScrollHost.clientHeight)));
+      if (Math.abs(next - space) < 1) break;
+      space = next;
+      turnSpace.style.height = `${space}px`;
+    }
+  };
+  const scrollToTurnAnchor = () => {
+    syncTurnSpace();
+    const target = turnAnchorScrollTop();
+    if (target !== null && Math.abs(mainScrollHost.scrollTop - target) >= 1) mainScrollHost.scrollTop = target;
+  };
+  // The bottom only counts as "following" when it lies past the anchored
+  // question's place at the top. While the answer is shorter than the screen
+  // the two are the same spot, and that spot belongs to the question.
+  const atTailPastTurnAnchor = () => {
+    if (!isThreadNearBottom()) return false;
+    const anchorTop = turnAnchorScrollTop();
+    return anchorTop === null || mainScrollHost.scrollTop > anchorTop + TURN_ANCHOR_GAP;
+  };
+  // Focusing the composer makes the browser scroll the conversation to
+  // "reveal" a composer that is sticky and already on screen - measured 394px
+  // at 375x667 as the keyboard opened, and iOS does the same. A reader on the
+  // tail or held on a question is put back by keepReadingPosition; a reader
+  // somewhere in the middle of an answer is put back here, on the line they
+  // were reading, until the keyboard has settled.
+  let composerFocusHold = null;
+  // Where a line sits on the screen: with the keyboard open (or the viewport
+  // left displaced) home-shell.js pins the whole shell at the visual
+  // viewport's offsetTop - a keyboard's height on iOS and Android Chrome - and
+  // that move is the screen panning, not the reader's line moving
+  // (CHAT-IOS-TOUCH-SCROLL-KEYBOARD-01). The offset is the one the shell was
+  // actually given, so a viewport value that has not reached the shell yet
+  // cannot be mistaken for the line moving.
+  const shellOffsetTop = () => {
+    const pinned = document.body.classList.contains('mobile-keyboard-open') || document.body.classList.contains('mobile-viewport-displaced');
+    return pinned ? Number.parseFloat(document.documentElement.style.getPropertyValue('--lotbi-visible-viewport-offset-top')) || 0 : 0;
+  };
+  const lineTop = node => node.getBoundingClientRect().top - shellOffsetTop();
+  const readingLine = () => {
+    const top = readingAreaTop();
+    for (const node of thread.querySelectorAll('.chat-message-user, .chat-message-body > *, time.conversation-time-separator')) {
+      const box = node.getBoundingClientRect();
+      if (box.height > 0 && box.bottom > top + 1) return {node, top: lineTop(node)};
+    }
+    return null;
+  };
+  // The hold exists to survive growth, the keyboard and the composer. A scroll
+  // that none of those explain - the page's own scrollIntoView, find-in-page, a
+  // focused card being revealed - took the reader somewhere on purpose: the
+  // hold lets go there instead of pulling them back on the next resize.
+  // Right after a tap on the composer the browser reveals it (hundreds of
+  // pixels); while the viewport itself is resizing, the bar and the hero
+  // padding change by a few pixels. Neither is somewhere the reader was taken.
+  let composerFocusUntil = 0;
+  let composerTypingUntil = 0;
+  let viewportSettlingUntil = 0;
+  const settleViewport = ms => { viewportSettlingUntil = Math.max(viewportSettlingUntil, performance.now() + ms); };
+  const movedAwayFromTurnAnchor = top => {
+    const now = performance.now();
+    if (now <= Math.max(composerFocusUntil, composerTypingUntil)) return false;
+    const target = turnAnchorScrollTop();
+    if (target === null) return false;
+    // A page that got shorter clamps scrollTop below the question's place;
+    // that is not a move away, and the turn space restores the room.
+    const maxTop = mainScrollHost.scrollHeight - mainScrollHost.clientHeight;
+    if (maxTop < target - 1 && top >= maxTop - 1) return false;
+    return Math.abs(top - target) > (now <= viewportSettlingUntil ? 24 : 2);
+  };
+  const holdReadingLineForComposer = () => {
+    // A finger on the composer is no longer scrolling the conversation (a tap
+    // also stops iOS momentum), so what follows is not the reader's scroll.
+    readerScrollUntil = 0;
+    composerFocusUntil = performance.now() + 900;
+    const line = thread.hidden || followThreadBottom || holdTurnAnchor ? null : readingLine();
+    composerFocusHold = line ? {...line, until: performance.now() + 900} : null;
+  };
+  const restoreReadingLine = () => {
+    const hold = composerFocusHold;
+    if (!hold) return false;
+    if (performance.now() > hold.until || !hold.node.isConnected || followThreadBottom || holdTurnAnchor) {
+      composerFocusHold = null;
+      return false;
+    }
+    const shift = lineTop(hold.node) - hold.top;
+    if (Math.abs(shift) >= 1) mainScrollHost.scrollTop += shift;
+    return true;
+  };
+  prompt.addEventListener('pointerdown', holdReadingLineForComposer, {passive: true});
+  // Closing the keyboard gives the conversation its room back and the bar its
+  // full height (56px → 64px); a reader in the middle of an answer keeps the
+  // line they were on, as when it opened. Only that line is held: a question
+  // held at the top or a reader following the end is kept as it already is.
+  prompt.addEventListener('blur', () => {
+    if (!composerUsesSoftwareKeyboard() || thread.hidden || followThreadBottom || holdTurnAnchor) return;
+    const line = readingLine();
+    composerFocusHold = line ? {...line, until: performance.now() + 900} : null;
+  });
+  // GATE FIX 02 — typing. site-conversation.css drops the scroller's padding
+  // while the composer has focus, which is what made Chrome scroll the
+  // transcript to reveal the caret on every keystroke. A browser that still
+  // does it (no :has, or rules of its own) has moved nothing the reader chose:
+  // the held question goes straight back and a reader in the middle of an
+  // answer keeps their line, however long after the tap the typing starts.
+  prompt.addEventListener('beforeinput', () => {
+    composerTypingUntil = performance.now() + 600;
+    if (thread.hidden || followThreadBottom || holdTurnAnchor) return;
+    if (composerFocusHold && performance.now() <= composerFocusHold.until) {
+      composerFocusHold.until = Math.max(composerFocusHold.until, composerTypingUntil);
+      return;
+    }
+    const line = readingLine();
+    composerFocusHold = line ? {...line, until: composerTypingUntil} : null;
+  });
+  let lastHostScrollTop = mainScrollHost.scrollTop;
+  mainScrollHost.addEventListener('scroll', () => {
+    const top = mainScrollHost.scrollTop;
+    const moved = top - lastHostScrollTop;
+    lastHostScrollTop = top;
+    scheduleJumpLatestSync();
+    if (!readerScrollActive()) {
+      // Not the reader: iOS revealing the composer, the keyboard clamping
+      // scrollTop, LOTBI's own scrolls. These may switch following back on at
+      // the tail, never off - and never while a question is being held.
+      if (restoreReadingLine()) return;
+      if (holdTurnAnchor && performance.now() <= composerTypingUntil) { scrollToTurnAnchor(); return; }
+      if (holdTurnAnchor && movedAwayFromTurnAnchor(top)) holdTurnAnchor = false;
+      if (!holdTurnAnchor && atTailPastTurnAnchor()) followThreadBottom = true;
+      return;
+    }
+    composerFocusHold = null;
+    // Momentum keeps scrolling after the finger lifts; it is still the reader's.
+    readerScrollUntil = performance.now() + 250;
+    if (Math.abs(moved) < 1) return;
+    // The reader's own scroll ends any hold. Going up stops following at once,
+    // even inside the 72px band; coming down to the tail starts it again, and
+    // coming down to a question still at the top holds that question again.
+    holdTurnAnchor = false;
+    if (moved < 0) followThreadBottom = false;
+    else if (atTailPastTurnAnchor()) followThreadBottom = true;
+    else if (turnAnchor && isThreadNearBottom()) holdTurnAnchor = true;
+  }, {passive: true});
+
+  // The one way the conversation is brought to its newest message. It scrolls
+  // now, after the next frame and once more after the keyboard animation has
+  // settled, because on iOS the visible height keeps changing for ~300ms after
+  // focus and a single scroll lands short of the action row.
+  let tailFrame = 0;
+  let tailTimer = 0;
+  const scrollToConversationTail = ({force = false} = {}) => {
+    if (force) { followThreadBottom = true; holdTurnAnchor = false; }
+    if (!followThreadBottom || thread.hidden) return;
+    scrollThread();
+    cancelAnimationFrame(tailFrame);
+    tailFrame = requestAnimationFrame(() => { if (followThreadBottom) scrollThread(); });
+    window.clearTimeout(tailTimer);
+    tailTimer = window.setTimeout(() => { if (followThreadBottom && !thread.hidden) scrollThread(); }, 320);
+  };
+  const stickThreadToBottom = () => scrollToConversationTail({force: true});
+  // Sending a question: it becomes the reading anchor and goes to the top now,
+  // with the answer to start right under it.
+  const setTurnAnchor = node => {
+    if (!(node instanceof HTMLElement)) return;
+    turnAnchor = node;
+    holdTurnAnchor = true;
+    followThreadBottom = false;
+    cancelAnimationFrame(tailFrame);
+    window.clearTimeout(tailTimer);
+    scrollToTurnAnchor();
+    requestAnimationFrame(() => { if (holdTurnAnchor && turnAnchor === node) scrollToTurnAnchor(); });
+  };
+  // Growth, the keyboard and resizes keep whatever the reader is doing: the
+  // tail for a reader following it, the question for a reader held on it, and
+  // nothing at all for a reader who scrolled somewhere themselves.
+  const keepReadingPosition = () => {
+    if (thread.hidden) return;
+    if (turnAnchor) syncTurnSpace();
+    if (followThreadBottom) scrollThread();
+    else if (holdTurnAnchor) scrollToTurnAnchor();
+    else restoreReadingLine();
+    scheduleJumpLatestSync();
+  };
+  // ↓ 최신 답변: shown while there is more of the conversation below the screen;
+  // the only control that moves a reader to the newest message on request.
+  const jumpLatest = document.createElement('button');
+  jumpLatest.type = 'button';
+  jumpLatest.className = 'conversation-jump-latest';
+  jumpLatest.hidden = true;
+  jumpLatest.setAttribute('aria-label', '최신 답변으로 이동');
+  jumpLatest.textContent = '↓ 최신 답변';
+  jumpLatest.addEventListener('click', () => { stickThreadToBottom(); jumpLatest.hidden = true; });
+  document.querySelector('.chat-composer-stack')?.prepend(jumpLatest);
+  const JUMP_LATEST_DISTANCE = 120;
+  let jumpLatestFrame = 0;
+  function scheduleJumpLatestSync() {
+    cancelAnimationFrame(jumpLatestFrame);
+    jumpLatestFrame = requestAnimationFrame(() => {
+      const below = mainScrollHost.scrollHeight - mainScrollHost.scrollTop - mainScrollHost.clientHeight;
+      jumpLatest.hidden = thread.hidden || followThreadBottom || below <= JUMP_LATEST_DISTANCE;
+    });
+  }
+  // LOTBI puts the cursor back in the composer after every answer. A plain
+  // focus() makes the browser scroll the composer "into view" - measured at
+  // 390x844, it pulled a reader who had scrolled up 417px down the
+  // conversation the moment the answer arrived. The cursor goes back without
+  // moving the page; following the newest message is scrollToConversationTail's
+  // job alone.
+  const focusComposerInPlace = () => {
+    try { prompt.focus({preventScroll: true}); } catch { prompt.focus(); }
+  };
+  // CHAT-MOBILE-KEYBOARD-DISMISS-01 — on a phone, an accepted send switches
+  // from writing to reading. Release the textarea so the software keyboard
+  // closes, and do not restore focus when LOTBI later completes or errors.
+  // Desktop keeps its cursor because no software keyboard covers the answer.
+  const coarsePointerQuery = globalThis.matchMedia?.('(pointer: coarse)');
+  const composerUsesSoftwareKeyboard = () => (
+    coarsePointerQuery?.matches === true || document.body.classList.contains('mobile-keyboard-open')
+  );
+  const dismissComposerKeyboard = () => {
+    if (!composerUsesSoftwareKeyboard()) return;
+    if (document.activeElement === prompt) prompt.blur();
+  };
+  // requestAssistant starts a turn synchronously before its first await. A
+  // refused send (empty, another turn active, uploads in flight) keeps focus.
+  const sendFromReader = startTurn => {
+    const turnBefore = activeTurnGeneration;
+    const turn = startTurn();
+    if (activeTurnGeneration !== turnBefore) dismissComposerKeyboard();
+    return turn;
+  };
+  const returnComposerFocusAfterTurn = () => {
+    if (!composerUsesSoftwareKeyboard()) focusComposerInPlace();
+  };
   if (typeof ResizeObserver === 'function') {
     // Fires for the thread's own growth and for any descendant that changes
     // size later — a loaded image, an expanded card, a late rich result.
-    new ResizeObserver(() => { if (followThreadBottom) scrollThread(); }).observe(thread);
+    new ResizeObserver(keepReadingPosition).observe(thread);
+    // The scroller itself shrinking (keyboard, Safari's address bar) and the
+    // composer growing (a long draft, attachments) move the bottom too, and
+    // neither is a change inside the thread.
+    // Only the scroller's own resize is the viewport settling (keyboard,
+    // address bar); the composer shrinking back after a send is not.
+    new ResizeObserver(() => { settleViewport(700); keepReadingPosition(); }).observe(mainScrollHost);
+    const tailObserver = new ResizeObserver(keepReadingPosition);
+    const composerStackForTail = document.querySelector('.chat-composer-stack');
+    if (composerStackForTail) tailObserver.observe(composerStackForTail);
   }
+  // CHAT-LONG-ANSWER-SCROLL-ANCHOR-01: tapping the composer no longer drags the
+  // reader to the newest message. Someone reading a long answer from its start
+  // taps the composer to ask a follow-up about what they are reading; the
+  // keyboard opening keeps that place (keepReadingPosition), and ↓ 최신 답변 is
+  // there when they want the end. A reader already following the tail keeps
+  // the tail through the keyboard as before.
+  window.addEventListener('pageshow', () => {
+    if (document.body.classList.contains('conversation-active')) scrollToConversationTail();
+  });
   const createConversationSeparator = createdAt => {
     const label = formatConversationTimestamp(createdAt);
     if (!label) return null;
@@ -1075,15 +1613,24 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     window.clearTimeout(timestampRefreshTimer);
     timestampRefreshTimer = window.setTimeout(refreshConversationTimeLabels, millisecondsUntilNextLocalMidnight() + 50);
   };
-  const appendNode = (node, {forceScroll = false, suppressScroll = false} = {}) => {
-    const shouldStick = forceScroll || (!suppressScroll && isThreadNearBottom());
+  const appendNode = (node, {anchorTurn = false, suppressScroll = false} = {}) => {
+    // Following is decided by the held intent, not by where scrollTop happens
+    // to be: a shrinking viewport can leave a reader who was following more
+    // than 72px from a bottom that moved. Being near the bottom without
+    // following is exactly where an anchored question with a short answer
+    // sits, so nearness alone no longer pulls anyone down
+    // (CHAT-LONG-ANSWER-SCROLL-ANCHOR-01).
+    const shouldStick = !suppressScroll && !anchorTurn && followThreadBottom;
     showThread();
     if (node instanceof HTMLElement && node.dataset.role === 'assistant') {
       const row = document.createElement('div'); row.className = 'chat-assistant-row';
       const slot = document.createElement('div'); slot.className = 'assistant-avatar-slot'; slot.setAttribute('aria-hidden', 'true');
       slot.appendChild(avatar); row.append(slot, node); thread.appendChild(row);
     } else thread.appendChild(node);
-    if (!suppressScroll && shouldStick) stickThreadToBottom();
+    if (anchorTurn) setTurnAnchor(node);
+    else if (shouldStick) scrollToConversationTail();
+    else if (holdTurnAnchor) scrollToTurnAnchor();
+    scheduleJumpLatestSync();
     return node;
   };
   const stopThinking = (handle, reason = 'cancel') => {
@@ -1158,13 +1705,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     record.pinned = record.pinned !== true;
     record.pinnedAt = record.pinned ? Date.now() : 0;
     sortThreads(); saveState(); renderRecent();
+    conversationSync?.noteThreadMeta(id);
     setStatus(record.pinned ? '대화를 상단에 고정했습니다.' : '대화 고정을 해제했습니다.');
   };
   const renderRecent = () => {
-    for (const list of document.querySelectorAll('[data-recent-conversations]')) {
-      if (!(list instanceof HTMLElement)) continue;
-      const fragment = document.createDocumentFragment();
-      for (const item of state.threads) {
+    const groups = [
+      ['[data-pinned-conversations]', state.threads.filter(item => item.pinned === true)],
+      ['[data-recent-conversations]', state.threads.filter(item => item.pinned !== true)],
+    ];
+    for (const section of document.querySelectorAll('[data-pinned-conversations-section]')) {
+      if (section instanceof HTMLElement) section.hidden = groups[0][1].length === 0;
+    }
+    for (const [selector, items] of groups) {
+      for (const list of document.querySelectorAll(selector)) {
+        if (!(list instanceof HTMLElement)) continue;
+        const fragment = document.createDocumentFragment();
+        for (const item of items) {
         const li = document.createElement('li');
         li.className = 'conversation-history-item';
         li.dataset.threadId = item.id;
@@ -1178,12 +1734,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const title = document.createElement('span');
         title.dataset.conversationTitle = ''; title.textContent = item.title;
         button.appendChild(title);
-        if (item.pinned === true) {
-          const badge = document.createElement('span');
-          badge.className = 'conversation-history-pin'; badge.textContent = '고정'; badge.setAttribute('aria-hidden', 'true');
-          button.appendChild(badge);
-        }
-        button.addEventListener('click', () => activateThread(item.id));
+        // COMMON-UI-POLISH-02 (QA 02 C9) — pinned chats are listed under their own '고정'
+        // heading, so a '고정' badge on each one said the same word twice.
+        button.addEventListener('click', () => { activateThread(item.id); schedulePendingTurnResume(); });
 
         const actions = document.createElement('details');
         actions.className = 'conversation-history-actions'; actions.dataset.conversationMenu = '';
@@ -1207,17 +1760,28 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         action('delete', '삭제', () => openDeleteThread(item.id), 'conversation-history-delete');
         actions.addEventListener('toggle', () => { if (actions.open) closeConversationMenus(actions); });
         actions.append(summary, menu);
-        li.append(button, actions); fragment.appendChild(li);
+          li.append(button, actions); fragment.appendChild(li);
+        }
+        list.replaceChildren(fragment);
       }
-      list.replaceChildren(fragment);
     }
   };
   const appendPersistedMessage = message => {
     const record = threadRecord(); if (!record) return;
+    conversationSync?.prepareMessage(record, message);
     record.messages.push(message); record.messages = record.messages.slice(-MESSAGE_LIMIT); record.updatedAt = Date.now();
     sortThreads(); saveState(); renderRecent();
+    conversationSync?.noteAppended();
   };
   const lotbiBoxKey = () => storageKey(namespace || anonymousConversationNamespace(), 'lotbi-box');
+  // LIFE-PUBLIC-DATA-01 / NEIS: the chosen school lives with this namespace's settings.
+  const lifeSchoolKey = () => storageKey(namespace || anonymousConversationNamespace(), 'life-school');
+  const rememberSchoolPreferencePatch = schoolResult => {
+    const patch = schoolResult?.save_preference;
+    if (!patch || !Number.isInteger(patch.grade)) return;
+    const saved = readSchoolPreference(lifeSchoolKey(), storage);
+    if (saved) writeSchoolPreference(lifeSchoolKey(), {...saved, grade: patch.grade, class_name: String(patch.class_name || '')}, storage);
+  };
   const loadLotbiBox = () => {
     const parsed = safeParse(storage?.getItem(lotbiBoxKey()), []);
     return Array.isArray(parsed) ? parsed.filter(item => item && typeof item.key === 'string').slice(0, 100) : [];
@@ -1327,20 +1891,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         const detail = document.createElement('button'); detail.type = 'button'; detail.className = 'lotbi-rich-card-action'; detail.disabled = true;
         detail.textContent = '상세보기'; detail.title = '공식 상세 링크를 확인할 수 없습니다.'; actions.appendChild(detail);
       }
-      const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
-      box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card);
-      const syncBoxLabel = () => {
-        const saved = isInLotbiBox(rich, card);
-        box.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
-        box.setAttribute('aria-pressed', String(saved));
-      };
-      syncBoxLabel();
-      box.addEventListener('click', () => {
-        const added = toggleLotbiBox(rich, card);
-        refreshLotbiBoxControls();
-        setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
-      });
-      actions.appendChild(box);
+      if (LOTBI_BOX_UI_ENABLED) {
+        const box = document.createElement('button'); box.type = 'button'; box.className = 'lotbi-rich-card-action';
+        box.dataset.lotbiBoxToggleKey = lotbiBoxItemKey(rich, card);
+        const syncBoxLabel = () => {
+          const saved = isInLotbiBox(rich, card);
+          box.textContent = saved ? '✓ 롯비함' : '+ 롯비함';
+          box.setAttribute('aria-pressed', String(saved));
+        };
+        syncBoxLabel();
+        box.addEventListener('click', () => {
+          const added = toggleLotbiBox(rich, card);
+          refreshLotbiBoxControls();
+          setStatus(added ? '롯비함에 담았습니다.' : '롯비함에서 뺐습니다.');
+        });
+        actions.appendChild(box);
+      }
       const buy = document.createElement('button'); buy.type = 'button'; buy.className = 'lotbi-rich-card-action lotbi-rich-card-action-primary'; buy.textContent = '구매하기';
       buy.disabled = rich.expired || card.available === false;
       if (rich.expired) buy.title = '검색 결과가 만료되어 다시 검색해야 합니다.';
@@ -1393,6 +1959,31 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       captured_at: normalized.capturedAt,
       results: normalized.results.map(place => ({
         result_id: place.resultId,
+        ...(place.medicalStatus ? {medical_status: {
+          kind: place.medicalStatus.kind,
+          open_state: place.medicalStatus.openState,
+          hours_label: place.medicalStatus.hoursLabel,
+          target_label: place.medicalStatus.targetLabel,
+          ...(place.medicalStatus.holidayUnverified ? {holiday_basis: 'UNVERIFIED_YEAR'} : {}),
+          basis: 'NMC_REGISTERED_HOURS',
+        }} : {}),
+        ...(place.medicalRegistry ? {medical_registry: {
+          source: 'JEONBUK_MEDICAL_REGISTRY',
+          institution_type: place.medicalRegistry.institutionType,
+          departments: [...place.medicalRegistry.departments],
+          registry_state: place.medicalRegistry.registryState,
+          registry_only: place.medicalRegistry.registryOnly,
+          hours_provided: false,
+        }} : {}),
+        ...(place.emergencyStatus ? {emergency_status: {
+          realtime_state: place.emergencyStatus.realtimeState,
+          updated_at_label: place.emergencyStatus.updatedAtLabel,
+          beds: place.emergencyStatus.beds.map(item => ({label: item.label, available: item.available})),
+          er_operating: place.emergencyStatus.erOperating,
+          severe_acceptance_reported: [...place.emergencyStatus.severeAcceptanceReported],
+          messages: [...place.emergencyStatus.messages],
+          acceptance_guaranteed: false,
+        }} : {}),
         place_id: place.placeId,
         name: place.name,
         category: place.category,
@@ -1424,6 +2015,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
             ? {administrative_status: place.foodLicenseVerification.administrativeStatus}
             : {}),
         } : undefined,
+        animal_hospital_verification: place.animalHospitalVerification ? {
+          state: place.animalHospitalVerification.state,
+          source: 'MOIS_ANIMAL_HOSPITAL',
+          ai_calls: 0,
+          official_registered: place.animalHospitalVerification.officialRegistered ? true : 'UNVERIFIED',
+          ...(place.animalHospitalVerification.administrativeStatus
+            ? {administrative_status: place.animalHospitalVerification.administrativeStatus}
+            : {}),
+        } : undefined,
+        ...(Number.isInteger(place.distanceMeters) ? {distance_meters: place.distanceMeters} : {}),
         navigation_capability: place.navigationCapable,
       })),
     };
@@ -1432,62 +2033,73 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!value || typeof value !== 'object') return null;
     return normalizePlaceResult(value, {capturedAt: Number(value.captured_at)});
   };
-  const createPlaceCardRail = placeValue => {
+  // REGIONAL-INFO-APPROVED-UX-RESTORE-P0 — 전화 / 길찾기 use the approved LOTBI
+  // icon images again (/assets/place-actions: phone, and the map app chosen in
+  // settings — naver-map, kakao-map, tmap, google-maps), one 32px image in a
+  // 44px target each. A missing image falls back to a short visible word; the
+  // control keeps its accessible name either way.
+  const PLACE_ACTION_ICON_VERSION = 'place-icons-20260925';
+  const PLACE_ACTION_FALLBACK_TEXT = Object.freeze({phone: '전화'});
+  const createPlaceCardRail = (placeValue, placeOptions = {}) => {
     const placeResult = normalizedPersistedPlaceResult(placeValue);
     if (!placeResult) return null;
     const fresh = isPlaceResultFresh(placeResult);
+    const defaultMapProvider = readDefaultMapProvider(document.cookie);
+    const mapPresentation = defaultMapProviderPresentation(defaultMapProvider);
+    // PLACE-MEDICAL-CARD-UX-FINAL-01 — one card per institution, in Core's
+    // order. Core folds NMC rows by hpid only and NAVER rows not at all (their
+    // ids are list positions), so the same name at the same address, or under
+    // the same verified phone, is one place listed twice.
+    const placeIdentity = value => String(value || '').toLowerCase().replace(/[\s()[\]·.,-]/gu, '');
+    const seenPlaceKeys = new Set();
+    const places = placeResult.results.filter(place => {
+      const keys = [`${placeIdentity(place.name)}@${placeIdentity(place.address)}`];
+      if (place.phoneHref) keys.push(`${placeIdentity(place.name)}@${place.phoneHref}`);
+      if (keys.some(key => seenPlaceKeys.has(key))) return false;
+      for (const key of keys) seenPlaceKeys.add(key);
+      return true;
+    });
+    // PLACE-CARD-RAIL-ALL-RESULTS-01 — every place Core sent (up to five) turns
+    // in the rail: "5곳을 찾았어요" shows 1/5 … 5/5. Nothing waits behind a
+    // "다른 … 보기" button; that button only showed places already sent.
+    const cardCount = places.length;
     const rail = document.createElement('section');
-    rail.className = 'lotbi-rich-card-rail lotbi-place-orbit';
-    rail.classList.toggle('has-place-photo', placeResult.results.some(place => Boolean(place.imageUrl)));
-    rail.classList.add('has-place-banner');
+    rail.className = 'lotbi-rich-card-rail lotbi-place-orbit has-orbit-footer';
+    rail.classList.toggle('has-place-photo', places.some(place => Boolean(place.imageUrl)));
     rail.dataset.richCardType = 'PLACE';
     rail.dataset.placeResultSetId = placeResult.resultSetId;
-    rail.dataset.cardCount = String(placeResult.results.length);
+    rail.dataset.cardCount = String(cardCount);
+    rail.dataset.placeCount = String(places.length);
     rail.dataset.freshness = fresh ? 'fresh' : 'stale';
     rail.setAttribute('aria-label', '장소 검색 결과');
     rail.setAttribute('aria-roledescription', 'carousel');
     rail.tabIndex = 0;
 
-    const preserveEmptyMedia = media => {
-      media.replaceChildren();
-      media.classList.remove('lotbi-rich-card-media-loading');
-      media.classList.add('lotbi-rich-card-media-empty');
-      media.hidden = false;
-      media.setAttribute('aria-hidden', 'true');
-      media.dataset.mediaState = 'empty-no-photo';
-      media.dataset.mediaSource = 'NONE';
+    // No photo, no photo box: a card without a usable photo starts with its
+    // 유형·이름·주소. A photo that fails to load takes its box with it, and
+    // the rail may shrink again (fitRail below).
+    let fittedRailHeight = 0;
+    const dropPlaceMedia = media => {
+      media.remove();
+      fittedRailHeight = 0;
+      rail.classList.toggle('has-place-photo', Boolean(rail.querySelector('.lotbi-rich-card-place-media')));
     };
-
-    const openFreshPlace = (place, opener, successCopy) => {
-      if (!isPlaceResultFresh(placeResult)) {
-        setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
-        return false;
-      }
-      const opened = opener(place);
-      if (!opened.opened) return false;
-      setStatus(successCopy);
-      return true;
-    };
-    const openPlaceInNaverMap = place => openFreshPlace(place, openNaverMapsPlace, '선택한 장소를 네이버 지도에서 엽니다.');
-    const openPlaceInKakaoNavi = place => openFreshPlace(place, openKakaoNaviPlace, '선택한 장소를 카카오내비 길안내로 연결합니다.');
-    const openPlaceInTmap = place => openFreshPlace(place, openTmapPlace, '선택한 장소를 T맵 길안내로 연결합니다.');
-    const openPlaceInGoogleMaps = place => openFreshPlace(place, openGoogleMapsPlace, '선택한 장소를 Google Maps에서 엽니다.');
 
     const cards = [];
-    for (const [placeIndex, place] of placeResult.results.entries()) {
+    for (const [placeIndex, place] of places.entries()) {
       const item = document.createElement('article');
       item.className = 'lotbi-rich-card lotbi-rich-card-place lotbi-place-orbit-card';
       item.dataset.candidateIndex = String(place.candidateIndex);
       item.dataset.orbitIndex = String(placeIndex);
       item.setAttribute('role', 'group');
       item.setAttribute('aria-roledescription', 'slide');
-      item.setAttribute('aria-label', `${placeIndex + 1} / ${placeResult.results.length} · ${place.name}`);
+      item.setAttribute('aria-label', `${placeIndex + 1} / ${cardCount} · ${place.name}`);
       item.tabIndex = placeIndex === 0 ? 0 : -1;
 
-      const media = document.createElement('div');
-      media.className = 'lotbi-rich-card-media lotbi-rich-card-place-media lotbi-rich-card-media-loading';
-      media.dataset.mediaState = 'loading';
-      if (place.imageUrl) {
+      const media = place.imageUrl ? document.createElement('div') : null;
+      if (media) {
+        media.className = 'lotbi-rich-card-media lotbi-rich-card-place-media lotbi-rich-card-media-loading';
+        media.dataset.mediaState = 'loading';
         const image = document.createElement('img');
         image.className = 'lotbi-rich-card-image lotbi-place-photo';
         image.alt = `${place.name} 대표 사진`;
@@ -1505,18 +2117,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           media.dataset.mediaSource = 'VERIFIED_PLACE_PHOTO';
         };
         image.addEventListener('load', () => { void revealImage(); }, {once: true});
-        image.addEventListener('error', () => preserveEmptyMedia(media), {once: true});
+        image.addEventListener('error', () => dropPlaceMedia(media), {once: true});
         image.src = place.imageUrl;
         media.appendChild(image);
-      } else {
-        preserveEmptyMedia(media);
       }
 
       const copy = document.createElement('div');
       copy.className = 'lotbi-rich-card-copy';
       const source = document.createElement('span');
       source.className = 'lotbi-rich-card-source';
-      source.textContent = place.category || '장소';
+      source.textContent = placeCategoryLabel(place.category) || '장소';
       const title = document.createElement('h3');
       title.className = 'lotbi-rich-card-title';
       title.textContent = place.name;
@@ -1524,6 +2134,32 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       address.className = 'lotbi-rich-card-price';
       address.textContent = place.address;
       copy.append(source, title, address);
+      // The card body opens a NAVER web search for this place (menu, photos,
+      // reviews). The map handoff stays on the map button only. This link is
+      // the card's keyboard/screen-reader entry; taps on the body forward to it.
+      const searchLink = document.createElement('a');
+      searchLink.className = 'lotbi-place-search-link';
+      searchLink.href = buildNaverPlaceSearchUrl(place, {searchContext: placeResult.query});
+      searchLink.target = '_blank';
+      searchLink.rel = 'noopener noreferrer';
+      searchLink.dataset.placeSearch = 'NAVER_SEARCH';
+      searchLink.tabIndex = placeIndex === 0 ? 0 : -1;
+      searchLink.setAttribute('aria-label', `네이버에서 ${place.name} 검색`);
+      searchLink.addEventListener('click', () => setStatus('네이버에서 이 장소를 검색합니다.'));
+      copy.appendChild(searchLink);
+      const lifeBadges = placeLifeBadges(place);
+      if (lifeBadges.length) {
+        const badges = document.createElement('span');
+        badges.className = 'lotbi-place-badges lotbi-place-life-badges';
+        for (const badge of lifeBadges) {
+          const item = document.createElement('span');
+          item.className = badge.kind === 'registration' ? 'lotbi-place-license-status' : 'lotbi-place-license-evidence';
+          item.dataset.lifeBadge = badge.state;
+          item.textContent = badge.label;
+          badges.appendChild(item);
+        }
+        copy.appendChild(badges);
+      }
 
       const actions = document.createElement('div');
       actions.className = 'lotbi-rich-card-actions lotbi-place-card-actions';
@@ -1534,11 +2170,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         icon.setAttribute('aria-hidden', 'true');
         const image = document.createElement('img');
         image.className = 'lotbi-place-action-icon-image';
-        image.src = `/assets/place-actions/${iconName}.png?v=place-icons-20260925`;
+        image.src = `/assets/place-actions/${iconName}.png?v=${PLACE_ACTION_ICON_VERSION}`;
         image.alt = '';
         image.width = 32;
         image.height = 32;
         image.decoding = 'async';
+        image.addEventListener('error', () => {
+          icon.dataset.iconState = 'MISSING';
+          icon.replaceChildren(PLACE_ACTION_FALLBACK_TEXT[iconName] || '지도');
+        }, {once: true});
         icon.appendChild(image);
         control.appendChild(icon);
       };
@@ -1551,8 +2191,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         phone.dataset.phoneState = 'VERIFIED';
         phone.href = phoneHref;
         phone.tabIndex = placeIndex === 0 ? 0 : -1;
-        phone.setAttribute('aria-label', `${place.name} 전화 걸기`);
-        phone.title = '전화 걸기';
+        phone.setAttribute('aria-label', `${place.name} 전화하기`);
+        phone.title = '전화하기';
         addActionIcon(phone, 'phone');
         phone.addEventListener('click', () => {
           phone.dataset.handoffState = 'CALL_HANDOFF_STARTED';
@@ -1561,70 +2201,36 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         actions.appendChild(phone);
       }
 
-      const navigate = document.createElement('a');
-      navigate.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-naver-map-action';
-      navigate.href = buildNaverMapsWebSearchUrl(place);
-      navigate.target = '_blank';
-      navigate.rel = 'noopener noreferrer';
-      navigate.setAttribute('aria-label', `${place.name} 네이버 지도에서 열기`);
-      navigate.title = '네이버 지도에서 열기';
-      navigate.dataset.action = 'naver-map';
-      navigate.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionIcon(navigate, 'naver-map');
-      navigate.addEventListener('click', event => {
-        event.preventDefault();
-        openPlaceInNaverMap(place);
+      const mapAction = document.createElement('a');
+      mapAction.className = `lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-${mapPresentation.action}-action`;
+      mapAction.href = buildDefaultMapHref(defaultMapProvider, place);
+      mapAction.target = '_blank';
+      mapAction.rel = 'noopener noreferrer';
+      mapAction.setAttribute('aria-label', `${place.name} 길찾기 (${mapPresentation.label})`);
+      mapAction.title = `길찾기 (${mapPresentation.label})`;
+      mapAction.dataset.action = mapPresentation.action;
+      mapAction.dataset.mapProvider = defaultMapProvider;
+      mapAction.tabIndex = placeIndex === 0 ? 0 : -1;
+      addActionIcon(mapAction, mapPresentation.icon);
+      mapAction.addEventListener('click', event => {
+        if (!isPlaceResultFresh(placeResult)) {
+          event.preventDefault();
+          setStatus('결과가 오래됐어요. 같은 장소를 다시 검색한 뒤 열어 주세요.');
+          return;
+        }
+        setStatus(mapPresentation.success);
       });
-      actions.appendChild(navigate);
+      actions.appendChild(mapAction);
 
-      const kakaoNavi = document.createElement('a');
-      kakaoNavi.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-kakao-navi-action';
-      kakaoNavi.href = buildKakaoNaviHandoffUrl(place);
-      kakaoNavi.target = '_blank';
-      kakaoNavi.rel = 'noopener noreferrer';
-      kakaoNavi.setAttribute('aria-label', `${place.name} 카카오내비에서 길안내`);
-      kakaoNavi.title = '카카오내비에서 길안내';
-      kakaoNavi.dataset.action = 'kakao-navi';
-      kakaoNavi.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionIcon(kakaoNavi, 'kakao-map');
-      kakaoNavi.addEventListener('click', event => {
-        event.preventDefault();
-        openPlaceInKakaoNavi(place);
-      });
-      actions.appendChild(kakaoNavi);
-
-      const tmap = document.createElement('a');
-      tmap.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-tmap-action';
-      tmap.dataset.action = 'tmap';
-      tmap.dataset.tmapState = isTmapHandoffAvailable() ? 'MOBILE_APP' : 'INSTALL_GUIDE';
-      tmap.href = '#';
-      tmap.tabIndex = placeIndex === 0 ? 0 : -1;
-      tmap.setAttribute('aria-label', `${place.name} T맵에서 길안내`);
-      tmap.title = 'T맵에서 길안내';
-      addActionIcon(tmap, 'tmap');
-      tmap.addEventListener('click', event => {
-        event.preventDefault();
-        openPlaceInTmap(place);
-      });
-      actions.appendChild(tmap);
-
-      const googleMaps = document.createElement('a');
-      googleMaps.className = 'lotbi-rich-card-action lotbi-rich-card-icon-action lotbi-google-maps-action';
-      googleMaps.href = buildGoogleMapsDirectionsUrl(place);
-      googleMaps.target = '_blank';
-      googleMaps.rel = 'noopener noreferrer';
-      googleMaps.setAttribute('aria-label', `${place.name} Google Maps에서 길안내`);
-      googleMaps.title = 'Google Maps에서 길안내';
-      googleMaps.dataset.action = 'google-maps';
-      googleMaps.tabIndex = placeIndex === 0 ? 0 : -1;
-      addActionIcon(googleMaps, 'google-maps');
-      googleMaps.addEventListener('click', event => {
-        event.preventDefault();
-        openPlaceInGoogleMaps(place);
-      });
-      actions.appendChild(googleMaps);
-
-      item.append(media, copy, actions);
+      for (const line of medicalStatusLines(place, {partial: placeOptions.medicalPartial === true})) {
+        const status = document.createElement('span');
+        status.className = 'lotbi-place-license-note lotbi-place-medical-line';
+        status.dataset.medicalState = line.state;
+        status.textContent = line.text;
+        copy.appendChild(status);
+      }
+      if (media) item.append(media);
+      item.append(copy, actions);
       cards.push(item);
       rail.appendChild(item);
     }
@@ -1634,75 +2240,127 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     status.setAttribute('aria-live', 'polite');
     status.setAttribute('aria-atomic', 'true');
 
-    const previous = document.createElement('button');
-    previous.type = 'button';
-    previous.className = 'lotbi-place-orbit-control lotbi-place-orbit-control-prev';
-    previous.setAttribute('aria-label', '이전 장소');
-    previous.textContent = '‹';
+    // Every result is selectable without a gesture, on every screen size.
+    const footer = document.createElement('div');
+    footer.className = 'lotbi-place-orbit-footer';
+    const position = document.createElement('span');
+    position.className = 'lotbi-place-orbit-position';
+    position.setAttribute('aria-hidden', 'true');
+    const dotGroup = document.createElement('div');
+    dotGroup.className = 'lotbi-place-orbit-dots';
+    dotGroup.setAttribute('role', 'group');
+    dotGroup.setAttribute('aria-label', '장소 선택');
+    const dots = places.map((place, index) => {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'lotbi-place-orbit-dot';
+      dot.dataset.orbitDot = String(index);
+      dot.setAttribute('aria-label', `${index + 1} / ${cardCount} · ${place.name} 선택`);
+      dot.addEventListener('click', () => setActiveIndex(index));
+      dotGroup.append(dot);
+      return dot;
+    });
+    footer.append(dotGroup, position);
 
-    const next = document.createElement('button');
-    next.type = 'button';
-    next.className = 'lotbi-place-orbit-control lotbi-place-orbit-control-next';
-    next.setAttribute('aria-label', '다음 장소');
-    next.textContent = '›';
+    rail.append(footer, status);
 
-    rail.append(previous, next, status);
+    // The rail is at least as tall as its tallest card plus the footer, so a
+    // long name or a 진료시간 line is never cut off at the top or bottom (the
+    // CSS photo / no-photo heights stay the floor). It only grows while the
+    // cards turn, so the answer below does not jump with each card.
+    if (typeof ResizeObserver === 'function') {
+      const fitRail = () => {
+        const tallest = Math.max(0, ...cards.map(card => card.offsetHeight));
+        fittedRailHeight = Math.max(fittedRailHeight, tallest ? Math.ceil(tallest + footer.offsetHeight) + 8 : 0);
+        rail.style.minHeight = fittedRailHeight ? `${fittedRailHeight}px` : '';
+      };
+      const fitObserver = new ResizeObserver(fitRail);
+      for (const node of [...cards, footer]) fitObserver.observe(node);
+    }
 
     const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
     let activeIndex = 0;
+    let lastStep = 0;
     let suppressClick = false;
     let dragPointerId = null;
     let dragStartX = 0;
+    let dragStartY = 0;
+    let dragVertical = false;
     let dragLastX = 0;
     let dragMoved = false;
     let wheelLocked = false;
     let pointerOriginIndex = null;
     let dragCaptured = false;
+    let capturedBodyTapIndex = null;
 
     const wrapIndex = index => {
-      const count = cards.length;
+      const count = cardCount;
       return count ? ((index % count) + count) % count : 0;
     };
 
     const orbitSlotFor = (index, centerIndex) => {
-      const count = cards.length;
+      const count = cardCount;
       if (!count || index === centerIndex) return 'CENTER';
       const forward = (index - centerIndex + count) % count;
       const backward = (centerIndex - index + count) % count;
       if (forward < backward) return forward === 1 ? 'RIGHT_FRONT' : 'RIGHT_BACK';
       if (backward < forward) return backward === 1 ? 'LEFT_FRONT' : 'LEFT_BACK';
+      // Halfway round (the other of two cards): it waits on the side the last
+      // turn came from, so the card just left goes out the way it was pushed.
+      if (lastStep > 0) return forward === 1 ? 'LEFT_FRONT' : 'LEFT_BACK';
       return forward === 1 ? 'RIGHT_FRONT' : 'RIGHT_BACK';
     };
+    // A turn without a stated direction (a tap on a side card) goes toward the
+    // side that card is on.
+    const stepToward = index => (String(cards[index]?.dataset.orbitSlot || '').startsWith('LEFT') ? -1 : 1);
 
     const applyOrbitState = ({announce = false} = {}) => {
       cards.forEach((card, index) => {
         const current = index === activeIndex;
-        const slot = orbitSlotFor(index, activeIndex);
-        card.dataset.orbitSlot = slot;
+        card.dataset.orbitSlot = orbitSlotFor(index, activeIndex);
         card.classList.toggle('is-primary', current);
         card.setAttribute('aria-current', current ? 'true' : 'false');
+        card.setAttribute('aria-hidden', current ? 'false' : 'true');
+        card.setAttribute('aria-label', `${index + 1} / ${cardCount} · ${places[index].name}`);
         card.tabIndex = current ? 0 : -1;
         for (const control of card.querySelectorAll('a, button')) {
           control.tabIndex = current ? 0 : -1;
           control.setAttribute('aria-disabled', current ? 'false' : 'true');
         }
       });
-      previous.disabled = cards.length < 2;
-      next.disabled = cards.length < 2;
+      dots.forEach((dot, index) => dot.setAttribute('aria-current', index === activeIndex ? 'true' : 'false'));
+      position.textContent = `${activeIndex + 1}/${cardCount}`;
+      position.hidden = cardCount < 2;
+      footer.hidden = position.hidden;
+      rail.classList.toggle('has-orbit-footer', !footer.hidden);
       if (announce && cards[activeIndex]) {
-        status.textContent = `${activeIndex + 1} / ${cards.length} · ${placeResult.results[activeIndex].name}`;
+        status.textContent = `${activeIndex + 1} / ${cardCount} · ${places[activeIndex].name}`;
       }
     };
 
-    const setActiveIndex = (index, {focus = false, announce = true} = {}) => {
-      activeIndex = wrapIndex(index);
+    const setActiveIndex = (index, {focus = false, announce = true, step = stepToward(wrapIndex(index))} = {}) => {
+      const target = wrapIndex(index);
+      if (step && target !== activeIndex) {
+        lastStep = step;
+        // The card coming in enters from the side the turn goes toward. With
+        // two cards it can be waiting on the other side; it moves over first,
+        // without animating.
+        const incoming = cards[target];
+        const side = step > 0 ? 'RIGHT' : 'LEFT';
+        if (incoming && !String(incoming.dataset.orbitSlot || '').startsWith(side)) {
+          incoming.hidden = false;
+          incoming.classList.add('is-orbit-repositioning');
+          incoming.dataset.orbitSlot = `${side}_FRONT`;
+          void incoming.offsetWidth;
+          incoming.classList.remove('is-orbit-repositioning');
+        }
+      }
+      activeIndex = target;
       rail.style.removeProperty('--lotbi-orbit-drag-x');
       applyOrbitState({announce});
       if (focus) cards[activeIndex]?.focus({preventScroll: true});
     };
 
-    previous.addEventListener('click', () => setActiveIndex(activeIndex - 1));
-    next.addEventListener('click', () => setActiveIndex(activeIndex + 1));
 
     cards.forEach((card, index) => {
       card.addEventListener('click', event => {
@@ -1711,45 +2369,56 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           setActiveIndex(index);
           return;
         }
-        openPlaceInNaverMap(placeResult.results[index]);
+        cards[index].querySelector('[data-place-search]')?.click();
+      });
+      card.addEventListener('keydown', event => {
+        if (event.target !== card || event.key !== 'Enter' || index !== activeIndex) return;
+        event.preventDefault();
+        card.querySelector('[data-place-search]')?.click();
       });
     });
 
     rail.addEventListener('keydown', event => {
       let nextIndex = null;
-      if (event.key === 'ArrowRight') nextIndex = activeIndex + 1;
-      else if (event.key === 'ArrowLeft') nextIndex = activeIndex - 1;
-      else if (event.key === 'Home') nextIndex = 0;
-      else if (event.key === 'End') nextIndex = cards.length - 1;
+      let step = 0;
+      if (event.key === 'ArrowRight') { nextIndex = activeIndex + 1; step = 1; }
+      else if (event.key === 'ArrowLeft') { nextIndex = activeIndex - 1; step = -1; }
+      else if (event.key === 'Home') { nextIndex = 0; step = -1; }
+      else if (event.key === 'End') { nextIndex = cardCount - 1; step = 1; }
       if (nextIndex === null) return;
       event.preventDefault();
-      setActiveIndex(nextIndex, {focus: true});
+      setActiveIndex(nextIndex, {focus: true, step});
     });
 
     rail.addEventListener('wheel', event => {
-      if (cards.length < 2 || wheelLocked) return;
+      if (cardCount < 2 || wheelLocked) return;
       if (Math.abs(event.deltaX) < 24 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
       event.preventDefault();
       wheelLocked = true;
-      setActiveIndex(activeIndex + (event.deltaX > 0 ? 1 : -1));
+      const step = event.deltaX > 0 ? 1 : -1;
+      setActiveIndex(activeIndex + step, {step});
       globalThis.setTimeout?.(() => { wheelLocked = false; }, reducedMotion ? 0 : 180);
     }, {passive: false});
 
     rail.addEventListener('pointerdown', event => {
-      if (cards.length < 2 || (event.pointerType === 'mouse' && event.button !== 0) || event.target?.closest?.('a, button')) return;
+      // One card does not turn, but a drag on it is still a drag, not a tap
+      // that opens the search.
+      if ((event.pointerType === 'mouse' && event.button !== 0) || event.target?.closest?.('a, button')) return;
       const originCard = event.target?.closest?.('.lotbi-place-orbit-card');
       const originIndex = Number(originCard?.dataset?.orbitIndex);
       const centerRect = cards[activeIndex]?.getBoundingClientRect?.() || null;
       pointerOriginIndex = resolvePlaceOrbitPointerIndex({
         targetIndex: Number.isInteger(originIndex) ? originIndex : null,
         activeIndex,
-        cardCount: cards.length,
+        cardCount,
         clientX: event.clientX,
         clientY: event.clientY,
         centerRect,
       });
       dragPointerId = event.pointerId;
       dragStartX = event.clientX;
+      dragStartY = event.clientY;
+      dragVertical = false;
       dragLastX = event.clientX;
       dragMoved = false;
       dragCaptured = false;
@@ -1767,11 +2436,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (event.pointerId !== dragPointerId) return;
       dragLastX = event.clientX;
       const delta = dragLastX - dragStartX;
+      const deltaY = event.clientY - dragStartY;
+      if (!dragMoved && Math.abs(deltaY) > 4 && Math.abs(deltaY) >= Math.abs(delta)) dragVertical = true;
+      if (dragVertical) return;
       if (Math.abs(delta) > 4 && !dragMoved) {
         dragMoved = true;
         rail.classList.add('is-dragging');
       }
-      if (!dragMoved) return;
+      if (!dragMoved || cardCount < 2) return;
       event.preventDefault();
       const visualDelta = Math.max(-72, Math.min(72, delta * 0.45));
       rail.style.setProperty('--lotbi-orbit-drag-x', `${visualDelta}px`);
@@ -1786,18 +2458,29 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       }
       rail.classList.remove('is-dragging');
       const delta = dragLastX - dragStartX;
-      const crossedDragThreshold = Math.abs(delta) >= 44;
+      const crossedDragThreshold = !dragVertical && Math.abs(delta) >= 44;
+      cancelled = cancelled || dragVertical;
       rail.style.removeProperty('--lotbi-orbit-drag-x');
 
       const selectedDifferentCard = !cancelled
         && !crossedDragThreshold
         && Number.isInteger(pointerOriginIndex)
         && pointerOriginIndex !== activeIndex;
+      // A plain tap on the center card. While the rail holds pointer capture,
+      // desktop Chrome fires that click at the rail instead of the card.
+      const tappedActiveCard = !cancelled
+        && dragCaptured
+        && !dragMoved
+        && !crossedDragThreshold
+        && pointerOriginIndex === activeIndex;
 
       if (cancelled) {
         applyOrbitState();
+      } else if (crossedDragThreshold && cardCount > 1) {
+        const step = delta < 0 ? 1 : -1;
+        setActiveIndex(activeIndex + step, {step});
       } else if (crossedDragThreshold) {
-        setActiveIndex(activeIndex + (delta < 0 ? 1 : -1));
+        applyOrbitState();
       } else if (Number.isInteger(pointerOriginIndex)) {
         setActiveIndex(pointerOriginIndex);
       } else {
@@ -1808,6 +2491,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         suppressClick = true;
         globalThis.setTimeout?.(() => { suppressClick = false; }, 0);
       }
+      if (tappedActiveCard) {
+        capturedBodyTapIndex = activeIndex;
+        globalThis.setTimeout?.(() => { capturedBodyTapIndex = null; }, 0);
+      }
       dragPointerId = null;
       pointerOriginIndex = null;
       dragMoved = false;
@@ -1816,9 +2503,50 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     rail.addEventListener('pointerup', event => finishDrag(event));
     rail.addEventListener('pointercancel', event => finishDrag(event, {cancelled: true}));
+    rail.addEventListener('click', event => {
+      if (event.target !== rail || capturedBodyTapIndex === null) return;
+      const index = capturedBodyTapIndex;
+      capturedBodyTapIndex = null;
+      cards[index]?.querySelector('[data-place-search]')?.click();
+    });
 
     applyOrbitState();
     return rail;
+  };
+
+  // LIFE-MEDICAL-AUTO-SEARCH-01 — conditions for pharmacies are picked on the
+  // results instead of being asked first. Each asks the same Core medical
+  // route again for the same area (근처, or the 시·군·구 these results were
+  // for), sent at once like the 생활정보 menu. The cards keep saying
+  // "등록 시간상"; no filter makes a pharmacy "open" for sure.
+  const PHARMACY_FILTERS = Object.freeze([
+    ['NOW', '지금 운영 중', area => `지금 문 연 ${area} 약국 찾아줘`],
+    ['NIGHT', '야간', area => `오늘 밤 문 여는 ${area} 약국 찾아줘`],
+    ['HOLIDAY', '휴일', area => `휴일에 문 여는 ${area} 약국 찾아줘`],
+    ['ALL_DAY', '24시간', area => `24시간 운영하는 ${area} 약국 찾아줘`],
+  ]);
+  const createPharmacyFilterRow = placeValue => {
+    const placeResult = normalizedPersistedPlaceResult(placeValue);
+    if (!placeResult || !placeResult.results.every(place => place.medicalStatus?.kind === 'PHARMACY')) return null;
+    // Core's query is "<basis> 약국": a current location or saved region is
+    // asked as 근처 again (the location contract decides which), a named
+    // 시·군·구 by its name.
+    const basis = placeResult.query.replace(/\s*약국$/u, '').trim();
+    const area = !basis || /^(?:현재 위치|저장된 지역)\(/u.test(basis) ? '근처' : basis;
+    const row = document.createElement('div');
+    row.className = 'lotbi-place-filter-row';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', '조건을 골라 약국 다시 찾기');
+    for (const [mode, label, question] of PHARMACY_FILTERS) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'lotbi-place-filter-chip';
+      chip.dataset.pharmacyFilter = mode;
+      chip.textContent = label;
+      chip.addEventListener('click', () => askWithoutKeyboard(question(area)));
+      row.appendChild(chip);
+    }
+    return row;
   };
 
   const normalizeConversationCalendarResult = value => {
@@ -1884,6 +2612,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           amount_minor: value.entry.amountMinor,
           currency: value.entry.currency,
           expense_category: value.entry.expenseCategory,
+          expense_status: value.entry.expenseStatus,
           memo: value.entry.memo,
           place: value.entry.place,
           merchant: value.entry.merchant,
@@ -2508,9 +3237,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const node = createMessage(message.role, message.text, message.meta || {});
     const reusableOutput = message.role === 'assistant' ? message.meta?.reusableOutput : null;
     if (reusableOutput) {
+      void prepareKakaoShare();
       const card = createReusableOutputCard(reusableOutput, {
         copyText: writeMessageTextToClipboard,
-        shareText: text => shareMessageText(text, {includeUrl: false}),
+        shareText: text => shareMessageWithKakao({text, url: MESSAGE_ACTION_SHARE_URL}),
         editText: text => {
           prompt.value = text;
           state.draft = text.slice(0, 1000);
@@ -2528,8 +3258,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (message.role === 'assistant' && rich) {
       const rail = createProductCardRail(rich); if (rail) node.appendChild(rail);
     }
+    if (message.role === 'assistant' && message.meta?.productLookup) {
+      const photos = createProductImageComparison(message.meta.productLookup, {document});
+      if (photos) node.appendChild(photos);
+    }
+    if (message.role === 'assistant' && message.meta?.emergencyCall === true) {
+      node.appendChild(createEmergencyCallNotice(document));
+    }
     if (message.role === 'assistant' && place) {
-      const rail = createPlaceCardRail(message.meta?.placeResult); if (rail) node.appendChild(rail);
+      const rail = createPlaceCardRail(message.meta?.placeResult, {medicalPartial: message.meta?.medicalPartial === true});
+      if (rail) node.appendChild(rail);
+      const filters = rail ? createPharmacyFilterRow(message.meta?.placeResult) : null;
+      if (filters) node.appendChild(filters);
     }
     if (message.role === 'assistant' && Array.isArray(message.meta?.calendarItems)) {
       for (const rawItem of message.meta.calendarItems) {
@@ -2552,6 +3292,40 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       const calendarDraft = createConversationCalendarDraft(message.meta.calendarDraft);
       if (calendarDraft) node.appendChild(calendarDraft);
     }
+    if (message.role === 'assistant' && message.meta?.schoolResult) {
+      const schoolCard = createSchoolResultCard(message.meta.schoolResult, {
+        document,
+        onSelectSchool: (school, resumeText) => {
+          if (!writeSchoolPreference(lifeSchoolKey(), school, storage)) return;
+          setStatus(`${school.name}을(를) 자녀 학교로 저장했어요.`);
+          if (resumeText && !inFlight) void requestAssistant(resumeText, true);
+        },
+        onAddToCalendar: draft => openCalendar(draft?.localDate ? 'month' : 'agenda', {initialDraft: draft, restoreConversation: true}),
+        onChangeSchool: () => {
+          clearSchoolPreference(lifeSchoolKey(), storage);
+          setStatus('저장된 학교를 지웠어요. 학교 이름을 말씀해 주시면 다시 찾아볼게요.');
+        },
+        // SCHOOL-MEAL-01: [이번 주 급식] asks as an ordinary turn; the saved
+        // school rides along because the question names 급식.
+        onAsk: text => {
+          if (text && !inFlight) void requestAssistant(text, true);
+        },
+      });
+      if (schoolCard) node.appendChild(schoolCard);
+    }
+    if (message.role === 'assistant' && message.meta?.newsResult) {
+      // 지역뉴스: one card per story, each opening the outlet's own article.
+      const newsCards = createNewsResultCards(message.meta.newsResult, {document});
+      if (newsCards) node.appendChild(newsCards);
+    }
+    if (message.role === 'assistant' && message.meta?.regionalFoodResult) {
+      const foodCard = createRegionalFoodCard(message.meta.regionalFoodResult, {document, onStatus: setStatus});
+      if (foodCard) node.appendChild(foodCard);
+    }
+    if (message.role === 'assistant' && message.meta?.regionalContactResult) {
+      const contactCard = createRegionalContactCard(message.meta.regionalContactResult, {document, onStatus: setStatus});
+      if (contactCard) node.appendChild(contactCard);
+    }
     if (message.role === 'assistant' && ['sos', 'found'].includes(message.meta?.petAction?.target)) {
       const action = document.createElement('button');
       action.type = 'button';
@@ -2561,16 +3335,68 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         ? message.meta.petAction.label
         : (message.meta.petAction.target === 'sos' ? '실종 신고하기' : '발견 제보하기');
       node.appendChild(action);
+      if (message.meta.petAction.target === 'found') {
+        // LIFE-PUBLIC-DATA-01: 발견·구조 상황 → 근처 동물병원 → 전화 → 길찾기.
+        // The Pet SOS flow itself is untouched; this only asks LOTBI.
+        const vet = document.createElement('button');
+        vet.type = 'button';
+        vet.className = 'conversation-pet-action-button conversation-life-action-button';
+        vet.dataset.lifePrompt = ANIMAL_HOSPITAL_NEARBY_PROMPT;
+        vet.textContent = '근처 동물병원 찾기';
+        node.appendChild(vet);
+      }
+    }
+    // CALENDAR-GUEST-RECURRING-LOGIN-01: an answer that only a signed-in
+    // Calendar can finish carries the sentence; login sends it again
+    // (auth-callback autoSend). Nothing to show once signed in.
+    const loginAction = message.role === 'assistant' ? message.meta?.loginAction : null;
+    if (!sessionToken && typeof loginAction?.text === 'string' && loginAction.text.trim()) {
+      const login = document.createElement('button');
+      login.type = 'button';
+      login.className = 'conversation-pet-action-button conversation-login-action-button';
+      login.dataset.loginRetryText = loginAction.text.trim().slice(0, 1000);
+      login.textContent = typeof loginAction.label === 'string' && loginAction.label.trim() ? loginAction.label.trim() : '로그인하고 등록';
+      node.appendChild(login);
+    }
+    if (message.role === 'assistant' && message.meta?.locationRequest?.question) {
+      node.appendChild(createLocationRequestRow(message.meta.locationRequest.question));
     }
     if (message.role === 'assistant' && !reusableOutput) {
       const actions = createMessageActions(message.text, setStatus, {
-        calendarDraft: calendarDraftHintFromMessage(message, place),
+        calendarDraft: calendarDraftHintFromMessage(message),
         openCalendarDraft: draft => openCalendar(draft?.localDate ? 'month' : 'agenda', {initialDraft: draft, restoreConversation: true}),
       });
       if (actions) node.appendChild(actions);
     }
     return node;
   };
+  // CONVERSATION-ANSWER-UX-01 (QA #7) → NEARBY-LOCATION-ALLOW-PROMPT-01:
+  // "어느 지역에서 찾을까요?" offers the shared 위치 허용 row under the answer
+  // (site-location-allow.js, loaded when such an answer shows). [위치 허용하고
+  // 찾기] shows even while LOTBI 위치 사용 is off: the tap turns it on, lets the
+  // browser ask, and asks the same question again with the position. [지역
+  // 고르기] (and the saved region, when there is one) asks again with the
+  // region in the sentence; a named region wins in Core.
+  function createLocationRequestRow(question) {
+    const host = document.createElement('div');
+    host.className = 'lotbi-place-filter-row lotbi-location-request-row';
+    void import('./site-location-allow.js?v=aset-7ce47b43cff4').then(({createLocationAllowRow}) => {
+      host.replaceChildren(createLocationAllowRow({
+        chipClassName: 'lotbi-place-filter-chip',
+        onLocated: () => askWithCurrentLocation(question),
+        onRegion: region => askWithoutKeyboard(`${region} ${question}`),
+      }));
+    }).catch(() => {
+      host.textContent = '입력창에 지역 이름을 적어 보내 주세요.';
+    });
+    return host;
+  }
+  function askWithCurrentLocation(question) {
+    resetLifeLocationPromptMemory();
+    // A deliberate second ask of the same question, not a double tap.
+    lastTapQuestion = {text: '', at: 0};
+    askWithoutKeyboard(lifeLocationIntent(question) ? question : `근처 ${question}`);
+  }
   const appendConversationRecord = (message, options = {}) => {
     if (shouldShowConversationSeparator(lastRenderedCreatedAt, message?.createdAt)) {
       const separator = createConversationSeparator(message.createdAt);
@@ -2582,18 +3408,23 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     return appendNode(messageNode(message), options);
   };
   const renderActiveThread = () => {
+    // The answer being read aloud is about to leave the page with the rest.
+    stopMessageReadAloud('CONVERSATION_CHANGED');
     // Thumbnails live only in the document that rendered them; rebuilding the
     // transcript drops those nodes, so their object URLs are released here.
     releaseRenderedPreviewUrls();
     restoreAvatarHome(); thread.replaceChildren();
     lastRenderedCreatedAt = undefined;
+    releaseTurnAnchor();
     const record = threadRecord();
     if (!record || !record.messages.length) { showBlankHome(); return; }
     showThread();
     for (const message of record.messages) {
       appendConversationRecord(message, {suppressScroll: true});
     }
-    scrollThread();
+    // Opening a conversation lands on its newest message, and keeps it there
+    // while late layout (fonts, images, cards) settles.
+    stickThreadToBottom();
   };
   const closeMobileDrawer = () => {
     const close = document.querySelector('[data-mobile-nav-close]');
@@ -2604,7 +3435,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     closeSurface();
     cancelActiveTurn('conversation-switch');
     closeConversationMenus();
-    state.activeThreadId = id; saveState(); renderActiveThread(); renderRecent(); closeMobileDrawer(); prompt.focus();
+    state.activeThreadId = id; saveState(); renderActiveThread(); renderRecent(); closeMobileDrawer(); focusComposerInPlace();
+    // A conversation from another device arrives as its title first.
+    void conversationSync?.ensureLoaded(id);
   };
   const startNewConversation = () => {
     cancelActiveTurn('new-conversation');
@@ -2661,6 +3494,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       if (draft) meta.calendarDraft = draft;
       else delete meta.calendarDraft;
     }
+    if ('locationRequest' in meta) {
+      const question = typeof meta.locationRequest?.question === 'string' ? meta.locationRequest.question.trim().slice(0, 1000) : '';
+      if (value.role === 'assistant' && question) meta.locationRequest = {question};
+      else delete meta.locationRequest;
+    }
     if ('reusableOutput' in meta) {
       try {
         const output = normalizeReusableOutput(meta.reusableOutput);
@@ -2686,6 +3524,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const switchNamespace = nextNamespace => {
     const normalized = normalizedNamespace(nextNamespace);
     if (!normalized || (normalized === namespace && stateReady)) return;
+    // Another account (or signed out): the previous account's sync stops here.
+    conversationSync?.stop();
     namespace = normalized;
     const loadedState = safeParse(storage?.getItem(storageKey(namespace, 'threads')), {});
     const loadedPreferences = safeParse(storage?.getItem(storageKey(namespace, 'preferences')), {});
@@ -2732,29 +3572,84 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       && normalized !== anonymousConversationNamespace()
       && !(autoSend && typeof initialText === 'string' && initialText.trim());
     if (freshTabEntry) state.activeThreadId = null;
+    consumeRequestedConversation();
     preferences = {
       color: COLOR_OPTIONS.some(([key]) => key === loadedPreferences.color) ? loadedPreferences.color : 'default',
-      theme: resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme()),
+      theme: sharedThemePreference() ?? adoptLegacyTheme(resolveNamespaceTheme(loadedPreferences.theme, durableBootstrapTheme())),
       displayName: typeof loadedPreferences.displayName === 'string' ? loadedPreferences.displayName.slice(0, 40) : '',
-      photo: typeof loadedPreferences.photo === 'string' && loadedPreferences.photo.startsWith('data:image/') ? loadedPreferences.photo : '',
       responseGrade: RESPONSE_GRADE_OPTIONS.some(([key]) => key === loadedPreferences.responseGrade) ? loadedPreferences.responseGrade : DEFAULT_RESPONSE_GRADE,
     };
     stateReady = true; prompt.value = state.draft; prompt.dispatchEvent(new Event('input', {bubbles: true}));
-    applyPreferences(); renderActiveThread(); renderRecent();
+    // PROFILE-PHOTO-ACCOUNT-SYNC-01 — the old browser-only photo (raw image data
+    // in these preferences) is not the account photo; drop it from storage.
+    if (Object.prototype.hasOwnProperty.call(loadedPreferences, 'photo')) savePreferences();
+    applyPreferences(); renderActiveThread(); renderRecent(); renderConversationSyncUi();
     document.body.dataset.conversationRestore = 'ready';
+    schedulePendingTurnResume();
     refreshAuthenticatedProfileSlots();
   };
-  const canonicalProfileName = () => {
+  const canonicalProfileName = () => ownProfileName() || '내 프로필';
+  // SOCIAL-SIGNUP-PROFILE-UX-01 — a new Kakao signup showed "LOTBI 사용자" over
+  // "@u9...": neither was the person's choice. A name they never gave reads
+  // "내 프로필" with a plain person icon, and a server-generated handle stays in
+  // the Account details instead of the menu.
+  const ownProfileName = () => {
     if (serverIdentity?.name) return serverIdentity.name;
-    if (serverIdentity?.publicHandle) return serverIdentity.publicHandle;
-    const emailLocalPart = serverIdentity?.email?.split('@', 1)[0]?.trim();
-    return emailLocalPart || 'LOTBI 사용자';
+    if (serverIdentity?.publicHandle && !serverIdentity.publicHandleGenerated) return serverIdentity.publicHandle;
+    return serverIdentity?.email?.split('@', 1)[0]?.trim() || '';
+  };
+  const chosenPublicHandle = () => (serverIdentity?.publicHandleGenerated ? '' : serverIdentity?.publicHandle || '');
+  const SIGNUP_PROVIDER_LABELS = {KAKAO: '카카오', NAVER: '네이버', GOOGLE: 'Google', APPLE: 'Apple'};
+  const signupProviderLabel = () => {
+    const provider = SIGNUP_PROVIDER_LABELS[serverIdentity?.signupProvider];
+    return provider && !ownProfileName() ? `${provider} 계정으로 가입` : '';
+  };
+  const PLAN_LABELS = {FREE: 'LOTBI Free', BASIC: 'LOTBI Basic', PLUS: 'LOTBI Plus', PRO: 'LOTBI Pro', LOTBI_PLUS: 'LOTBI Plus'};
+  const profilePlanName = () => (serverSubscription?.plan ? PLAN_LABELS[serverSubscription.plan] || serverSubscription.plan : '');
+  const defaultProfileIcon = () => {
+    const svgNamespace = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/');
+    const icon = document.createElementNS(svgNamespace, 'svg');
+    icon.classList.add('sidebar-profile-avatar-icon'); icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('aria-hidden', 'true');
+    for (const pathValue of ['M20 21a8 8 0 0 0-16 0', 'M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z']) {
+      const path = document.createElementNS(svgNamespace, 'path'); path.setAttribute('d', pathValue); icon.appendChild(path);
+    }
+    return icon;
+  };
+  // PROFILE-PHOTO-ACCOUNT-SYNC-01 — the account's photo from Core, identical on
+  // Account, Site and App. Only the current version is held, as an in-memory
+  // object URL; a new version (replacement) replaces it, none means initials.
+  let profilePhotoUrl = '', profilePhotoVersion = '', profilePhotoGeneration = 0;
+  const clearProfilePhoto = () => {
+    profilePhotoGeneration += 1;
+    if (profilePhotoUrl) URL.revokeObjectURL(profilePhotoUrl);
+    profilePhotoUrl = ''; profilePhotoVersion = '';
+  };
+  const syncProfilePhoto = async photo => {
+    const version = photo?.version || '';
+    if (!version || !sessionToken) {
+      if (profilePhotoUrl || profilePhotoVersion) { clearProfilePhoto(); refreshAuthenticatedProfileSlots(); }
+      return;
+    }
+    if (version === profilePhotoVersion && profilePhotoUrl) return;
+    const generation = ++profilePhotoGeneration;
+    const token = sessionToken;
+    try {
+      const url = await fetchSiteProfilePhotoObjectUrl(token, photo);
+      if (generation !== profilePhotoGeneration || token !== sessionToken) { URL.revokeObjectURL(url); return; }
+      if (profilePhotoUrl) URL.revokeObjectURL(profilePhotoUrl);
+      profilePhotoUrl = url; profilePhotoVersion = version;
+    } catch {
+      // The photo stays on the account; this view falls back to initials.
+      if (generation !== profilePhotoGeneration) return;
+    }
+    refreshAuthenticatedProfileSlots();
   };
   const profileVisual = () => {
-    const visual = document.createElement(preferences.photo ? 'img' : 'span');
+    const visual = document.createElement(profilePhotoUrl ? 'img' : 'span');
     visual.className = 'sidebar-profile-avatar';
-    if (visual instanceof HTMLImageElement) { visual.src = preferences.photo; visual.alt = ''; }
-    else { visual.textContent = initials(canonicalProfileName()); visual.setAttribute('aria-hidden', 'true'); }
+    if (visual instanceof HTMLImageElement) { visual.src = profilePhotoUrl; visual.alt = ''; }
+    else if (ownProfileName()) { visual.textContent = initials(ownProfileName()); visual.setAttribute('aria-hidden', 'true'); }
+    else { visual.classList.add('sidebar-profile-avatar-default'); visual.appendChild(defaultProfileIcon()); visual.setAttribute('aria-hidden', 'true'); }
     return visual;
   };
   const profileButton = ({includePlan = true} = {}) => {
@@ -2765,14 +3660,17 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const copy = document.createElement('span'); copy.className = 'sidebar-profile-copy';
     const name = document.createElement('span'); name.className = 'sidebar-account-name'; name.textContent = canonicalProfileName();
     copy.appendChild(name);
-    const detailParts = [];
-    if (serverIdentity?.publicHandle) detailParts.push(`@${serverIdentity.publicHandle}`);
     if (includePlan && serverSubscription?.plan) {
-      const planLabels = {FREE: 'LOTBI Free', BASIC: 'LOTBI Basic', PLUS: 'LOTBI Plus', PRO: 'LOTBI Pro', LOTBI_PLUS: 'LOTBI Plus'};
-      detailParts.push(planLabels[serverSubscription.plan] || serverSubscription.plan);
+      const plan = document.createElement('span');
+      plan.className = 'sidebar-account-plan';
+      plan.textContent = profilePlanName();
+      copy.appendChild(plan);
     }
-    if (detailParts.length) {
-      const detail = document.createElement('span'); detail.className = 'sidebar-account-handle'; detail.textContent = detailParts.join(' · '); copy.appendChild(detail);
+    if (chosenPublicHandle()) {
+      const detail = document.createElement('span');
+      detail.className = 'sidebar-account-handle';
+      detail.textContent = `@${chosenPublicHandle()}`;
+      copy.appendChild(detail);
     }
     const chevron = document.createElement('span');
     chevron.className = 'sidebar-profile-chevron';
@@ -2784,18 +3682,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const copy = document.createElement('div'); copy.className = 'profile-popover-summary-copy';
     const name = document.createElement('strong'); name.className = 'profile-popover-summary-name'; name.textContent = canonicalProfileName();
     copy.appendChild(name);
-    if (serverIdentity?.publicHandle) {
-      const handle = document.createElement('span'); handle.className = 'profile-popover-summary-handle'; handle.textContent = `@${serverIdentity.publicHandle}`; copy.appendChild(handle);
-    }
-    if (serverIdentity?.email) {
-      const email = document.createElement('span'); email.className = 'profile-popover-summary-email'; email.textContent = serverIdentity.email; copy.appendChild(email);
-    }
     if (serverSubscription?.plan) {
-      const planLabels = {FREE: 'LOTBI Free', BASIC: 'LOTBI Basic', PLUS: 'LOTBI Plus', PRO: 'LOTBI Pro', LOTBI_PLUS: 'LOTBI Plus'};
-      const planName = planLabels[serverSubscription.plan] || serverSubscription.plan;
-      const plan = document.createElement('span'); plan.className = 'profile-popover-summary-plan'; plan.textContent = `현재 이용 등급 · ${planName}`; copy.appendChild(plan);
+      const plan = document.createElement('span'); plan.className = 'profile-popover-summary-plan'; plan.textContent = profilePlanName(); copy.appendChild(plan);
     }
-    summary.append(profileVisual(), copy); return summary;
+    const close = document.createElement('button'); close.type = 'button'; close.className = 'profile-popover-close';
+    close.setAttribute('aria-label', '프로필 메뉴 닫기'); close.textContent = '×'; close.addEventListener('click', closeSurface);
+    summary.append(profileVisual(), copy, close); return summary;
   };
   const profileMenuIcon = name => {
     const svgNamespace = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/');
@@ -2835,16 +3727,46 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
     const openSummary = openSurface?.querySelector?.('.profile-popover-summary');
     if (openSummary instanceof HTMLElement) openSummary.replaceWith(profileSummary());
+    renderHeaderAccountAvatar();
+  };
+  // SITE-HEADER-AUTH-QA-23-24-01 (#24) — the phone Header's account button
+  // shows the same avatar as the account row it opens; signed out, it goes
+  // back to the plain icon (the button itself is hidden then).
+  const renderHeaderAccountAvatar = ({signedOut = false} = {}) => {
+    const name = signedOut ? '' : ownProfileName();
+    const key = signedOut ? 'signed-out'
+      : profilePhotoUrl ? `photo:${profilePhotoUrl}`
+        : name ? `initials:${initials(name)}` : 'default';
+    const label = signedOut ? '내 계정 메뉴 열기' : `${canonicalProfileName()} 계정 메뉴 열기`;
+    for (const button of document.querySelectorAll('[data-header-account]')) {
+      if (!(button instanceof HTMLElement)) continue;
+      if (button.getAttribute('aria-label') !== label) button.setAttribute('aria-label', label);
+      // The profile refreshes several times right after sign-in. Replacing
+      // the picture under a finger between press and release loses the tap,
+      // so the node is only swapped when the picture really changes.
+      if (button.dataset.headerAvatarKey === key) continue;
+      button.dataset.headerAvatarKey = key;
+      const current = button.querySelector('[data-header-account-avatar]');
+      const visual = signedOut ? document.createElement('span') : profileVisual();
+      if (signedOut) {
+        visual.className = 'sidebar-profile-avatar sidebar-profile-avatar-default';
+        visual.setAttribute('aria-hidden', 'true');
+        visual.appendChild(defaultProfileIcon());
+      }
+      visual.dataset.headerAccountAvatar = '';
+      if (current instanceof HTMLElement) current.replaceWith(visual); else button.prepend(visual);
+    }
   };
   const loadServerProfile = async () => {
     if (!sessionToken) return;
     try {
       const identity = await getCurrentSiteUser(sessionToken);
       if (namespace && identity.installationId !== namespace) throw new SiteCoreError('Site 사용자 namespace가 일치하지 않습니다.', {code: 'SITE_IDENTITY_NAMESPACE_MISMATCH'});
-      serverIdentity = identity; refreshAuthenticatedProfileSlots();
+      serverIdentity = identity; refreshAuthenticatedProfileSlots(); void loadConversationSync().then(sync => sync?.start());
+      void syncProfilePhoto(identity.profilePhoto);
       openProfilePhotoFromHash();
     } catch (error) {
-      if (isSessionError(error)) sessionToken = undefined;
+      if (isSessionError(error)) dropSessionToken();
       return;
     }
     try {
@@ -2854,6 +3776,243 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       serverSubscription = undefined;
     }
   };
+
+  // SITE-REFRESH-ROUTE-RESTORE-01 — the URL fragment names the screen that is
+  // open (site-route.js), so reload, a typed URL and back/forward reach it.
+  // Opening a screen writes a history entry; closing one goes back to the entry
+  // it was opened from when that entry belongs to this document (no reload on
+  // back), and otherwise writes a new entry for what is now on screen. The
+  // decision runs once per task, after a close-then-open pair has settled.
+  const routeEntriesPushedHere = new Set();
+  // REGIONAL-INFO-BACK-NAVIGATION-01: each entry written here and the entry it
+  // was written over, so a screen inside 지역정보 left by other means can fold
+  // its whole chain (지역정보 → 병원·응급실 …) like a single screen.
+  const routeEntryChain = new Map();
+  // SUBVIEW-BACK-NAVIGATION-01 — one history step per in-screen layer. A
+  // screen's own detail view (Life Wallet 카드·통관부호 상세, 안심케어 사람 수정·
+  // 등록, 반려동물 상세·등록, 축제 상세·프로그램, 내 아이 학교·유치원 상세·추가,
+  // 캘린더 날짜·기록·금액 창) used to change inside its screen with no history
+  // entry, so the phone's back left the whole screen. Each such view marks its
+  // own back / close control with data-subview-back; a modal bottom sheet's
+  // dismiss counts the same. While n of them are on view this page keeps n
+  // entries (same URL, the screen's own route fields) on top of the screen's
+  // entry: the system/browser back pops one and presses the last control on
+  // view (the topmost layer, as if tapped); the module's own control — or
+  // anything else closing the layer — drops that entry with one quiet step;
+  // the header ← and Escape press the control first, so they step once too.
+  const SUBVIEW_BACK_SELECTOR = '[data-subview-back], [data-lotbi-sheet][aria-modal="true"] [data-lotbi-sheet-dismiss]';
+  const subviewTokens = [];
+  let subviewExpectedPops = 0;
+  let subviewSyncQueued = false;
+  // A module re-rendering (a save, a reload of its view) may drop its control
+  // for a moment; an entry is dropped only when the layer stays gone this long.
+  const SUBVIEW_SETTLE_MS = 200;
+  let subviewShrinkSince = 0;
+  const subviewControls = () => [...document.querySelectorAll(SUBVIEW_BACK_SELECTOR)]
+    .filter(node => node instanceof HTMLElement && node.isConnected && !node.disabled && !node.closest('[hidden]'));
+  const lastSubviewControl = () => subviewControls().at(-1) || null;
+  const subviewOnTop = () => subviewTokens.length > 0 && currentRouteEntry().lotbiSubview === subviewTokens.at(-1);
+  // A route step over the screen's entry also walks down over the layer entries
+  // above it; they are gone afterwards either way.
+  const takeSubviewDepth = () => {
+    const depth = subviewOnTop() ? subviewTokens.length : 0;
+    subviewTokens.length = 0;
+    return depth;
+  };
+  let routeSyncQueued = false;
+  let routeTraversalPending = false;
+  let routeTraversalTimer;
+  let pendingRouteTarget = null;
+  // The step back over an entry that was renamed for the screen already on
+  // view (syncSiteRouteToScreen): its popstate changes nothing.
+  let routeCollapseStepPending = false;
+  // SCAM-PHISHING-REDESIGN-02 — 사기·피싱 확인 is a workspace page (route #scam)
+  // like every other screen here, so the open surface names it.
+  const isScamShieldOpen = () => openSurface?.dataset.siteRoute === 'scam';
+  const visibleSiteRoute = () => openSurface?.dataset.siteRoute || '';
+  const settleSiteRoutePending = () => { delete document.documentElement.dataset.siteRoutePending; };
+  const currentRouteEntry = () => (window.history.state && typeof window.history.state === 'object' ? window.history.state : {});
+  const stepBackToRouteEntry = (steps = 1) => {
+    routeTraversalPending = true;
+    clearTimeout(routeTraversalTimer);
+    routeTraversalTimer = setTimeout(() => { routeTraversalPending = false; routeCollapseStepPending = false; queueSiteRouteSync(); }, 1500);
+    if (steps > 1) window.history.go(-steps); else window.history.back();
+  };
+  // How many entries written here, back through 지역정보 screens only, lead to
+  // the entry the screen now on view was opened from (0: none).
+  const lifeChainSteps = (entry, visible) => {
+    let key = entry.lotbiRouteKey;
+    for (let steps = 1; steps <= 4 && key && routeEntriesPushedHere.has(key); steps += 1) {
+      const link = routeEntryChain.get(key);
+      if (!link) return 0;
+      if (link.from === visible) return steps;
+      if (!LIFE_VIEW_PARENT[link.route]) return 0;
+      key = link.prev;
+    }
+    return 0;
+  };
+  const syncSiteRouteToScreen = () => {
+    routeSyncQueued = false;
+    if (routeTraversalPending) return;
+    const visible = visibleSiteRoute();
+    if (pendingRouteTarget !== null) {
+      // The URL already names the screen that is still opening.
+      if (visible !== pendingRouteTarget) return;
+      pendingRouteTarget = null;
+      settleSiteRoutePending();
+    }
+    const inUrl = parseSiteRouteHash(window.location.hash) || '';
+    if (visible === inUrl) return;
+    const entry = currentRouteEntry();
+    if (inUrl && routeEntriesPushedHere.has(entry.lotbiRouteKey) && entry.lotbiRouteFrom === visible) {
+      // SITE-REFRESH-ROUTE-PAGE-CLEANUP-05 — the screen already changed by
+      // other means (새 대화, 대화 전환, a menu over a screen, a session
+      // change…): name it in the URL now, in this task, then step back over
+      // the entry so the history keeps no copy. The entry remembers the screen
+      // it named, so forward reopens it (popstate below).
+      window.history.replaceState({...entry, lotbiRoute: visible, lotbiRouteCollapsedFrom: inUrl}, '', siteRouteUrl(visible));
+      routeCollapseStepPending = true;
+      stepBackToRouteEntry(1 + takeSubviewDepth());
+      return;
+    }
+    // REGIONAL-INFO-BACK-NAVIGATION-01 — the same for a screen inside 지역정보
+    // (e.g. a question asked from 병원·응급실): its entry and 지역정보's both fold,
+    // so the history keeps no copy of either; forward reopens 지역정보, then it.
+    const lifeSteps = inUrl ? lifeChainSteps(entry, visible) : 0;
+    if (lifeSteps > 1) {
+      window.history.replaceState({...entry, lotbiRoute: visible, lotbiRouteCollapsedFrom: inUrl}, '', siteRouteUrl(visible));
+      routeCollapseStepPending = true;
+      stepBackToRouteEntry(lifeSteps + takeSubviewDepth());
+      return;
+    }
+    // A new screen's entry buries any layer entries below it.
+    subviewTokens.length = 0;
+    const key = `route-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    routeEntriesPushedHere.add(key);
+    routeEntryChain.set(key, {route: visible, from: inUrl, prev: entry.lotbiRouteKey || ''});
+    window.history.pushState({lotbiRoute: visible, lotbiRouteFrom: inUrl, lotbiRouteKey: key}, '', siteRouteUrl(visible));
+  };
+  const queueSiteRouteSync = () => {
+    if (routeSyncQueued) return;
+    routeSyncQueued = true;
+    queueMicrotask(syncSiteRouteToScreen);
+  };
+  // A tab inside one screen (안심케어 사람/반려동물) replaces the entry in place.
+  const replaceSiteRouteInPlace = route => {
+    if (routeTraversalPending || parseSiteRouteHash(window.location.hash) === route) return;
+    window.history.replaceState({...currentRouteEntry(), lotbiRoute: route}, '', siteRouteUrl(route));
+  };
+  // SITE-REFRESH-ROUTE-FESTIVAL-BACK-04 — a screen's own ← / × (and Escape)
+  // that returns to the entry this document came from goes back in history
+  // first; the popstate handler then makes the change, so the screen and the
+  // URL change in the same task. Changing the screen first and calling
+  // history.back() after it left a window — a round trip to the browser, tens
+  // of ms on a slow phone — with one screen on view under the other's URL; a
+  // reload, a share or a new tab taken then reopened the screen just left
+  // (축제·행사 ← showed 생활정보 at /#festival). Any other change is made at
+  // once and syncSiteRouteToScreen above names it in the URL in the same task.
+  let pendingRouteLeave = null;
+  const leaveSiteRoute = (destination, change) => {
+    if (pendingRouteLeave) return;
+    const visible = visibleSiteRoute();
+    const entry = currentRouteEntry();
+    const stepsBack = !routeTraversalPending && pendingRouteTarget === null && Boolean(visible)
+      && parseSiteRouteHash(window.location.hash) === visible
+      && routeEntriesPushedHere.has(entry.lotbiRouteKey) && entry.lotbiRouteFrom === destination;
+    if (!stepsBack) { change(); return; }
+    const leave = pendingRouteLeave = {destination, change, timer: 0};
+    // No popstate within a second: make the change anyway; the URL follows
+    // when the step lands (routeTraversalPending holds off a second step).
+    leave.timer = setTimeout(() => {
+      if (pendingRouteLeave !== leave) return;
+      pendingRouteLeave = null;
+      change();
+    }, 1000);
+    stepBackToRouteEntry(1 + takeSubviewDepth());
+  };
+  // SUBVIEW-BACK-NAVIGATION-01 — keep one entry per layer on view (above).
+  const syncSubviews = () => {
+    subviewSyncQueued = false;
+    if (subviewExpectedPops || routeTraversalPending || pendingRouteLeave || pendingRouteTarget !== null) {
+      setTimeout(queueSubviewSync, 120);
+      return;
+    }
+    if (subviewTokens.length && !subviewOnTop()) subviewTokens.length = 0;   // the history moved on
+    const want = subviewControls().length;
+    if (want > subviewTokens.length) {
+      subviewShrinkSince = 0;
+      const screen = {...currentRouteEntry()};
+      delete screen.lotbiSubview;
+      while (subviewTokens.length < want) {
+        const token = `subview-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        subviewTokens.push(token);
+        window.history.pushState({...screen, lotbiSubview: token}, '', window.location.href);
+      }
+    } else if (want < subviewTokens.length) {
+      const now = performance.now();
+      if (!subviewShrinkSince) subviewShrinkSince = now;
+      if (now - subviewShrinkSince < SUBVIEW_SETTLE_MS) {
+        setTimeout(queueSubviewSync, SUBVIEW_SETTLE_MS - (now - subviewShrinkSince) + 10);
+        return;
+      }
+      subviewShrinkSince = 0;
+      const steps = subviewTokens.length - want;
+      subviewTokens.length = want;
+      subviewExpectedPops += 1;
+      window.history.go(-steps);
+      return;
+    }
+    subviewShrinkSince = 0;
+  };
+  const queueSubviewSync = () => {
+    if (subviewSyncQueued) return;
+    subviewSyncQueued = true;
+    requestAnimationFrame(syncSubviews);
+  };
+  // An entry of this kind under a reload (the layer itself is not restored)
+  // is dropped once the screen is back.
+  if (currentRouteEntry().lotbiSubview) subviewTokens.push(currentRouteEntry().lotbiSubview);
+  new MutationObserver(queueSubviewSync).observe(document.body, {childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-modal', 'disabled']});
+  // Feature mark for module styles: with it, a module may hide its own
+  // in-panel back control (kept in the DOM with data-subview-back) and leave
+  // the header ← to press it; without it (an older shell) the control stays.
+  document.documentElement.dataset.subviewBackShell = '';
+  queueSubviewSync();
+  // The header ← of a workspace and Escape step back through the topmost layer
+  // first. An overlay's × (캘린더) still closes the whole overlay.
+  document.addEventListener('click', event => {
+    const close = event.target instanceof Element ? event.target.closest('.site-modal-close') : null;
+    if (!close || !openSurface?.contains(close) || !openSurface.dataset.workspace) return;
+    const control = lastSubviewControl();
+    if (!control || control === close) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    control.click();
+  }, true);
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || event.defaultPrevented) return;
+    const control = lastSubviewControl();
+    if (!control) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    control.click();
+  }, true);
+  // popstate share: true when the step was over a layer entry and is handled.
+  const handleSubviewPopState = () => {
+    if (subviewExpectedPops) { subviewExpectedPops -= 1; queueSubviewSync(); return true; }
+    if (!subviewTokens.length || pendingRouteLeave || routeCollapseStepPending) return false;
+    if ((parseSiteRouteHash(window.location.hash) || '') !== visibleSiteRoute()) { subviewTokens.length = 0; return false; }
+    // Same screen, one layer less: that layer's own control makes the change.
+    const landed = currentRouteEntry().lotbiSubview;
+    const index = landed ? subviewTokens.indexOf(landed) : -1;
+    subviewTokens.length = index + 1;
+    lastSubviewControl()?.click();
+    queueSubviewSync();
+    return true;
+  };
+  // 사기·피싱 확인's own 대화로 돌아가기 / 취소 buttons inside the page leave
+  // it the way the header ← does (site-scam-shield.js asks through this event).
+  window.addEventListener('lotbi:scam-shield-close-request', () => {
+    if (isScamShieldOpen()) leaveSiteRoute('', () => { if (isScamShieldOpen()) closeSurface(); });
+  });
 
   const closeSurface = () => {
     if (!openSurface) return;
@@ -2869,36 +4028,57 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (typeof onClose === 'function') {
       try { onClose(); } catch {}
     }
-    if (surfaceRestoreFocus instanceof HTMLElement && surfaceRestoreFocus.isConnected) surfaceRestoreFocus.focus();
+    const restoreTarget = surfaceRestoreFocus instanceof HTMLElement && surfaceRestoreFocus.isConnected ? surfaceRestoreFocus : undefined;
     surfaceRestoreFocus = undefined;
+    if (restoreTarget) queueMicrotask(() => { if (restoreTarget.isConnected) restoreTarget.focus(); });
+    queueSiteRouteSync();
   };
-  const installSurfaceBehavior = (surface, panel, {modal = false, workspace = '', trigger, onClose, onBack, backLabel = '대화로 돌아가기'} = {}) => {
+  // backRoute: the screen onBack opens (← of 축제·행사 / 롯비함 → 생활정보).
+  const installSurfaceBehavior = (surface, panel, {modal = false, workspace = '', route = '', dismissOnBackdrop = true, trigger, onClose, onBack, backRoute = '', backLabel = '대화로 돌아가기'} = {}) => {
     const initiatingFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     closeSurface(); openSurface = surface; openSurfaceTrigger = trigger; surfaceRestoreFocus = initiatingFocus; surfaceCloseCallback = typeof onClose === 'function' ? onClose : undefined;
+    if (route) surface.dataset.siteRoute = route;
+    queueSiteRouteSync();
+    // The surface's own ×/← (and Escape) leave it through leaveSiteRoute; a
+    // change that lands after another screen took its place leaves that one be.
+    const dismiss = () => leaveSiteRoute('', () => { if (openSurface === surface) closeSurface(); });
+    const goBack = typeof onBack === 'function'
+      ? () => leaveSiteRoute(backRoute, () => { if (openSurface !== surface) return; closeSurface(); onBack(); })
+      : dismiss;
+    const back = panel.querySelector('.site-modal-close');
+    if (back) {
+      back.removeEventListener('click', closeSurface);
+      back.addEventListener('click', goBack);
+    }
     document.body.appendChild(surface); document.body.classList.add(workspace ? 'site-workspace-open' : 'site-overlay-open');
     if (workspace) {
       surface.dataset.workspace = workspace;
       surface.classList.add('consumer-workspace'); panel.setAttribute('role', 'region');
       mainScrollHost.inert = true;
-      const back = panel.querySelector('.site-modal-close');
       if (back) {
         back.textContent = '←'; back.title = backLabel;
         back.setAttribute('aria-label', backLabel);
-        if (typeof onBack === 'function') {
-          back.removeEventListener('click', closeSurface);
-          back.addEventListener('click', () => { closeSurface(); onBack(); });
-        }
         panel.querySelector('.site-modal-header')?.prepend(back);
       }
       for (const entry of document.querySelectorAll('.consumer-primary-nav button')) {
-        if (entry.dataset.consumerSection === workspace || (workspace === 'calendar' && entry.hasAttribute('data-calendar-view'))) {
+        if (entry.dataset.consumerSection === workspace || (workspace === 'calendar' && entry.hasAttribute('data-calendar-view'))
+          || (workspace === 'scam' && entry.hasAttribute('data-scam-open'))
+          || (workspace === 'trouble' && entry.hasAttribute('data-trouble-open'))) {
           entry.setAttribute('aria-current', 'page'); entry.dataset.workspaceCurrent = '';
         }
       }
     }
-    surface.addEventListener('click', event => { if (event.target === surface) closeSurface(); });
+    // REGIONAL-INFO-BACK-NAVIGATION-01 — a workspace (지역정보, Life Wallet,
+    // 안심케어 …) fills the screen: a tap on its empty area is not "outside" and
+    // never closes it (owner report: any blank spot went to the home). Only a
+    // small popup over the chat keeps the outside tap. Calendar opts out itself.
+    if (dismissOnBackdrop && !workspace) {
+      const backdropDismiss = createBackdropDismissGuard(surface);
+      surface.addEventListener('pointerdown', event => backdropDismiss.notePointerDown(event));
+      surface.addEventListener('click', event => { if (backdropDismiss.shouldDismiss(event)) dismiss(); });
+    }
     surface.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeSurface(); if (typeof onBack === 'function') onBack(); } else if (!workspace) trapFocus(panel, event);
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); goBack(); } else if (!workspace) trapFocus(panel, event);
     });
     if (modal) panel.setAttribute('aria-modal', 'true');
     queueMicrotask(() => focusableNodes(panel)[0]?.focus());
@@ -2969,13 +4149,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     // must release them rather than leak the private bytes into the page.
     let releasePetSurface = null;
     installSurfaceBehavior(backdrop, panel, {
-      workspace: 'care', backLabel: '안심케어로 돌아가기', onBack: () => openConsumerSection('care'),
+      workspace: 'care', route: 'pets', backLabel: '가족 지킴이로 돌아가기', onBack: () => openConsumerSection('care'), backRoute: 'care',
       onClose: () => { releasePetSurface?.(); releasePetSurface = null; },
     });
     try {
       // Loaded on demand: the PET FAMILY surface pulls in its Core client and
       // ten slot schematics, which no visit needs until this panel is opened.
-      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-de88e6e1b0a7');      const mounted = await mountPetFamilyManager({
+      const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-7ce47b43cff4');      const mounted = await mountPetFamilyManager({
         sessionToken,        root: content,
         onCountChange: renderPetSosBadge,
         subscription: serverSubscription,
@@ -2997,13 +4177,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     panel.classList.add('site-festival-modal');
     let releaseFestivalSurface = null;
     installSurfaceBehavior(backdrop, panel, {
-      workspace: 'life', backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life'),
+      workspace: 'life', route: 'festival', backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life',
       onClose: () => { releaseFestivalSurface?.(); releaseFestivalSurface = null; },
     });
     try {
       // Loaded on demand, like the 반려동물 panel: no visit needs the festival
       // client/UI bundle until this panel is opened.
-      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-de88e6e1b0a7');
+      const {mountFestivalManager} = await import('./site-festival-ui.js?v=aset-7ce47b43cff4');
       const mounted = await mountFestivalManager({        root: content,
         sessionToken,
         initialFestivalId: festivalId,
@@ -3019,9 +4199,234 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     }
   };
 
+  // TRAFFIC-CCTV P0: 지역정보 → 실시간 도로 CCTV, a screen of its own (public
+  // Core reads of ITS road cameras, no conversation, no AI, no location). Its
+  // own route with backRoute 'life', like 축제·행사: the system back and the
+  // screen's ← both land on 지역정보, a second back reaches the home. The
+  // player inside adds one history entry, so one back closes the video first.
+  const openTrafficCctv = async () => {
+    // Off (owner decision 2026-10-10): no screen, no module, no player.
+    if (!TRAFFIC_CCTV_UI_ENABLED) return;
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('실시간 도로 CCTV');
+    panel.classList.add('site-traffic-cctv-modal');
+    let releaseCctvSurface = null;
+    installSurfaceBehavior(backdrop, panel, {
+      workspace: 'life', route: TRAFFIC_CCTV_UI_ENABLED ? 'traffic-cctv' : '', backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life',
+      onClose: () => { releaseCctvSurface?.(); releaseCctvSurface = null; },
+    });
+    try {
+      const {mountTrafficCctv} = await import('./site-life-traffic-cctv.js?v=aset-7ce47b43cff4');
+      const mounted = await mountTrafficCctv({root: content, showTitle: false});
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
+      releaseCctvSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'cctv-error',
+        textContent: '실시간 도로 CCTV 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+
+  // ONNURI-MERCHANT-01: 생활정보 → 온누리상품권 가맹점 찾기 (public Core read).
+  // LOTBI_VOUCHER_UNIFIED_MERCHANT_ADMIN_P0: the same card opens
+  // '온누리상품권·지역화폐' with [온누리상품권] [지역화폐] tabs (site-life-vouchers.js);
+  // the 온누리상품권 tab is the unchanged onnuri module.
+  // REGIONAL-INFO-BACK-NAVIGATION-01: its own route 'onnuri' with backRoute
+  // 'life', like 축제·행사 — the system back and ← land on 지역정보 (it used to
+  // share 'life', so the system back went to the home), and a reload reopens it.
+  const openOnnuri = async () => {
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('온누리상품권·지역화폐', '공식 자료에 등록된 가맹점을 지역이나 현재 위치로 찾아보세요.');
+    panel.classList.add('site-onnuri-modal');
+    let releaseOnnuriSurface = null;
+    installSurfaceBehavior(backdrop, panel, {
+      workspace: 'life', route: 'onnuri', backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life',
+      onClose: () => { releaseOnnuriSurface?.(); releaseOnnuriSurface = null; },
+    });
+    try {
+      const {mountVoucherHub} = await import('./site-life-vouchers.js?v=aset-7ce47b43cff4');
+      const mounted = await mountVoucherHub({root: content});
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
+      releaseOnnuriSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'onnuri-error',
+        textContent: '온누리상품권·지역화폐 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+
+  // REAL-ESTATE-REGION-FAVORITES-P0: 지역정보 → 부동산 실거래가 (public Core reads;
+  // 관심 아파트 on the account when signed in, on this device otherwise). Its
+  // own route with backRoute 'life', like 축제·행사: the system back and ← land on
+  // 지역정보. An apartment's contracts open inside the same screen under
+  // 'real-estate-apartment' (back → real-estate), so the list keeps its region,
+  // filters and scroll. While an apartment is open, the header ← and Escape step
+  // back to the list first — the same history step the system back takes.
+  let realEstateSurface = null;
+  const openRealEstate = async ({view = 'list'} = {}) => {
+    const reuse = realEstateSurface;
+    if (reuse?.controller && openSurface === reuse.backdrop) {
+      if (view === 'detail' && reuse.controller.hasApartment()) reuse.controller.showDetail();
+      else if (reuse.controller.view !== 'list') reuse.controller.showList();
+      return;
+    }
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('부동산 실거래가');
+    panel.classList.add('site-real-estate-modal');
+    const entry = {backdrop, controller: null};
+    realEstateSurface = entry;
+    installSurfaceBehavior(backdrop, panel, {
+      workspace: 'life', route: 'real-estate', backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life',
+      onClose: () => {
+        entry.controller?.dispose?.();
+        entry.controller = null;
+        if (realEstateSurface === entry) realEstateSurface = null;
+      },
+    });
+    const backToList = () => leaveSiteRoute('real-estate', () => { if (openSurface === backdrop) entry.controller?.showList(); });
+    panel.addEventListener('click', event => {
+      if (entry.controller?.view !== 'detail' || !(event.target instanceof Element) || !event.target.closest('.site-modal-close')) return;
+      event.preventDefault(); event.stopPropagation(); backToList();
+    }, true);
+    panel.addEventListener('keydown', event => {
+      if (event.key !== 'Escape' || entry.controller?.view !== 'detail') return;
+      event.preventDefault(); event.stopPropagation(); backToList();
+    }, true);
+    try {
+      const {mountRealEstate} = await import('./site-life-real-estate.js?v=aset-7ce47b43cff4');
+      if (!backdrop.isConnected || realEstateSurface !== entry) return;
+      entry.controller = mountRealEstate({
+        root: content,
+        sessionToken,
+        authenticated: Boolean(sessionToken),
+        accountId: serverIdentity?.userId || '',
+        onView: name => {
+          if (openSurface !== backdrop) return;
+          backdrop.dataset.siteRoute = name === 'detail' ? 'real-estate-apartment' : 'real-estate';
+          queueSiteRouteSync();
+        },
+        requestBack: backToList,
+      });
+      if (view === 'detail') {
+        // A reload of #real-estate-apartment reopens the apartment this tab
+        // showed; without one, the URL names the list that is on screen.
+        if (entry.controller.hasApartment()) entry.controller.showDetail();
+        else replaceSiteRouteInPlace('real-estate');
+      }
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'lotbi-re-error',
+        textContent: '부동산 실거래가 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+
+  // EV-CHARGER-NEARBY-LIST-P0: 지역정보 → 전기차 충전소, a list screen of its
+  // own (public Core read, no conversation, no AI). Its own route with
+  // backRoute 'life', like 축제·행사: the system back and the screen's ← both
+  // land on 지역정보, and a second back reaches the home. Opened from the URL
+  // (reload, back/forward) it never asks for the location by itself.
+  const openEvChargers = async ({askLocation = true} = {}) => {
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('내 주변 전기차 충전소');
+    panel.classList.add('site-ev-chargers-modal');
+    let releaseEvSurface = null;
+    installSurfaceBehavior(backdrop, panel, {
+      workspace: 'life', route: 'ev-chargers', backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life',
+      onClose: () => { releaseEvSurface?.(); releaseEvSurface = null; },
+    });
+    try {
+      const {mountEvChargers} = await import('./site-life-ev-chargers.js?v=aset-7ce47b43cff4');
+      const mounted = await mountEvChargers({root: content, showTitle: false, askLocationOnOpen: askLocation});
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
+      releaseEvSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'ev-error',
+        textContent: '전기차 충전소 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+
+  // SUBWAY-LIFE-INFO-P0: 지역정보 → 지하철 정보 → 역. Two screens with routes of
+  // their own: #subway (가까운 역 · 역 검색 · 호선, back → 지역정보) and
+  // #subway-station (one station, back → #subway), so the system back and ←
+  // step station → 지하철 정보 → 지역정보 → home. What each screen showed (the
+  // search, the station, its line · 방향 · 요일 · 시간대) is kept in its own
+  // history entry's state: reload and back/forward reopen exactly that, and a
+  // reload or back/forward never asks for the location. Public Core reads only
+  // — no conversation, no AI.
+  const subwayEntryState = key => {
+    const value = currentRouteEntry()[key];
+    return value && typeof value === 'object' ? value : null;
+  };
+  const rememberSubwayState = (route, key, value) => {
+    if (routeTraversalPending || parseSiteRouteHash(window.location.hash) !== route) return;
+    window.history.replaceState({...currentRouteEntry(), [key]: value}, '', window.location.href);
+  };
+  const openSubway = async ({askLocation = true} = {}) => {
+    closeMobileDrawer();
+    const initialState = subwayEntryState('lotbiSubwayHome');
+    const {backdrop, panel, content} = modalShell('지하철 정보');
+    panel.classList.add('site-subway-modal');
+    let releaseSubwaySurface = null;
+    installSurfaceBehavior(backdrop, panel, {
+      workspace: 'life', route: 'subway', backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life',
+      onClose: () => { releaseSubwaySurface?.(); releaseSubwaySurface = null; },
+    });
+    try {
+      const {mountSubwayHome} = await import('./site-life-subway.js?v=aset-7ce47b43cff4');
+      const mounted = await mountSubwayHome({
+        root: content, askLocationOnOpen: askLocation, initialState,
+        onState: value => { if (backdrop.isConnected) rememberSubwayState('subway', 'lotbiSubwayHome', value); },
+        onPickStation: station => { if (!backdrop.isConnected) return; closeSurface(); void openSubwayStation(station); },
+      });
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
+      releaseSubwaySurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'subway-error',
+        textContent: '지하철 정보 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+  const openSubwayStation = async station => {
+    closeMobileDrawer();
+    const saved = station && typeof station === 'object' ? station : subwayEntryState('lotbiSubwayStation');
+    if (!saved || !/^\d{10}$/u.test(String(saved.stationId || ''))) return openSubway({askLocation: false});
+    const {backdrop, panel, content} = modalShell(saved.name ? `${saved.name}역` : '지하철역');
+    panel.classList.add('site-subway-modal');
+    let releaseStationSurface = null;
+    installSurfaceBehavior(backdrop, panel, {
+      workspace: 'life', route: 'subway-station', backLabel: '지하철 정보로 돌아가기', onBack: () => openSubway({askLocation: false}), backRoute: 'subway',
+      onClose: () => { releaseStationSurface?.(); releaseStationSurface = null; },
+    });
+    // A station picked on #subway is written into the entry pushed for it.
+    queueMicrotask(() => { if (backdrop.isConnected) rememberSubwayState('subway-station', 'lotbiSubwayStation', saved); });
+    try {
+      const {mountSubwayStation} = await import('./site-life-subway.js?v=aset-7ce47b43cff4');
+      const mounted = await mountSubwayStation({
+        root: content, initialState: saved,
+        onState: value => { if (backdrop.isConnected) rememberSubwayState('subway-station', 'lotbiSubwayStation', value); },
+        onTitle: value => { const heading = panel.querySelector('.site-modal-header h2'); if (heading) heading.textContent = value; },
+      });
+      if (!backdrop.isConnected) { mounted?.dispose?.(); return; }
+      releaseStationSurface = typeof mounted?.dispose === 'function' ? mounted.dispose : null;
+    } catch {
+      content.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'subway-error',
+        textContent: '지하철 도착정보 화면을 열지 못했습니다.',
+      }));
+    }
+  };
+
   const openRenameThread = id => {
     const record = state.threads.find(item => item.id === id); if (!record) return;
-    const {backdrop, panel, content} = modalShell('대화 이름 바꾸기', '이 이름은 현재 브라우저의 이 대화에만 저장됩니다.');
+    const {backdrop, panel, content} = modalShell('대화 이름 바꾸기', conversationSync?.onAccount(record)
+      ? '이 이름은 계정에 저장된 이 대화에도 반영되어 로그인한 다른 기기에서도 보입니다.'
+      : '이 이름은 현재 브라우저의 이 대화에만 저장됩니다.');
     const label = document.createElement('label'); label.className = 'site-field'; label.textContent = '대화 이름';
     const input = document.createElement('input'); input.type = 'text'; input.maxLength = THREAD_TITLE_LIMIT; input.value = record.title; input.autocomplete = 'off'; label.appendChild(input);
     const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
@@ -3031,7 +4436,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const commit = () => {
       const title = normalizedThreadTitle(input.value);
       if (!title) { error.textContent = '대화 이름을 입력해 주세요.'; input.focus(); return; }
-      record.title = title; saveState(); closeSurface(); renderRecent(); setStatus('대화 이름을 바꿨습니다.');
+      record.title = title; saveState(); closeSurface(); renderRecent(); conversationSync?.noteThreadMeta(record.id); setStatus('대화 이름을 바꿨습니다.');
     };
     save.addEventListener('click', commit);
     input.addEventListener('keydown', event => {
@@ -3042,13 +4447,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
   const openDeleteThread = id => {
     const record = state.threads.find(item => item.id === id); if (!record) return;
-    const {backdrop, panel, content} = modalShell('대화 삭제', `“${record.title}” 대화를 이 브라우저에서 삭제합니다. 이 작업은 되돌릴 수 없습니다.`);
+    const {backdrop, panel, content} = modalShell('대화 삭제', conversationSync?.onAccount(record)
+      ? `“${record.title}” 대화를 이 기기와 계정에서 삭제합니다. 로그인한 다른 기기에서도 사라지며 되돌릴 수 없습니다.`
+      : `“${record.title}” 대화를 이 브라우저에서 삭제합니다. 이 작업은 되돌릴 수 없습니다.`);
     const actions = document.createElement('div'); actions.className = 'conversation-management-modal-actions';
     const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'site-button site-button-secondary'; cancel.textContent = '취소'; cancel.addEventListener('click', closeSurface);
     const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'site-button conversation-delete-confirm'; remove.textContent = '삭제';
     remove.addEventListener('click', () => {
       const deletingActive = state.activeThreadId === id;
       state.threads = state.threads.filter(item => item.id !== id);
+      conversationSync?.noteThreadDeleted(record);
       if (deletingActive) {
         state.activeThreadId = null; state.draft = ''; prompt.value = '';
         prompt.dispatchEvent(new Event('input', {bubbles: true}));
@@ -3092,9 +4500,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   const openProfile = () => { window.location.assign(ACCOUNT_MANAGE_URL + '#profile'); };
   const openProfilePhoto = () => {
     if (!sessionToken || !serverIdentity) return;
-    const {backdrop, panel, content} = modalShell('프로필 사진', '이 사진은 LOTBI 사이트의 이 브라우저에만 저장됩니다.');
-    const preview = document.createElement('div'); preview.className = 'profile-photo-preview'; preview.textContent = initials(canonicalProfileName());
-    if (preferences.photo) preview.style.backgroundImage = `url(${preferences.photo})`;
+    const profilePhotoEmbed = isProfilePhotoEmbed();
+    if (profilePhotoEmbed) document.documentElement.dataset.profilePhotoEmbed = 'true';
+    const {backdrop, panel, content} = modalShell('프로필 사진');
+    const preview = document.createElement('div'); preview.className = 'profile-photo-preview';
+    if (ownProfileName()) preview.textContent = initials(ownProfileName()); else preview.appendChild(defaultProfileIcon());
+    const showPreview = () => {
+      preview.style.backgroundImage = profilePhotoUrl ? `url("${profilePhotoUrl}")` : '';
+      preview.classList.toggle('profile-photo-preview-filled', Boolean(profilePhotoUrl));
+    };
+    showPreview();
     const error = document.createElement('p'); error.className = 'site-field-error'; error.setAttribute('role', 'alert');
     const photoPicker = document.createElement('div'); photoPicker.className = 'profile-photo-picker';
     const photoTrigger = document.createElement('button'); photoTrigger.type = 'button'; photoTrigger.className = 'site-button site-button-secondary'; photoTrigger.textContent = '사진 선택';
@@ -3102,16 +4517,55 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const photoMenu = document.createElement('div'); photoMenu.className = 'profile-photo-source-menu'; photoMenu.id = 'profile-photo-source-menu'; photoMenu.setAttribute('role', 'menu'); photoMenu.setAttribute('aria-label', '프로필 사진 가져오기'); photoMenu.hidden = true;
     photoTrigger.setAttribute('aria-controls', photoMenu.id);
     const setPhotoMenuOpen = open => { photoMenu.hidden = !open; photoTrigger.setAttribute('aria-expanded', String(open)); };
+    // PROFILE-PHOTO-ACCOUNT-SYNC-01 — the photo is the account's: it is shown
+    // and announced as saved only after Core stored it. A failed save leaves the
+    // previous photo in place; nothing is kept in this browser.
+    const removeButton = document.createElement('button'); removeButton.type = 'button';
+    removeButton.className = 'site-button site-button-secondary profile-photo-remove'; removeButton.textContent = '사진 삭제';
+    removeButton.hidden = !serverIdentity?.profilePhoto;
+    const setBusy = busy => {
+      photoTrigger.disabled = busy; removeButton.disabled = busy;
+      if (busy) panel.setAttribute('aria-busy', 'true'); else panel.removeAttribute('aria-busy');
+    };
+    const saveFailure = caught => (caught instanceof SiteCoreError
+      && (caught.code === 'SITE_PROFILE_PHOTO_UNSUPPORTED' || caught.status === 415)
+      ? '프로필에는 사진만 사용할 수 있어요.'
+      : '프로필 사진을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     function applyProfilePhoto(file) {
       if (!file) return Promise.resolve();
       error.textContent = '';
-      return readProfilePhoto(file).then(value => {
-        preferences.photo = value;
-        savePreferences();
-        preview.style.backgroundImage = `url(${preferences.photo})`;
-        refreshAuthenticatedProfileSlots();
-      }).catch(caught => { error.textContent = caught instanceof Error ? caught.message : '이미지를 처리하지 못했습니다.'; });
+      return readProfilePhoto(file).then(async value => {
+        setBusy(true);
+        try {
+          const photo = await saveSiteProfilePhoto(sessionToken, value);
+          if (serverIdentity) serverIdentity = Object.freeze({...serverIdentity, profilePhoto: photo});
+          await syncProfilePhoto(photo);
+          showPreview(); removeButton.hidden = false;
+          if (profilePhotoEmbed) window.parent.postMessage({type: 'lotbi:profile-photo-saved', version: photo.version}, ACCOUNT_MANAGE_ORIGIN);
+          else setStatus('프로필 사진을 저장했습니다.');
+        } catch (caught) {
+          error.textContent = saveFailure(caught);
+        } finally {
+          setBusy(false);
+        }
+      }, caught => { error.textContent = caught instanceof Error ? caught.message : '이미지를 처리하지 못했습니다.'; });
     }
+    removeButton.addEventListener('click', async () => {
+      error.textContent = '';
+      setBusy(true);
+      try {
+        await deleteSiteProfilePhoto(sessionToken);
+        if (serverIdentity) serverIdentity = Object.freeze({...serverIdentity, profilePhoto: null});
+        await syncProfilePhoto(null);
+        showPreview(); removeButton.hidden = true;
+        if (profilePhotoEmbed) window.parent.postMessage({type: 'lotbi:profile-photo-deleted'}, ACCOUNT_MANAGE_ORIGIN);
+        else setStatus('프로필 사진을 삭제했습니다.');
+      } catch {
+        error.textContent = '프로필 사진을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      } finally {
+        setBusy(false);
+      }
+    });
     for (const [source, label] of PROFILE_PHOTO_SOURCE_OPTIONS) {
       const option = document.createElement('button'); option.type = 'button'; option.className = 'profile-photo-source-option'; option.textContent = label; option.setAttribute('role', 'menuitem'); option.dataset.profilePhotoSource = source;
       const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.multiple = false; input.className = 'sr-only'; input.dataset.profilePhotoInput = source;
@@ -3137,10 +4591,23 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     photoTrigger.addEventListener('click', () => setPhotoMenuOpen(photoMenu.hidden));
     photoMenu.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); setPhotoMenuOpen(false); photoTrigger.focus(); } });
     photoPicker.prepend(photoTrigger, photoMenu);
+    photoPicker.append(removeButton);
 
     const accountLink = document.createElement('a'); accountLink.className = 'site-button site-button-secondary';
     accountLink.href = ACCOUNT_MANAGE_URL + '#profile'; accountLink.textContent = '이름 · 이메일 관리';
-    content.append(preview, photoPicker, error, accountLink); installSurfaceBehavior(backdrop, panel, {modal: true});
+    content.append(preview, photoPicker, error);
+    if (!profilePhotoEmbed) content.append(accountLink);
+    installSurfaceBehavior(backdrop, panel, {
+      modal: true,
+      onClose: profilePhotoEmbed
+        ? () => {
+          window.parent.postMessage({type: 'lotbi:profile-photo-close'}, ACCOUNT_MANAGE_ORIGIN);
+        }
+        : undefined,
+    });
+    if (profilePhotoEmbed) {
+      window.parent.postMessage({type: 'lotbi:profile-photo-ready'}, ACCOUNT_MANAGE_ORIGIN);
+    }
   };
   const openProfilePhotoFromHash = () => {
     if (window.location.hash !== '#profile-photo' || !sessionToken || !serverIdentity || !stateReady) return;
@@ -3148,26 +4615,70 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
   };
   window.addEventListener('hashchange', openProfilePhotoFromHash);
-  // One settings owner: display modes are edited in Account. Existing Site
-  // theme bootstrap and synchronization are unchanged.
+  // Account remains the owner of the personal theme route for existing deep
+  // links and embedded clients. The compact profile popover does not expose it.
   const openPersonalTheme = () => {
     window.location.assign(ACCOUNT_MANAGE_URL + '#personalization');
   };
   // 설정 — no intermediate modal. It leaves for the account page directly, the
   // same destination the profile modal's removed button used.
   const openSettings = () => { window.location.assign(ACCOUNT_MANAGE_URL); };
+  // SCAM-PHISHING-REDESIGN-02 — 사기·피싱 확인 fills the middle of the screen as
+  // a workspace (route #scam): the LOTBI menu stays, no dimmed backdrop, the
+  // workspace is the one scroll owner. site-scam-shield.js draws the page;
+  // its requests still come back here through window events (session token).
+  const openScamShieldPage = () => {
+    if (isScamShieldOpen()) return;
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('사기·피싱 확인');
+    panel.classList.add('scam-workspace-panel');
+    let mounted = null;
+    installSurfaceBehavior(backdrop, panel, {workspace: 'scam', route: 'scam', onClose: () => mounted?.dispose()});
+    const back = panel.querySelector('.site-modal-close');
+    if (back) { back.textContent = '← 대화로 돌아가기'; back.classList.add('scam-back'); }
+    mounted = mountScamShield(content);
+  };
+  window.addEventListener('lotbi:scam-shield-open-request', () => { void openScamShieldPage(); });
   // Keep feature ownership in the existing managers. These entry points never
   // submit a request or imply that an unconnected feature is available.
-  const openConsumerSection = async section => {
+  // TROUBLE-HELPER-PAGE-01 — 분쟁·사고 도우미 fills the middle of the screen as a
+  // workspace (route #trouble), the way Life Wallet · 지역정보 do: header ←, no
+  // ×, no dimmed backdrop. site-trouble-helper.js draws the page and marks its
+  // inner back control data-subview-back, so ← and the phone's back step one
+  // screen at a time inside it. resume: opened from the address (reload,
+  // back/forward) → the screen it was on; from the menu → its first screen.
+  const openTroubleHelperPage = async ({resume = false} = {}) => {
+    closeMobileDrawer();
+    const {backdrop, panel, content} = modalShell('분쟁·사고 도우미');
+    panel.classList.add('consumer-section-panel', 'trouble-workspace-panel');
+    let mounted = null;
+    installSurfaceBehavior(backdrop, panel, {workspace: 'trouble', route: 'trouble', onClose: () => mounted?.dispose()});
+    const loadingLine = document.createElement('p');
+    loadingLine.className = 'trouble-loading';
+    loadingLine.textContent = '안내를 불러오고 있어요.';
+    content.replaceChildren(loadingLine);
+    const module = await loadTroubleHelper();
+    if (openSurface !== backdrop) return;
+    if (typeof module?.mountTroubleHelper !== 'function') {
+      loadingLine.textContent = '안내를 불러오지 못했어요. 급하면 112·119, 법률 고민은 132에 전화해 주세요.';
+      return;
+    }
+    mounted = module.mountTroubleHelper(content, {resume});
+  };
+  // REGIONAL-INFO-BACK-NAVIGATION-01: the last 지역정보 surface, so a back/forward
+  // between its screens (life ↔ life-*) changes the screen in place while it is
+  // the one open (openLifeView checks openSurface).
+  let lifeSurface = null;
+  const openConsumerSection = async (section, {careTab = 'people', lifeView = 'life', expectedSurface = null} = {}) => {
     closeMobileDrawer();
     // The provider catalogue already owns connection state, permissions and
     // disconnect. Enter it directly instead of adding an extra menu-board.
     if (section === 'mall') { window.location.assign('https://account.lotbiai.com/connected-services'); return; }
     const definitions = {
-      wallet: ['Life Wallet', '신분·자격·증명 자료를 보관하는 생활지갑입니다. 결제카드 지갑은 아니에요.'],
-      care: ['안심케어', '사람과 반려동물을 함께 챙기는 안전 공간입니다.'],
-      life: ['생활정보', '내 주변의 생활정보를 찾고, 필요한 일정을 챙겨 보세요.'],
-      mall: ['제휴몰', '업체와 연결하고, 롯비에서 필요한 서비스를 이용하세요.'],
+      wallet: ['Life Wallet', '내 생활자료를 안전하게 보관해요.'],
+      care: ['가족 지킴이', '사람과 반려동물을 함께 챙기는 안전 공간입니다.'],
+      life: ['지역정보', '병원부터 지하철·축제까지, 내 지역 생활 정보를 한곳에서 찾아요.'],
+      mall: ['연결 서비스', '업체와 연결하고, 롯비에서 필요한 서비스를 이용하세요.'],
     };
     const definition = definitions[section];
     if (!definition) return;
@@ -3179,69 +4690,126 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         if (tokenAtStart !== sessionToken) return;
         serverIdentity = identity;
       } catch (error) {
-        if (isSessionError(error)) sessionToken = undefined;
+        if (isSessionError(error)) dropSessionToken();
         serverIdentity = undefined;
       }
     }
+    // A delayed session-restoration retry may only replace the exact locked
+    // wallet it started from. Never close a screen the person opened meanwhile.
+    if (expectedSurface && openSurface !== expectedSurface) return;
     const {backdrop, panel, content} = modalShell(...definition);
     panel.classList.add('consumer-section-panel');
-    const draft = text => {
-      prompt.value = text.slice(0, 1000); prompt.dispatchEvent(new Event('input', {bubbles: true})); prompt.focus();
-      setStatus('요청을 입력창에 넣었어요. 내용을 확인한 뒤 전송하세요.');
-    };
     let mounted;
-    installSurfaceBehavior(backdrop, panel, {workspace: section, onClose: () => mounted?.dispose()});
+    const route = section === 'care' && careTab === 'pets' ? 'pets' : section;
+    const life = section === 'life' ? {backdrop, mounted: null} : null;
+    installSurfaceBehavior(backdrop, panel, {workspace: section, route, onClose: () => mounted?.dispose()});
+    if (life) {
+      lifeSurface = life;
+      // A screen inside 지역정보: the header ← and Escape step back to its parent
+      // (the same history step as the system back) instead of leaving 지역정보.
+      const stepBackInside = event => {
+        if (!mounted || mounted.lifeView === 'life' || !LIFE_VIEW_PARENT[mounted.lifeView]) return;
+        event.preventDefault(); event.stopPropagation(); mounted.back();
+      };
+      panel.addEventListener('click', event => {
+        if (event.target instanceof Element && event.target.closest('.site-modal-close')) stepBackInside(event);
+      }, true);
+      panel.addEventListener('keydown', event => { if (event.key === 'Escape') stepBackInside(event); }, true);
+    }
     mounted = mountConsumerSection({
       section, root: content, authenticated: Boolean(sessionToken),
+      careTab,
+      lifeView,
+      // The 지역정보 screen on view names the route (URL + history entry).
+      onLifeView: name => {
+        if (openSurface !== backdrop) return;
+        backdrop.dataset.siteRoute = name;
+        const back = panel.querySelector('.site-modal-close');
+        const label = name === 'life' ? '대화로 돌아가기' : lifeBackLabel(name);
+        if (back) { back.title = label; back.setAttribute('aria-label', label); }
+        queueSiteRouteSync();
+      },
+      requestLifeBack: (parent, apply) => leaveSiteRoute(parent, () => { if (openSurface === backdrop) apply(); }),
+      onCareTab: tab => {
+        if (openSurface !== backdrop) return;
+        backdrop.dataset.siteRoute = tab === 'pets' ? 'pets' : 'care';
+        replaceSiteRouteInPlace(backdrop.dataset.siteRoute);
+      },
       accountId: serverIdentity?.userId || '',
       sessionExpiresAt: serverIdentity?.expiresAt || '',
-      onDraft: text => { closeSurface(); draft(text); },
+      sessionToken,
+      subscription: serverSubscription,
+      onAsk: text => {
+        // Closing the surface must not hand focus back to the composer (the
+        // keyboard would open); the question is sent, not drafted.
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        surfaceRestoreFocus = undefined;
+        closeSurface();
+        askWithoutKeyboard(text);
+      },
       onFestival: () => { closeSurface(); void openFestival(); },
+      onTrafficCctv: () => { closeSurface(); void openTrafficCctv(); },
+      onOnnuri: () => { closeSurface(); void openOnnuri(); },
+      onRealEstate: () => { closeSurface(); void openRealEstate(); },
+      onEvChargers: () => { closeSurface(); void openEvChargers(); },
+      onSubway: () => { closeSurface(); void openSubway(); },
       onSaved: () => { closeSurface(); openLotbiBox(); },
-      mountPeople: async (root, reportCounts) => {
-        const {mountPersonProfileManager} = await import('./site-person-ui.js?v=aset-de88e6e1b0a7');
-        return mountPersonProfileManager({sessionToken, root, subscription: serverSubscription, onCountChange: reportCounts});
+      loadCareCounts: async () => {
+        const [{listPeople}, {listPets}] = await Promise.all([
+          import('./site-person.js?v=aset-7ce47b43cff4'),
+          import('./site-pet.js?v=aset-7ce47b43cff4'),
+        ]);
+        const [people, pets] = await Promise.allSettled([listPeople(sessionToken), listPets(sessionToken)]);
+        return {
+          ...(people.status === 'fulfilled' ? {people: people.value.length} : {}),
+          ...(pets.status === 'fulfilled' ? {pets: pets.value.length} : {}),
+        };
+      },
+      mountPeople: async (root, initialSurface, reportCounts, {missingPrefill = null} = {}) => {
+        const {mountPersonCareManager} = await import('./site-person-ui.js?v=aset-7ce47b43cff4');
+        return mountPersonCareManager({sessionToken, root, initialSurface, onCountChange: reportCounts, missingPrefill});
+      },
+      // FAMILY-LOCATION-01: 안심케어 → 가족 위치, a tab that appears only when Core answers.
+      checkFamily: async () => {
+        const {familyLocationAvailable} = await import('./site-family-location.js?v=aset-7ce47b43cff4');
+        return familyLocationAvailable(sessionToken);
+      },
+      mountFamily: async (root, {onMissingReport} = {}) => {
+        const {mountFamilyLocation} = await import('./site-family-location-ui.js?v=aset-7ce47b43cff4');
+        return mountFamilyLocation({sessionToken, root, onMissingReport});
       },
       mountPets: async (root, initialSurface, reportCounts) => {
-        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-de88e6e1b0a7');
+        const {mountPetFamilyManager} = await import('./site-pet-ui.js?v=aset-7ce47b43cff4');
         return mountPetFamilyManager({sessionToken, root, subscription: serverSubscription, initialSurface,
           onCountChange: counts => { renderPetSosBadge(counts); reportCounts(counts); }});
       },
+      // MY-CHILD-SCHOOL-01: 생활정보 → 내 아이 학교·유치원 (signed-in, own entries
+      // only). It asks through the onAsk handed over by the life section, so a
+      // question is sent at once without the keyboard, like every life card.
+      mountMyChild: async (root, {onAsk: askFromMyChild} = {}) => {
+        const {mountMyChild} = await import('./site-life-my-child.js?v=aset-7ce47b43cff4');
+        return mountMyChild({sessionToken, root, authenticated: Boolean(sessionToken), onAsk: askFromMyChild});
+      },
     });
+    if (life) life.mounted = mounted;
   };
-  const openCalendar = async (view, {deepOpen, initialDraft = null, restoreConversation = false} = {}) => {
+  const openCalendar = async (view, {deepOpen, initialDraft = null} = {}) => {
     const allowed = new Set(['month', 'year', 'agenda', 'attention', 'all', 'today', 'upcoming', 'date']);
     const initialView = allowed.has(view) ? view : 'month';
     closeMobileDrawer();
 
-    const returnState = restoreConversation ? Object.freeze({
-      namespace,
-      threadId: state.activeThreadId,
-      scrollTop: mainScrollHost.scrollTop,
-      draft: prompt.value,
-    }) : null;
-
     const {backdrop, panel, content} = modalShell(
       '캘린더',
       sessionToken
-        ? 'LOTBI에 등록된 개인 일정을 확인하고 관리합니다.'
-        : '로그인 없이 캘린더를 확인할 수 있습니다. 계정 동기화는 로그인 후 사용할 수 있어요.',
+        ? '내 일정과 생활 기록을 관리합니다.'
+        : '로그인 없이 쓸 수 있어요. 기기 간 동기화는 로그인 후 가능합니다.',
     );
-    panel.classList.add('site-calendar-modal');
+    panel.classList.add('site-calendar-modal', 'site-calendar-chat-popup', 'site-calendar-page');
     installSurfaceBehavior(backdrop, panel, {
+      modal: false,
       workspace: 'calendar',
-      onClose: returnState ? () => {
-        if (namespace !== returnState.namespace) return;
-        if (returnState.threadId && state.threads.some(item => item.id === returnState.threadId)) {
-          state.activeThreadId = returnState.threadId;
-          state.draft = returnState.draft.slice(0, 1000);
-          prompt.value = state.draft;
-          prompt.dispatchEvent(new Event('input', {bubbles: true}));
-          saveState();
-          renderActiveThread();
-          requestAnimationFrame(() => { mainScrollHost.scrollTop = returnState.scrollTop; });
-        }
-      } : undefined,
+      dismissOnBackdrop: false,
+      route: 'calendar',
     });
     const mounted = await mountLifeCalendarManager({
       sessionToken,
@@ -3352,8 +4920,43 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       void refreshNavigationCalendarStatus();
     }, millisecondsUntilNextLocalMidnight() + 100);
   };
+  // SITE-SESSION-REQUEST-STORM-P0-01 — this badge read must never multiply.
+  // Core refusing the Site bearer (401) makes getLifeToday announce a dead
+  // session synchronously, and that announcement (lotbi:site-session-state,
+  // then the anonymous sidebar repaint) asked for this badge again. The new
+  // read went out with the same refused bearer before the failed one could drop
+  // it — the newer generation skipped the drop — so it answered 401 and
+  // announced again: ~200 /v2/life/today a second from one tab after an
+  // Account logout elsewhere (2026-10-10). Now one read runs at a time, asks
+  // that arrive meanwhile (or within the minimum interval) fold into a single
+  // follow-up, and a refused bearer is dropped by whichever read saw it.
+  let navigationCalendarReadInFlight = false;
+  let navigationCalendarFollowUpWanted = false;
+  let navigationCalendarFollowUpTimer;
+  let navigationCalendarLastStartedAt = 0;
+  const queueNavigationCalendarFollowUp = () => {
+    navigationCalendarFollowUpWanted = true;
+    if (navigationCalendarReadInFlight || navigationCalendarFollowUpTimer !== undefined) return;
+    const wait = Math.max(0, navigationCalendarLastStartedAt + NAVIGATION_CALENDAR_MIN_INTERVAL_MS - Date.now());
+    navigationCalendarFollowUpTimer = window.setTimeout(() => {
+      navigationCalendarFollowUpTimer = undefined;
+      if (!navigationCalendarFollowUpWanted) return;
+      navigationCalendarFollowUpWanted = false;
+      void refreshNavigationCalendarStatus();
+    }, wait);
+  };
   const refreshNavigationCalendarStatus = async () => {
     if (navigationCalendarEntries().length === 0) return;
+    if (
+      navigationCalendarReadInFlight
+      || Date.now() - navigationCalendarLastStartedAt < NAVIGATION_CALENDAR_MIN_INTERVAL_MS
+    ) {
+      queueNavigationCalendarFollowUp();
+      return;
+    }
+    navigationCalendarReadInFlight = true;
+    navigationCalendarFollowUpWanted = false;
+    navigationCalendarLastStartedAt = Date.now();
     const generation = ++navigationCalendarStatusGeneration;
     const tokenAtStart = sessionToken;
     const namespaceAtStart = namespace;
@@ -3366,12 +4969,18 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       ) return;
       renderNavigationCalendarStatus(status);
     } catch (error) {
+      // Drop the refused bearer whatever generation is current: it is never
+      // sent again, and site-continuity.js renews (at most every 20 s).
+      if (error instanceof SiteCoreError && isSessionError(error) && tokenAtStart && tokenAtStart === sessionToken) {
+        dropSessionToken();
+      }
       if (generation === navigationCalendarStatusGeneration) {
         renderNavigationCalendarStatus({count: 0, hasReminder: false});
-        if (error instanceof SiteCoreError && isSessionError(error)) sessionToken = undefined;
       }
     } finally {
+      navigationCalendarReadInFlight = false;
       if (generation === navigationCalendarStatusGeneration) scheduleNavigationCalendarMidnightRefresh();
+      if (navigationCalendarFollowUpWanted) queueNavigationCalendarFollowUp();
     }
   };
   const onNavigationCalendarRefresh = () => void refreshNavigationCalendarStatus();
@@ -3379,13 +4988,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   window.addEventListener('pageshow', onNavigationCalendarRefresh);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') { void refreshNavigationCalendarStatus(); return; }
-    // Leaving the tab must stop a "읽어주기" reading in progress — nobody
-    // asked for it to keep talking once they can no longer see which answer
-    // it is, and coming back must not resume it either.
-    readAloud?.stop('PAGE_HIDDEN');
   });
 
   const openLotbiBox = trigger => {
+    if (!LOTBI_BOX_UI_ENABLED) return;
     closeMobileDrawer();
     const {backdrop, panel, content} = modalShell('롯비함', '나중에 다시 볼 항목을 모아두는 곳이에요.');
     panel.classList.add('site-lotbi-box-modal');
@@ -3464,7 +5070,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
 
     content.appendChild(list);
     render();
-    installSurfaceBehavior(backdrop, panel, {workspace: 'life', trigger, backLabel: '생활정보로 돌아가기', onBack: () => openConsumerSection('life')});
+    installSurfaceBehavior(backdrop, panel, {workspace: 'life', route: LOTBI_BOX_UI_ENABLED ? 'lotbi-box' : '', trigger, backLabel: '지역정보로 돌아가기', onBack: () => openConsumerSection('life'), backRoute: 'life'});
   };
 
   const openHelp = () => {
@@ -3489,19 +5095,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     const layer = document.createElement('div'); layer.className = 'profile-popover-layer';
     const menu = document.createElement('div'); menu.className = 'profile-popover'; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', '프로필 메뉴');
     menu.appendChild(profileSummary());
-    const menuIconNames = {프로필: 'profile', 개인테마: 'theme', 설정: 'settings'};
-    for (const [label, action] of [['프로필', openProfile], ['개인테마', openPersonalTheme], ['설정', openSettings]]) {
+    const menuIconNames = {'프로필 관리': 'profile', 설정: 'settings'};
+    for (const [label, action] of [['프로필 관리', openProfile], ['설정', openSettings]]) {
       const button = document.createElement('button'); button.type = 'button'; button.setAttribute('role', 'menuitem'); decorateProfileMenuItem(button, label, menuIconNames[label]);
       button.addEventListener('click', () => { closeSurface(); action(); }); menu.appendChild(button);
     }
-    const connectedServices = document.createElement('a');
-    connectedServices.href = 'https://account.lotbiai.com/connected-services';
-    connectedServices.setAttribute('role', 'menuitem');
-    connectedServices.textContent = '연결 서비스'; decorateProfileMenuItem(connectedServices, '연결 서비스', 'connected');
-    connectedServices.addEventListener('click', () => closeSurface());
-    menu.appendChild(connectedServices);
-    const help = document.createElement('button'); help.type = 'button'; help.setAttribute('role', 'menuitem'); help.textContent = '도움말'; decorateProfileMenuItem(help, '도움말', 'help');
-    help.addEventListener('click', () => { closeSurface(); openHelp(); }); menu.appendChild(help);
     const logout = document.createElement('button'); logout.type = 'button'; logout.setAttribute('role', 'menuitem');
     logout.className = 'profile-menu-logout'; logout.textContent = '로그아웃'; decorateProfileMenuItem(logout, '로그아웃', 'logout'); logout.disabled = !sessionToken;
     if (!sessionToken) logout.title = 'Site child session 연결 후 사용할 수 있습니다.';
@@ -3536,6 +5134,10 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   };
 
   let responseGradeOpen = false;
+  // A question asked by a tap while another answer is still coming; sent as
+  // soon as that turn ends (askWithoutKeyboard, updateSendState).
+  let pendingTapQuestion = '';
+  let lastTapQuestion = {text: '', at: 0};
   let selectedAttachments = [];
   let pendingAttachmentPreviews = [];
   let attachmentUploadsInFlight = 0;
@@ -3636,18 +5238,19 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (inFlight || attachmentUploadsInFlight) return;
     const files = Array.from(fileList || []);
     if (!files.length) return;
+    clearAttachmentError();
     let validated;
     try {
       validated = await validateAttachmentFiles(files, selectedAttachments);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '첨부 파일을 확인하지 못했습니다.');
+      showAttachmentError(error instanceof Error ? error.message : '첨부 파일을 확인하지 못했습니다.');
       return;
     }
     let guestToken = '';
     try {
       if (!sessionToken) guestToken = await ensureGuestSession();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '첨부 파일 세션을 시작하지 못했습니다.');
+      showAttachmentError(error instanceof Error ? error.message : '첨부 파일 세션을 시작하지 못했습니다.');
       return;
     }
     attachmentUploadsInFlight = validated.length;
@@ -3674,9 +5277,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       } catch (error) {
         // A failed upload leaves no half-ready attachment and no stale preview.
         releaseComposerPreviewUrl(entry.previewUrl);
-        if (isSessionError(error)) sessionToken = undefined;
+        if (isSessionError(error)) dropSessionToken();
         if (isGuestSessionError(error)) clearGuestSession();
-        setStatus(error instanceof Error ? error.message : '첨부 파일을 업로드하지 못했습니다.');
+        showAttachmentError(error instanceof Error ? error.message : '첨부 파일을 업로드하지 못했습니다.');
       } finally {
         pendingAttachmentPreviews = pendingAttachmentPreviews.filter(candidate => candidate !== entry);
         attachmentUploadsInFlight = Math.max(0, attachmentUploadsInFlight - 1);
@@ -3783,13 +5386,20 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     sendButton.disabled = inFlight || attachmentBusy || !hasContent;
     sendButton.setAttribute('aria-label', inFlight ? '전송 중' : '전송');
     sendButton.title = inFlight ? '전송 중' : '전송';
-    micButton.disabled = inFlight || attachmentBusy || voiceRequesting;
+    if (micButton instanceof HTMLButtonElement) micButton.disabled = inFlight || attachmentBusy || voiceRequesting;
     attachmentTrigger.disabled = inFlight || attachmentBusy || selectedAttachments.length >= 3;
     if (attachmentTrigger.disabled && attachmentMenuOpen) closeAttachmentMenu();
     for (const input of attachmentInputs) input.disabled = inFlight || attachmentBusy || selectedAttachments.length >= 3;
+    if (pendingTapQuestion && !inFlight && !attachmentBusy) {
+      const question = pendingTapQuestion;
+      pendingTapQuestion = '';
+      queueMicrotask(() => askWithoutKeyboard(question, {queued: true}));
+    }
   };
   const setListeningState = listening => {
-    voiceListening = listening; micButton.setAttribute('aria-pressed', String(listening));
+    voiceListening = listening;
+    if (!(micButton instanceof HTMLButtonElement)) return;
+    micButton.setAttribute('aria-pressed', String(listening));
     micButton.setAttribute('aria-label', listening ? '음성 입력 중지' : '음성 입력'); micButton.title = listening ? '듣는 중 — 눌러서 종료' : '음성 입력';
     if (listening) micButton.dataset.listening = 'true'; else delete micButton.dataset.listening;
   };
@@ -3854,7 +5464,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (voiceAvatarRequestId) { driveAvatar('listening-end', voiceAvatarRequestId); voiceAvatarRequestId = undefined; }
     setListeningState(false);
     consumer?.onListening?.(false);
-    voiceRequesting = false; delete micButton.dataset.requesting; updateSendState();
+    voiceRequesting = false; if (micButton instanceof HTMLButtonElement) delete micButton.dataset.requesting; updateSendState();
     if (consumer) {
       if (!consumer.__lotbiSettled) {
         consumer.__lotbiSettled = true;
@@ -3896,7 +5506,9 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     // A recogniser left over from a silent engine is still holding the mic.
     if (voiceRecognition) { const stale = voiceRecognition; voiceRecognition = undefined; clearVoiceStartDeadline(); try { stale.abort(); } catch { /* already gone */ } }
     activeVoiceConsumer = consumer;
-    voiceRequesting = true; micButton.disabled = true; micButton.dataset.requesting = 'true'; feedback('마이크 권한을 확인하고 있습니다.');
+    voiceRequesting = true;
+    if (micButton instanceof HTMLButtonElement) { micButton.disabled = true; micButton.dataset.requesting = 'true'; }
+    feedback('마이크 권한을 확인하고 있습니다.');
     try {
       await requestMicrophoneAccess(); const recognition = new SpeechRecognition(); voiceRecognition = recognition;
       recognition.lang = 'ko-KR'; recognition.continuous = false; recognition.interimResults = false; recognition.maxAlternatives = 1;
@@ -3973,25 +5585,8 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       else setVoiceFeedback(message);
       focusComposer();
     }
-    finally { voiceRequesting = false; delete micButton.dataset.requesting; updateSendState(); }
+    finally { voiceRequesting = false; if (micButton instanceof HTMLButtonElement) delete micButton.dataset.requesting; updateSendState(); }
   };
-  window.addEventListener('lotbi:voice-transcription-request', event => {
-    const detail = event instanceof CustomEvent && event.detail && typeof event.detail === 'object' ? event.detail : {};
-    void startVoiceInput({...detail, reviewOnly: true});
-  });
-  window.addEventListener('lotbi:voice-transcription-cancel', () => {
-    if (activeVoiceConsumer) activeVoiceConsumer.__lotbiSettled = true;
-    if (voiceRecognition) {
-      const active = voiceRecognition;
-      voiceRecognition = undefined;
-      clearVoiceStartDeadline();
-      try { active.abort(); } catch {}
-    }
-    setListeningState(false);
-    activeVoiceConsumer?.onListening?.(false);
-    activeVoiceConsumer = undefined;
-    updateSendState();
-  });
   const showError = (error, retryText, retryWithoutDuplicate, logicalRequestId = '', turnCreatedAt = 0) => {
     const wrapper = document.createElement('article'); wrapper.className = 'chat-message chat-message-error'; wrapper.setAttribute('role', 'alert');
     const body = document.createElement('p'); body.className = 'chat-message-body'; body.textContent = userFacingErrorMessage(error); wrapper.appendChild(body);
@@ -4016,18 +5611,26 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           catch (caught) { retry.disabled = false; body.textContent = caught instanceof Error ? caught.message : '로그인 연결을 시작하지 못했습니다.'; }
           return;
         }
-        wrapper.remove(); await requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId, turnCreatedAt);
+        wrapper.remove(); await sendFromReader(() => requestAssistant(retryText, !retryWithoutDuplicate, logicalRequestId, turnCreatedAt));
       });
       wrapper.appendChild(retry);
     }
     appendNode(wrapper);
   };
-  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '', turnCreatedAt = 0) => {
+  const requestAssistant = async (text, appendUserMessage = true, logicalRequestId = '', turnCreatedAt = 0, {recovering = false, keepComposerClosed = false} = {}) => {
     const message = typeof text === 'string' ? text.trim() : '';
+    // A question asked by a tap (askWithoutKeyboard) is read without the
+    // keyboard on any device: the composer gets focus only when it is tapped.
+    const focusComposerAfterThisTurn = () => {
+      if (keepComposerClosed) return;
+      if (!composerUsesSoftwareKeyboard()) prompt.focus();
+    };
     const sourceTurnCreatedAt = Number.isFinite(Number(turnCreatedAt)) && Number(turnCreatedAt) > 0 ? Number(turnCreatedAt) : Date.now();
     const sourceTurnCreatedAtIso = new Date(sourceTurnCreatedAt).toISOString();
     const attachments = [...selectedAttachments];
     if ((!message && !attachments.length) || inFlight || attachmentUploadsInFlight) return;
+    // A new question ends the reading of the previous answer.
+    stopMessageReadAloud('NEW_TURN');
     const suggestedPetAction = petConversationAction(message, attachments);
     const turnGeneration = ++activeTurnGeneration;
     const turnStillActive = () => turnGeneration === activeTurnGeneration;
@@ -4045,7 +5648,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           const timeoutError = new Error('응답 시간이 오래 걸려 중단했어요. 다시 시도해 주세요.');
           showError(timeoutError, message, true, logicalRequestId, sourceTurnCreatedAt);
           setStatus('LOTBI 응답 시간이 초과되었습니다.');
-          prompt.focus();
+          focusComposerAfterThisTurn();
         },
       });
       return handle;
@@ -4070,8 +5673,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         sizeBytes: item.sizeBytes,
       }));
       const userRecord = timestampedConversationMessage({role: 'user', text: displayMessage, meta: {}}, sourceTurnCreatedAt);
-      appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {forceScroll: true});
+      appendConversationRecord({...userRecord, meta: {attachments: attachmentMeta}}, {anchorTurn: true});
       appendPersistedMessage({...userRecord, meta: {attachments: persistedAttachments}});
+    } else if (recovering && followThreadBottom) {
+      // The conversation was reopened with this question still unanswered: its
+      // answer starts under it exactly as if it had just been sent.
+      const question = [...thread.querySelectorAll('.chat-message-user')].pop();
+      if (question) setTurnAnchor(question);
     }
     const local = attachments.length ? null : deterministicReply(message);
     if (local) {
@@ -4094,8 +5702,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       publishDiagnostics();
       recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: diagnostics.lastCoreRequestDelta, providerCalls: 0, externalAiCalls: diagnostics.lastExternalAiRequestDelta});
       console.info(`[LOTBI deterministic evidence] latencyMs=${diagnostics.lastVisibleAnswerMs} coreRequests=${diagnostics.lastCoreRequestDelta} providerRequests=0 externalAiRequests=${diagnostics.lastExternalAiRequestDelta}`);
-      setStatus('LOTBI의 즉시 응답이 도착했습니다.'); prompt.focus(); return;
+      setStatus('LOTBI의 즉시 응답이 도착했습니다.'); if (!keepComposerClosed) returnComposerFocusAfterTurn(); return;
     }
+    // A sentence the recogniser took for a command but Core could not read
+    // (a past date, 10월 32일...) is not an error: it goes on to the
+    // conversation like any other message (CALENDAR-COMMAND-RECOGNITION-P0-01).
+    const calendarCommandRefused = caught => caught instanceof SiteCoreError && caught.code === 'CALENDAR_COMMAND_UNSUPPORTED';
+    let calendarCommandFallsThrough = false;
     if (!attachments.length && !sessionToken && isExplicitLifeCalendarCommand(message)) {
       const calendarRequestId = logicalRequestId || newId('calendar-guest-direct');
       const thinking = beginRequestThinking(calendarRequestId); inFlight = true; updateSendState();
@@ -4111,14 +5724,31 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           turnCreatedAt: sourceTurnCreatedAtIso,
         });
         if (!turnStillActive()) return;
+        if (preview.recurrence) {
+          // This browser's Calendar holds single events only; a repeat needs the
+          // account Calendar. Say so instead of saving one occurrence.
+          const repeatRecord = timestampedConversationMessage({
+            role: 'assistant',
+            text: '반복 일정은 로그인한 뒤 등록할 수 있어요. 로그인하지 않은 동안에는 한 번만 있는 일정만 이 브라우저 캘린더에 저장돼요.',
+            // CALENDAR-GUEST-RECURRING-LOGIN-01: not a dead end — the one
+            // control that clears it logs in and sends the same sentence again.
+            meta: {status: 'ANSWERED', responseMode: preview.parserType, loginAction: {label: '로그인하고 등록', text: message}},
+          });
+          thinking.stop('answer');
+          appendConversationRecord(repeatRecord);
+          appendPersistedMessage(repeatRecord);
+          setStatus('반복 일정은 로그인이 필요합니다.');
+          return;
+        }
+        const allDay = preview.temporal.kind === 'DATE_ONLY';
         const event = await globalThis.navigator.locks.request(
           `lotbi-calendar-direct:${calendarRequestId}`,
           {mode: 'exclusive'},
           async () => createGuestCalendarRepository(storage).createForRequest(calendarRequestId, {
             title: preview.title,
-            local_date: preview.temporal.local_datetime.slice(0, 10),
-            local_datetime: preview.temporal.local_datetime,
-            all_day: false,
+            local_date: allDay ? preview.temporal.local_date : preview.temporal.local_datetime.slice(0, 10),
+            local_datetime: allDay ? null : preview.temporal.local_datetime,
+            all_day: allDay,
           }),
         );
         if (!turnStillActive()) return;
@@ -4152,17 +5782,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         setStatus('이 브라우저 캘린더에 일정을 등록했습니다.');
       } catch (caught) {
         if (!turnStillActive()) return;
-        thinking.stop('error');
-        showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
+        if (calendarCommandRefused(caught)) {
+          calendarCommandFallsThrough = true;
+          thinking.stop('cancel');
+        } else {
+          thinking.stop('error');
+          showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
+        }
       } finally {
         if (turnStillActive()) {
           thinking.stop('cancel');
           inFlight = false;
           updateSendState();
-          prompt.focus();
+          focusComposerAfterThisTurn();
         }
       }
-      return;
+      if (!calendarCommandFallsThrough) return;
     }
     if (!sessionToken) {
       const guestRequestId = logicalRequestId || newId('guest-ai');
@@ -4170,10 +5805,15 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       diagnostics.lastPath = 'CORE_GUEST_CONVERSATION'; diagnostics.coreCalls += 1;
       const coreStartedAt = performanceNow(); recordTiming('T1-core-guest-request', {coreCall: diagnostics.coreCalls});
       try {
+        const lifeSchool = schoolContextForMessage(message, readSchoolPreference(lifeSchoolKey(), storage));
         const token = await ensureGuestSession();
         if (!turnStillActive()) return;
+        const lifeLocation = await resolveLifeLocationContext(message, {recentContext: recentConversationContext()}).catch(() => null);
+        if (!turnStillActive()) return;
+        if (!attachments.length) rememberPendingTurn({threadId: activeConversationId, key: guestRequestId, scope: 'GUEST', text: displayMessage, turnCreatedAt: sourceTurnCreatedAt});
         const response = await sendGuestConversationMessage({
           guestToken: token,
+          ...(lifeSchool ? {school: lifeSchool} : {}),
           text: message,
           idempotencyKey: guestRequestId,
           recentContext: recentConversationContext(),
@@ -4184,6 +5824,7 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           turnId: guestRequestId,
           logicalRequestId: guestRequestId,
           stateVersion: Number.isInteger(activeConversation?.stateVersion) ? activeConversation.stateVersion : 0,
+          ...(lifeLocation ? {location: lifeLocation} : {}),
         });
         if (!turnStillActive()) return;
         diagnostics.lastCoreDurationMs = Math.round(Math.max(0, performanceNow() - coreStartedAt));
@@ -4196,7 +5837,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+        const locationRequest = answerLocationRequest(response, message);
+        if (locationRequest) meta.locationRequest = locationRequest;
         if (suggestedPetAction) meta.petAction = suggestedPetAction;
+        if (response.medicalNotice?.emergencyCall === true) meta.emergencyCall = true;
+        if (response.medicalNotice?.partial === true) meta.medicalPartial = true;
         if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
       if (response.reusableOutput) meta.reusableOutput = response.reusableOutput;
         if (response.reusableOutput) meta.reusableOutput = response.reusableOutput;
@@ -4220,11 +5865,22 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
           }
         }
         if (richProduct) meta.richProduct = richProduct;
+        const productLookup = compactProductLookupMeta(response.productLookup);
+        if (productLookup) meta.productLookup = productLookup;
+        const schoolMeta = compactSchoolResultMeta(response.schoolResult);
+        if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
+        const newsMeta = compactNewsResultMeta(response.newsResult);
+        if (newsMeta) meta.newsResult = newsMeta;
+        const regionalFoodMeta = compactRegionalFoodMeta(response.regionalFoodResult);
+        if (regionalFoodMeta) meta.regionalFoodResult = regionalFoodMeta;
+        const regionalContactMeta = compactRegionalContactMeta(response.regionalContactResult);
+        if (regionalContactMeta) meta.regionalContactResult = regionalContactMeta;
         const placeResult = compactPlaceResultMeta(response.placeResult);
         if (placeResult) meta.placeResult = placeResult;
         const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
         thinking.stop('answer');
         appendConversationRecord(assistantRecord); appendPersistedMessage(assistantRecord);
+        forgetPendingTurn(guestRequestId);
         if (attachments.length) clearSentAttachments(attachments, {guest: token});
         diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 2 : 1});
         setStatus(placeResult ? '로그인 없이 실제 장소 카드와 네이버지도 길안내를 준비했습니다.' : (richProduct ? '로그인 없이 실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.')));
@@ -4232,10 +5888,13 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         if (!turnStillActive()) return;
         thinking.stop('error');
         if (isGuestSessionError(caught)) clearGuestSession();
+        if (recovering && answerStillRunning(caught) && schedulePendingTurnRetry(guestRequestId)) return;
+        if (interruptedByLeaving(caught)) return;
+        forgetPendingTurn(guestRequestId);
         showError(caught, message, true, guestRequestId, sourceTurnCreatedAt);
         setStatus('LOTBI 대화를 완료하지 못했습니다.');
       } finally {
-        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); prompt.focus(); }
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); if (!keepComposerClosed) returnComposerFocusAfterTurn(); }
       }
       return;
     }
@@ -4274,19 +5933,28 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         setStatus('일정을 추가하고 달력을 새로 고쳤습니다.');
       } catch (caught) {
         if (!turnStillActive()) return;
-        thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
-        showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
+        if (calendarCommandRefused(caught)) {
+          calendarCommandFallsThrough = true;
+          thinking.stop('cancel');
+        } else {
+          thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
+          showError(caught, message, true, calendarRequestId, sourceTurnCreatedAt);
+        }
       } finally {
-        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); prompt.focus(); }
+        if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); if (!keepComposerClosed) returnComposerFocusAfterTurn(); }
       }
-      return;
+      if (!calendarCommandFallsThrough) return;
     }
     const authenticatedRequestId = logicalRequestId || newId('auth-ai');
     const thinking = beginRequestThinking(authenticatedRequestId); inFlight = true; updateSendState(); setVoiceFeedback('');
     diagnostics.lastPath = 'CORE_CONVERSATION'; diagnostics.coreCalls += 1;
     const coreStartedAt = performanceNow(); recordTiming('T1-core-request', {coreCall: diagnostics.coreCalls});
+    const lifeSchool = schoolContextForMessage(message, readSchoolPreference(lifeSchoolKey(), storage));
     try {
       const activeSessionToken = sessionToken;
+      const lifeLocation = await resolveLifeLocationContext(message, {recentContext: recentConversationContext()}).catch(() => null);
+      if (!turnStillActive()) return;
+      if (!attachments.length) rememberPendingTurn({threadId: activeConversationId, key: authenticatedRequestId, scope: 'AUTH', text: displayMessage, turnCreatedAt: sourceTurnCreatedAt});
       const response = await sendConversationMessage(
         activeSessionToken,
         message,
@@ -4297,10 +5965,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         sourceTurnCreatedAtIso,
         recentConversationContext(),
         {
+          ...(lifeSchool ? {school: lifeSchool} : {}),
           conversationId: activeConversationId,
           turnId: authenticatedRequestId,
           logicalRequestId: authenticatedRequestId,
           stateVersion: Number.isInteger(activeConversation?.stateVersion) ? activeConversation.stateVersion : 0,
+          ...(lifeLocation ? {location: lifeLocation} : {}),
         },
       );
       if (!turnStillActive()) return;
@@ -4313,7 +5983,11 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       }
       const meta = {status: response.status, responseMode: response.responseMode, completion: response.completion, correlationId: response.correlationId, followUpRequired: response.status === 'FOLLOW_UP_REQUIRED' || response.followUp?.required === true};
+      const locationRequest = answerLocationRequest(response, message);
+      if (locationRequest) meta.locationRequest = locationRequest;
       if (suggestedPetAction) meta.petAction = suggestedPetAction;
+      if (response.medicalNotice?.emergencyCall === true) meta.emergencyCall = true;
+      if (response.medicalNotice?.partial === true) meta.medicalPartial = true;
       if (Array.isArray(response.sources) && response.sources.length) meta.sources = response.sources;
       const calendarItems = conversationCalendarItemsFromResponse(response, 'AUTH');
       if (calendarItems.length) {
@@ -4338,27 +6012,107 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
         }
       }
       if (richProduct) meta.richProduct = richProduct;
+      const productLookup = compactProductLookupMeta(response.productLookup);
+      if (productLookup) meta.productLookup = productLookup;
+      const schoolMeta = compactSchoolResultMeta(response.schoolResult);
+      if (schoolMeta) { meta.schoolResult = schoolMeta; rememberSchoolPreferencePatch(schoolMeta); }
+      const newsMeta = compactNewsResultMeta(response.newsResult);
+      if (newsMeta) meta.newsResult = newsMeta;
+      const regionalFoodMeta = compactRegionalFoodMeta(response.regionalFoodResult);
+      if (regionalFoodMeta) meta.regionalFoodResult = regionalFoodMeta;
+      const regionalContactMeta = compactRegionalContactMeta(response.regionalContactResult);
+      if (regionalContactMeta) meta.regionalContactResult = regionalContactMeta;
       const placeResult = compactPlaceResultMeta(response.placeResult);
       if (placeResult) meta.placeResult = placeResult;
       const assistantRecord = timestampedConversationMessage({role: 'assistant', text: response.assistantText, meta});
       thinking.stop('answer');
       appendConversationRecord(assistantRecord); appendPersistedMessage(assistantRecord);
+      forgetPendingTurn(authenticatedRequestId);
       if (attachments.length) clearSentAttachments(attachments, {session: activeSessionToken});
       diagnostics.lastVisibleAnswerMs = Math.round(Math.max(0, performanceNow() - submittedAt)); recordTiming('T5-dom-render', {durationMs: diagnostics.lastVisibleAnswerMs, coreCalls: richProduct ? 3 : 1});
       setStatus(placeResult ? '실제 장소 카드와 네이버지도 길안내를 준비했습니다.' : (richProduct ? '실제 판매처 상품 카드를 확인했습니다.' : (response.status === 'FOLLOW_UP_REQUIRED' ? 'LOTBI가 추가 확인이 필요한 응답을 보냈습니다.' : 'LOTBI 응답이 도착했습니다.')));
     } catch (caught) {
       if (!turnStillActive()) return;
       thinking.stop('error'); if (isSessionError(caught)) sessionToken = undefined;
+      if (recovering && answerStillRunning(caught) && schedulePendingTurnRetry(authenticatedRequestId)) return;
+      if (interruptedByLeaving(caught)) return;
+      forgetPendingTurn(authenticatedRequestId);
       showError(caught, message, true, authenticatedRequestId, sourceTurnCreatedAt); setStatus('LOTBI 대화를 완료하지 못했습니다.');
     } finally {
-      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); prompt.focus(); }
+      if (turnStillActive()) { thinking.stop('cancel'); inFlight = false; updateSendState(); if (!keepComposerClosed) returnComposerFocusAfterTurn(); }
     }
   };
-  window.addEventListener('lotbi:keyboard-viewport', () => {
-    if (!thread.hidden && isThreadNearBottom()) {
-      requestAnimationFrame(scrollThread);
+  // LIFE-MEDICAL-AUTO-SEARCH-01 — a question asked by a tap (생활정보 병원·약국·
+  // 응급실, a pharmacy filter under the results) is sent at once through the
+  // normal send path, so it is never left in the composer to be sent again by
+  // hand, and nothing focuses the composer. While another answer is still
+  // coming the tap waits and goes out when that turn ends. With attachments
+  // waiting in the composer it is put there instead, so they are not sent with
+  // a question they were not meant for. The same tap twice within a moment
+  // (a double tap) is one question.
+  const askWithoutKeyboard = (text, {queued = false} = {}) => {
+    const question = String(text || '').trim().slice(0, 1000);
+    if (!question) return;
+    const now = Date.now();
+    if (!queued && lastTapQuestion.text === question && now - lastTapQuestion.at < 2500) return;
+    lastTapQuestion = {text: question, at: now};
+    if (document.activeElement === prompt) prompt.blur();
+    if (selectedAttachments.length) {
+      prompt.value = question; prompt.dispatchEvent(new Event('input', {bubbles: true}));
+      setStatus('질문을 입력창에 넣었어요. 첨부와 함께 보내려면 전송을 눌러 주세요.');
+      return;
     }
+    if (inFlight || attachmentUploadsInFlight) {
+      pendingTapQuestion = question;
+      setStatus('이전 답변이 끝나면 바로 물어볼게요.');
+      return;
+    }
+    void requestAssistant(question, true, '', 0, {keepComposerClosed: true});
+  };
+  // The keyboard has already shrunk the scroller by the time this fires, so
+  // "near the bottom" is the wrong question; whether the reader was following
+  // the conversation is the right one.
+  window.addEventListener('lotbi:keyboard-viewport', () => {
+    settleViewport(700);
+    if (thread.hidden) return;
+    if (followThreadBottom) scrollToConversationTail();
+    else if (holdTurnAnchor) scrollToTurnAnchor();
+    else restoreReadingLine();
   });
+
+  // The newest turn of the open conversation is a question whose answer never
+  // arrived: ask again with the same key. Core replays the stored answer, or
+  // says it is still working (retried a few times), or runs it once if it never
+  // started - never a second, different answer for the same question.
+  const resumePendingTurn = () => {
+    if (inFlight || attachmentUploadsInFlight || !stateReady || document.visibilityState === 'hidden') return;
+    const record = threadRecord();
+    if (!record) return;
+    const turn = readPendingTurns()[record.id];
+    if (!turn || typeof turn.key !== 'string' || typeof turn.text !== 'string') return;
+    if (Date.now() - Number(turn.turnCreatedAt || 0) > PENDING_TURN_MAX_AGE_MS) { forgetPendingTurn(turn.key); return; }
+    if ((turn.scope === 'AUTH') !== Boolean(sessionToken)) return;
+    const last = record.messages[record.messages.length - 1];
+    if (!last || last.role !== 'user' || last.text !== turn.text || Number(last.createdAt) !== Number(turn.turnCreatedAt)) {
+      forgetPendingTurn(turn.key);
+      return;
+    }
+    setStatus('보내 두신 질문의 답변을 이어서 가져오고 있어요.');
+    void requestAssistant(turn.text, false, turn.key, turn.turnCreatedAt, {recovering: true});
+  };
+  const schedulePendingTurnResume = () => { window.setTimeout(resumePendingTurn, 0); };
+  function schedulePendingTurnRetry(key) {
+    const attempts = (pendingTurnRetries.get(key) || 0) + 1;
+    if (attempts > PENDING_TURN_MAX_RETRIES) return false;
+    pendingTurnRetries.set(key, attempts);
+    setStatus('답변을 아직 준비하고 있어요. 준비되면 바로 보여드릴게요.');
+    window.setTimeout(resumePendingTurn, PENDING_TURN_RETRY_MS);
+    return true;
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') schedulePendingTurnResume();
+  });
+  window.addEventListener('pageshow', schedulePendingTurnResume);
 
   const submitCurrentPrompt = async () => {
     cancelVoiceAutoSend();
@@ -4368,10 +6122,12 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (voiceListening && voiceRecognition) voiceRecognition.stop();
     prompt.value = ''; state.draft = ''; saveState();
     prompt.dispatchEvent(new Event('input', {bubbles: true}));
-    await requestAssistant(message, true);
+    await sendFromReader(() => requestAssistant(message, true));
   };
 
-  micButton.disabled = false; micButton.setAttribute('aria-pressed', 'false'); micButton.setAttribute('aria-label', '음성 입력'); micButton.title = '음성 입력';
+  if (PUBLIC_SITE_VOICE_RELEASE_ENABLED && micButton instanceof HTMLButtonElement) {
+    micButton.disabled = false; micButton.setAttribute('aria-pressed', 'false'); micButton.setAttribute('aria-label', '음성 입력'); micButton.title = '음성 입력';
+  }
   if (RESPONSE_GRADE_BACKEND_ENABLED) {
     responseGradeTrigger.addEventListener('click', () => {
       if (responseGradeOpen) closeResponseGradeMenu({restoreFocus: true});
@@ -4458,12 +6214,14 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       event.preventDefault(); closeAttachmentMenu({restoreFocus: true});
     }
   });
-  micButton.addEventListener('click', () => void startVoiceInput());
+  if (PUBLIC_SITE_VOICE_RELEASE_ENABLED && micButton instanceof HTMLButtonElement) {
+    micButton.addEventListener('click', () => void startVoiceInput());
+  }
 
   // SITE-VOICE-WAKE-LISTENER-01 — hands-free calling, within what a browser
   // actually allows. The control stays hidden where the engine cannot do this
   // at all: a toggle that can never work is worse than no toggle.
-  if (wakeButton instanceof HTMLButtonElement && wakeListeningSupported()) {
+  if (PUBLIC_SITE_VOICE_RELEASE_ENABLED && wakeButton instanceof HTMLButtonElement && wakeListeningSupported()) {
     const setWakeUi = (listening, message = '') => {
       wakeButton.setAttribute('aria-pressed', String(listening));
       wakeButton.setAttribute('aria-label', listening ? '롯비야 듣기 끄기' : '롯비야 듣기 켜기');
@@ -4529,17 +6287,16 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
     if (!target?.closest('[data-conversation-menu]')) closeConversationMenus();
     if (attachmentMenuOpen && !target?.closest('[data-attachment-control]')) closeAttachmentMenu();
     if (responseGradeOpen && !target?.closest('[data-response-grade-control]')) closeResponseGradeMenu();
-    const homePrompt = target?.closest('[data-home-prompt]');
-    if (homePrompt instanceof HTMLButtonElement) {
-      event.preventDefault();
-      prompt.value = String(homePrompt.dataset.homePrompt || '').slice(0, 1000);
-      prompt.dispatchEvent(new Event('input', {bubbles: true}));
-      prompt.focus();
-      setStatus('예시 요청을 입력창에 넣었습니다. 내용을 바꾸거나 바로 전송할 수 있습니다.');
-      return;
-    }
     const globalNavAction = target?.closest('[data-global-nav-action]');
     const consumerSection = target?.closest('[data-consumer-section]');
+    const scamTrigger = target?.closest('[data-scam-open]');
+    if (scamTrigger instanceof HTMLButtonElement) {
+      event.preventDefault(); openScamShieldPage(); return;
+    }
+    const troubleTrigger = target?.closest('[data-trouble-open]');
+    if (troubleTrigger instanceof HTMLButtonElement) {
+      event.preventDefault(); void openTroubleHelperPage(); return;
+    }
     if (consumerSection instanceof HTMLButtonElement) {
       event.preventDefault(); void openConsumerSection(consumerSection.dataset.consumerSection); return;
     }
@@ -4564,14 +6321,32 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
       void openFestival();
       return;
     }
+    const loginRetry = target?.closest('[data-login-retry-text]');
+    if (loginRetry instanceof HTMLButtonElement) {
+      event.preventDefault();
+      loginRetry.disabled = true;
+      void beginGuestClaimingSiteHandoff(loginRetry.dataset.loginRetryText || '').catch(error => {
+        loginRetry.disabled = false;
+        setStatus(userFacingErrorMessage(error));
+      });
+      return;
+    }
     const petChatAction = target?.closest('[data-pet-chat-action]');
     if (petChatAction instanceof HTMLButtonElement) {
       event.preventDefault();
       void openPetFamily(petChatAction.dataset.petChatAction || 'pets');
       return;
     }
+    const lifePrompt = target?.closest('[data-life-prompt]');
+    if (lifePrompt instanceof HTMLButtonElement) {
+      event.preventDefault();
+      if (lifePrompt.dataset.lifePrompt === ANIMAL_HOSPITAL_NEARBY_PROMPT && !inFlight) {
+        void requestAssistant(ANIMAL_HOSPITAL_NEARBY_PROMPT, true);
+      }
+      return;
+    }
     const lotbiBoxTrigger = target?.closest('[data-lotbi-box-open]');
-    if (lotbiBoxTrigger instanceof HTMLButtonElement) {
+    if (LOTBI_BOX_UI_ENABLED && lotbiBoxTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
       openLotbiBox(lotbiBoxTrigger);
       return;
@@ -4593,25 +6368,60 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
       closeConversationMenus();
-      if (openSurface?.dataset.workspace) closeSurface();
+      // Escape with the focus outside the screen closes it like its ×: through
+      // history first when that steps back (leaveSiteRoute).
+      const surface = openSurface;
+      if (surface?.dataset.workspace) leaveSiteRoute('', () => { if (openSurface === surface) closeSurface(); });
     }
   });
   // Page teardown releases every object URL. A bfcache-persisted page keeps its
   // previews so a back-navigation does not restore broken images.
   window.addEventListener('pagehide', event => {
     cancelActiveTurn('pagehide');
-    readAloud?.stop('PAGE_HIDDEN');
     if (event instanceof PageTransitionEvent && event.persisted) return;
     releaseAllAttachmentPreviewUrls();
+  });
+  // AUTH-SESSION-CONTINUITY-P0-02 — a Site session renewed without leaving the
+  // page. A renewal of the session this page already holds only swaps the
+  // bearer (same installation, nothing on screen closes). The first session on
+  // a page that loaded signed out of the Site (refresh, tab restore, reopened
+  // browser) is announced next by site-continuity.js with
+  // lotbi:site-session-state, which switches the conversation namespace; the
+  // profile loads after that announcement.
+  registerSiteSessionAdopter(session => {
+    const next = typeof session?.sessionToken === 'string' ? session.sessionToken.trim() : '';
+    if (!next) return false;
+    const installationId = typeof session.installationId === 'string' ? session.installationId : '';
+    if (sessionToken && namespace && installationId && installationId !== namespace) return false;
+    const hadSession = Boolean(sessionToken);
+    sessionToken = next;
+    if (!hadSession || !serverIdentity) setTimeout(() => { void loadServerProfile(); }, 0);
+    updateSendState();
+    // A wallet opened while Site continuity was restoring its bearer received an
+    // empty token and showed the account-login gate. Its content is locked at
+    // that point, so remounting after the handoff is safe and lets the wallet
+    // continue with its own PIN gate instead of asking for another login.
+    if (!hadSession && openSurface?.dataset.siteRoute === 'wallet') {
+      const walletSurface = openSurface;
+      queueMicrotask(() => {
+        if (!sessionToken || openSurface !== walletSurface || walletSurface.dataset.siteRoute !== 'wallet') return;
+        void openConsumerSection('wallet', {expectedSurface: walletSurface});
+      });
+    }
+    return true;
   });
   window.addEventListener(SESSION_STATE_EVENT, event => {
     const detail = event instanceof CustomEvent ? event.detail : undefined;
     if (!detail || typeof detail.authenticated !== 'boolean') return;
     if (selectedAttachments.length || attachmentUploadsInFlight) clearLocalAttachments();
     if (openSurface?.querySelector('.lotbi-box-list, .calendar-product-shell, .profile-photo-picker')) closeSurface();
+    // A different (or no) account must never keep showing the previous photo.
+    clearProfilePhoto();
+    if (!detail.authenticated) renderHeaderAccountAvatar({signedOut: true});
     if (detail.authenticated) {
       const key = normalizedNamespace(detail.identityKey || detail.installationId); if (key) switchNamespace(key);
       refreshAuthenticatedProfileSlots();
+      if (serverIdentity?.profilePhoto) void syncProfilePhoto(serverIdentity.profilePhoto);
     } else if (!sessionToken) switchNamespace(anonymousConversationNamespace());
     renderNavigationCalendarStatus({count: 0, hasReminder: false});
     void refreshNavigationCalendarStatus();
@@ -4631,6 +6441,144 @@ function mountConversation({sessionToken: initialSessionToken, initialText = '',
   if (namespace) switchNamespace(namespace); else if (document.body.dataset.siteAuthState === 'unauthenticated') switchNamespace(anonymousConversationNamespace());
   if (sessionToken) void loadServerProfile();
   if (autoSend && typeof initialText === 'string' && initialText.trim()) queueMicrotask(() => void requestAssistant(initialText, true));
+
+  // SITE-REFRESH-ROUTE-RESTORE-01 — URL → screen. Every route of site-route.js
+  // has exactly one opener here (validate_site_refresh_route_restore_01.mjs
+  // checks the two lists match).
+  // REGIONAL-INFO-BACK-NAVIGATION-01: 지역정보 already open → change its screen
+  // in place (back/forward between its screens); otherwise open it on that screen.
+  const openLifeView = view => {
+    if (lifeSurface?.mounted && openSurface === lifeSurface.backdrop) { lifeSurface.mounted.showLifeView(view); return undefined; }
+    return openConsumerSection('life', {lifeView: view});
+  };
+  const siteRouteOpeners = {
+    calendar: () => openCalendar('all'),
+    wallet: () => openConsumerSection('wallet'),
+    scam: () => openScamShieldPage(),
+    trouble: () => openTroubleHelperPage({resume: true}),
+    care: () => openConsumerSection('care', {careTab: hasFamilyInviteIntent() ? 'family' : 'people'}),
+    pets: () => openConsumerSection('care', {careTab: 'pets'}),
+    life: () => openLifeView('life'),
+    'life-medical': () => openLifeView('life-medical'),
+    'life-news': () => openLifeView('life-news'),
+    'life-local': () => openLifeView('life-local'),
+    'life-my-child': () => openLifeView('life-my-child'),
+    'life-education': () => openLifeView('life-education'),
+    ...(TRAFFIC_CCTV_UI_ENABLED ? {'traffic-cctv': () => openTrafficCctv()} : {}),
+    festival: () => openFestival(),
+    onnuri: () => openOnnuri(),
+    'real-estate': () => openRealEstate(),
+    'real-estate-apartment': () => openRealEstate({view: 'detail'}),
+    'ev-chargers': () => openEvChargers({askLocation: false}),
+    subway: () => openSubway({askLocation: false}),
+    'subway-station': () => openSubwayStation(),
+    ...(LOTBI_BOX_UI_ENABLED ? {'lotbi-box': () => openLotbiBox()} : {}),
+  };
+  const applySiteRoute = target => {
+    if (!target) {
+      // Home closes the screen the URL named; a menu or dialog that is not a
+      // route stays as the user left it.
+      if (openSurface?.dataset.siteRoute) closeSurface();
+      settleSiteRoutePending();
+      return;
+    }
+    if (visibleSiteRoute() === target || typeof siteRouteOpeners[target] !== 'function') {
+      settleSiteRoutePending();
+      queueSiteRouteSync();
+      return;
+    }
+    pendingRouteTarget = target;
+    let opening;
+    try { opening = siteRouteOpeners[target](); } catch (error) { opening = Promise.reject(error); }
+    Promise.resolve(opening).catch(() => {}).then(() => {
+      // Opened, refused (e.g. a stale session) or failed: the URL follows what
+      // is actually on screen from here.
+      if (pendingRouteTarget === target) pendingRouteTarget = null;
+      settleSiteRoutePending();
+      queueSiteRouteSync();
+    });
+    queueSiteRouteSync();
+  };
+  window.addEventListener('popstate', () => {
+    if (handleSubviewPopState()) return;
+    routeTraversalPending = false;
+    clearTimeout(routeTraversalTimer);
+    const collapseLanding = routeCollapseStepPending;
+    routeCollapseStepPending = false;
+    const leave = pendingRouteLeave;
+    pendingRouteLeave = null;
+    if (leave) clearTimeout(leave.timer);
+    const target = parseSiteRouteHash(window.location.hash);
+    // The step a ←/× asked for: its change runs now, with the URL already moved.
+    if (leave && target === leave.destination) { leave.change(); queueSiteRouteSync(); return; }
+    // The step over an entry renamed for the screen on view: nothing changes;
+    // a screen opened in the meantime gets its own entry.
+    if (collapseLanding) { queueSiteRouteSync(); return; }
+    // Forward onto such an entry: it names again the screen it was renamed
+    // from, and that screen opens (URL and screen in this task).
+    const entry = currentRouteEntry();
+    const renamedFrom = typeof entry.lotbiRouteCollapsedFrom === 'string' && siteRouteHash(entry.lotbiRouteCollapsedFrom) ? entry.lotbiRouteCollapsedFrom : '';
+    if (renamedFrom && routeEntriesPushedHere.has(entry.lotbiRouteKey) && target === (entry.lotbiRoute || '')) {
+      const named = {...entry, lotbiRoute: renamedFrom};
+      delete named.lotbiRouteCollapsedFrom;
+      window.history.replaceState(named, '', siteRouteUrl(renamedFrom));
+      applySiteRoute(renamedFrom);
+      return;
+    }
+    if (target === null) return;
+    applySiteRoute(target);
+  });
+  // A Life Wallet share link opened while LOTBI is already open in this tab.
+  window.addEventListener('hashchange', () => {
+    if (captureWalletShareIntent()) applySiteRoute('wallet');
+    else if (captureFamilyInviteIntent()) applySiteRoute('care');
+  });
+  // The 로그인 links inside a screen (Life Wallet, 안심케어 사람·반려동물) go
+  // through the /auth/start/ fallback page, whose fragment is the login return
+  // target; carry the screen there so the login comes back to it.
+  document.addEventListener('click', event => {
+    const link = event.target instanceof Element ? event.target.closest('[data-site-route] a[href="/auth/start/"]') : null;
+    if (!(link instanceof HTMLAnchorElement) || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const route = link.closest('[data-site-route]')?.dataset.siteRoute || '';
+    if (!route) return;
+    event.preventDefault();
+    window.location.assign(`/auth/start/${siteRouteHash(route)}`);
+  });
+  // Reload, a typed URL or a link: open the screen the fragment names. Whether
+  // the reader is signed in is settled first — signed in, this document hands
+  // off to Account and the screen opens on the way back (the return target
+  // keeps the fragment, site-auth.js) — so neither the home nor a guest copy of
+  // the screen shows before the real one (html[data-site-route-pending]).
+  const restoreSiteRouteFromUrl = () => {
+    // A Life Wallet share link (#wallet-share=…) opens the wallet; its token waits in this tab.
+    captureWalletShareIntent();
+    // A 가족 위치 invitation link (#family-invite=…) opens 안심케어; its token waits in this tab.
+    captureFamilyInviteIntent();
+    const requested = parseSiteRouteHash(window.location.hash);
+    if (!requested || isProfilePhotoEmbed()) { settleSiteRoutePending(); return; }
+    let started = false;
+    let observer;
+    let fallbackTimer;
+    const start = () => {
+      if (started) return;
+      started = true;
+      observer?.disconnect();
+      clearTimeout(fallbackTimer);
+      if (parseSiteRouteHash(window.location.hash) !== requested) { settleSiteRoutePending(); return; }
+      applySiteRoute(requested);
+    };
+    // A session handed in by the callback is announced right after this mount
+    // (lotbi:site-session-state), and that announcement closes calendar-like
+    // surfaces; open after it.
+    if (sessionToken) { setTimeout(start, 0); return; }
+    const authSettled = () => ['authenticated', 'unauthenticated', 'unknown'].includes(document.body.dataset.siteAuthState);
+    if (authSettled()) { setTimeout(start, 0); return; }
+    observer = new MutationObserver(() => { if (authSettled()) setTimeout(start, 0); });
+    observer.observe(document.body, {attributes: true, attributeFilter: ['data-site-auth-state']});
+    // Account status itself gives up after 5 s (ACCOUNT_SESSION_STATUS_TIMEOUT_MS).
+    fallbackTimer = setTimeout(start, 7000);
+  };
+  restoreSiteRouteFromUrl();
   return true;
 }
 

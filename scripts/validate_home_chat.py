@@ -20,6 +20,7 @@ AVATAR_CSS = ROOT / "site-avatar.css"
 AVATAR_JS = ROOT / "site-avatar.js"
 HOME_JS = ROOT / "home-shell.js"
 CONTINUITY_JS = ROOT / "site-continuity.js"
+FOOTER_LEGAL_JS = ROOT / "site-footer-legal.js"
 LOGIN_URL = "/auth/start/"
 SIGNUP_URL = "https://account.lotbiai.com/signup"
 ACCOUNT_URL = "https://account.lotbiai.com/account"
@@ -82,7 +83,6 @@ def main() -> int:
         "prompt textarea": 'id="lotbi-prompt"',
         "prompt no-persistence hint": 'autocomplete="off"',
         "prompt length boundary": 'maxlength="1000"',
-        "microphone control": "mic-button",
         "send control": "send-button",
         "conversation thread": 'id="conversation-thread"',
         "local navigation script": f'src="home-shell.js?v={asset_version}"',
@@ -198,9 +198,24 @@ def main() -> int:
         # SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the drawer had already delegated
         # these four to the account menu; the desktop sidebar now does the
         # same, so neither surface may list them beside it.
+        # CONNECTED-SERVICES-NAME-01 — 대표 결정(2026-10-10 "연결서비스로 통합"): the
+        # primary item that was labelled 제휴몰 already opened Account's 연결 서비스
+        # page, so one destination had two names. It now uses the page's name.
+        # Exactly that one primary button may carry it; any other 연결 서비스 text,
+        # a plain link to the route, or the old name still fails.
+        connected_items = re.findall(r'<button[^>]*data-consumer-section="mall"[^>]*>[\s\S]*?</button>', block)
+        if (
+            len(connected_items) != 1
+            or 'aria-label="연결 서비스"' not in connected_items[0]
+            or '<span class="nav-item-label">연결 서비스</span>' not in connected_items[0]
+        ):
+            errors.append(f"index.html: {label} must carry exactly one 연결 서비스 primary item")
+        outside_primary = block.replace(connected_items[0], "", 1) if len(connected_items) == 1 else block
         for moved in ("연결 서비스", "프로필", "설정", "도움말"):
-            if moved in block:
+            if moved in outside_primary:
                 errors.append(f"index.html: {label} must move account navigation into the account menu: {moved}")
+        if "제휴몰" in block:
+            errors.append(f"index.html: {label} still uses the retired 제휴몰 name")
         if CONNECTED_SERVICES_URL in block:
             errors.append(f"index.html: {label} must not duplicate the connected-services route beside the account menu")
         for removed in ("오늘", "확인 필요", "내 작업", "라이브러리"):
@@ -229,19 +244,21 @@ def main() -> int:
             errors.append(f"index.html: {label} connected services must be secondary, not primary")
         if primary_match:
             primary = primary_match.group(0)
-            # Approved seven-menu IA replaces separate primary/calendar groups.
+            # Approved menu IA replaces separate primary/calendar groups.
             # Check real destinations and order, not only presentation classes.
+            # TROUBLE-HELPER-01: 분쟁·사고 도우미 right after 진위확인 (eight).
             destinations = (
                 'data-new-conversation', 'data-calendar-view="all"',
                 'data-consumer-section="wallet"', 'data-scam-open',
+                'data-trouble-open',
                 'data-consumer-section="care"', 'data-consumer-section="life"',
                 'data-consumer-section="mall"',
             )
             offsets = [primary.find(destination) for destination in destinations]
             if any(offset < 0 for offset in offsets) or offsets != sorted(offsets):
-                errors.append(f"index.html: {label} must preserve all seven ordered menu destinations")
-            if primary.count('<button ') != 7:
-                errors.append(f"index.html: {label} must expose exactly seven primary menu buttons")
+                errors.append(f"index.html: {label} must preserve all eight ordered menu destinations")
+            if primary.count('<button ') != 8:
+                errors.append(f"index.html: {label} must expose exactly eight primary menu buttons")
 
         if "sidebar-secondary-nav" in block:
             errors.append(f"index.html: {label} must not reintroduce the secondary navigation region")
@@ -289,16 +306,12 @@ def main() -> int:
         r'<script type="module" src="site-continuity\.js\?v=[^"]+"></script>',
         text,
     )
-    footer_legal_script = re.search(
-        r'<script type="module" src="site-footer-legal\.js\?v=[^"]+"></script>',
-        text,
-    )
     if not conversation_script:
         errors.append("index.html: current conversation module must be cache-busted")
     if not continuity_script:
         errors.append("index.html: current continuity module must be cache-busted")
-    if not footer_legal_script:
-        errors.append("index.html: current footer legal-sheet module must be cache-busted")
+    if "site-footer-legal.js" in text or FOOTER_LEGAL_JS.exists():
+        errors.append("approved direct home company information must not restore the footer legal-sheet module")
 
     approved_scripts = (
         f'<script src="home-shell.js?v={asset_version}" defer></script>',
@@ -307,14 +320,14 @@ def main() -> int:
         f'<script type="module" src="site-avatar.js?v={asset_version}"></script>',
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
-        footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
-    # +1 sealed Avatar import map, +2 exact-purpose inline bootstraps:
-    # theme first-paint and HTTP→HTTPS custom-domain canonicalization.
-    if text.lower().count("<script") != len(approved_scripts) + 3 or any(approved not in text for approved in approved_scripts):
+    # +1 sealed Avatar import map, +3 exact-purpose inline bootstraps:
+    # theme first-paint, HTTP→HTTPS custom-domain canonicalization and the
+    # SITE-REFRESH-ROUTE-RESTORE-01 route marker (pinned in validate_hardening.py).
+    if text.lower().count("<script") != len(approved_scripts) + 4 or any(approved not in text for approved in approved_scripts):
         errors.append(
             "index.html: only the approved import map and "
-            "home/avatar/mobile/conversation/continuity/footer-legal scripts are allowed"
+            "home/avatar/mobile/conversation/continuity scripts are allowed"
         )
     if text.count('<script type="importmap">') != 1 or '"three": "/avatar-runtime/vendor/three/three.module.js"' not in text:
         errors.append("index.html: sealed Three.js import map missing or changed")

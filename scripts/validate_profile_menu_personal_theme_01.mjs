@@ -1,9 +1,11 @@
 // SITE-PROFILE-MENU-PERSONAL-THEME-01
 //
-// Six account-menu entries remain. Profile identity, personalization/theme and
-// help now have one canonical Account owner rather than duplicate Site forms.
-// This Site fixture checks the menu and local photo editor. Cross-origin Account
-// navigation is source-checked, not reported as an Account runtime/E2E pass.
+// The approved compact account popover keeps only Profile management, Settings
+// and Logout. This Site fixture checks that menu and the profile photo picker. Cross-origin
+// Account navigation is source-checked, not reported as an Account runtime/E2E pass.
+// PROFILE-PHOTO-ACCOUNT-SYNC-01: the photo is saved to the account in Core (a
+// fake Core here) and announced to Account only after that save succeeded; no
+// image data is kept in browser storage.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,11 +15,12 @@ import {fileURLToPath} from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 const conversation = read('site-conversation.js');
+const conversationCss = read('site-conversation.css');
 const index = read('index.html');
 const assetVersion = JSON.parse(read('site-asset-version.json')).version;
 const workflow = read('.github/workflows/site-review.yml');
 
-const MENU_LABELS = ['프로필', '개인테마', '설정', '연결 서비스', '도움말', '로그아웃'];
+const MENU_LABELS = ['프로필 관리', '설정', '로그아웃'];
 // The four theme preferences are tested by Account's theme tests, their owner.
 const ACCOUNT_MANAGE_URL = 'https://account.lotbiai.com/account';
 
@@ -27,21 +30,15 @@ assert.ok(
   'this gate must be wired into the Public Site Review Gate',
 );
 
-// [1] 이름만 바뀐다. 옛 이름은 남지 않는다.
+// [1] 승인된 세 항목만 남는다.
 assert.ok(
-  conversation.includes("[['프로필', openProfile], ['개인테마', openPersonalTheme], ['설정', openSettings]]"),
-  '프로필 메뉴의 앞 세 항목은 프로필 / 개인테마 / 설정 이어야 합니다',
+  conversation.includes("[['프로필 관리', openProfile], ['설정', openSettings]]"),
+  '프로필 메뉴의 앞 두 항목은 프로필 관리 / 설정 이어야 합니다',
 );
-assert.ok(
-  !conversation.includes('개인 맞춤 설정') && !conversation.includes('openPersonalization'),
-  "'개인 맞춤 설정' 은 '개인테마' 로 완전히 바뀌어야 합니다",
-);
-// 띄어쓴 '개인 테마' 는 대표가 쓴 표기가 아니다.
-assert.ok(!conversation.includes('개인 테마'), "표기는 '개인테마' 입니다 — 띄어쓰지 않습니다");
+const profileMenuSource = conversation.slice(conversation.indexOf('const openProfileMenu = trigger =>'), conversation.indexOf('let responseGradeOpen'));
+for (const removed of ['개인테마', '연결 서비스', '도움말']) assert.ok(!profileMenuSource.includes(removed), `소형 팝업에서 제거되어야 합니다: ${removed}`);
 
-// [2] 색상 글박스는 중복이라 제거됐고, 되돌아오지 않는다.
-assert.ok(conversation.includes("window.location.assign(ACCOUNT_MANAGE_URL + '#personalization')"), '개인테마는 Account의 개인 맞춤 설정으로 이동해야 합니다');
-assert.ok(conversation.includes("window.location.assign(ACCOUNT_MANAGE_URL + '#help')"), '도움말은 Account의 도움말 한곳으로 이동해야 합니다');
+// [2] 색상 글박스는 중복이라 제거됐고, 상세 설정은 설정 한곳으로 간다.
 for (const removed of ['colorPicker', "'대화 색상'", "className = 'color-picker'"]) {
   assert.ok(!conversation.includes(removed), `대화 색상 선택은 제거되어야 합니다: ${removed}`);
 }
@@ -61,7 +58,7 @@ assert.ok(
   'data-global-nav-action 핸들러는 같은 설정 동작을 유지해야 합니다',
 );
 
-// [4] Identity editing belongs to Account; the Site keeps only local photo editing.
+// [4] Identity editing belongs to Account; the Site picker saves the account photo to Core.
 assert.ok(
   !conversation.includes('계정 페이지에서 관리'),
   "'계정 페이지에서 관리' 버튼은 프로필 창에서 제거되어야 합니다",
@@ -77,6 +74,21 @@ assert.ok(
 // camera path carries capture=environment.
 assert.ok(conversation.includes("['camera', '카메라'], ['gallery', '갤러리'], ['files', '내 파일']"), '카메라 / 갤러리 / 내 파일 세 경로가 정확히 있어야 합니다');
 assert.ok(conversation.includes("input.accept = 'image/*'"), '모든 프로필 사진 input은 image/* 여야 합니다');
+assert.ok(conversation.includes("new URLSearchParams(window.location.search).get('embed') === 'profile-photo'"), 'Account embed mode must be explicit');
+assert.ok(conversation.includes("window.location.hash === '#profile-photo'"), 'Account embed mode must survive the session handoff return');
+assert.ok(conversation.includes('const profilePhotoEmbed = isProfilePhotoEmbed()'), 'the picker must evaluate embed mode after the handoff restores its hash');
+assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-close'}, ACCOUNT_MANAGE_ORIGIN)"), 'embedded close must return control to Account');
+assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-saved', version: photo.version}, ACCOUNT_MANAGE_ORIGIN)"), 'embedded save must notify Account once Core saved it');
+assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-deleted'}, ACCOUNT_MANAGE_ORIGIN)"), 'embedded delete must notify Account once Core deleted it');
+assert.ok(!conversation.includes('lotbi:profile-photo-updated'), 'a browser-only save must not be announced');
+assert.ok(!conversation.includes('preferences.photo'), 'the profile photo is never kept in Site preferences/localStorage');
+{
+  const save = conversation.slice(conversation.indexOf('function applyProfilePhoto(file)'), conversation.indexOf("removeButton.addEventListener('click'"));
+  assert.ok(save.indexOf('await saveSiteProfilePhoto(sessionToken, value)') < save.indexOf("type: 'lotbi:profile-photo-saved'"), 'the saved signal follows the Core save');
+  assert.ok(save.indexOf('await saveSiteProfilePhoto(sessionToken, value)') < save.indexOf('showPreview()'), 'the preview changes only after the Core save');
+}
+assert.ok(conversation.includes("window.parent.postMessage({type: 'lotbi:profile-photo-ready'}, ACCOUNT_MANAGE_ORIGIN)"), 'Account must reveal the iframe only after the embedded picker is ready');
+assert.match(conversationCss, /html\[data-profile-photo-embed="true"\]/, 'embedded mode must hide the Site home shell');
 assert.ok(conversation.includes("if (source === 'camera') input.setAttribute('capture', 'environment')"), '카메라 경로만 후면 정지사진 capture를 요청해야 합니다');
 assert.ok(conversation.includes('excludeAcceptAllOption: true'), '내 파일 경로도 임의 파일 전체 허용 옵션을 노출하면 안 됩니다');
 assert.ok(!conversation.includes("input.accept = 'video/*'") && !conversation.includes('capture="camcorder"'), 'video/camcorder 계약은 없어야 합니다');
@@ -118,7 +130,12 @@ const modal=()=>document.querySelector('.site-modal-backdrop .site-modal');
 const items=()=>[...document.querySelectorAll('.profile-popover [role="menuitem"]')];
 const openMenu=async()=>{click(document.querySelector('[data-profile-menu-trigger]'));await wait(()=>document.querySelector('.profile-popover'),'menu')};
 const closeModal=async()=>{modal().dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));await wait(()=>!modal(),'modal close')};
-window.fetch=async input=>{const u=String(typeof input==='string'?input:input?.url||'');
+const photoCalls=[],accountMessages=[];let photoSaveFails=false;
+try{window.parent.postMessage=(data)=>{accountMessages.push(data&&data.type)}}catch{}
+window.fetch=async (input,init={})=>{const u=String(typeof input==='string'?input:input?.url||'');const method=String(init.method||'GET').toUpperCase();
+if(u.endsWith('/v2/account/profile/photo')&&method==='PUT'){const body=JSON.parse(init.body||'{}');photoCalls.push({method,prefix:String(body.photo_data_uri||'').slice(0,15)});if(photoSaveFails)return new Response(JSON.stringify({detail:{code:'PROFILE_PHOTO_INVALID'}}),{status:503,headers:{'Content-Type':'application/json'}});return new Response(JSON.stringify({profile_photo:{version:'mda_fixture'+photoCalls.length,content_path:'/v2/account/profile/photo/content?v=mda_fixture'+photoCalls.length,mime_type:'image/jpeg'}}),{status:200,headers:{'Content-Type':'application/json'}})}
+if(u.endsWith('/v2/account/profile/photo')&&method==='DELETE'){photoCalls.push({method});return new Response(JSON.stringify({profile_photo:null}),{status:200,headers:{'Content-Type':'application/json'}})}
+if(u.includes('/v2/account/profile/photo/content?v=mda_fixture'))return new Response(new Blob([new Uint8Array([255,216,255,224,0,16,74,70,73,70])],{type:'image/jpeg'}),{status:200,headers:{'Content-Type':'image/jpeg'}});
 if(u.endsWith('/v2/me'))return new Response(JSON.stringify({user:{id:'usr',name:'홍길동',account_handle:'hong',email:'hong@example.com'},session:{id:'ses',assurance_level:'FULL',expires_at:'2099-01-01T00:00:00Z'},installation:{id:'install-theme-test'}}),{status:200,headers:{'Content-Type':'application/json'}});
 if(u.endsWith('/v2/subscription'))return new Response(JSON.stringify({plan:'LOTBI_PLUS',status:'ACTIVE',entitled:true,free_units:3,used_free_units:1,remaining_free_units:2}),{status:200,headers:{'Content-Type':'application/json'}});
 return new Response('{}',{status:500})};
@@ -131,6 +148,36 @@ root.innerHTML='<aside class="chat-sidebar"><ul data-recent-conversations></ul><
 document.body.dataset.siteAuthState='authenticated';
 if(!conversation.mountConversation({sessionToken:'site-token',identityKey:'install-theme-test'}))throw new Error('mount');
 await wait(()=>document.querySelector('.sidebar-account-name')?.textContent==='홍길동','identity');
+const accountFooter=document.querySelector('.sidebar-account-footer');
+const accountTrigger=document.querySelector('.sidebar-profile-trigger');
+const accountPlan=document.querySelector('.sidebar-account-plan');
+const accountName=document.querySelector('.sidebar-account-name');
+const accountAvatar=document.querySelector('.sidebar-profile-avatar');
+const footerStyle=getComputedStyle(accountFooter);
+const triggerStyle=getComputedStyle(accountTrigger);
+const planStyle=accountPlan?getComputedStyle(accountPlan):null;
+const avatarStyle=getComputedStyle(accountAvatar);
+const nameRect=accountName.getBoundingClientRect();
+const planRect=accountPlan?.getBoundingClientRect();
+const accountCard={
+  trigger:{
+    backgroundColor:triggerStyle.backgroundColor,
+    borderWidth:triggerStyle.borderWidth,
+    borderStyle:triggerStyle.borderStyle,
+    borderRadius:triggerStyle.borderRadius,
+    boxShadow:triggerStyle.boxShadow,
+    minHeight:triggerStyle.minHeight,
+  },
+  footer:{borderTopWidth:footerStyle.borderTopWidth,borderTopStyle:footerStyle.borderTopStyle},
+  avatar:{width:avatarStyle.width,height:avatarStyle.height},
+  plan:accountPlan?{
+    text:accountPlan.textContent,
+    display:planStyle.display,
+    backgroundColor:planStyle.backgroundColor,
+    borderRadius:planStyle.borderRadius,
+    sameRowAsName:(Math.min(nameRect.bottom,planRect.bottom)-Math.max(nameRect.top,planRect.top))>(Math.min(nameRect.height,planRect.height)/2),
+  }:null,
+};
 
 // 항목 여섯 개, 순서 그대로, 막다른 길 없음
 await openMenu();
@@ -138,14 +185,12 @@ const labels=items().map(n=>n.textContent);
 const disabledItems=items().filter(n=>n.disabled).map(n=>n.textContent);
 const popoverText=document.querySelector('.profile-popover').textContent;
 
-// Theme now has one Account owner. Navigation is source-checked; do not
-// fabricate a Site modal or claim Account theme interaction was tested here.
-if(!items().some(n=>n.textContent==='개인테마'))throw new Error('개인테마 항목 없음');
+if(labels.join('|')!=='프로필 관리|설정|로그아웃')throw new Error('compact profile menu mismatch '+labels.join('|'));
 document.querySelector('.profile-popover').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
 await wait(()=>!document.querySelector('.profile-popover'),'profile menu close');
 
 // [4] 프로필 창
-// Canonical navigation is source-checked above. Photo remains Site-local.
+// Canonical navigation is source-checked above. The photo is saved to the account (fake Core).
 window.location.hash='profile-photo';await wait(()=>modal(),'profile photo modal');
 const profileTitle=modal().querySelector('h2').textContent;
 const profileButtons=[...modal().querySelectorAll('.site-modal-content button')].map(n=>n.textContent);
@@ -192,20 +237,32 @@ await wait(()=>profilePhotoError.textContent==='이미지 파일을 읽지 못�
 const decodeError=profilePhotoError.textContent;
 
 const png=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='),c=>c.charCodeAt(0));
+// Core refuses the save: nothing is shown or announced as saved.
+photoSaveFails=true;
 await setProfileFile('camera',new File([png],'profile.png',{type:'image/png'}));
-await wait(()=>profilePhotoPreview.style.backgroundImage.includes('data:image/webp'),'valid preview');
-const validPreview=profilePhotoPreview.style.backgroundImage.includes('data:image/webp');
-const storedPhoto=Object.values(storageSnapshot()).some(v=>String(v).includes('data:image/webp'));
+await wait(()=>profilePhotoError.textContent==='프로필 사진을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.','save failure');
+const saveFailure={error:profilePhotoError.textContent,preview:profilePhotoPreview.style.backgroundImage,messages:[...accountMessages],stored:Object.values(storageSnapshot()).some(v=>String(v).includes('data:image/'))};
+photoSaveFails=false;
+await setProfileFile('camera',new File([png],'profile.png',{type:'image/png'}));
+await wait(()=>profilePhotoPreview.style.backgroundImage.includes('blob:'),'valid preview');
+const validPreview=profilePhotoPreview.style.backgroundImage.includes('blob:');
+const storedPhoto=Object.values(storageSnapshot()).some(v=>String(v).includes('data:image/'));
+const savedMessages=[...accountMessages];
+const removeButton=modal().querySelector('.profile-photo-remove');
+const removeVisibleAfterSave=Boolean(removeButton&&!removeButton.hidden);
 const beforeFinalCancelStorage=JSON.stringify(storageSnapshot());
 const beforeFinalCancelPreview=profilePhotoPreview.style.backgroundImage;
 await setProfileFile('camera',null);
 const finalCancelPreserved=beforeFinalCancelStorage===JSON.stringify(storageSnapshot())&&beforeFinalCancelPreview===profilePhotoPreview.style.backgroundImage;
+click(removeButton);
+await wait(()=>removeButton.hidden&&!profilePhotoPreview.style.backgroundImage,'photo removed');
+const deleted={messages:[...accountMessages],preview:profilePhotoPreview.style.backgroundImage,removeHidden:removeButton.hidden};
 await closeModal();
 
-out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile:innerWidth<=900},
+out.textContent=JSON.stringify({ok:true,viewport:{width:innerWidth,height:innerHeight,mobile:innerWidth<=900},accountCard,
 labels,disabledItems,deadEnd:popoverText.includes('준비 중'),
 theme:{owner:'ACCOUNT',runtime:'NOT_TESTED'},
-profile:{title:profileTitle,buttons:profileButtons,links:profileLinks,manageGone,sourceLabels,menuInitiallyHidden,menuVisibleAfterTrigger,pickerContract,initialCancelPreserved,videoError,decodeError,validPreview,storedPhoto,finalCancelPreserved}})
+profile:{title:profileTitle,buttons:profileButtons,links:profileLinks,manageGone,sourceLabels,menuInitiallyHidden,menuVisibleAfterTrigger,pickerContract,initialCancelPreserved,videoError,decodeError,saveFailure,validPreview,storedPhoto,savedMessages,removeVisibleAfterSave,finalCancelPreserved,deleted,photoCalls}})
 }catch(e){out.textContent=JSON.stringify({ok:false,error:String(e?.stack||e)})}
 </script></body></html>`;
 
@@ -243,8 +300,24 @@ try {
   waitServer();
   const measured = [['desktop', run(browser, 1440, 900)], ['mobile', run(browser, 390, 844)]];
   for (const [surface, v] of measured) {
-    // 여섯 개 그대로, 순서 그대로.
-    assert.deepEqual(v.labels, MENU_LABELS, `${surface}: 프로필 메뉴는 여섯 항목이 이 순서여야 합니다`);
+    assert.deepEqual(v.accountCard.trigger, {
+      backgroundColor:'rgba(0, 0, 0, 0)',
+      borderWidth:'0px',
+      borderStyle:'none',
+      borderRadius:'10px',
+      boxShadow:'none',
+      minHeight:'50px',
+    }, `${surface}: 하단 계정 영역은 사이드바에 자연스럽게 붙은 평평한 한 줄이어야 합니다`);
+    assert.deepEqual(v.accountCard.footer, {borderTopWidth:'0px',borderTopStyle:'none'}, `${surface}: 계정 영역 주변에 별도 카드 구분선이 없어야 합니다`);
+    assert.deepEqual(v.accountCard.avatar, {width:'32px',height:'32px'}, `${surface}: 계정 아바타는 조밀한 32px 크기여야 합니다`);
+    assert.deepEqual(v.accountCard.plan, {
+      text:'LOTBI Plus',
+      display:'flex',
+      backgroundColor:'rgba(0, 0, 0, 0)',
+      borderRadius:'0px',
+      sameRowAsName:true,
+    }, `${surface}: 이용 등급은 이름 옆에 배지가 아닌 인라인 정보로 보여야 합니다`);
+    assert.deepEqual(v.labels, MENU_LABELS, `${surface}: 프로필 메뉴는 승인된 세 항목이 이 순서여야 합니다`);
     // 막다른 길 금지 — 로그인된 상태에서는 누를 수 없는 항목이 없어야 한다.
     assert.deepEqual(v.disabledItems, [], `${surface}: 누를 수 없는 메뉴 항목이 있으면 안 됩니다`);
     assert.equal(v.deadEnd, false, `${surface}: 메뉴에 '준비 중' 표시가 있으면 안 됩니다`);
@@ -256,7 +329,7 @@ try {
     assert.equal(v.profile.title, '프로필 사진', `${surface}: 프로필 창 제목`);
     assert.ok(!v.profile.buttons.includes('프로필 저장'), `${surface}: '프로필 저장' 은 남아야 합니다`);
     assert.equal(v.profile.manageGone, true, `${surface}: '계정 페이지에서 관리' 는 사라져야 합니다`);
-    assert.deepEqual(v.profile.links, [ACCOUNT_MANAGE_URL + '#profile'], `${surface}: 프로필 창에 계정 페이지로 나가는 링크가 남아 있으면 안 됩니다`);
+    assert.deepEqual(v.profile.links, [], `${surface}: 임베드 프로필 창에 계정 페이지로 나가는 링크가 남아 있으면 안 됩니다`);
     assert.deepEqual(v.profile.sourceLabels, ['카메라', '갤러리', '내 파일'], `${surface}: 사진 선택 메뉴는 카메라 / 갤러리 / 내 파일 순서여야 합니다`);
     assert.equal(v.profile.menuInitiallyHidden, true, `${surface}: source menu는 사진 선택을 누르기 전에는 닫혀 있어야 합니다`);
     assert.equal(v.profile.menuVisibleAfterTrigger, true, `${surface}: 사진 선택을 누르면 source menu가 열려야 합니다`);
@@ -266,9 +339,16 @@ try {
     assert.equal(v.profile.initialCancelPreserved, true, `${surface}: 최초 picker 취소는 기존 상태를 유지해야 합니다`);
     assert.equal(v.profile.videoError, '프로필에는 사진만 사용할 수 있어요.', `${surface}: video MIME은 사진 전용 문구로 거부해야 합니다`);
     assert.equal(v.profile.decodeError, '이미지 파일을 읽지 못했습니다.', `${surface}: image MIME으로 위장한 비이미지 bytes도 decode 단계에서 거부해야 합니다`);
-    assert.equal(v.profile.validPreview, true, `${surface}: 정상 사진은 즉시 원형 preview에 반영되어야 합니다`);
-    assert.equal(v.profile.storedPhoto, true, `${surface}: 정상 사진은 기존 browser-local 저장 계약을 유지해야 합니다`);
+    // PROFILE-PHOTO-ACCOUNT-SYNC-01 — saved means saved to the account in Core.
+    assert.deepEqual(v.profile.saveFailure, {error: '프로필 사진을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.', preview: '', messages: ['lotbi:profile-photo-ready'], stored: false}, `${surface}: Core 저장 실패는 사진을 보여 주지도, 저장 완료를 알리지도 않아야 합니다`);
+    assert.equal(v.profile.validPreview, true, `${surface}: Core 저장 후 계정 사진이 원형 preview에 반영되어야 합니다`);
+    assert.equal(v.profile.storedPhoto, false, `${surface}: 사진 데이터는 브라우저 저장소에 남지 않아야 합니다`);
+    assert.deepEqual(v.profile.savedMessages, ['lotbi:profile-photo-ready', 'lotbi:profile-photo-saved'], `${surface}: Account에는 Core 저장 성공 뒤 saved 신호 한 번만 가야 합니다`);
+    assert.equal(v.profile.removeVisibleAfterSave, true, `${surface}: 사진이 있으면 사진 삭제가 보여야 합니다`);
     assert.equal(v.profile.finalCancelPreserved, true, `${surface}: 저장 후 picker 취소도 기존 사진을 유지해야 합니다`);
+    assert.deepEqual(v.profile.deleted, {messages: ['lotbi:profile-photo-ready', 'lotbi:profile-photo-saved', 'lotbi:profile-photo-deleted'], preview: '', removeHidden: true}, `${surface}: 사진 삭제는 Core 삭제 뒤 이니셜로 돌아가고 deleted 신호를 보내야 합니다`);
+    assert.deepEqual(v.profile.photoCalls.map(call => call.method), ['PUT', 'PUT', 'DELETE'], `${surface}: 실패 1회 + 저장 1회 + 삭제 1회`);
+    assert.ok(v.profile.photoCalls.filter(call => call.method === 'PUT').every(call => call.prefix.startsWith('data:image/')), `${surface}: 업로드는 정규화된 이미지 data URI만 보냅니다`);
   }
   for (const [surface, v] of measured) console.log('SITE-PROFILE-MENU-PERSONAL-THEME-01 ' + surface, JSON.stringify(v));
   console.log('SITE-PROFILE-MENU-PERSONAL-THEME-01 RUNTIME PASS');

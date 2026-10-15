@@ -1,14 +1,19 @@
-// Calendar expense summary — a compact secondary card under the month grid.
+// Calendar amounts — what the owner typed into the 금액 field of their records.
 //
 // It shows only what the owner already saved on a Calendar entry. An expense
 // that was never recorded is simply missing; nothing here is estimated,
-// inferred, or filled in on the owner's behalf. The bar is also never removed
-// when a month has no amounts — an empty month has to read as "nothing
-// recorded", not as a strip that failed to load.
+// inferred, or filled in on the owner's behalf.
 //
-// The same six category slots lead the row and the total stays pinned on the
-// right. Zero-value slots stay visible so the category set and its order do not
-// appear to change when the owner records a different kind of expense.
+// The Calendar is not a ledger. Above the month there is one quiet line
+// (calendarAmountSummaryLine) with the fixed category slots under it; a month
+// with no amount reads 0원 instead of losing the line, and the breakdown waits
+// behind it (calendarAmountDetailNode). The
+// words are "입력 금액", never "쓴 돈": the contract does not yet tell a price
+// that was booked from money that was actually spent.
+//
+// calendarExpenseSummaryNode is the earlier always-visible ledger card. The
+// Calendar no longer mounts it; it stays exported for the standalone shoot and
+// guard scripts that still render it in isolation.
 
 // The one place these labels live. The entry editor reads them from here too:
 // it used to call LIVING "기타 / 생활비" while the bar called it "생활비", so a
@@ -24,15 +29,14 @@ const CATEGORY_LABELS = {
 
 // Fixed order and fixed membership. A category with nothing in it still holds
 // its slot, so a reader's eye lands on the same place every month.
-// 기타 is a kind of spending; 미분류 is the absence of a choice, so it sits last
-// and reads as something still to fill in.
+// 등록 화면과 합계표가 같은 순서를 사용한다.
 export const EXPENSE_CATEGORY_ORDER = Object.freeze([
+  'UNCLASSIFIED',
   'FOOD',
   'TRAVEL',
   'SHOPPING',
   'LIVING',
   'OTHER',
-  'UNCLASSIFIED',
 ]);
 
 // The editor's dropdown, in the same order and the same words. An empty value
@@ -78,14 +82,23 @@ export function expenseSummaryFromEntries(entries, {startDate = '', endDate = ''
     const category = EXPENSE_CATEGORY_ORDER.includes(entry.expense_category)
       ? entry.expense_category
       : 'UNCLASSIFIED';
-    if (!byCurrency.has(currency)) byCurrency.set(currency, {categories: new Map(), total: 0, count: 0});
+    if (!byCurrency.has(currency)) byCurrency.set(currency, {categories: new Map(), total: 0, count: 0, plannedTotal: 0, plannedCount: 0});
     const bucket = byCurrency.get(currency);
-    const row = bucket.categories.get(category) || {amountMinor: 0, entryCount: 0};
-    row.amountMinor += amount;
-    row.entryCount += 1;
+    const row = bucket.categories.get(category) || {amountMinor: 0, entryCount: 0, plannedAmountMinor: 0, plannedEntryCount: 0};
+    // CALENDAR-DESIGN-04: 예정 지출은 합계에 넣지 않고 따로 센다(Core와 같은 규칙).
+    // 상태 없이 저장된 예전 금액은 실제 지출이다.
+    if (entry.expense_status === 'PLANNED') {
+      row.plannedAmountMinor += amount;
+      row.plannedEntryCount += 1;
+      bucket.plannedTotal += amount;
+      bucket.plannedCount += 1;
+    } else {
+      row.amountMinor += amount;
+      row.entryCount += 1;
+      bucket.total += amount;
+      bucket.count += 1;
+    }
     bucket.categories.set(category, row);
-    bucket.total += amount;
-    bucket.count += 1;
   }
 
   const currencies = [...byCurrency.entries()].map(([currency, bucket]) => ({
@@ -95,6 +108,8 @@ export function expenseSummaryFromEntries(entries, {startDate = '', endDate = ''
       .map(name => ({expenseCategory: name, ...bucket.categories.get(name)})),
     totalAmountMinor: bucket.total,
     entryCount: bucket.count,
+    plannedAmountMinor: bucket.plannedTotal,
+    plannedEntryCount: bucket.plannedCount,
   }));
 
   return {startDate, endDate, currencies, entriesWithoutAmount};
@@ -129,13 +144,10 @@ export function expenseSummaryPresentation(summary, {local = false} = {}) {
   const currencies = orderedCurrencies(summary?.currencies);
   const recorded = currencies.length > 0;
   const lines = recorded ? currencies : [EMPTY_KRW];
-  const withoutAmount = Number.isInteger(summary?.entriesWithoutAmount)
-    ? summary.entriesWithoutAmount
-    : 0;
 
   return {
     recorded,
-    lines: lines.map((currencyTotals, index) => {
+    lines: lines.map(currencyTotals => {
       const byCategory = new Map(
         (currencyTotals.categories || [])
           .filter(row => EXPENSE_CATEGORY_ORDER.includes(row.expenseCategory))
@@ -152,10 +164,9 @@ export function expenseSummaryPresentation(summary, {local = false} = {}) {
           ),
         };
       });
-      const notes = [];
-      if (withoutAmount > 0 && index === 0) {
-        notes.push(`금액 없는 일정 ${new Intl.NumberFormat('ko-KR').format(withoutAmount)}건 제외`);
-      }
+      // A record without an amount is an ordinary record, not a missing
+      // expense. The count Core reports (entriesWithoutAmount) stays in the
+      // data but is never phrased as something left out.
       return {
         currency: currencyTotals.currency,
         totalLabel: `합계 ${currencyTotals.currency === 'KRW' ? '₩' : currencyTotals.currency}`,
@@ -164,7 +175,7 @@ export function expenseSummaryPresentation(summary, {local = false} = {}) {
           currencyTotals.currency,
         ),
         categories,
-        note: notes.join(' · '),
+        note: '',
       };
     }),
     // The six 0원 slots and the 0원 total already communicate an empty month.
@@ -305,4 +316,226 @@ export function calendarExpenseSummaryNode({
   }
 
   return section;
+}
+
+// ── Month amount: one line, then a detail on request ─────────────────────
+
+// Only currencies that actually carry a recorded amount. A month with none
+// returns null and the Calendar draws no line at all -- nobody who keeps no
+// amounts is shown a 0원 ledger.
+function recordedCurrencies(summary) {
+  return orderedCurrencies(summary?.currencies).filter(line => (
+    Number.isInteger(line?.totalAmountMinor)
+    && (Number.isInteger(line?.entryCount) ? line.entryCount > 0 : line.totalAmountMinor > 0)
+  ));
+}
+
+// A month with no amount still shows its line and its 0원 slots, as the
+// Calendar did until the 2026-10-06 redesign hid them: 대표 read the missing
+// line as "가계부 표시가 사라졌다" (owner decision 2026-10-10).
+function shownCurrencies(summary) {
+  const currencies = recordedCurrencies(summary);
+  return currencies.length ? currencies : [EMPTY_KRW];
+}
+
+export function amountSummaryLinePresentation(summary, {month = null, periodLabel = ''} = {}) {
+  const currencies = shownCurrencies(summary);
+  return Object.freeze({
+    label: periodLabel
+      ? `${periodLabel} 생활비 합계`
+      : Number.isInteger(month) ? `${month}월 생활비 합계` : '생활비 합계',
+    amounts: Object.freeze(currencies.map(line => formatExpenseAmount(line.totalAmountMinor, line.currency))),
+  });
+}
+
+export function amountDetailPresentation(summary, {local = false} = {}) {
+  const currencies = recordedCurrencies(summary);
+  return Object.freeze({
+    recorded: currencies.length > 0,
+    lines: Object.freeze(currencies.map(line => {
+      const byCategory = new Map((line.categories || [])
+        .filter(row => EXPENSE_CATEGORY_ORDER.includes(row?.expenseCategory))
+        .map(row => [row.expenseCategory, row]));
+      return Object.freeze({
+        currency: line.currency,
+        totalAmount: formatExpenseAmount(line.totalAmountMinor, line.currency),
+        // Fixed order, but a category nobody used is not listed: the detail is
+        // what was recorded, not a form with six empty boxes.
+        categories: Object.freeze(EXPENSE_CATEGORY_ORDER
+          .map(expenseCategory => byCategory.get(expenseCategory))
+          .filter(row => row && (Number.isInteger(row.entryCount) ? row.entryCount > 0 : row.amountMinor > 0))
+          .map(row => Object.freeze({
+            expenseCategory: row.expenseCategory,
+            label: expenseCategoryLabel(row.expenseCategory),
+            amount: formatExpenseAmount(Number.isInteger(row.amountMinor) ? row.amountMinor : 0, line.currency),
+            count: Number.isInteger(row.entryCount) ? row.entryCount : null,
+          }))),
+      });
+    })),
+    scopeNote: '캘린더 일정에 입력한 금액을 더한 값이에요.',
+    storageNote: local && currencies.length ? '이 기기에 저장된 일정 기준이에요.' : '',
+  });
+}
+
+/**
+ * The single line above the month. Returns null only while the total is still
+ * loading; a settled month with no amount reads 0원.
+ * @param {object} options
+ * @param {'loading'|'ready'|'error'} options.state
+ */
+export function calendarAmountSummaryLine({state, summary = null, month = null, periodLabel = '', errorMessage = '', onOpen = null}) {
+  if (state === 'loading') {
+    const loading = document.createElement('p');
+    loading.className = 'calendar-amount-line calendar-amount-line-loading';
+    loading.dataset.calendarAmountSummary = 'loading';
+    loading.setAttribute('role', 'status');
+    loading.textContent = periodLabel
+      ? `${periodLabel} 생활비 합계를 불러오는 중…`
+      : Number.isInteger(month) ? `${month}월 생활비 합계를 불러오는 중…` : '생활비 합계를 불러오는 중…';
+    return loading;
+  }
+  if (state === 'error') {
+    const failed = document.createElement('p');
+    failed.className = 'calendar-amount-line calendar-amount-line-error';
+    failed.dataset.calendarAmountSummary = 'error';
+    failed.setAttribute('role', 'status');
+    failed.textContent = errorMessage || '생활비 합계를 불러오지 못했어요.';
+    return failed;
+  }
+  if (state !== 'ready') return null;
+  const presentation = amountSummaryLinePresentation(summary, {month, periodLabel});
+  if (!presentation) return null;
+  const line = document.createElement('button');
+  line.type = 'button';
+  line.className = 'calendar-amount-line';
+  line.dataset.calendarAmountSummary = 'ready';
+  const label = document.createElement('span');
+  label.className = 'calendar-amount-line-label';
+  label.textContent = presentation.label;
+  const amount = document.createElement('strong');
+  amount.className = 'calendar-amount-line-amount';
+  amount.textContent = presentation.amounts.join(' · ');
+  const chevron = document.createElement('span');
+  chevron.className = 'calendar-amount-line-chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  chevron.textContent = '›';
+  line.append(label, amount, chevron);
+  line.setAttribute('aria-label', `${presentation.label} ${presentation.amounts.join(', ')}, 자세히 보기`);
+  if (typeof onOpen === 'function') line.addEventListener('click', () => onOpen(line));
+  return line;
+}
+
+function amountCategoryOverviewNode(summary) {
+  const currencies = shownCurrencies(summary);
+  const overview = document.createElement('div');
+  overview.className = 'calendar-amount-category-groups';
+  for (const currency of currencies) {
+    const byCategory = new Map((currency.categories || [])
+      .filter(row => EXPENSE_CATEGORY_ORDER.includes(row?.expenseCategory))
+      .map(row => [row.expenseCategory, row]));
+    // 등록 화면과 합계표는 같은 여섯 종류를 항상 보여 준다. 기록이 없는
+    // 종류도 0원으로 남겨 사용자가 합계 기준을 한눈에 확인할 수 있다.
+    const visibleCategories = EXPENSE_CATEGORY_ORDER;
+    const list = document.createElement('dl');
+    list.className = 'calendar-amount-categories';
+    list.dataset.currency = currency.currency;
+    for (const expenseCategory of visibleCategories) {
+      const row = byCategory.get(expenseCategory);
+      const item = document.createElement('div');
+      item.className = 'calendar-amount-category';
+      item.dataset.expenseCategory = expenseCategory;
+      const label = document.createElement('dt');
+      label.textContent = expenseCategoryLabel(expenseCategory);
+      const amount = document.createElement('dd');
+      amount.textContent = formatExpenseAmount(Number.isInteger(row?.amountMinor) ? row.amountMinor : 0, currency.currency);
+      item.append(label, amount);
+      list.appendChild(item);
+    }
+    overview.appendChild(list);
+  }
+  return overview;
+}
+
+export function calendarAmountSummaryBlock(options) {
+  const line = calendarAmountSummaryLine(options);
+  if (!line) return null;
+  if (options?.state !== 'ready') return line;
+  const categories = amountCategoryOverviewNode(options.summary);
+  if (!categories) return line;
+  const block = document.createElement('section');
+  block.className = 'calendar-amount-overview';
+  block.setAttribute('aria-label', options.periodLabel
+    ? `${options.periodLabel} 생활비 합계`
+    : Number.isInteger(options.month) ? `${options.month}월 생활비 합계` : '생활비 합계');
+  const head = document.createElement('div');
+  head.className = 'calendar-amount-head';
+  head.appendChild(line);
+  if (typeof options?.onImage === 'function') {
+    const image = document.createElement('button');
+    image.type = 'button';
+    image.className = 'calendar-amount-image-button';
+    image.textContent = '▧ 사진으로 추가';
+    image.setAttribute('aria-label', '사진에서 일정과 금액 추가');
+    image.addEventListener('click', () => options.onImage(image));
+    head.appendChild(image);
+  }
+  block.append(head, categories);
+  return block;
+}
+
+export function calendarAmountDetailNode({summary = null, monthLabel = '', local = false}) {
+  const presentation = amountDetailPresentation(summary, {local});
+  const body = document.createElement('div');
+  body.className = 'calendar-amount-detail';
+  body.dataset.amountRecorded = String(presentation.recorded);
+  const scope = document.createElement('p');
+  scope.className = 'calendar-amount-detail-scope';
+  scope.textContent = [monthLabel, presentation.scopeNote].filter(Boolean).join(' · ');
+  body.appendChild(scope);
+  if (!presentation.recorded) {
+    const empty = document.createElement('p');
+    empty.className = 'calendar-amount-detail-empty';
+    empty.textContent = '이 달에 입력한 금액이 없어요.';
+    body.appendChild(empty);
+    return body;
+  }
+  for (const line of presentation.lines) {
+    const group = document.createElement('section');
+    group.className = 'calendar-amount-detail-currency';
+    group.dataset.currency = line.currency;
+    const total = document.createElement('p');
+    total.className = 'calendar-amount-detail-total';
+    const totalLabel = document.createElement('span');
+    totalLabel.textContent = line.currency === 'KRW' ? '합계' : `합계 (${line.currency})`;
+    const totalAmount = document.createElement('strong');
+    totalAmount.textContent = line.totalAmount;
+    total.append(totalLabel, totalAmount);
+    const rows = document.createElement('dl');
+    rows.className = 'calendar-amount-detail-rows';
+    for (const category of line.categories) {
+      const row = document.createElement('div');
+      row.className = 'calendar-amount-detail-row';
+      row.dataset.expenseCategory = category.expenseCategory;
+      const name = document.createElement('dt');
+      name.textContent = category.label;
+      const value = document.createElement('dd');
+      value.textContent = category.amount;
+      if (Number.isInteger(category.count)) {
+        const count = document.createElement('small');
+        count.textContent = `${category.count}건`;
+        value.append(' ', count);
+      }
+      row.append(name, value);
+      rows.appendChild(row);
+    }
+    group.append(total, rows);
+    body.appendChild(group);
+  }
+  if (presentation.storageNote) {
+    const storage = document.createElement('p');
+    storage.className = 'calendar-amount-detail-storage';
+    storage.textContent = presentation.storageNote;
+    body.appendChild(storage);
+  }
+  return body;
 }

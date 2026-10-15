@@ -30,14 +30,16 @@ assert.deepEqual(expense.lines[0], {
   totalLabel: '합계 ₩',
   totalAmount: '222,300원',
   categories: [
+    {expenseCategory: 'UNCLASSIFIED', label: '미분류', amount: '0원'},
     {expenseCategory: 'FOOD', label: '음식', amount: '42,300원'},
     {expenseCategory: 'TRAVEL', label: '여행', amount: '0원'},
     {expenseCategory: 'SHOPPING', label: '쇼핑', amount: '0원'},
     {expenseCategory: 'LIVING', label: '생활비', amount: '180,000원'},
     {expenseCategory: 'OTHER', label: '기타', amount: '0원'},
-    {expenseCategory: 'UNCLASSIFIED', label: '미분류', amount: '0원'},
   ],
-  note: '금액 없는 일정 1건 제외',
+  // LIFE UX 01: a record without an amount is an ordinary record; nothing says
+  // it was left out (entriesWithoutAmount stays in the data, unworded).
+  note: '',
 });
 assert.equal(expense.storageNote, '이 기기에 저장됨');
 
@@ -45,7 +47,7 @@ const emptyExpense = expenseSummaryPresentation({currencies: [], entriesWithoutA
 assert.equal(emptyExpense.lines[0].totalLabel, '합계 ₩');
 assert.equal(emptyExpense.lines[0].totalAmount, '0원');
 assert.deepEqual(emptyExpense.lines[0].categories.map(row => row.amount), Array(6).fill('0원'));
-assert.deepEqual(emptyExpense.lines[0].categories.map(row => row.label), ['음식', '여행', '쇼핑', '생활비', '기타', '미분류']);
+assert.deepEqual(emptyExpense.lines[0].categories.map(row => row.label), ['미분류', '음식', '여행', '쇼핑', '생활비', '기타']);
 assert.equal(emptyExpense.lines[0].note, '');
 assert.equal(emptyExpense.storageNote, '');
 
@@ -221,18 +223,25 @@ const rootEscapeSource = manager.slice(rootEscapeStart, rootEscapeEnd);
 assert.match(rootEscapeSource, /calendar-settings-(?:dialog|backdrop)[\s\S]*return/,
   'root capture must defer Escape to the open Settings top layer before day-detail handling');
 
-// Break caught: focused browser fixtures still asserted the retired overlay
-// variants or rendered every Month event, so CI would reject the final IA.
-assert.doesNotMatch(touchRuntime, /setDayDetailPresentation\(|presentation\s*!==\s*'POPOVER'|presentation\s*!==\s*'SHEET'/,
-  'touch runtime must test the authoritative FLOW/SIDE detail only');
-assert.match(touchRuntime, /presentation\s*!==\s*'FLOW'[\s\S]*position\s*!==\s*'static'/,
-  'touch runtime must assert an in-flow, non-overlay mobile detail');
+// CALENDAR-DESIGN-04 (owner-approved 2026-10-14): a picked date is part of the
+// page -- the card beside the month on a desk, the list under it on a phone --
+// and no popup, sheet or backdrop ever covers the month.
+assert.match(touchRuntime, /!d\.isSideCard \|\| !d\.beside[\s\S]*d\.overlay/,
+  'desktop runtime must assert the selected-day card beside the month with no overlay');
+assert.match(touchRuntime, /!list\.isUnderMonth[\s\S]*list\.position === 'fixed'[\s\S]*list\.overlay/,
+  'touch runtime must assert the in-page day list under the month with no sheet');
+assert.match(touchRuntime, /overlayOpen=\(\)=>Boolean\(document\.querySelector\('\.c4-dlg-backdrop,\.calendar-day-panel,\[data-calendar-day-detail-backdrop\]/,
+  'Month runtime must open without any date popup, sheet or backdrop');
 assert.doesNotMatch(dayPanelRuntime, /toggleLabel|\[접기\]|presentation\s*!==\s*'POPOVER'/,
   'day-panel runtime must not require the retired collapse/overlay UI');
-assert.ok(dayPanelRuntime.includes('/^\\d+월 \\d+일 [일월화수목금토]$/'),
-  'day-panel runtime must keep the compact selected-date heading contract');
-assert.match(monthGeometry, /rows\.length\s*!==\s*2[\s\S]*more\.textContent\s*!==\s*'\+3'/,
-  'Month geometry must lock two mounted rows plus a visible +3 overflow summary');
+// LIFE UX 01: the day detail names its day in full ("10월 5일 월요일"), the
+// same words as the editor's date chip.
+assert.ok(dayPanelRuntime.includes('/^\\d+월 \\d+일 [일월화수목금토]요일$/'),
+  'day-panel runtime must keep the selected-date heading contract');
+assert.ok(dayPanelRuntime.includes('/^\\d+월 \\d+일 \\([일월화수목금토]\\)$/'),
+  'day-panel runtime must keep the short phone heading of design 04');
+assert.match(monthGeometry, /rows\.length\s*!==\s*3[\s\S]*more\.textContent\s*!==\s*'\+3개 더'/,
+  'Month geometry must lock three mounted rows plus a visible +3개 더 overflow summary');
 assert.match(modalRuntime, /visible\s*!==\s*expectedRows[\s\S]*overflowVisible/,
   'modal density must assert actual row and overflow visibility');
 

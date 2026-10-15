@@ -32,8 +32,104 @@ function appendEmphasis(container, value) {
 
 const LIST_ITEM = /^\s{0,3}(?:[-*+]|\d{1,3}[.)])\s+(.*)$/;
 
-// Turns a run of plain text into block nodes: bullet lists become <ul>, blank
-// lines separate <p>, and single newlines stay line breaks inside a paragraph.
+// SITE-CHAT-ANSWER-QUALITY-P0 — comparison answers arrive as pipe tables
+// ("| 항목 | Pro | Pro Max |"), and a phone showed the raw pipes. A table is a
+// header row, a separator row of dashes, then body rows; anything less stays
+// text exactly as written.
+const TABLE_ROW = /^\s*\|?(.+\|.*?)\|?\s*$/;
+const TABLE_SEPARATOR = /^\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)+\|?\s*$/;
+const TABLE_MAX_COLUMNS = 8;
+const TABLE_MAX_ROWS = 40;
+const TABLE_EMPTY_CELL = '—';
+
+// A plain character walk instead of a lookbehind regex: older iOS Safari
+// cannot parse lookbehind, and one unparsable pattern would take the whole
+// chat module down with it. "\|" is a literal pipe inside a cell.
+function splitTableRow(line) {
+  let row = String(line ?? '').trim();
+  if (row.startsWith('|')) row = row.slice(1);
+  if (row.endsWith('|') && !row.endsWith('\\|')) row = row.slice(0, -1);
+  const cells = [];
+  let current = '';
+  for (let index = 0; index < row.length; index += 1) {
+    const char = row[index];
+    if (char === '\\' && row[index + 1] === '|') { current += '|'; index += 1; continue; }
+    if (char === '|') { cells.push(current.trim()); current = ''; continue; }
+    current += char;
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function isTableStart(lines, index) {
+  const header = lines[index];
+  const separator = lines[index + 1];
+  if (typeof header !== 'string' || typeof separator !== 'string') return false;
+  if (!TABLE_ROW.test(header) || !TABLE_SEPARATOR.test(separator)) return false;
+  const columns = splitTableRow(header).length;
+  return columns >= 2 && columns <= TABLE_MAX_COLUMNS && splitTableRow(separator).length === columns;
+}
+
+function appendTableCell(row, tag, value, scope) {
+  const cell = document.createElement(tag);
+  if (scope) cell.scope = scope;
+  const text = String(value ?? '').trim();
+  if (text) appendEmphasis(cell, text);
+  else {
+    cell.textContent = TABLE_EMPTY_CELL;
+    cell.classList.add('chat-table-empty');
+    cell.setAttribute('aria-label', '정보 없음');
+  }
+  row.appendChild(cell);
+}
+
+// Builds the table node by node, like the rest of this renderer. Rows with
+// fewer cells are padded with an explicit "—" (never left to look like the
+// value is zero), extra cells are folded into the last column.
+function createTable(headerLine, bodyLines) {
+  const header = splitTableRow(headerLine);
+  const columns = header.length;
+  const normalize = cells => {
+    const row = cells.slice(0, columns);
+    if (cells.length > columns) row[columns - 1] = cells.slice(columns - 1).join(' | ');
+    while (row.length < columns) row.push('');
+    return row;
+  };
+  const scroll = document.createElement('div');
+  scroll.className = 'chat-table-scroll';
+  const table = document.createElement('table');
+  table.className = 'chat-message-table';
+  table.dataset.columns = String(columns);
+  // 항목 | A | B — two options side by side fit a phone without scrolling,
+  // with a divider between the two options.
+  if (columns === 3) table.classList.add('is-comparison');
+  if (columns >= 4) {
+    scroll.classList.add('is-wide');
+    scroll.tabIndex = 0;
+    scroll.setAttribute('role', 'region');
+    scroll.setAttribute('aria-label', '비교 표, 옆으로 밀어서 보기');
+  }
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  header.forEach(cell => appendTableCell(headRow, 'th', cell, 'col'));
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  for (const line of bodyLines.slice(0, TABLE_MAX_ROWS)) {
+    const row = document.createElement('tr');
+    normalize(splitTableRow(line)).forEach((cell, index) => (
+      index === 0 ? appendTableCell(row, 'th', cell, 'row') : appendTableCell(row, 'td', cell)
+    ));
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+  scroll.appendChild(table);
+  return scroll;
+}
+
+// Turns a run of plain text into block nodes: bullet lists become <ul>, pipe
+// tables become <table>, blank lines separate <p>, and single newlines stay
+// line breaks inside a paragraph.
 function appendRichText(container, value) {
   const text = String(value ?? '');
   if (!text) return;
@@ -41,7 +137,21 @@ function appendRichText(container, value) {
   let paragraph = null;
   const closeList = () => { list = null; };
   const closeParagraph = () => { paragraph = null; };
-  for (const line of text.split(/\r?\n/)) {
+  const lines = text.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (isTableStart(lines, index)) {
+      closeList(); closeParagraph();
+      const bodyLines = [];
+      let next = index + 2;
+      while (next < lines.length && lines[next].trim() && TABLE_ROW.test(lines[next])) {
+        bodyLines.push(lines[next]);
+        next += 1;
+      }
+      container.appendChild(createTable(line, bodyLines));
+      index = next - 1;
+      continue;
+    }
     if (!line.trim()) { closeList(); closeParagraph(); continue; }
     const item = line.match(LIST_ITEM);
     if (item) {

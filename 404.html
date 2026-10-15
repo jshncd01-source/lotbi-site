@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="요청한 LOTBI 웹 경로를 아직 제공하지 않습니다." />
+  <meta name="description" content="찾으시는 LOTBI 페이지를 찾을 수 없어요. 주소를 다시 확인하거나 홈으로 이동해 주세요." />
   <meta name="robots" content="noindex,nofollow" />
-  <title>페이지 준비 중 | LOTBI</title>
+  <title>페이지를 찾을 수 없어요 | LOTBI</title>
   <!-- SITE-STATIC-PAGES-THEME-01 — same pre-paint bootstrap as index.html, and
        for the same reasons: inline, blocking, above every stylesheet. These
        pages load no module, so this script is the ONLY thing that puts the
@@ -14,29 +14,77 @@
        Reads only. Wrapped in try/catch and does nothing on a bad or missing
        value: a storage failure must not stop a legal page from rendering. -->
   <script>
-    try {
-      var lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
-      if (lotbiSavedTheme === 'auto') {
-        // SITE-THEME-AUTO-SCHEDULE-02 — '자동모드' is resolved here, with the same
-        // 18:00/07:00 boundaries index.html uses, rather than stored already
-        // resolved: a stored answer goes stale the moment the clock crosses one.
-        // Measured before this: with the key at 'auto' these pages set no
-        // attribute at all and fell back to the OS, so at 22:00 on a light OS
-        // Home went dark by the clock and a legal page stayed rgb(247,248,251).
+    // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode is the lotbi_theme_preference_v1
+    // cookie shared with account.lotbiai.com; this origin's old key is read only
+    // when that cookie is absent. Reads only. Re-applied when the tab comes back
+    // and at the next 자동모드 boundary, so an open page never stays behind.
+    (function () {
+      var lotbiTimer;
+      function lotbiApplyTheme() {
+        var lotbiSavedTheme = null;
+        try {
+          var lotbiCookies = document.cookie ? document.cookie.split(';') : [];
+          for (var lotbiIndex = 0; lotbiIndex < lotbiCookies.length; lotbiIndex += 1) {
+            var lotbiCookie = lotbiCookies[lotbiIndex].replace(/^\s+/, '');
+            if (lotbiCookie.indexOf('lotbi_theme_preference_v1=') !== 0) continue;
+            var lotbiShared = lotbiCookie.slice('lotbi_theme_preference_v1='.length);
+            lotbiSavedTheme = lotbiSavedTheme === null || lotbiSavedTheme === lotbiShared ? lotbiShared : '';
+          }
+        } catch (error) {}
+        if (lotbiSavedTheme !== 'light' && lotbiSavedTheme !== 'dark' && lotbiSavedTheme !== 'system' && lotbiSavedTheme !== 'auto') {
+          try {
+            lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+          } catch (error) {
+            lotbiSavedTheme = null;
+          }
+        }
+        var lotbiPreference = lotbiSavedTheme;
         var lotbiHour = new Date().getHours();
-        lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+        if (lotbiSavedTheme === 'auto') {
+          // '자동모드' is resolved here, by this device's clock, rather than
+          // stored resolved: a stored answer goes stale at 07:00 and 22:00.
+          lotbiSavedTheme = (lotbiHour >= 22 || lotbiHour < 7) ? 'dark' : 'light';
+        }
+        if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+          document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+          document.documentElement.dataset.siteThemePreference = lotbiPreference;
+        }
+        clearTimeout(lotbiTimer);
+        if (lotbiPreference === 'auto') {
+          var lotbiNext = new Date();
+          lotbiNext.setMinutes(0, 0, 0);
+          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 22 ? 7 : 22);
+          if (lotbiNext.getTime() <= Date.now()) lotbiNext.setDate(lotbiNext.getDate() + 1);
+          lotbiTimer = setTimeout(lotbiApplyTheme, lotbiNext.getTime() - Date.now());
+        }
       }
-      if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
-        document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
-      }
-    } catch (error) {}
+      lotbiApplyTheme();
+      window.addEventListener('pageshow', lotbiApplyTheme);
+      window.addEventListener('focus', lotbiApplyTheme);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') lotbiApplyTheme();
+      });
+    })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=aset-de88e6e1b0a7" />
-  <link rel="stylesheet" href="/mobile-entry.css?v=aset-de88e6e1b0a7" />
-  <link rel="stylesheet" href="/site-static-theme.css?v=aset-de88e6e1b0a7" />
-  <script src="/mobile-entry.js?v=aset-de88e6e1b0a7" defer></script>
-  <link rel="stylesheet" href="site-consumer-documents.css?v=aset-de88e6e1b0a7" />
-  <script src="site-document-navigation.js?v=aset-de88e6e1b0a7" defer></script>
+  <link rel="stylesheet" href="/styles.css?v=aset-7ce47b43cff4" />
+  <link rel="stylesheet" href="/mobile-entry.css?v=aset-7ce47b43cff4" />
+  <link rel="stylesheet" href="/site-static-theme.css?v=aset-7ce47b43cff4" />
+  <script src="/mobile-entry.js?v=aset-7ce47b43cff4" defer></script>
+  <link rel="stylesheet" href="/site-consumer-documents.css?v=aset-7ce47b43cff4" />
+  <script src="/site-document-navigation.js?v=aset-7ce47b43cff4" defer></script>
+  <!-- SITE-404-LOTBI-01 — this page is what nginx shows for every missing address
+       (error_page keeps the address bar), so it is centred, phone-sized and
+       follows the theme tokens; the buttons are 52px like the rest of LOTBI. -->
+  <style>
+    .not-found { text-align: center; padding: 40px 20px 32px; }
+    .not-found-mark { width: 96px; height: 96px; }
+    .consumer-document .not-found h1 { margin: 16px 0 10px; font-size: 24px; line-height: 1.4; word-break: keep-all; text-wrap: balance; }
+    .consumer-document .not-found .not-found-lead { max-width: 30em; margin: 0 auto; font-size: 16px; line-height: 1.65; color: var(--muted); word-break: keep-all; text-wrap: balance; }
+    .not-found-actions { display: flex; flex-direction: column; gap: 12px; max-width: 320px; margin: 28px auto 0; }
+    .not-found-actions a { display: flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 52px; padding: 12px 16px; border-radius: 12px; font-size: 16px; font-weight: 700; line-height: 1.3; text-decoration: none; }
+    .consumer-document .not-found-actions .primary-link { min-height: 52px; font-size: 16px; font-weight: 700; }
+    .consumer-document .not-found .not-found-actions a.not-found-secondary { border: 1px solid #8a8a8a; background: transparent; color: var(--text); text-decoration: none; }
+  </style>
 </head>
 <body class="consumer-document">
   <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
@@ -46,11 +94,14 @@
       <nav aria-label="주요 메뉴"><a href="/">홈</a><a href="/contact">문의</a></nav>
     </header>
 
-    <section class="section">
-      <p class="kicker">LOTBI</p>
-      <h1>요청한 LOTBI 화면을 웹에서 아직 제공하지 않습니다.</h1>
-      <p class="lead-small">주소는 그대로 유지했습니다. 지원되는 웹 화면으로 돌아가거나, 앱 연결이 준비된 뒤 같은 주소에서 이어서 이용할 수 있습니다.</p>
-      <a class="primary-link" href="/">LOTBI 홈으로 이동</a>
+    <section class="section not-found" aria-labelledby="not-found-title">
+      <img class="not-found-mark" src="/assets/brand/lotbi-mark-192.png" alt="" width="96" height="96" decoding="async" />
+      <h1 id="not-found-title">찾으시는 페이지를 찾을 수 없어요</h1>
+      <p class="not-found-lead">주소가 바뀌었거나 없어진 페이지예요. 주소를 다시 확인하거나 아래 버튼으로 이동해 주세요.</p>
+      <div class="not-found-actions">
+        <a class="primary-link" href="/">LOTBI 홈으로 가기</a>
+        <a class="not-found-secondary" href="/contact">문의하기</a>
+      </div>
     </section>
 
     <footer class="lotbi-footer">

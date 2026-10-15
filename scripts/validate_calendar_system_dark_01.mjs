@@ -29,7 +29,9 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 // --- 1. the mirror must match its source -----------------------------------
 {
-  const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8');
+  // generate() emits LF; a core.autocrlf=true checkout has CRLF on disk. Compare
+  // content, not line endings.
+  const css = fs.readFileSync(path.join(ROOT, 'site-calendar.css'), 'utf8').replace(/\r\n/g, '\n');
   const start = css.indexOf(BEGIN);
   const end = css.indexOf(END);
   assert.ok(start !== -1 && end !== -1, 'the system-dark mirror block is missing from site-calendar.css');
@@ -85,7 +87,7 @@ try {
   // open the day panel and the settings dialog: both were failing on the real site
   root.querySelector('.calendar-date-cell[data-current-month="true"]')?.click();
   await sleep(500);
-  root.querySelector('.calendar-settings-button')?.click();
+  document.querySelector('.calendar-settings-button')?.click();
   await wait(() => root.querySelector('.calendar-settings-dialog'), 'settings');
   await sleep(300);
 

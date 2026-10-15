@@ -25,8 +25,9 @@ import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const conversation = fs.readFileSync(path.join(ROOT, 'site-conversation.js'), 'utf8');
-const storageModule = fs.readFileSync(path.join(ROOT, 'site-conversation-storage.js'), 'utf8');
+const normalizeNewlines = value => value.replaceAll('\r\n', '\n');
+const conversation = normalizeNewlines(fs.readFileSync(path.join(ROOT, 'site-conversation.js'), 'utf8'));
+const storageModule = normalizeNewlines(fs.readFileSync(path.join(ROOT, 'site-conversation-storage.js'), 'utf8'));
 
 // ── Source-level invariants ───────────────────────────────────────────────
 // The marker lives in site-conversation-storage.js, with the other conversation

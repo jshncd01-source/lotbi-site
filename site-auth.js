@@ -1,4 +1,5 @@
-import {SITE_CALLBACK_URI} from './site-core.js?v=aset-de88e6e1b0a7';
+import {redeemSiteHandoff, SITE_CALLBACK_URI} from './site-core.js?v=aset-7ce47b43cff4';
+import {parseSiteRouteHash} from './site-route.js?v=aset-7ce47b43cff4';
 
 export const ACCOUNT_SITE_HANDOFF_URL = 'https://account.lotbiai.com/auth/site-handoff';
 export const ACCOUNT_SITE_FALLBACK_URL = 'https://account.lotbiai.com/?site_fallback=1';
@@ -8,6 +9,11 @@ export const ACCOUNT_SITE_SESSION_STATUS_URL = 'https://account.lotbiai.com/api/
 // the normal same-region response budget while still bounding a stalled mobile
 // radio / background-resume request. A timeout is UNKNOWN, never logged-out.
 export const ACCOUNT_SESSION_STATUS_TIMEOUT_MS = 5000;
+// AUTH-SESSION-CONTINUITY-P0-02 — Account answers the Site's own fetch with a
+// one-time, PKCE-bound handoff code, so a 30-minute Site session is renewed in
+// place instead of sending the whole page through /auth/callback/.
+export const ACCOUNT_SITE_SESSION_RENEWAL_URL = 'https://account.lotbiai.com/api/auth/site-session-renewal';
+export const ACCOUNT_SITE_SESSION_RENEWAL_TIMEOUT_MS = 8000;
 export const HANDOFF_CONTEXT_KEY = 'lotbi.site-handoff.v1';
 export const HANDOFF_CONTEXT_TTL_MS = 5 * 60 * 1000;
 export const HANDOFF_RECOVERY_KEY = 'lotbi.site-handoff-recovery.v1';
@@ -62,6 +68,21 @@ export function hasSiteLogoutSuppression(now = Date.now(), storage = optionalSes
 
 const STATE_PATTERN = /^[\x21-\x7e]{16,256}$/;
 const VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
+const PROFILE_PHOTO_RETURN_HASH = '#profile-photo';
+
+// The return target is a closed set of fragments on / — #profile-photo and the
+// Site screens of site-route.js — so a login started on /#calendar comes back
+// to the calendar (SITE-REFRESH-ROUTE-RESTORE-01). Anything else returns to /;
+// no path, origin or query is ever taken from the stored value.
+export function normalizeSiteHandoffReturnHash(value) {
+  if (value === PROFILE_PHOTO_RETURN_HASH) return PROFILE_PHOTO_RETURN_HASH;
+  return parseSiteRouteHash(value) ? value : '';
+}
+
+export function siteHandoffReturnPath(returnHash) {
+  const normalized = normalizeSiteHandoffReturnHash(returnHash);
+  return normalized ? `/${normalized}` : '/';
+}
 
 function recordTiming(name) {
   try {
@@ -135,13 +156,28 @@ function hasCurrentSiteHandoffRecovery(now, storage) {
   return false;
 }
 
-export async function recoverMissingSiteHandoffContext(error, {
+const STALE_HANDOFF_RECOVERY_CODES = new Set([
+  'SITE_HANDOFF_CONTEXT_MISSING',
+  'SITE_HANDOFF_STATE_MISMATCH',
+  'SITE_HANDOFF_CONTEXT_INVALID',
+  'SITE_HANDOFF_CALLBACK_INVALID',
+  'SITE_HANDOFF_REPLAY_OR_INVALID',
+  'SITE_HANDOFF_EXPIRED',
+  'SITE_HANDOFF_SOURCE_SESSION_INVALID',
+]);
+
+export async function recoverStaleSiteHandoff(error, {
   storage = optionalSessionStorage(),
   now = Date.now(),
   readStatus = readAccountSessionStatus,
-  beginHandoff = pendingText => beginSiteHandoff(pendingText, {recoveryAttempt: true}),
+  beginHandoff = (pendingText, returnHash) => beginSiteHandoff(
+    pendingText,
+    {recoveryAttempt: true, returnHash},
+  ),
+  pendingText = '',
+  returnHash = '',
 } = {}) {
-  if (!(error instanceof SiteHandoffClientError) || error.code !== 'SITE_HANDOFF_CONTEXT_MISSING') return false;
+  if (!STALE_HANDOFF_RECOVERY_CODES.has(error?.code)) return false;
   if (!storage || hasCurrentSiteHandoffRecovery(now, storage)) return false;
   if (!await readStatus()) return false;
 
@@ -150,11 +186,49 @@ export async function recoverMissingSiteHandoffContext(error, {
     startedAt: now,
     attemptCount: 1,
   }));
-  await beginHandoff('');
+  await beginHandoff(pendingText, returnHash);
   return true;
 }
 
-export async function createSiteHandoffContext(pendingText = '', now = Date.now()) {
+export const recoverMissingSiteHandoffContext = recoverStaleSiteHandoff;
+
+// SITE-LOGIN-HANDOFF-REPEAT-01 — a callback that arrives stale or broken (a
+// restored tab, Back, a second hand-over, a code already used) on a device whose
+// Account is signed in. Home restores the Site session in place
+// (AUTH-SESSION-CONTINUITY-P0-02), so going there is all it takes: no second
+// Account round trip, no "LOTBI 연결 오류" page. A message typed before signing in
+// is not dropped — that case still takes recoverStaleSiteHandoff, whose fresh
+// handoff carries it. The recovery marker allows this once per window, so a Home
+// that cannot restore and falls back to the redirect handoff cannot bounce
+// between the two; a signed-out Account keeps the diagnostic error page.
+export async function returnHomeFromStaleSiteHandoff(error, {
+  storage = optionalSessionStorage(),
+  now = Date.now(),
+  readStatus = readAccountSessionStatus,
+  goHome = returnHash => window.location.replace(siteHandoffReturnPath(returnHash)),
+  pendingText = '',
+  returnHash = '',
+} = {}) {
+  if (typeof pendingText === 'string' && pendingText.trim()) return false;
+  if (!STALE_HANDOFF_RECOVERY_CODES.has(error?.code)) return false;
+  if (!storage || hasCurrentSiteHandoffRecovery(now, storage)) return false;
+  let signedIn = false;
+  try {
+    signedIn = await readStatus() === true;
+  } catch {
+    return false;
+  }
+  if (!signedIn) return false;
+  storage.setItem(HANDOFF_RECOVERY_KEY, JSON.stringify({
+    version: 1,
+    startedAt: now,
+    attemptCount: 1,
+  }));
+  goHome(returnHash);
+  return true;
+}
+
+export async function createSiteHandoffContext(pendingText = '', now = Date.now(), returnHash = '') {
   if (!globalThis.crypto?.getRandomValues || !globalThis.crypto?.subtle || typeof globalThis.btoa !== 'function') {
     throw new SiteHandoffClientError('이 브라우저에서는 안전한 사이트 로그인 연결을 사용할 수 없습니다.', 'SITE_HANDOFF_CRYPTO_UNAVAILABLE');
   }
@@ -169,6 +243,7 @@ export async function createSiteHandoffContext(pendingText = '', now = Date.now(
       codeVerifier,
       codeChallenge,
       pendingText: message,
+      returnHash: normalizeSiteHandoffReturnHash(returnHash),
       startedAt: now,
     });
   } catch (error) {
@@ -187,6 +262,7 @@ export function storeSiteHandoffContext(context, storage = browserStorage()) {
       state: context.state,
       codeVerifier: context.codeVerifier,
       pendingText: context.pendingText,
+      returnHash: normalizeSiteHandoffReturnHash(context.returnHash),
       startedAt: context.startedAt,
     }));
   } catch {
@@ -218,6 +294,7 @@ export function readAndClearSiteHandoffContext(returnedState, storage = browserS
     || now - context.startedAt > HANDOFF_CONTEXT_TTL_MS
     || typeof context.pendingText !== 'string'
     || context.pendingText.length > 1000
+    || (context.returnHash !== undefined && context.returnHash !== normalizeSiteHandoffReturnHash(context.returnHash))
   ) {
     throw new SiteHandoffClientError('로그인 연결 검증값이 만료되었거나 올바르지 않습니다.', 'SITE_HANDOFF_CONTEXT_INVALID');
   }
@@ -226,7 +303,33 @@ export function readAndClearSiteHandoffContext(returnedState, storage = browserS
     throw new SiteHandoffClientError('로그인 연결 상태값이 일치하지 않습니다.', 'SITE_HANDOFF_STATE_MISMATCH');
   }
 
-  return Object.freeze(context);
+  return Object.freeze({...context, returnHash: normalizeSiteHandoffReturnHash(context.returnHash)});
+}
+
+// SOCIAL-LOGIN-4P-RECOVERY-01 — the callback strips code/state from its URL the
+// moment it boots, so the same tab landing on /auth/callback again (reload, Back,
+// a mobile browser restoring a discarded tab) arrives with no query at all. That
+// is a visit to an already-consumed callback, not a handoff to verify; it used to
+// dead-end on "로그인 연결 파라미터가 올바르지 않습니다". Any query at all — even
+// one with a missing or extra parameter — is still checked and fails closed.
+export function isConsumedSiteHandoffCallback(url) {
+  return [...url.searchParams.keys()].length === 0;
+}
+
+// AUTH-SESSION-CONTINUITY-P0-02 — what a callback URL looked like, without a
+// single value from it: how many code and state parameters it carried and how
+// many other names. The error page prints this so a phone screenshot says which
+// way the callback was entered; code/state themselves are never read here.
+export function describeSiteHandoffCallbackQuery(url) {
+  let other = 0;
+  for (const key of url.searchParams.keys()) {
+    if (key !== 'code' && key !== 'state') other += 1;
+  }
+  return Object.freeze({
+    code: url.searchParams.getAll('code').length,
+    state: url.searchParams.getAll('state').length,
+    other,
+  });
 }
 
 export function parseSiteHandoffCallback(url) {
@@ -317,16 +420,117 @@ export async function readAccountSessionStatus(
   return payload.authenticated;
 }
 
+// AUTH-SESSION-CONTINUITY-P0-02 — silent renewal.
+//
+// The same PKCE handoff as beginSiteHandoff(), minus the page navigation: a
+// fresh state/verifier/challenge is made in memory (never stored), Account
+// answers with a one-time code bound to that challenge, the echoed state is
+// compared, and Core redeems the code only with the verifier this page holds.
+// Results:
+//   {status: 'RENEWED', session}  a new Site child session
+//   {status: 'SIGNED_OUT'}        Account says there is no session — the only
+//                                  answer that may show the login button
+// Anything else (offline, timeout, Account not yet deployed, contract drift)
+// throws SiteHandoffClientError and is never read as a logout.
+export async function renewSiteSessionSilently({
+  fetchImpl = globalThis.fetch,
+  redeem = redeemSiteHandoff,
+  timeoutMs = ACCOUNT_SITE_SESSION_RENEWAL_TIMEOUT_MS,
+  now = Date.now(),
+} = {}) {
+  if (typeof fetchImpl !== 'function') {
+    throw new SiteHandoffClientError('LOTBI 계정 연결을 확인할 수 없습니다.', 'SITE_SESSION_RENEWAL_UNAVAILABLE');
+  }
+  const context = await createSiteHandoffContext('', now, '');
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = globalThis.setTimeout(() => {
+      reject(new SiteHandoffClientError('LOTBI 계정 연결 확인 시간이 초과되었습니다.', 'SITE_SESSION_RENEWAL_TIMEOUT'));
+      try { controller?.abort(); } catch {}
+    }, timeoutMs);
+  });
+
+  let response;
+  let payload;
+  try {
+    const request = Promise.resolve().then(async () => {
+      const answer = await fetchImpl(ACCOUNT_SITE_SESSION_RENEWAL_URL, {
+        method: 'POST',
+        mode: 'cors',
+        credentials: 'include',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+        headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+        body: JSON.stringify({state: context.state, code_challenge: context.codeChallenge}),
+        ...(controller ? {signal: controller.signal} : {}),
+      });
+      let body = {};
+      try { body = await answer.json(); } catch {}
+      return [answer, body];
+    });
+    [response, payload] = await Promise.race([request, timeout]);
+  } catch (error) {
+    if (error instanceof SiteHandoffClientError) throw error;
+    throw new SiteHandoffClientError('LOTBI 계정 연결 서버에 접속하지 못했습니다.', 'SITE_SESSION_RENEWAL_NETWORK_ERROR');
+  } finally {
+    if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
+  }
+
+  const contractMatches = payload?.contract_id === 'ACCOUNT-SITE-SESSION-RENEWAL-01' && payload?.schema_version === 1;
+  if (response.status === 401 && contractMatches && payload.authenticated === false) {
+    return Object.freeze({status: 'SIGNED_OUT'});
+  }
+  if (!response.ok || !contractMatches || payload.authenticated !== true) {
+    throw new SiteHandoffClientError('LOTBI 계정 연결을 잠시 확인하지 못했습니다.', 'SITE_SESSION_RENEWAL_UNAVAILABLE');
+  }
+  if (typeof payload.state !== 'string' || payload.state !== context.state) {
+    throw new SiteHandoffClientError('로그인 연결 상태값이 일치하지 않습니다.', 'SITE_HANDOFF_STATE_MISMATCH');
+  }
+  if (typeof payload.code !== 'string' || payload.code.length < 32 || payload.code.length > 256) {
+    throw new SiteHandoffClientError('LOTBI 계정 연결 응답이 올바르지 않습니다.', 'SITE_SESSION_RENEWAL_UNAVAILABLE');
+  }
+  const session = await redeem({
+    handoffCode: payload.code,
+    state: context.state,
+    codeVerifier: context.codeVerifier,
+  });
+  return Object.freeze({status: 'RENEWED', session});
+}
+
+// AUTH-SESSION-CONTINUITY-P0-02 — the mounted conversation registers how a
+// renewed Site session reaches it; site-continuity.js hands sessions over
+// through here, so the bearer never travels on a window event.
+let siteSessionAdopter;
+
+export function registerSiteSessionAdopter(adopter) {
+  siteSessionAdopter = typeof adopter === 'function' ? adopter : undefined;
+}
+
+export function adoptSiteSession(session) {
+  if (typeof siteSessionAdopter !== 'function') return false;
+  try {
+    return siteSessionAdopter(session) === true;
+  } catch {
+    return false;
+  }
+}
+
+export const SITE_SESSION_RENEWAL_REQUEST_EVENT = 'lotbi:site-session-renewal-request';
+
 export function shouldUseAccountSiteFallback(error) {
   return error instanceof SiteHandoffClientError
     && (error.code === 'SITE_HANDOFF_CRYPTO_UNAVAILABLE' || error.code === 'SITE_HANDOFF_STORAGE_UNAVAILABLE');
 }
 
-export async function beginSiteHandoff(pendingText = '', {recoveryAttempt = false} = {}) {
+export async function beginSiteHandoff(
+  pendingText = '',
+  {recoveryAttempt = false, returnHash = window.location.hash} = {},
+) {
   if (!recoveryAttempt) clearSiteHandoffRecovery();
   let context;
   try {
-    context = await createSiteHandoffContext(pendingText);
+    context = await createSiteHandoffContext(pendingText, Date.now(), returnHash);
     storeSiteHandoffContext(context);
   } catch (error) {
     if (!shouldUseAccountSiteFallback(error)) throw error;

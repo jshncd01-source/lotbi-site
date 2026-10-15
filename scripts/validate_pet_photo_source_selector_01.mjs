@@ -9,6 +9,11 @@
 // chance to pick Camera, Gallery or Files; LOTBI does not choose, Google
 // Photos did.
 //
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the per-slot pickers are gone;
+// '사진 여러 장 선택' is the one way in, and it opens the same sheet (Gallery and
+// File take several photos, Camera one). Desktop still goes straight to the
+// file dialog.
+//
 // The fix is architectural (LOTBI asks first) and is checked two ways: static
 // assertions on the source for the parts that cannot regress silently, and a
 // real headless-browser render for the parts that only exist once the DOM is
@@ -40,22 +45,25 @@ assert.match(petUi, /camera\.accept = 'image\/jpeg,image\/png'/, 'camera input m
 assert.match(petUi, /camera\.setAttribute\('capture', 'environment'\)/, 'camera input must force the device camera');
 assert.match(petUi, /gallery\.accept = 'image\/\*'/, 'gallery input must not use a narrow mime list (the Android generic-chooser-fallback bug)');
 assert.ok(!/file\.accept = 'image\/jpeg,image\/png'/.test(petUi), 'the File option must not carry the same narrow accept as Camera');
+// PET-FILE-INPUT-IMAGE-ONLY-01 — owner: "캠코더 없이 사진첩만". An empty accept let
+// Android's chooser list the camcorder; File now takes the same single type as Gallery.
+assert.match(petUi, /file\.accept = 'image\/\*'/, 'the File option takes image/* so the Android chooser lists no camcorder');
 assert.ok(!petUi.includes("gallery.setAttribute('capture'"), 'gallery must never force the camera');
 assert.ok(!petUi.includes("file.setAttribute('capture'"), 'the File option must never force the camera');
 
-// The three-way choice, not a single input.click() shortcut. Both slot
-// renderers (an already-registered pet's photo manager, and the registration
-// draft grid) must call the shared opener instead of clicking a single input.
+// The three-way choice, not a single input.click() shortcut. SAFECARE-PHOTO-
+// EASY-UPLOAD-01 (2nd round): the batch panel (shared by registration and
+// 사진 갱신·관리) opens the shared sheet for '사진 여러 장 선택' and for a
+// refused photo's next step; Gallery and File take several photos at once.
 assert.match(petUi, /function openPetPhotoSource\(sourceInputs\) \{/, 'shared source-selector opener missing');
 assert.match(petUi, /function buildPetPhotoSourceInputs\(\)/, 'shared three-input builder missing');
-assert.equal(
-  (petUi.match(/openPetPhotoSource\(sourceInputs\)/g) || []).length,
-  4, // its own function signature, plus three call sites: "선택"/"다시 찍기" on the existing-pet slot, and "선택" on the registration-draft slot
-  'both photo-slot renderers (existing pet + registration draft) must open the shared source selector',
-);
+assert.ok(petUi.includes("pick.addEventListener('click', () => { if (!busy) openPetPhotoSource(sourceInputs); });"), "'사진 여러 장 선택' must open the shared source selector");
+assert.ok(petUi.includes('openPetPhotoSource(replaceInputs);'), "a refused photo's next step must open the shared source selector");
+assert.ok(petUi.includes('sourceInputs.gallery.multiple = true;') && petUi.includes('sourceInputs.file.multiple = true;'), 'Gallery and File take several photos');
+assert.ok(!petUi.includes('sourceInputs.camera.multiple'), 'Camera takes one photo');
 assert.ok(
   !/choose\.addEventListener\('click', \(\) => input\.click\(\)\)/.test(petUi),
-  'a slot "사진 올리기"/"다시 올리기" button must not click a single input directly any more',
+  'a slot "사진 선택"/"다른 사진 선택" button must not click a single input directly any more',
 );
 
 // Desktop is explicitly a bypass, not a smaller version of the sheet.
@@ -65,11 +73,20 @@ assert.match(petUi, /matchMedia\('\(max-width: 900px\)'\)/, 'the mobile/desktop 
 // Post-selection validation is untouched: petPhotoRejection/inspectPetPhotoLocally
 // still gate every one of the three inputs, so MIME/size enforcement is not
 // weakened by broadening `accept`.
-assert.match(petUi, /bindPetPhotoSourceChange\(sourceInputs, file => \{ void handleChosenFile\(file\); \}\)/, 'all three inputs must still run through the existing upload handler');
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): every input of the batch runs
+// through the one batch handler, and the slot-free client functions reject an
+// unsupported file locally before it ever reaches Core.
+assert.ok(petUi.includes('for (const input of sourceInputs.all) {') && petUi.includes('void runBatch(files);'), 'all three inputs must run through the batch handler');
+assert.ok(petUi.includes('const local = await inspectPetPhotoLocally(file)'), 'the batch takes the local quick look first');
+const petClientSource = read('site-pet.js');
+for (const name of ['addPetRegistrationDraftPhoto', 'addPetPhoto']) {
+  const body = petClientSource.slice(petClientSource.indexOf(`export async function ${name}(`), petClientSource.indexOf('formData.append', petClientSource.indexOf(`export async function ${name}(`)));
+  assert.ok(body.includes('const rejection = petPhotoRejection(file);'), `${name} must reject an unsupported file locally before it reaches Core`);
+}
 assert.equal(
   (petUi.match(/const rejection = petPhotoRejection\(file\);/g) || []).length,
-  2,
-  'both slot renderers must still reject an unsupported file locally before it ever reaches Core',
+  1, // (SAFECARE-WEB-UI-REDESIGN-01) the found-report photo
+  'the found-report picker still rejects an unsupported file locally',
 );
 
 // The sheet only ever needs the shared, already-accessible bottom-sheet
@@ -164,6 +181,7 @@ function innerFixtureHtml() {
         source: this.dataset.petPhotoSourceInput || '',
         accept: this.getAttribute('accept') || '',
         capture: this.getAttribute('capture') || '',
+        multiple: this.multiple,
       });
       return;
     }
@@ -175,11 +193,25 @@ function innerFixtureHtml() {
   let filledSlots = {['${DOG_ID}']: ['NOSE_FRONT'], ['${CAT_ID}']: []};
   let draftPhotos = [];
   let draftSpecies = '';
+  globalThis.__draftFields = {};
   globalThis.fetch = async (url, init) => {
     const target = String(url);
     const method = (init && init.method) || 'GET';
     const json = (body, status) => new Response(JSON.stringify(body), {status: status || 200, headers: {'Content-Type': 'application/json'}});
 
+    // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): Core's slot-free POSTs.
+    const petPhotoPost = target.match(new RegExp('/v2/pets/([^/]+)/photos$'));
+    if (method === 'POST' && petPhotoPost) {
+      const petId = petPhotoPost[1];
+      const slotCode = ['FACE_FRONT', 'FACE_LEFT', 'FACE_RIGHT'].find(code => !(filledSlots[petId] || []).includes(code));
+      filledSlots[petId] = [...(filledSlots[petId] || []), slotCode];
+      return json({photo: {slot_code: slotCode}, category: 'FACE', idempotent_replay: false, manifest: {slot_count: filledSlots[petId].length, state: 'UPLOAD_INCOMPLETE', manifest_version: 1}}, 201);
+    }
+    if (method === 'POST' && target.endsWith('/v2/pet-registration-drafts/' + DRAFT_ID + '/photos')) {
+      const photo = {slot_code: 'FACE_FRONT', slot_index: 0, revision: 1, inspection_state: 'ACCEPTED', detected_species: draftSpecies || 'DOG'};
+      draftPhotos = [...draftPhotos.filter(item => item.slot_code !== 'FACE_FRONT'), photo];
+      return json({photo, category: 'FACE', idempotent_replay: false, draft: {draft_id: DRAFT_ID, status: 'ACTIVE', current_step: 'PHOTOS', revision: 3, species: draftSpecies || 'DOG', name: globalThis.__draftFields.name || null, sex: globalThis.__draftFields.sex || null, breed_code: globalThis.__draftFields.breed_code || null, breed: globalThis.__draftFields.breed || null, matching_consent_state: 'NOT_GRANTED', photos: draftPhotos}}, 201);
+    }
     // An already-registered pet's own photo slots.
     const petPhotoPut = target.match(/\\/v2\\/pets\\/([^/]+)\\/photos\\/([A-Z_]+)$/);
     if (method === 'PUT' && petPhotoPut) {
@@ -219,7 +251,12 @@ function innerFixtureHtml() {
     if (target.endsWith('/v2/pet-registration-drafts/' + DRAFT_ID) && method === 'PATCH') {
       const update = JSON.parse(init?.body || '{}');
       if (typeof update.species === 'string') draftSpecies = update.species;
-      return json({draft: {draft_id: DRAFT_ID, status: 'ACTIVE', current_step: update.current_step || 'PHOTOS', revision: 2, species: draftSpecies || 'DOG', matching_consent_state: 'NOT_GRANTED', photos: draftPhotos}});
+      // SAFECARE-WEB-UI-REDESIGN-01: basic information comes first now, so the
+      // stand-in keeps what was saved the way Core's draft does.
+      for (const key of ['name', 'sex', 'breed_code', 'breed', 'current_step']) {
+        if (key in update) globalThis.__draftFields[key] = update[key];
+      }
+      return json({draft: {draft_id: DRAFT_ID, status: 'ACTIVE', current_step: globalThis.__draftFields.current_step || 'PHOTOS', revision: 2, species: draftSpecies || 'DOG', name: globalThis.__draftFields.name || null, sex: globalThis.__draftFields.sex || null, breed_code: globalThis.__draftFields.breed_code || null, breed: globalThis.__draftFields.breed || null, matching_consent_state: 'NOT_GRANTED', photos: draftPhotos}});
     }
     const draftPhotoMatch = target.match(new RegExp('/v2/pet-registration-drafts/' + DRAFT_ID + '/photos/([A-Z_]+)$'));
     if (draftPhotoMatch && method === 'PUT') {
@@ -242,13 +279,26 @@ function innerFixtureHtml() {
 import {mountPetFamilyManager} from '/site-pet-ui.js';
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-const png = () => new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], 'x.png', {type: 'image/png'});
+// A real, decodable, sharp photo: the batch prepares each photo before sending it.
+const png = () => new Promise(resolve => {
+  const canvas = document.createElement('canvas'); canvas.width = 400; canvas.height = 400;
+  const context = canvas.getContext('2d');
+  const image = context.createImageData(400, 400);
+  for (let i = 0; i < image.data.length; i += 4) { image.data[i] = (Math.random() * 256) | 0; image.data[i + 1] = (Math.random() * 256) | 0; image.data[i + 2] = 90; image.data[i + 3] = 255; }
+  context.putImageData(image, 0, 0);
+  canvas.toBlob(blob => resolve(new File([blob], 'x.png', {type: 'image/png'})), 'image/png');
+});
 
-function setFile(input, file) {
+async function setFile(input, file) {
   const transfer = new DataTransfer();
-  transfer.items.add(file);
+  transfer.items.add(await file);
   input.files = transfer.files;
   input.dispatchEvent(new Event('change', {bubbles: true}));
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    if ((document.querySelector('[data-pet-bulk-status]')?.textContent || '').startsWith('등록 성공')) break;
+    await wait(100);
+  }
+  await wait(300);
 }
 
 const result = {viewportWidth: window.innerWidth, userAgent: navigator.userAgent};
@@ -257,8 +307,10 @@ try {
   document.querySelector('[data-pet-open="${DOG_ID}"]').click();
   await wait(300);
 
-  const dogTile = document.querySelector('[data-pet-slot="NOSE_RIGHT"]');
-  const dogChoose = dogTile.querySelector('[data-pet-slot-choose]');
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the ten tiles are examples; the
+  // one way in is '사진 여러 장 선택', and it keeps LOTBI's own source sheet.
+  result.tilePickers = document.querySelectorAll('[data-pet-slot-grid] input, [data-pet-slot-choose]').length;
+  const dogChoose = document.querySelector('[data-pet-bulk-pick]');
 
   // 1) The button must not open a native picker directly — only LOTBI's own
   //    menu (Mobile) or a direct gallery click (Desktop) may ever fire.
@@ -292,91 +344,75 @@ try {
     await wait(50);
     result.afterCamera = globalThis.__clicked.slice();
     result.menuAfterCameraPick = Boolean(document.querySelector('.pet-photo-source-menu'));
-
-    // Reopen, choose File (before Gallery, since a successful upload below
-    // re-renders the grid and replaces this tile's elements).
+    // Reopen, choose File.
     globalThis.__clicked.length = 0;
     dogChoose.click();
     await wait(50);
     document.querySelector('[data-pet-photo-source-option="file"]').click();
     await wait(50);
     result.afterFile = globalThis.__clicked.slice();
-
     // Escape must also close the sheet.
     dogChoose.click();
     await wait(50);
     document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
     await wait(250);
     result.menuAfterEscape = Boolean(document.querySelector('.pet-photo-source-menu'));
-
-    // Reopen, choose Gallery, then actually deliver a file through it — the
-    // upload pipeline must still be the one canonical path. A successful
-    // upload re-renders the grid, so the filled state is read from a fresh
-    // query rather than the (now stale) tile reference above.
+    // Reopen, choose Gallery, then actually deliver a photo through it — the
+    // upload pipeline must still be the one canonical path (Core's POST).
     globalThis.__clicked.length = 0;
     dogChoose.click();
     await wait(50);
     document.querySelector('[data-pet-photo-source-option="gallery"]').click();
     await wait(50);
     result.afterGallery = globalThis.__clicked.slice();
-    const galleryInput = dogTile.querySelector('[data-pet-photo-source-input="gallery"]');
-    setFile(galleryInput, png());
-    await wait(600);
-    result.dogSlotFilledAfterGalleryUpload = document.querySelector('[data-pet-slot="NOSE_RIGHT"]')?.dataset.petSlotFilled;
-
+    await setFile(document.querySelector('[data-pet-bulk-input]'), png());
+    result.dogSlotFilledAfterGalleryUpload = document.querySelector('[data-pet-slot="FACE_FRONT"]')?.dataset.petSlotFilled;
     // CAT parity: the same shared component must open for the other species.
-    // The pet list stays rendered beside the open detail panel, so the other
-    // pet's own open button is simply clicked again.
     document.querySelector('[data-pet-open="${CAT_ID}"]').click();
     await wait(300);
-    const catTile = document.querySelector('[data-pet-slot="NOSE_FRONT"]');
-    catTile.querySelector('[data-pet-slot-choose]').click();
+    document.querySelector('[data-pet-bulk-pick]').click();
     await wait(50);
     result.catMenuOpens = Boolean(document.querySelector('.pet-photo-source-menu'));
     result.catOptions = [...document.querySelectorAll('.pet-photo-source-option')].map(node => node.dataset.petPhotoSourceOption);
     document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
     await wait(250);
-
-    // Registration draft: a locked slot's choose button must never open the
-    // sheet, preserving the existing sequential-unlock gate untouched.
+    // Registration: step 1 is 기본정보, then the photo step's batch opens the
+    // same sheet and reaches the draft's slot-free POST.
     document.querySelector('.pet-add-button').click();
     await wait(150);
     document.querySelector('input[name="pet-species"][value="DOG"]').click();
     await wait(150);
-    const lockedTile = [...document.querySelectorAll('[data-pet-draft-slot]')]
-      .find(node => node.dataset.petDraftSlot === 'NOSE_FRONT');
-    const lockedChoose = lockedTile.querySelector('.pet-slot-actions button');
-    result.lockedChooseDisabled = lockedChoose.disabled;
-    globalThis.__clicked.length = 0;
-    lockedChoose.click();
-    await wait(50);
-    result.menuOnLockedSlot = Boolean(document.querySelector('.pet-photo-source-menu'));
-    result.clickedOnLockedSlot = globalThis.__clicked.slice();
-
-    // Unlock by accepting FACE_FRONT, then confirm the now-unlocked slot's
-    // source selector still leads to the same upload pipeline.
-    const faceTile = [...document.querySelectorAll('[data-pet-draft-slot]')]
-      .find(node => node.dataset.petDraftSlot === 'FACE_FRONT');
-    setFile(faceTile.querySelector('[data-pet-photo-source-input="camera"]'), png());
+    const basicForm = document.querySelector('[data-pet-register-form]');
+    basicForm.querySelector('input[type="text"]').value = '초코';
+    basicForm.querySelector('input[name="pet-sex"][value="MALE"]').click();
+    const breed = basicForm.querySelector('select');
+    breed.value = 'JINDO';
+    breed.dispatchEvent(new Event('change', {bubbles: true}));
+    basicForm.requestSubmit();
+    await wait(150);
+    const renewalDialog = document.querySelector('[data-safecare-renewal-dialog="pet"]');
+    result.registrationRenewalNotice = renewalDialog?.textContent || '';
+    renewalDialog?.querySelector('[data-safecare-consent="privacy"]')?.click();
+    renewalDialog?.querySelector('[data-safecare-renewal-confirm]')?.click();
     await wait(400);
-    const noseTile = [...document.querySelectorAll('[data-pet-draft-slot]')]
-      .find(node => node.dataset.petDraftSlot === 'NOSE_FRONT');
-    noseTile.querySelector('.pet-slot-actions button').click();
+    result.draftTilePickers = document.querySelectorAll('[data-pet-draft-slot] input, [data-pet-draft-slot] .pet-slot-actions button:not([data-pet-draft-slot-delete])').length;
+    globalThis.__clicked.length = 0;
+    document.querySelector('[data-pet-bulk-pick]').click();
     await wait(50);
+    result.registrationMenuOpens = Boolean(document.querySelector('.pet-photo-source-menu'));
     document.querySelector('[data-pet-photo-source-option="gallery"]')?.click();
     await wait(50);
-    setFile(noseTile.querySelector('[data-pet-photo-source-input="gallery"]'), png());
-    await wait(400);
+    result.registrationClicked = globalThis.__clicked.slice();
+    await setFile(document.querySelector('[data-pet-bulk-input]'), png());
     result.draftSlotFilledAfterUnlock = [...document.querySelectorAll('[data-pet-draft-slot]')]
-      .find(node => node.dataset.petDraftSlot === 'NOSE_FRONT')?.dataset.petSlotFilled;
+      .find(node => node.dataset.petDraftSlot === 'FACE_FRONT')?.dataset.petSlotFilled;
   } else {
     // Desktop: the button must go straight to the gallery input, and the
     // upload pipeline must still work end to end.
     result.desktopClickWentToGallery = result.clickedAfterChooseClick[0]?.source === 'gallery';
-    const galleryInput = dogTile.querySelector('[data-pet-photo-source-input="gallery"]');
-    setFile(galleryInput, png());
-    await wait(600);
-    result.dogSlotFilledAfterDesktopUpload = document.querySelector('[data-pet-slot="NOSE_RIGHT"]')?.dataset.petSlotFilled;
+    result.desktopMultiple = result.clickedAfterChooseClick[0]?.multiple === true;
+    await setFile(document.querySelector('[data-pet-bulk-input]'), png());
+    result.dogSlotFilledAfterDesktopUpload = document.querySelector('[data-pet-slot="FACE_FRONT"]')?.dataset.petSlotFilled;
   }
 } catch (error) {
   result.error = String(error && error.stack || error);
@@ -424,7 +460,7 @@ const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebK
 const mobileAndroid = await run({windowSize: '390,844', userAgent: ANDROID_UA});
 assert.ok(!mobileAndroid.error, `Android mobile fixture failed: ${mobileAndroid.error}`);
 
-assert.equal(mobileAndroid.menuAfterChooseClick, true, 'Mobile "사진 올리기" must open LOTBI\'s own source menu, not a native picker');
+assert.equal(mobileAndroid.menuAfterChooseClick, true, 'Mobile "사진 선택" must open LOTBI\'s own source menu, not a native picker');
 assert.deepEqual(mobileAndroid.clickedAfterChooseClick, [], 'no input may be clicked before the owner chooses a source');
 assert.deepEqual(
   mobileAndroid.optionsAtOpen,
@@ -439,34 +475,40 @@ assert.equal(mobileAndroid.sheetRole, 'dialog', 'the source sheet must be an acc
 
 assert.equal(mobileAndroid.menuAfterBackdropCancel, false, 'a backdrop click must close the menu');
 assert.deepEqual(mobileAndroid.clickedAfterBackdropCancel, [], 'cancelling must never click any picker input');
-assert.equal(mobileAndroid.slotUnchangedAfterCancel, '사진 올리기', 'cancelling must leave the slot button/state untouched');
+assert.equal(mobileAndroid.slotUnchangedAfterCancel, '사진 여러 장 선택', 'cancelling must leave the button untouched');
+assert.equal(mobileAndroid.tilePickers, 0, 'the ten tiles are examples without their own picker');
 
 assert.equal(mobileAndroid.afterCamera.length, 1, 'choosing Camera must click exactly one input');
 assert.equal(mobileAndroid.afterCamera[0].source, 'camera');
 assert.equal(mobileAndroid.afterCamera[0].capture, 'environment', 'Camera must force the device camera');
 assert.equal(mobileAndroid.afterCamera[0].accept, 'image/jpeg,image/png');
+assert.equal(mobileAndroid.afterCamera[0].multiple, false, 'Camera takes one photo');
 assert.equal(mobileAndroid.menuAfterCameraPick, false, 'the sheet must close once a source is chosen');
 
 assert.equal(mobileAndroid.afterGallery.length, 1, 'choosing Gallery must click exactly one input');
 assert.equal(mobileAndroid.afterGallery[0].source, 'gallery');
 assert.equal(mobileAndroid.afterGallery[0].capture, '', 'Gallery must never force the camera');
 assert.equal(mobileAndroid.afterGallery[0].accept, 'image/*', 'Gallery must not use the narrow mime list that causes the generic-chooser bug');
+assert.equal(mobileAndroid.afterGallery[0].multiple, true, 'Gallery takes several photos at once');
 assert.equal(mobileAndroid.dogSlotFilledAfterGalleryUpload, 'true', 'a file chosen through Gallery must still reach the canonical upload pipeline');
 
 assert.equal(mobileAndroid.afterFile.length, 1, 'choosing File must click exactly one input');
 assert.equal(mobileAndroid.afterFile[0].source, 'file');
 assert.equal(mobileAndroid.afterFile[0].capture, '', 'File must never force the camera');
 assert.notEqual(mobileAndroid.afterFile[0].accept, 'image/jpeg,image/png', 'File must not be the same narrow-list input as Camera');
+assert.equal(mobileAndroid.afterFile[0].accept, 'image/*', 'File takes image/* (no camcorder in the Android chooser)');
+assert.equal(mobileAndroid.afterFile[0].multiple, true, 'File takes several photos at once');
 
 assert.equal(mobileAndroid.menuAfterEscape, false, 'Escape must close the sheet');
 
 assert.equal(mobileAndroid.catMenuOpens, true, 'CAT must get the exact same source selector as DOG');
 assert.deepEqual(mobileAndroid.catOptions, ['camera', 'gallery', 'file'], 'CAT options must match DOG');
 
-assert.equal(mobileAndroid.lockedChooseDisabled, true, 'a locked registration slot must keep its choose button disabled');
-assert.equal(mobileAndroid.menuOnLockedSlot, false, 'a locked slot must never open the source menu');
-assert.deepEqual(mobileAndroid.clickedOnLockedSlot, [], 'a locked slot must never click any input');
-assert.equal(mobileAndroid.draftSlotFilledAfterUnlock, 'true', 'once unlocked, the source selector must still reach the draft upload pipeline');
+assert.ok(mobileAndroid.registrationRenewalNotice.includes('나이와 관계없이 · 6개월(180일)마다'), 'registration must confirm the six-month renewal policy before photo sources open');
+assert.equal(mobileAndroid.draftTilePickers, 0, 'registration tiles are examples without their own picker');
+assert.equal(mobileAndroid.registrationMenuOpens, true, "registration's '사진 여러 장 선택' must open the same source menu");
+assert.deepEqual(mobileAndroid.registrationClicked.map(click => [click.source, click.multiple]), [['gallery', true]], 'registration Gallery takes several photos');
+assert.equal(mobileAndroid.draftSlotFilledAfterUnlock, 'true', 'the source selector must reach the draft upload pipeline');
 
 console.log('SITE-PET-PHOTO-SOURCE-01 Android mobile web PASS');
 
@@ -484,6 +526,7 @@ const desktop = await run({windowSize: '1280,900'});
 assert.ok(!desktop.error, `Desktop fixture failed: ${desktop.error}`);
 assert.equal(desktop.menuAfterChooseClick, false, 'Desktop must never show the mobile source menu');
 assert.equal(desktop.desktopClickWentToGallery, true, 'Desktop must go straight to the plain file dialog (the gallery-equivalent input)');
+assert.equal(desktop.desktopMultiple, true, 'Desktop picks several photos at once');
 assert.equal(desktop.dogSlotFilledAfterDesktopUpload, 'true', 'Desktop file selection must still reach the canonical upload pipeline');
 console.log('SITE-PET-PHOTO-SOURCE-01 Desktop web PASS');
 

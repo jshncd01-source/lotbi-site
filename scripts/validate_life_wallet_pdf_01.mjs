@@ -1,0 +1,148 @@
+// LIFE-WALLET-PDF-01
+// A PDF chosen for Life Wallet is drawn in the browser with the vendored pdf.js: only its
+// first page is shown (no page selection, even for a multi-page PDF), cropped automatically
+// and saved as an image, and a broken PDF explains itself. The PDF is built in the test
+// (vector shapes only), so no real document is involved.
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {runFixturePage} from './lib/headless-fixture-result.mjs';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+const fixture = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/site-consumer-design.css"><link rel="stylesheet" href="/site-life-wallet.css"><style>body{margin:0;padding:12px}#host{max-width:760px;margin:auto}</style></head><body><main id="host"></main><script type="module">
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const wait = async (predicate, label) => { for (let i = 0; i < 2400; i += 1) { const value = predicate(); if (value) return value; await sleep(25); } throw new Error('timed out ' + label); };
+// A minimal two-page A4 PDF: page 1 is a printed form (title bar, table, text-like rows),
+// page 2 a single block. Offsets in the cross-reference table are computed exactly.
+function buildPdf(pages) {
+  const objects = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [' + pages.map((_, index) => (3 + index * 2) + ' 0 R').join(' ') + '] /Count ' + pages.length + ' >>'];
+  pages.forEach((content, index) => {
+    objects.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents ' + (4 + index * 2) + ' 0 R >>');
+    objects.push('<< /Length ' + content.length + ' >>\\nstream\\n' + content + '\\nendstream');
+  });
+  let text = '%PDF-1.4\\n'; const offsets = [];
+  objects.forEach((body, index) => { offsets.push(text.length); text += (index + 1) + ' 0 obj\\n' + body + '\\nendobj\\n'; });
+  const start = text.length;
+  text += 'xref\\n0 ' + (objects.length + 1) + '\\n0000000000 65535 f \\n' + offsets.map(offset => String(offset).padStart(10, '0') + ' 00000 n \\n').join('');
+  text += 'trailer\\n<< /Size ' + (objects.length + 1) + ' /Root 1 0 R >>\\nstartxref\\n' + start + '\\n%%EOF\\n';
+  return new TextEncoder().encode(text);
+}
+// Printed text: rows of small glyph-like boxes of differing width, wider gaps between words
+// (identical, evenly spaced boxes read as a made pattern such as a building's windows).
+const rows = []; for (let row = 0; row < 18; row += 1) for (let glyph = 0, x = 60; glyph < 22 - (row % 4) * 3; glyph += 1) { const wide = [11, 7, 13, 9, 12, 6][(glyph + row) % 6]; rows.push(x + ' ' + (520 - row * 24) + ' ' + wide + ' 12 re'); x += wide + (glyph % 5 === 4 ? 14 : 8); }
+const form = '0 g 150 760 295 26 re f 1 w 60 560 475 160 re S 60 640 m 535 640 l S 60 600 m 535 600 l S ' + rows.join(' ') + ' f 0.8 0.1 0.2 rg 420 90 70 70 re f';
+const block = '0 g 120 300 300 220 re f';
+// A privacy-safe card occupying under 4% of an otherwise blank scanned page. This is the
+// geometry that previously fell through to the whole-PDF-page fallback.
+const cardRows = []; for (let row = 0; row < 7; row += 1) for (let glyph = 0, x = 222; glyph < 11 - (row % 3); glyph += 1) { const wide = [5, 7, 4, 6][(glyph + row) % 4]; cardRows.push(x + ' ' + (428 - row * 11) + ' ' + wide + ' 6 re'); x += wide + (glyph % 4 === 3 ? 7 : 4); }
+const smallCard = '0.86 0.76 0.55 rg 212 365 170 107 re f 0 g 2 w 212 365 170 107 re S ' + cardRows.join(' ') + ' f';
+try {
+  const module = await import('/site-life-wallet-scan-ui.js?test=pdf-01');
+  const saved = {value: ''};
+  const scanner = module.createWalletDocumentScanner({file: new File([buildPdf([form, block])], 'contract.pdf', {type: 'application/pdf'}), onConfirm: value => { saved.value = value; }});
+  document.getElementById('host').replaceChildren(scanner.element);
+  const element = scanner.element;
+  await wait(() => element.dataset.scanState === 'review' || element.dataset.scanState === 'error', 'first page review');
+  const preview = element.querySelector('.wallet-scan-result-image'); await preview.decode();
+  // Page 1 carries a red stamp; page 2 is a single black block. The preview must be page 1.
+  const pixels = document.createElement('canvas'); pixels.width = preview.naturalWidth; pixels.height = preview.naturalHeight;
+  const pixelContext = pixels.getContext('2d', {willReadFrequently: true}); pixelContext.drawImage(preview, 0, 0);
+  const data = pixelContext.getImageData(0, 0, pixels.width, pixels.height).data; let red = 0;
+  for (let offset = 0; offset < data.length; offset += 4) if (data[offset] > 150 && data[offset + 1] < 90 && data[offset + 2] < 120) red += 1;
+  const first = {state: element.dataset.scanState, status: element.querySelector('.wallet-scan-status').textContent, mode: element.dataset.scanMode, reason: element.dataset.scanReason, pageCount: element.dataset.scanPdfPages, pageControls: element.querySelectorAll('.wallet-scan-pages,[data-wallet-scan-page-next],[data-wallet-scan-page-previous]').length, pageText: element.textContent.includes('쪽 ›') || element.textContent.includes('‹ 이전'), firstPageStamp: red, aspect: preview.naturalWidth / preview.naturalHeight, confirmEnabled: !element.querySelector('[data-wallet-scan-confirm]').disabled, warnings: element.querySelector('.wallet-scan-warnings').textContent, sourceWidth: Number(element.dataset.scanSourceWidth), sourceHeight: Number(element.dataset.scanSourceHeight)};
+  element.querySelector('[data-wallet-scan-confirm]').click();
+  await wait(() => saved.value, 'confirm callback');
+  first.saved = saved.value.startsWith('data:image/jpeg;base64,');
+  scanner.destroy();
+  const single = module.createWalletDocumentScanner({file: new File([buildPdf([form])], 'one-page.pdf', {type: 'application/pdf'})});
+  document.getElementById('host').replaceChildren(single.element);
+  await wait(() => single.element.dataset.scanState === 'review' || single.element.dataset.scanState === 'error', 'single page review');
+  const onePage = {state: single.element.dataset.scanState, pageCount: single.element.dataset.scanPdfPages};
+  single.destroy();
+  const small = module.createWalletDocumentScanner({file: new File([buildPdf([smallCard])], 'small-card.pdf', {type: 'application/pdf'})});
+  document.getElementById('host').replaceChildren(small.element);
+  await wait(() => small.element.dataset.scanState === 'review' || small.element.dataset.scanState === 'error', 'small card review');
+  const smallPreview = small.element.querySelector('.wallet-scan-result-image'); await smallPreview.decode();
+  const smallCardView = {state: small.element.dataset.scanState, mode: small.element.dataset.scanMode, reason: small.element.dataset.scanReason, aspect: smallPreview.naturalWidth / smallPreview.naturalHeight, pageAspect: Number(small.element.dataset.scanSourceWidth) / Number(small.element.dataset.scanSourceHeight), confirmEnabled: !small.element.querySelector('[data-wallet-scan-confirm]').disabled, diagnostics: small.element.dataset.scanDiagnostics};
+  small.destroy();
+  // A PDF with no printed text (here one black block) is not a wallet item either.
+  const blank = module.createWalletDocumentScanner({file: new File([buildPdf([block])], 'picture.pdf', {type: 'application/pdf'})});
+  document.getElementById('host').replaceChildren(blank.element);
+  await wait(() => blank.element.dataset.scanState === 'review' || blank.element.dataset.scanState === 'error', 'textless pdf review');
+  const textless = {mode: blank.element.dataset.scanMode, reason: blank.element.dataset.scanReason, confirmEnabled: !blank.element.querySelector('[data-wallet-scan-confirm]').disabled, adjustHidden: blank.element.querySelector('[data-wallet-scan-adjust]').getClientRects().length === 0, status: blank.element.querySelector('.wallet-scan-status').textContent};
+  blank.destroy();
+  const broken = module.createWalletDocumentScanner({file: new File([new TextEncoder().encode('%PDF-1.4 not really a pdf')], 'broken.pdf', {type: 'application/pdf'})});
+  document.getElementById('host').replaceChildren(broken.element);
+  await wait(() => broken.element.dataset.scanState === 'error' || broken.element.dataset.scanState === 'review', 'broken pdf outcome');
+  const brokenView = {state: broken.element.dataset.scanState, status: broken.element.querySelector('.wallet-scan-status').textContent};
+  broken.destroy();
+  // Full registration path: the same synthetic PDF goes through the add form, automatic
+  // correction, confirmation, PIN-backed encrypted save and a fresh decrypting read.
+  const wallet = await import('/site-life-wallet.js?test=pdf-save-01');
+  const host = document.getElementById('host'); const accountId = 'pdf-save-' + Date.now();
+  const mounted = wallet.mountLifeWallet({root: host, authenticated: true, accountId});
+  const setup = await wait(() => host.querySelector('form.wallet-pin-form:not(.wallet-unlock-form)'), 'wallet setup');
+  const [pin, confirmation] = setup.querySelectorAll('input'); pin.value = '1357'; confirmation.value = '1357'; setup.requestSubmit();
+  const firstAdd = await wait(() => [...host.querySelectorAll('button')].find(button => button.textContent === '첫 자료 등록하기'), 'first add'); firstAdd.click();
+  const addForm = await wait(() => host.querySelector('[data-wallet-view="add"]'), 'add form');
+  // LIFE-WALLET-REDESIGN-02: no kind is chosen until the owner picks one; a PDF pre-chooses
+  // 증명서·문서 (the owner can still change it), and a PDF of several pages says only page 1 is kept.
+  const kindBefore = addForm.querySelectorAll('input[name="wallet-category"]:checked').length;
+  const pdfInput = addForm.querySelectorAll('.wallet-attach input[type=file]')[1];
+  const transfer = new DataTransfer(); transfer.items.add(new File([buildPdf([form, block])], 'synthetic-contract.pdf', {type: 'application/pdf'})); pdfInput.files = transfer.files; pdfInput.dispatchEvent(new Event('change', {bubbles: true}));
+  const pdfEditor = await wait(() => addForm.querySelector('[data-scan-state="review"]'), 'wallet pdf review');
+  const pdfConfirm = pdfEditor.querySelector('[data-wallet-scan-confirm]');
+  const automaticSaveReady = pdfEditor.dataset.scanMode === 'automatic' && !pdfConfirm.disabled;
+  await wait(() => addForm.querySelector('.wallet-attach-zone').dataset.state === 'ready', 'wallet pdf ready');
+  const pages = Number(pdfEditor.dataset.scanPdfPages || 0); const note = addForm.querySelector('.wallet-pdf-note');
+  const kindChoice = {before: kindBefore, after: addForm.querySelector('input[name="wallet-category"]:checked')?.value || '', saveEnabled: !addForm.querySelector('.wallet-add-save').disabled,
+    pageNote: pages > 1 ? !note.hidden && note.textContent.includes(pages + '쪽') && note.textContent.includes('첫 쪽만 저장돼요') : note.hidden};
+  addForm.requestSubmit();
+  await wait(() => host.querySelector('[data-wallet-item]'), 'wallet pdf saved');
+  const repository = new wallet.IndexedDbWalletRepository(); const reader = new wallet.LifeWalletVault(repository); await reader.unlock(accountId, '1357');
+  const savedCards = await reader.list(accountId); const rawCards = await repository.listCards(await wallet.accountScope(accountId)); const rawText = JSON.stringify(rawCards);
+  const integration = {automaticSaveReady, kindChoice, count: savedCards.length, category: savedCards[0]?.category || '', image: savedCards[0]?.frontDataUrl?.startsWith('data:image/jpeg;base64,') || false, encryptedAtRest: rawCards.length === 1 && !rawText.includes('data:image') && !rawText.includes('synthetic-contract')};
+  mounted.dispose();
+  window.__result = {ok: true, first, onePage, smallCardView, textless, brokenView, integration};
+} catch (error) { window.__result = {ok: false, error: String(error?.stack || error)}; }
+</script></body></html>`;
+
+const result = await runFixturePage({
+  root: ROOT, fixturePath: '/__life_wallet_pdf_01.html', fixtureHtml: fixture, timeoutMs: 300000,
+  viewport: {width: 900, height: 900},
+  resultExpression: 'window.__result ? JSON.stringify(window.__result) : ""',
+});
+assert.equal(result.ok, true, result.error);
+{
+  const {first, onePage, smallCardView, textless, brokenView, integration} = result;
+  const detail = JSON.stringify(first);
+  assert.equal(first.state, 'review', `the first PDF page must open for review: ${detail}`);
+  assert.equal(first.mode, 'automatic', `a PDF page must be cropped automatically: ${detail}`);
+  assert.equal(first.pageCount, '2');
+  assert.equal(first.pageControls, 0, `only page 1 of a PDF is shown: no page selection: ${detail}`);
+  assert.equal(first.pageText, false, 'no page navigation copy');
+  assert.ok(first.firstPageStamp > 50, `the preview must be page 1 (its red stamp is missing): ${detail}`);
+  assert.ok(Math.max(first.sourceWidth, first.sourceHeight) >= 2000, `the page must be drawn sharp enough to read: ${detail}`);
+  assert.ok(first.aspect > .5 && first.aspect < 1, `an A4 page crop stays portrait: ${detail}`);
+  assert.equal(first.confirmEnabled, true, 'save must be available for a PDF page');
+  assert.equal(first.warnings, '', `a clean PDF page must not ask for a retake: ${detail}`);
+  assert.equal(first.saved, true, 'page 1 must be saved as an image');
+  assert.equal(onePage.state, 'review');
+  assert.equal(onePage.pageCount, '1');
+  assert.equal(smallCardView.state, 'review', `the small card PDF must open for review: ${JSON.stringify(smallCardView)}`);
+  assert.equal(smallCardView.mode, 'automatic', `the small card must be found automatically: ${JSON.stringify(smallCardView)}`);
+  assert.equal(smallCardView.reason, 'document-quadrilateral', `the card itself, not the PDF page fallback, must be used: ${JSON.stringify(smallCardView)}`);
+  assert.ok(smallCardView.aspect > 1.4 && smallCardView.aspect < 1.85, `the preview must contain the landscape card only: ${JSON.stringify(smallCardView)}`);
+  assert.ok(smallCardView.pageAspect < 1, `the source PDF page remains portrait: ${JSON.stringify(smallCardView)}`);
+  assert.equal(smallCardView.confirmEnabled, true, `the detected card must be confirmable: ${JSON.stringify(smallCardView)}`);
+  assert.equal(textless.mode, 'manual', `a PDF without text must not be cropped: ${JSON.stringify(textless)}`);
+  assert.equal(textless.reason, 'not-a-document');
+  assert.equal(textless.confirmEnabled, false, 'a PDF without text must not be saved');
+  assert.equal(textless.adjustHidden, true, 'no manual adjustment for something that is not a document');
+  assert.ok(textless.status.includes('등록할 수 있는 자료로 보이지 않습니다'), `textless PDF message: ${textless.status}`);
+  assert.equal(brokenView.state, 'error', `a broken PDF must stop with an explanation: ${JSON.stringify(brokenView)}`);
+  assert.ok(brokenView.status.includes('PDF를 열지 못했습니다'), `broken PDF message: ${brokenView.status}`);
+  assert.deepEqual(integration, {automaticSaveReady: true, kindChoice: {before: 0, after: 'document', saveEnabled: true, pageNote: true}, count: 1, category: 'document', image: true, encryptedAtRest: true}, `PDF automatic crop to encrypted save: ${JSON.stringify(integration)}`);
+  console.log(`LIFE_WALLET_PDF_01 PASS — first_aspect=${first.aspect.toFixed(3)} source=${first.sourceWidth}x${first.sourceHeight} reason=${first.reason} small_card_aspect=${smallCardView.aspect.toFixed(3)} small_card_reason=${smallCardView.reason} encrypted_save=PASS`);
+}

@@ -123,13 +123,38 @@ ACCOUNT_URL = "https://account.lotbiai.com/account"
 # document CSS and heading-navigation script; policy text/links are unchanged.
 # Clean URL canonical/head links and the approved privacy table containment
 # are preserved from main. styles.css also keeps the reviewed neutral palette.
+# LOTBI-CONSUMER-THEME-SYNC-01 — privacy/terms/account-deletion/contact 의 잠금
+# 값이 다시 움직였다. 바뀐 것은 <head> 안 테마 bootstrap <script> 하나뿐이다:
+# Account 설정에서 고른 화면 모드(공유 cookie lotbi_theme_preference_v1)를 먼저
+# 읽고, 없을 때만 예전 localStorage 키를 읽는다. 읽기만 하고 아무것도 쓰지 않는다.
+# NO LEGAL TEXT CHANGED. 확인 방법: scripts/sync_theme_bootstrap.mjs 의
+# locateThemeBootstrap 으로 두 revision 에서 그 <script> 를 들어내면 네 파일 모두
+# 나머지가 바이트까지 같다. 이 블록은 sync_theme_bootstrap.mjs --check 가 모든
+# 소비자 페이지에서 동일하게 유지한다.
+# LOTBI-THEME-AUTO-DARK-22H-01 — 같은 네 파일의 잠금 값이 다시 움직였다. 대표가
+# '자동모드' 다크 시작을 18시에서 22시로 옮겨, 테마 bootstrap <script> 안의 시각 두
+# 줄(lotbiHour >= 22, setHours(... 22))과 그 주석 한 줄만 바뀌었다. NO LEGAL TEXT
+# CHANGED — 위와 같은 방법으로 bootstrap 을 들어내면 16개 소비자 페이지 모두
+# origin/main 과 바이트까지 같다.
+# SUBSCRIPTION-PRICE-PRORATION-01 — terms.html 의 잠금 값이 움직였다. 대표 결정으로
+# LOTBI Plus 월 구독료가 19,900원에서 29,900원(VAT 포함)으로 바뀌어, 제8조의 세 등급
+# 금액 "9,900원·19,900원·39,900원" 중 가운데 값 하나만 "29,900원"으로 고쳤다.
+# 그 밖의 조항·링크·고지 문구는 한 글자도 바뀌지 않았다 —
+# `git diff --unified=0 origin/main -- terms.html` 이 제8조 한 줄만 보인다(asset 토큰 제외).
+# 플랜 변경(상위 즉시 차액 일할 결제 / 하위 다음 결제일) 기준은 잠금 대상이 아닌
+# refund.html 제6조(#plan-change)에 적었다. 약관 본문 바이트가 바뀌었으므로 Social
+# Signup 동의 증빙용 LOTBI_SOCIAL_TERMS_VERSION(LOTBI_TERMS_2026-10-08_R1 로 올림)과
+# LOTBI_SOCIAL_TERMS_SHA256 은 emit_social_signup_legal_manifest.py 출력값으로 배포와
+# 함께 갱신해야 실제 게시본을 가리킨다. 그 해시는 이 파일의 잠금과 같은 정규화
+# (asset 토큰 제거)로 계산하므로 위 잠금 값과 같고, Site 배포로 토큰이 바뀌어도
+# 변하지 않는다(validate_social_legal_manifest_01.py).
 # Hashes
 # remain exact after Git's LF/CRLF checkout normalization, not content stripping.
 LOCKED_SHA256 = {
-    'privacy.html': '99b0eb892bd215a88d73276cf6ee7cc7c9ad10fe2bbe770e4acb30fd66ccaf25',
-    'terms.html': '53891a54ccd41077217a9eeb42bad29b0163fdc49e948ba12a73cb935f011a19',
-    'account-deletion.html': '4975d2eff55f370753afa9e9c0acbb22e94caf465065b12f18836fd297f02676',
-    'contact.html': '4ea3c572e9de7b81d9e125bcc55f7e61dc7ea8923ab0eb1fdb02fba18532075f',
+    'privacy.html': 'c1a0be94cf8165c9c0b26d5b1c31fc3f91516ef30abb0bfcf6c2a6b8c0098545',
+    'terms.html': 'c3da41cf8bf81b0a3c6ac431a2f9de54fe573f04b573ce1f167b95add539e93f',
+    'account-deletion.html': 'ae770a20ce93249613a77d0c63872726f0935516e8444cf51be86444c83866ed',
+    'contact.html': '396e62b7a857dd3f6a9b27f54a25be032f2629648aac672af524d3bad2a2fa5a',
     'assets/lotbi-main-logo.png': '054a17a588b13cd20d676095aaf3001665b931929143c0a41083a0ed8c7d9063',
     'assets/lotbi-og-share.png': 'd25d8a7536d6dda0005236e2976199ea144ca0faddc738ab307d8a471a37869e',
     'styles.css': '32eedab514f6e237f762a35ac18b1ae0ce643bc04023547ee9be60d135a43c66',
@@ -160,6 +185,16 @@ def locked_bytes(rel: str, path: Path) -> bytes:
 def extract_theme_bootstrap(index: str) -> str | None:
     """Return the allowlisted pre-paint theme bootstrap block, or None."""
     marker = "SITE-THEME-BOOTSTRAP-FIRST-PAINT-01"
+    if marker not in index:
+        return None
+    start = index.index("<script>", index.index(marker))
+    end = index.index("</script>", start) + len("</script>")
+    return index[start:end]
+
+
+def extract_route_restore_bootstrap(index: str) -> str | None:
+    """Return the allowlisted pre-paint route marker (SITE-REFRESH-ROUTE-RESTORE-01), or None."""
+    marker = "SITE-REFRESH-ROUTE-RESTORE-01"
     if marker not in index:
         return None
     start = index.index("<script>", index.index(marker))
@@ -224,10 +259,6 @@ def main() -> int:
         r'<script type="module" src="site-continuity\.js\?v=[^"]+"></script>',
         index,
     )
-    footer_legal_script = re.search(
-        r'<script type="module" src="site-footer-legal\.js\?v=[^"]+"></script>',
-        index,
-    )
     avatar_script = re.search(
         r'<script type="module" src="site-avatar\.js\?v=[^"]+"></script>',
         index,
@@ -240,11 +271,29 @@ def main() -> int:
         conversation_script.group(0) if conversation_script else "__missing_conversation_module__",
         continuity_script.group(0) if continuity_script else "__missing_continuity_module__",
         avatar_script.group(0) if avatar_script else "__missing_avatar_module__",
-        footer_legal_script.group(0) if footer_legal_script else "__missing_footer_legal_module__",
     )
-    # +2 for the exact-purpose inline theme and HTTPS-origin bootstraps verified below.
-    if index.lower().count("<script") != len(approved_scripts) + 2 or any(script not in index for script in approved_scripts):
-        errors.append("home page may run only the approved HTTPS/theme bootstraps, one sealed Avatar import map, and approved Home modules")
+    # +3 for the exact-purpose inline theme, HTTPS-origin and route-marker bootstraps verified below.
+    if index.lower().count("<script") != len(approved_scripts) + 3 or any(script not in index for script in approved_scripts):
+        errors.append("home page may run only the approved HTTPS/theme/route bootstraps, one sealed Avatar import map, and approved Home modules")
+
+    # SITE-REFRESH-ROUTE-RESTORE-01 — a reload of /#calendar hides the home
+    # until that screen opens, which has to be decided before the first paint.
+    # Allowlisted the same way as the theme bootstrap: pinned to reading the
+    # fragment and setting one attribute — no storage, network or navigation.
+    route_bootstrap = extract_route_restore_bootstrap(index)
+    if route_bootstrap is None:
+        errors.append("the pre-paint route marker block is missing from index.html")
+    else:
+        body = route_bootstrap.lower()
+        if "window.location.hash" not in route_bootstrap or "document.documentElement.dataset.siteRoutePending = ''" not in route_bootstrap:
+            errors.append("the pre-paint route marker must only read the fragment and set data-site-route-pending")
+        for token in ("fetch(", "xmlhttprequest", "websocket", "eventsource", "sendbeacon", "localstorage",
+                      "sessionstorage", "indexeddb", "document.cookie", "location.replace", "location.assign",
+                      "location.href =", "innerhtml", "document.write", "eval(", "import("):
+            if token in body:
+                errors.append(f"the pre-paint route marker must not reach for {token}")
+        if "try" not in route_bootstrap or "catch" not in route_bootstrap:
+            errors.append("the pre-paint route marker must not let a failure stop the render")
 
     https_bootstrap = extract_https_origin_bootstrap(index)
     if https_bootstrap is None:
@@ -281,9 +330,17 @@ def main() -> int:
         if "lotbi.site.theme.bootstrap.v1" not in theme_bootstrap:
             errors.append("the pre-paint theme bootstrap must touch only the theme key")
         for token in ("fetch(", "xmlhttprequest", "websocket", "eventsource", "sendbeacon",
-                      "indexeddb", "document.cookie", "sessionstorage"):
+                      "indexeddb", "sessionstorage"):
             if token in theme_bootstrap.lower():
                 errors.append(f"the pre-paint theme bootstrap must not reach for {token}")
+        # LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode chosen in Account is the
+        # shared lotbi_theme_preference_v1 cookie, so the bootstrap reads
+        # document.cookie. Reading only: an assignment would let the first paint
+        # change what the user chose.
+        if re.search(r"document\.cookie\s*=(?!=)", theme_bootstrap):
+            errors.append("the pre-paint theme bootstrap must only read document.cookie, never write it")
+        if "lotbi_theme_preference_v1" not in theme_bootstrap:
+            errors.append("the pre-paint theme bootstrap must read the shared screen-mode cookie")
         if "try" not in theme_bootstrap or "catch" not in theme_bootstrap:
             errors.append("the pre-paint theme bootstrap must not let a storage failure stop the render")
 

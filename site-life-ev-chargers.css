@@ -1,0 +1,249 @@
+/* EV-CHARGER-NEARBY-LIST-P0 — 지역정보 전기차 충전소 목록. Theme tokens only. */
+.ev-surface {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ev-title {
+  margin: 0;
+  font-size: 18px;
+  color: var(--lotbi-text-primary);
+}
+
+.ev-title:focus {
+  outline: none;
+}
+
+.ev-basis {
+  margin: -6px 0 0;
+  font-size: 13px;
+  color: var(--lotbi-text-secondary);
+}
+
+.ev-locate {
+  justify-self: start;
+}
+
+.ev-location-note {
+  margin: 0;
+}
+
+.ev-location-note:empty {
+  display: none;
+}
+
+.ev-region-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ev-region-row[hidden] {
+  display: none;
+}
+
+.ev-region-field select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  padding: 0 8px;
+}
+
+.ev-chip-row {
+  flex-wrap: wrap;
+}
+
+.ev-status {
+  margin: 0;
+  color: var(--lotbi-text-primary);
+}
+
+.ev-notice {
+  margin: 0;
+  color: var(--lotbi-warning-text);
+}
+
+.ev-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--lotbi-error-text);
+}
+
+.ev-error[hidden],
+.ev-notice[hidden],
+.ev-more[hidden] {
+  display: none;
+}
+
+.ev-results {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ev-station {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: start;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  min-width: 0;
+}
+
+.ev-station-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ev-station-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: 8px;
+  row-gap: 2px;
+}
+
+.ev-station-name {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ev-station-distance {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--lotbi-text-secondary);
+}
+
+.ev-station-address,
+.ev-station-meta,
+.ev-station-checked {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--lotbi-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.ev-station-checked {
+  font-size: 12px;
+  color: var(--lotbi-text-muted);
+}
+
+.ev-station-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 0;
+}
+
+.ev-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid var(--lotbi-border-strong);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--lotbi-text-primary);
+}
+
+.ev-badge[data-ev-available="true"] {
+  border-color: var(--lotbi-success-text);
+  color: var(--lotbi-success-text);
+}
+
+.ev-badge[data-ev-unchecked="true"] {
+  border-style: dashed;
+  color: var(--lotbi-text-secondary);
+}
+
+.ev-chargers {
+  display: grid;
+  gap: 2px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ev-charger {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--lotbi-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.ev-charger[data-ev-available="true"] {
+  color: var(--lotbi-text-primary);
+}
+
+.ev-station-meta[data-ev-limited="true"] {
+  color: var(--lotbi-warning-text);
+}
+
+/* The saved map app's approved icon: 32px image in a 44px target. */
+.ev-map-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--lotbi-text-primary);
+  text-decoration: none;
+}
+
+.ev-map-link:hover {
+  background: var(--lotbi-surface-hover);
+}
+
+.ev-map-link:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: 2px;
+}
+
+.ev-map-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.ev-map-fallback {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.ev-empty {
+  list-style: none;
+}
+
+.ev-more {
+  justify-self: center;
+}
+
+.ev-source {
+  margin: 0;
+  font-size: 12px;
+}

@@ -217,7 +217,26 @@ const ok = body => ({
   });
   assert.equal(outcome.state, CALENDAR_DRAFT_WRITE_STATE.REGISTERED);
   assert.equal(calls[0].body.usageType, 'RECEIPT_AUTO');
+  // An older Core suggests no expense status: nothing is sent, and the amount
+  // is saved as spent exactly as before.
+  assert.equal(calls[0].body.entry.expenseStatus, undefined);
 }
+
+// CALENDAR-DESIGN-04: Core suggests PLANNED for a booking that is not paid yet
+// and PAID for a receipt. The one-tap write carries that suggestion on.
+for (const [kind, relevance, status] of [['RESERVATION', 'SCHEDULED_EVENT', 'PLANNED'], ['RECEIPT', 'PAST_TRANSACTION_ONLY', 'PAID']]) {
+  const suggested = normalizeSmartCalendarDraft(corePayload({
+    document_kind: kind,
+    calendar_relevance: relevance,
+    entry: {...corePayload().entry, amount_minor: 180000, currency: 'KRW', expense_category: 'TRAVEL', expense_status: status},
+  }));
+  assert.equal(suggested.entry.expenseStatus, status);
+  const {calls, create} = recordingActivity((_n, body) => ok(body));
+  await registerCalendarDraft(suggested, {sessionToken: 'token', timezone: TZ, createAuthActivity: create});
+  assert.equal(calls[0].body.entry.expenseStatus, status, kind);
+}
+// A suggestion without an amount means nothing and is dropped.
+assert.equal(normalizeSmartCalendarDraft(corePayload({entry: {...corePayload().entry, expense_status: 'PLANNED'}})).entry.expenseStatus, null);
 
 // Nothing is written without a session, a title, a date or an identity.
 for (const [label, value, options] of [
@@ -317,7 +336,7 @@ assert.ok(!/\balert\s*\(/.test(conversationSource), 'confirmation must not use a
 
 const {eventSpanText} = await import('../site-calendar-manager.js');
 
-// 2026-09-12 선택 시 하단에 '09/12 15:00 → 09/13 11:00' 이 보여야 한다.
+// 2026-09-12 선택 시 하단에 '09/12 오후 3:00 → 09/13 오전 11:00' 이 보여야 한다.
 assert.equal(
   eventSpanText({
     local_date: '2026-09-12',
@@ -325,7 +344,7 @@ assert.equal(
     local_end_date: '2026-09-13',
     local_end_datetime: '2026-09-13T11:00:00',
   }),
-  '09/12 15:00 → 09/13 11:00',
+  '09/12 오후 3:00 → 09/13 오전 11:00',
 );
 // A multi-day booking with no clock shows days, not invented hours.
 assert.equal(

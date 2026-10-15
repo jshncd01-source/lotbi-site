@@ -1,0 +1,1371 @@
+{
+ "note": "Produced by lotbi-core app/my_child_api.py (MY-CHILD-SCHOOL-01) on real NEIS / 유치원알리미 rows (meals, schools, 유치원 are captured rows; 학사일정 uses real event names with dates moved into the 10-11월 window); ids are re-issued by the validator; meal_plans blocks come from app/meal_plan_sources.py consumer_meal_plans (MY-CHILD-MEAL-LINK-PDF-01) with example links/files, and meals.coverage as app/my_child_institutions.py derives it (overview_school_empty: no NEIS meal in the last 120 days).",
+ "listing_empty": {
+  "entries": [],
+  "max_entries": 10,
+  "consent": {
+   "key": "LIFE_MY_CHILD_INSTITUTIONS",
+   "version": "my-child-institutions-2026-10-09",
+   "text": "자녀가 다니는 기관과 알레르기 표시 설정을 저장합니다, 언제든 삭제 가능. 저장 항목: 기관 코드, 부르는 이름, 알레르기 번호(아이 이름·생년월일·사진·학년·반은 받지 않음). 목적: 급식·학사일정·기관 정보 표시와 급식표 알레르기 표기 강조. 보관: 직접 삭제하거나 계정을 삭제할 때까지. 동의하지 않으면 이 기능만 이용할 수 없습니다.",
+   "sha256": "75a8534f752f7fa466e76a8e0d8bcf4b3118fb34703f571e9e8121c93a9b61b0",
+   "accepted": false,
+   "accepted_at": null
+  },
+  "allergen_catalog": [
+   {
+    "code": 1,
+    "name": "난류"
+   },
+   {
+    "code": 2,
+    "name": "우유"
+   },
+   {
+    "code": 3,
+    "name": "메밀"
+   },
+   {
+    "code": 4,
+    "name": "땅콩"
+   },
+   {
+    "code": 5,
+    "name": "대두"
+   },
+   {
+    "code": 6,
+    "name": "밀"
+   },
+   {
+    "code": 7,
+    "name": "고등어"
+   },
+   {
+    "code": 8,
+    "name": "게"
+   },
+   {
+    "code": 9,
+    "name": "새우"
+   },
+   {
+    "code": 10,
+    "name": "돼지고기"
+   },
+   {
+    "code": 11,
+    "name": "복숭아"
+   },
+   {
+    "code": 12,
+    "name": "토마토"
+   },
+   {
+    "code": 13,
+    "name": "아황산류"
+   },
+   {
+    "code": 14,
+    "name": "호두"
+   },
+   {
+    "code": 15,
+    "name": "닭고기"
+   },
+   {
+    "code": 16,
+    "name": "쇠고기"
+   },
+   {
+    "code": 17,
+    "name": "오징어"
+   },
+   {
+    "code": 18,
+    "name": "조개류"
+   },
+   {
+    "code": 19,
+    "name": "잣"
+   }
+  ],
+  "allergy_basis": "급식표 알레르기 표기 기준",
+  "nickname_max_length": 20
+ },
+ "consent_required": {
+  "detail": {
+   "code": "MY_CHILD_CONSENT_REQUIRED",
+   "message": "처음 저장할 때는 저장 안내에 동의해 주세요.",
+   "consent": {
+    "key": "LIFE_MY_CHILD_INSTITUTIONS",
+    "version": "my-child-institutions-2026-10-09",
+    "text": "자녀가 다니는 기관과 알레르기 표시 설정을 저장합니다, 언제든 삭제 가능. 저장 항목: 기관 코드, 부르는 이름, 알레르기 번호(아이 이름·생년월일·사진·학년·반은 받지 않음). 목적: 급식·학사일정·기관 정보 표시와 급식표 알레르기 표기 강조. 보관: 직접 삭제하거나 계정을 삭제할 때까지. 동의하지 않으면 이 기능만 이용할 수 없습니다.",
+    "sha256": "75a8534f752f7fa466e76a8e0d8bcf4b3118fb34703f571e9e8121c93a9b61b0",
+    "accepted": false,
+    "accepted_at": null
+   }
+  }
+ },
+ "search": {
+  "query": "서원초",
+  "schools": [
+   {
+    "office_code": "P10",
+    "office_name": "전북특별자치도교육청",
+    "school_code": "8332169",
+    "name": "전주서원초등학교",
+    "kind": "초등학교",
+    "region": "전북특별자치도",
+    "address": "전북특별자치도 전주시 완산구 오두정길 45",
+    "kind_label": "초등학교"
+   },
+   {
+    "office_code": "B10",
+    "office_name": "서울특별시교육청",
+    "school_code": "7091393",
+    "name": "서울서원초등학교",
+    "kind": "초등학교",
+    "region": "서울특별시",
+    "address": "서울특별시 서초구 고무래로 63",
+    "kind_label": "초등학교"
+   },
+   {
+    "office_code": "G10",
+    "office_name": "대전광역시교육청",
+    "school_code": "7451097",
+    "name": "대전서원초등학교",
+    "kind": "초등학교",
+    "region": "대전광역시",
+    "address": "대전광역시 서구 문정로 279",
+    "kind_label": "초등학교"
+   },
+   {
+    "office_code": "J10",
+    "office_name": "경기도교육청",
+    "school_code": "7751090",
+    "name": "서원초등학교",
+    "kind": "초등학교",
+    "region": "경기도",
+    "address": "경기 용인시 수지구 상현로 45",
+    "kind_label": "초등학교"
+   },
+   {
+    "office_code": "K10",
+    "office_name": "강원특별자치도교육청",
+    "school_code": "7892021",
+    "name": "서원초등학교",
+    "kind": "초등학교",
+    "region": "강원특별자치도",
+    "address": "강원도 횡성군 서원면 서원로 173",
+    "kind_label": "초등학교"
+   },
+   {
+    "office_code": "M10",
+    "office_name": "충청북도교육청",
+    "school_code": "8011186",
+    "name": "서원초등학교",
+    "kind": "초등학교",
+    "region": "충청북도",
+    "address": "충청북도 청주시 흥덕구 가로수로 1340-6",
+    "kind_label": "초등학교"
+   }
+  ],
+  "truncated": true,
+  "source": {
+   "code": "NEIS",
+   "label": "출처: NEIS",
+   "fetched_at": "2026-10-09T04:56:33.362194+00:00"
+  }
+ },
+ "created_school": {
+  "entry": {
+   "id": "mci_b23e645f9c5b4db18005",
+   "kind": "SCHOOL",
+   "nickname": "첫째",
+   "allergens": [
+    {
+     "code": 5,
+     "name": "대두"
+    },
+    {
+     "code": 6,
+     "name": "밀"
+    }
+   ],
+   "institution_ref": {
+    "kind": "SCHOOL",
+    "office_code": "P10",
+    "school_code": "8332169"
+   },
+   "institution": {
+    "office_code": "P10",
+    "office_name": "전북특별자치도교육청",
+    "school_code": "8332169",
+    "name": "전주서원초등학교",
+    "kind": "초등학교",
+    "region": "전북특별자치도",
+    "address": "전북특별자치도 전주시 완산구 오두정길 45",
+    "kind_label": "초등학교"
+   },
+   "institution_status": "OK",
+   "created_at": "2026-10-09T04:56:33.473551+00:00",
+   "updated_at": "2026-10-09T04:56:33.473551+00:00"
+  },
+  "consent": {
+   "key": "LIFE_MY_CHILD_INSTITUTIONS",
+   "version": "my-child-institutions-2026-10-09",
+   "text": "자녀가 다니는 기관과 알레르기 표시 설정을 저장합니다, 언제든 삭제 가능. 저장 항목: 기관 코드, 부르는 이름, 알레르기 번호(아이 이름·생년월일·사진·학년·반은 받지 않음). 목적: 급식·학사일정·기관 정보 표시와 급식표 알레르기 표기 강조. 보관: 직접 삭제하거나 계정을 삭제할 때까지. 동의하지 않으면 이 기능만 이용할 수 없습니다.",
+   "sha256": "75a8534f752f7fa466e76a8e0d8bcf4b3118fb34703f571e9e8121c93a9b61b0",
+   "accepted": true,
+   "accepted_at": "2026-10-09T04:56:33.473551+00:00"
+  }
+ },
+ "listing_three": {
+  "entries": [
+   {
+    "id": "mci_b23e645f9c5b4db18005",
+    "kind": "SCHOOL",
+    "nickname": "첫째",
+    "allergens": [
+     {
+      "code": 5,
+      "name": "대두"
+     },
+     {
+      "code": 6,
+      "name": "밀"
+     }
+    ],
+    "institution_ref": {
+     "kind": "SCHOOL",
+     "office_code": "P10",
+     "school_code": "8332169"
+    },
+    "institution": {
+     "office_code": "P10",
+     "office_name": "전북특별자치도교육청",
+     "school_code": "8332169",
+     "name": "전주서원초등학교",
+     "kind": "초등학교",
+     "region": "전북특별자치도",
+     "address": "전북특별자치도 전주시 완산구 오두정길 45",
+     "kind_label": "초등학교"
+    },
+    "institution_status": "OK",
+    "created_at": "2026-10-09T04:56:33.473551+00:00",
+    "updated_at": "2026-10-09T04:56:33.473551+00:00"
+   },
+   {
+    "id": "mci_8d10b8205a024990bac9",
+    "kind": "SCHOOL",
+    "nickname": "둘째",
+    "allergens": [],
+    "institution_ref": {
+     "kind": "SCHOOL",
+     "office_code": "B10",
+     "school_code": "7091393"
+    },
+    "institution": {
+     "office_code": "B10",
+     "office_name": "서울특별시교육청",
+     "school_code": "7091393",
+     "name": "서울서원초등학교",
+     "kind": "초등학교",
+     "region": "서울특별시",
+     "address": "서울특별시 서초구 고무래로 63",
+     "kind_label": "초등학교"
+    },
+    "institution_status": "OK",
+    "created_at": "2026-10-09T04:56:33.553324+00:00",
+    "updated_at": "2026-10-09T04:56:33.553324+00:00"
+   },
+   {
+    "id": "mci_6df56210432a425790fc",
+    "kind": "KINDERGARTEN",
+    "nickname": "셋째",
+    "allergens": [
+     {
+      "code": 2,
+      "name": "우유"
+     }
+    ],
+    "institution_ref": {
+     "kind": "KINDERGARTEN",
+     "kinder_code": "1ecec08c-f46d-b044-e053-0a32095ab044",
+     "sgg_code": "52113"
+    },
+    "institution": {
+     "kinder_code": "1ecec08c-f46d-b044-e053-0a32095ab044",
+     "sgg_code": "52113",
+     "name": "예일유치원",
+     "kind_label": "유치원",
+     "establishment": "사립(사인)",
+     "area": "전북 전주시 덕진구",
+     "address": "전북특별자치도 전주시 덕진구 한배미5길 12-6"
+    },
+    "institution_status": "OK",
+    "created_at": "2026-10-09T04:56:33.630239+00:00",
+    "updated_at": "2026-10-09T04:56:33.630239+00:00"
+   }
+  ],
+  "max_entries": 10,
+  "consent": {
+   "key": "LIFE_MY_CHILD_INSTITUTIONS",
+   "version": "my-child-institutions-2026-10-09",
+   "text": "자녀가 다니는 기관과 알레르기 표시 설정을 저장합니다, 언제든 삭제 가능. 저장 항목: 기관 코드, 부르는 이름, 알레르기 번호(아이 이름·생년월일·사진·학년·반은 받지 않음). 목적: 급식·학사일정·기관 정보 표시와 급식표 알레르기 표기 강조. 보관: 직접 삭제하거나 계정을 삭제할 때까지. 동의하지 않으면 이 기능만 이용할 수 없습니다.",
+   "sha256": "75a8534f752f7fa466e76a8e0d8bcf4b3118fb34703f571e9e8121c93a9b61b0",
+   "accepted": true,
+   "accepted_at": "2026-10-09T04:56:33.473551+00:00"
+  },
+  "allergen_catalog": [
+   {
+    "code": 1,
+    "name": "난류"
+   },
+   {
+    "code": 2,
+    "name": "우유"
+   },
+   {
+    "code": 3,
+    "name": "메밀"
+   },
+   {
+    "code": 4,
+    "name": "땅콩"
+   },
+   {
+    "code": 5,
+    "name": "대두"
+   },
+   {
+    "code": 6,
+    "name": "밀"
+   },
+   {
+    "code": 7,
+    "name": "고등어"
+   },
+   {
+    "code": 8,
+    "name": "게"
+   },
+   {
+    "code": 9,
+    "name": "새우"
+   },
+   {
+    "code": 10,
+    "name": "돼지고기"
+   },
+   {
+    "code": 11,
+    "name": "복숭아"
+   },
+   {
+    "code": 12,
+    "name": "토마토"
+   },
+   {
+    "code": 13,
+    "name": "아황산류"
+   },
+   {
+    "code": 14,
+    "name": "호두"
+   },
+   {
+    "code": 15,
+    "name": "닭고기"
+   },
+   {
+    "code": 16,
+    "name": "쇠고기"
+   },
+   {
+    "code": 17,
+    "name": "오징어"
+   },
+   {
+    "code": 18,
+    "name": "조개류"
+   },
+   {
+    "code": 19,
+    "name": "잣"
+   }
+  ],
+  "allergy_basis": "급식표 알레르기 표기 기준",
+  "nickname_max_length": 20
+ },
+ "overview_school": {
+  "entry": {
+   "id": "mci_b23e645f9c5b4db18005",
+   "kind": "SCHOOL",
+   "nickname": "첫째",
+   "allergens": [
+    {
+     "code": 5,
+     "name": "대두"
+    },
+    {
+     "code": 6,
+     "name": "밀"
+    }
+   ],
+   "institution_ref": {
+    "kind": "SCHOOL",
+    "office_code": "P10",
+    "school_code": "8332169"
+   },
+   "institution": null,
+   "institution_status": "OK",
+   "created_at": "2026-10-09T04:56:33.473551+00:00",
+   "updated_at": "2026-10-09T04:56:33.473551+00:00"
+  },
+  "today": "2026-10-08",
+  "allergy_basis": "급식표 알레르기 표기 기준",
+  "status": "OK",
+  "school": {
+   "office_code": "P10",
+   "office_name": "전북특별자치도교육청",
+   "school_code": "8332169",
+   "name": "전주서원초등학교",
+   "kind": "초등학교",
+   "region": "전북특별자치도",
+   "address": "전북특별자치도 전주시 완산구 오두정길 45",
+   "kind_label": "초등학교"
+  },
+  "meals": {
+   "status": "OK",
+   "week": {
+    "from": "2026-10-05",
+    "to": "2026-10-11"
+   },
+   "today": [
+    {
+     "date": "2026-10-08",
+     "meal_code": "2",
+     "meal_name": "중식",
+     "meal_type": "LUNCH",
+     "dishes": [
+      {
+       "name": "친환경발아찰현미밥",
+       "allergens": [],
+       "matched_allergens": [],
+       "contains_text": null
+      },
+      {
+       "name": "솎음배추된장국",
+       "allergens": [
+        5,
+        6
+       ],
+       "matched_allergens": [
+        {
+         "code": 5,
+         "name": "대두"
+        },
+        {
+         "code": 6,
+         "name": "밀"
+        }
+       ],
+       "contains_text": "대두·밀 포함"
+      },
+      {
+       "name": "견과류모듬",
+       "allergens": [
+        14
+       ],
+       "matched_allergens": [],
+       "contains_text": null
+      },
+      {
+       "name": "닭고기야채카레찜",
+       "allergens": [
+        2,
+        5,
+        6,
+        12,
+        13,
+        15,
+        16,
+        18
+       ],
+       "matched_allergens": [
+        {
+         "code": 5,
+         "name": "대두"
+        },
+        {
+         "code": 6,
+         "name": "밀"
+        }
+       ],
+       "contains_text": "대두·밀 포함"
+      },
+      {
+       "name": "볼카츠/케챱",
+       "allergens": [
+        1,
+        5,
+        6,
+        10,
+        12
+       ],
+       "matched_allergens": [
+        {
+         "code": 5,
+         "name": "대두"
+        },
+        {
+         "code": 6,
+         "name": "밀"
+        }
+       ],
+       "contains_text": "대두·밀 포함"
+      },
+      {
+       "name": "보쌈김치",
+       "allergens": [
+        9
+       ],
+       "matched_allergens": [],
+       "contains_text": null
+      },
+      {
+       "name": "쌈다시마파프리카표고버섯초장",
+       "allergens": [
+        5,
+        6,
+        13
+       ],
+       "matched_allergens": [
+        {
+         "code": 5,
+         "name": "대두"
+        },
+        {
+         "code": 6,
+         "name": "밀"
+        }
+       ],
+       "contains_text": "대두·밀 포함"
+      }
+     ],
+     "calories": "601.1 Kcal",
+     "nutrition": [
+      {
+       "label": "탄수화물(g)",
+       "value": "71.0"
+      },
+      {
+       "label": "단백질(g)",
+       "value": "24.8"
+      },
+      {
+       "label": "지방(g)",
+       "value": "24.2"
+      },
+      {
+       "label": "비타민A(R.E)",
+       "value": "94.6"
+      },
+      {
+       "label": "티아민(mg)",
+       "value": "0.4"
+      },
+      {
+       "label": "리보플라빈(mg)",
+       "value": "0.3"
+      },
+      {
+       "label": "비타민C(mg)",
+       "value": "19.4"
+      },
+      {
+       "label": "칼슘(mg)",
+       "value": "227.2"
+      },
+      {
+       "label": "철분(mg)",
+       "value": "2.9"
+      }
+     ],
+     "source_type": "NEIS",
+     "allergen_codes_available": true,
+     "matched_allergens": [
+      {
+       "code": 5,
+       "name": "대두"
+      },
+      {
+       "code": 6,
+       "name": "밀"
+      }
+     ]
+    }
+   ],
+   "days": [
+    {
+     "date": "2026-10-06",
+     "meals": [
+      {
+       "date": "2026-10-06",
+       "meal_code": "2",
+       "meal_name": "중식",
+       "meal_type": "LUNCH",
+       "dishes": [
+        {
+         "name": "친환경쌀흑미밥",
+         "allergens": [],
+         "matched_allergens": [],
+         "contains_text": null
+        },
+        {
+         "name": "돼지등뼈감자탕",
+         "allergens": [
+          5,
+          6,
+          9,
+          10
+         ],
+         "matched_allergens": [
+          {
+           "code": 5,
+           "name": "대두"
+          },
+          {
+           "code": 6,
+           "name": "밀"
+          }
+         ],
+         "contains_text": "대두·밀 포함"
+        },
+        {
+         "name": "메추리알표고장조림",
+         "allergens": [
+          1,
+          5,
+          6,
+          13
+         ],
+         "matched_allergens": [
+          {
+           "code": 5,
+           "name": "대두"
+          },
+          {
+           "code": 6,
+           "name": "밀"
+          }
+         ],
+         "contains_text": "대두·밀 포함"
+        },
+        {
+         "name": "새우살애호박볶음",
+         "allergens": [
+          9,
+          13
+         ],
+         "matched_allergens": [],
+         "contains_text": null
+        },
+        {
+         "name": "삼치구이/깐풍소스",
+         "allergens": [
+          5,
+          6,
+          13,
+          18
+         ],
+         "matched_allergens": [
+          {
+           "code": 5,
+           "name": "대두"
+          },
+          {
+           "code": 6,
+           "name": "밀"
+          }
+         ],
+         "contains_text": "대두·밀 포함"
+        },
+        {
+         "name": "갓김치/배추김치",
+         "allergens": [
+          9
+         ],
+         "matched_allergens": [],
+         "contains_text": null
+        },
+        {
+         "name": "망고블루요거트",
+         "allergens": [
+          2,
+          5,
+          6
+         ],
+         "matched_allergens": [
+          {
+           "code": 5,
+           "name": "대두"
+          },
+          {
+           "code": 6,
+           "name": "밀"
+          }
+         ],
+         "contains_text": "대두·밀 포함"
+        }
+       ],
+       "calories": "577.4 Kcal",
+       "nutrition": [
+        {
+         "label": "탄수화물(g)",
+         "value": "78.8"
+        },
+        {
+         "label": "단백질(g)",
+         "value": "28.0"
+        },
+        {
+         "label": "지방(g)",
+         "value": "15.5"
+        },
+        {
+         "label": "비타민A(R.E)",
+         "value": "149.7"
+        },
+        {
+         "label": "티아민(mg)",
+         "value": "0.5"
+        },
+        {
+         "label": "리보플라빈(mg)",
+         "value": "0.5"
+        },
+        {
+         "label": "비타민C(mg)",
+         "value": "15.6"
+        },
+        {
+         "label": "칼슘(mg)",
+         "value": "154.6"
+        },
+        {
+         "label": "철분(mg)",
+         "value": "2.6"
+        }
+       ],
+       "source_type": "NEIS",
+       "allergen_codes_available": true,
+       "matched_allergens": [
+        {
+         "code": 5,
+         "name": "대두"
+        },
+        {
+         "code": 6,
+         "name": "밀"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "date": "2026-10-07",
+     "meals": [
+      {
+       "date": "2026-10-07",
+       "meal_code": "2",
+       "meal_name": "중식",
+       "meal_type": "LUNCH",
+       "dishes": [
+        {
+         "name": "짜장밥",
+         "allergens": [
+          2,
+          5,
+          6,
+          10,
+          13,
+          16
+         ],
+         "matched_allergens": [
+          {
+           "code": 5,
+           "name": "대두"
+          },
+          {
+           "code": 6,
+           "name": "밀"
+          }
+         ],
+         "contains_text": "대두·밀 포함"
+        },
+        {
+         "name": "달걀실파국",
+         "allergens": [
+          1,
+          5,
+          6
+         ],
+         "matched_allergens": [
+          {
+           "code": 5,
+           "name": "대두"
+          },
+          {
+           "code": 6,
+           "name": "밀"
+          }
+         ],
+         "contains_text": "대두·밀 포함"
+        },
+        {
+         "name": "반달단무지",
+         "allergens": [],
+         "matched_allergens": [],
+         "contains_text": null
+        },
+        {
+         "name": "모듬탕수육/소스",
+         "allergens": [
+          1,
+          5,
+          6,
+          10,
+          12,
+          13
+         ],
+         "matched_allergens": [
+          {
+           "code": 5,
+           "name": "대두"
+          },
+          {
+           "code": 6,
+           "name": "밀"
+          }
+         ],
+         "contains_text": "대두·밀 포함"
+        },
+        {
+         "name": "배추김치",
+         "allergens": [
+          9
+         ],
+         "matched_allergens": [],
+         "contains_text": null
+        },
+        {
+         "name": "아삭오이무침",
+         "allergens": [
+          9
+         ],
+         "matched_allergens": [],
+         "contains_text": null
+        },
+        {
+         "name": "사과즙",
+         "allergens": [
+          13
+         ],
+         "matched_allergens": [],
+         "contains_text": null
+        }
+       ],
+       "calories": "586.0 Kcal",
+       "nutrition": [
+        {
+         "label": "탄수화물(g)",
+         "value": "90.3"
+        },
+        {
+         "label": "단백질(g)",
+         "value": "26.5"
+        },
+        {
+         "label": "지방(g)",
+         "value": "12.3"
+        },
+        {
+         "label": "비타민A(R.E)",
+         "value": "88.9"
+        },
+        {
+         "label": "티아민(mg)",
+         "value": "0.6"
+        },
+        {
+         "label": "리보플라빈(mg)",
+         "value": "0.3"
+        },
+        {
+         "label": "비타민C(mg)",
+         "value": "58.6"
+        },
+        {
+         "label": "칼슘(mg)",
+         "value": "133.8"
+        },
+        {
+         "label": "철분(mg)",
+         "value": "2.0"
+        }
+       ],
+       "source_type": "NEIS",
+       "allergen_codes_available": true,
+       "matched_allergens": [
+        {
+         "code": 5,
+         "name": "대두"
+        },
+        {
+         "code": 6,
+         "name": "밀"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "date": "2026-10-08",
+     "meals": [
+      {
+       "date": "2026-10-08",
+       "meal_code": "2",
+       "meal_name": "중식",
+       "meal_type": "LUNCH",
+       "dishes": [
+        {
+         "name": "친환경발아찰현미밥",
+         "allergens": [],
+         "matched_allergens": [],
+         "contains_text": null
+        },
+        {
+         "name": "솎음배추된장국",
+         "allergens": [
+          5,
+          6
+         ],
+         "matched_allergens": [
+          {
+           "code": 5,
+           "name": "대두"
+          },
+          {
+           "code": 6,
+           "name": "밀"
+          }
+         ],
+         "contains_text": "대두·밀 포함"
+        },
+        {
+         "name": "견과류모듬",
+         "allergens": [
+          14
+         ],
+         "matched_allergens": [],
+         "contains_text": null
+        },
+        {
+         "name": "닭고기야채카레찜",
+         "allergens": [
+          2,
+          5,
+          6,
+          12,
+          13,
+          15,
+          16,
+          18
+         ],
+         "matched_allergens": [
+          {
+           "code": 5,
+           "name": "대두"
+          },
+          {
+           "code": 6,
+           "name": "밀"
+          }
+         ],
+         "contains_text": "대두·밀 포함"
+        },
+        {
+         "name": "볼카츠/케챱",
+         "allergens": [
+          1,
+          5,
+          6,
+          10,
+          12
+         ],
+         "matched_allergens": [
+          {
+           "code": 5,
+           "name": "대두"
+          },
+          {
+           "code": 6,
+           "name": "밀"
+          }
+         ],
+         "contains_text": "대두·밀 포함"
+        },
+        {
+         "name": "보쌈김치",
+         "allergens": [
+          9
+         ],
+         "matched_allergens": [],
+         "contains_text": null
+        },
+        {
+         "name": "쌈다시마파프리카표고버섯초장",
+         "allergens": [
+          5,
+          6,
+          13
+         ],
+         "matched_allergens": [
+          {
+           "code": 5,
+           "name": "대두"
+          },
+          {
+           "code": 6,
+           "name": "밀"
+          }
+         ],
+         "contains_text": "대두·밀 포함"
+        }
+       ],
+       "calories": "601.1 Kcal",
+       "nutrition": [
+        {
+         "label": "탄수화물(g)",
+         "value": "71.0"
+        },
+        {
+         "label": "단백질(g)",
+         "value": "24.8"
+        },
+        {
+         "label": "지방(g)",
+         "value": "24.2"
+        },
+        {
+         "label": "비타민A(R.E)",
+         "value": "94.6"
+        },
+        {
+         "label": "티아민(mg)",
+         "value": "0.4"
+        },
+        {
+         "label": "리보플라빈(mg)",
+         "value": "0.3"
+        },
+        {
+         "label": "비타민C(mg)",
+         "value": "19.4"
+        },
+        {
+         "label": "칼슘(mg)",
+         "value": "227.2"
+        },
+        {
+         "label": "철분(mg)",
+         "value": "2.9"
+        }
+       ],
+       "source_type": "NEIS",
+       "allergen_codes_available": true,
+       "matched_allergens": [
+        {
+         "code": 5,
+         "name": "대두"
+        },
+        {
+         "code": 6,
+         "name": "밀"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "sources": [
+    "NEIS"
+   ],
+   "truncated": false,
+   "today_matched_allergens": [
+    {
+     "code": 5,
+     "name": "대두"
+    },
+    {
+     "code": 6,
+     "name": "밀"
+    }
+   ],
+   "coverage": "PROVIDED",
+   "coverage_basis": {
+    "lookback_days": 120,
+    "from": "2026-06-10",
+    "to": "2026-10-11"
+   }
+  },
+  "links": {
+   "homepage_url": "http://www.sewon.es.kr/",
+   "homepage_source": "NEIS",
+   "meal_source_url": null
+  },
+  "schedule": {
+   "status": "OK",
+   "range": {
+    "from": "2026-10-01",
+    "to": "2026-11-30"
+   },
+   "items": [
+    {
+     "type": "DISCRETIONARY_HOLIDAY",
+     "type_label": "재량휴업일",
+     "name": "재량휴업일",
+     "start": "2026-10-12",
+     "end": "2026-10-12",
+     "day_count": 1
+    },
+    {
+     "type": "VACATION",
+     "type_label": "방학",
+     "name": "가을방학",
+     "start": "2026-11-20",
+     "end": "2026-11-24",
+     "day_count": 3
+    },
+    {
+     "type": "SCHOOL_START",
+     "type_label": "개학",
+     "name": "2학기 개학식",
+     "start": "2026-11-26",
+     "end": "2026-11-26",
+     "day_count": 1
+    }
+   ],
+   "truncated": false,
+   "shown_types": [
+    "방학",
+    "재량휴업일",
+    "개학"
+   ]
+  },
+  "source": {
+   "code": "NEIS",
+   "label": "출처: NEIS",
+   "fetched_at": "2026-10-09T04:56:34.277114+00:00",
+   "stale": false
+  },
+  "info_requests": {},
+  "requestable": [],
+  "meal_plans": {
+   "visible": false,
+   "title": "학교 공개 급식표",
+   "items": [],
+   "allergen_checked": false,
+   "notice": "학교·유치원이 공개한 급식표를 그대로 보여 줘요. 알레르기 번호를 읽지 않아 자동 강조·알림은 되지 않으니 직접 확인해 주세요."
+  }
+ },
+ "overview_school_empty": {
+  "entry": {
+   "id": "mci_8d10b8205a024990bac9",
+   "kind": "SCHOOL",
+   "nickname": "둘째",
+   "allergens": [],
+   "institution_ref": {
+    "kind": "SCHOOL",
+    "office_code": "B10",
+    "school_code": "7091393"
+   },
+   "institution": null,
+   "institution_status": "OK",
+   "created_at": "2026-10-09T04:56:33.553324+00:00",
+   "updated_at": "2026-10-09T04:56:33.553324+00:00"
+  },
+  "today": "2026-10-08",
+  "allergy_basis": "급식표 알레르기 표기 기준",
+  "status": "OK",
+  "school": {
+   "office_code": "B10",
+   "office_name": "서울특별시교육청",
+   "school_code": "7091393",
+   "name": "서울서원초등학교",
+   "kind": "초등학교",
+   "region": "서울특별시",
+   "address": "서울특별시 서초구 고무래로 63",
+   "kind_label": "초등학교"
+  },
+  "meals": {
+   "status": "NONE",
+   "week": {
+    "from": "2026-10-05",
+    "to": "2026-10-11"
+   },
+   "today": [],
+   "days": [],
+   "sources": [],
+   "truncated": false,
+   "today_matched_allergens": [],
+   "coverage": "NOT_PROVIDED",
+   "coverage_basis": {
+    "lookback_days": 120,
+    "from": "2026-06-10",
+    "to": "2026-10-11"
+   }
+  },
+  "links": {
+   "homepage_url": "https://seo-won.sen.es.kr/",
+   "homepage_source": "NEIS",
+   "meal_source_url": null
+  },
+  "schedule": {
+   "status": "NONE",
+   "range": {
+    "from": "2026-10-01",
+    "to": "2026-11-30"
+   },
+   "items": [],
+   "truncated": false,
+   "shown_types": [
+    "방학",
+    "재량휴업일",
+    "개학"
+   ]
+  },
+  "source": {
+   "code": "NEIS",
+   "label": "출처: NEIS",
+   "fetched_at": "2026-10-09T04:56:34.374679+00:00",
+   "stale": false
+  },
+  "info_requests": {},
+  "requestable": [
+   "MEAL",
+   "SCHEDULE"
+  ],
+  "meal_plans": {
+   "visible": true,
+   "title": "학교 공개 급식표",
+   "items": [
+    {
+     "id": "mps_559da61b14564bf8bb8d",
+     "kind": "DOCUMENT",
+     "label": "10월 급식표",
+     "registered_at": "2026-10-06T00:30:00+00:00",
+     "source_label": "학교 공개 자료, LOTBI 직원 등록",
+     "file": {
+      "name": "10월 급식표.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 74
+     },
+     "content_path": "/v2/life/my-children/mci_8d10b8205a024990bac9/meal-plans/mps_559da61b14564bf8bb8d/content"
+    },
+    {
+     "id": "mps_e4950989ffc245169177",
+     "kind": "LINK",
+     "label": "9월 급식표",
+     "registered_at": "2026-10-02T00:30:00+00:00",
+     "source_label": "학교 공개 자료, LOTBI 직원 등록",
+     "url": "https://school.example.kr/meal/2026-09"
+    }
+   ],
+   "allergen_checked": false,
+   "notice": "학교·유치원이 공개한 급식표를 그대로 보여 줘요. 알레르기 번호를 읽지 않아 자동 강조·알림은 되지 않으니 직접 확인해 주세요."
+  }
+ },
+ "info_request": {
+  "id": "mci_8d10b8205a024990bac9",
+  "results": {
+   "MEAL": "REQUESTED"
+  },
+  "info_requests": {
+   "MEAL": "PENDING"
+  }
+ },
+ "overview_kindergarten": {
+  "entry": {
+   "id": "mci_6df56210432a425790fc",
+   "kind": "KINDERGARTEN",
+   "nickname": "셋째",
+   "allergens": [
+    {
+     "code": 2,
+     "name": "우유"
+    }
+   ],
+   "institution_ref": {
+    "kind": "KINDERGARTEN",
+    "kinder_code": "1ecec08c-f46d-b044-e053-0a32095ab044",
+    "sgg_code": "52113"
+   },
+   "institution": null,
+   "institution_status": "OK",
+   "created_at": "2026-10-09T04:56:33.630239+00:00",
+   "updated_at": "2026-10-09T04:56:33.630239+00:00"
+  },
+  "today": "2026-10-08",
+  "status": "OK",
+  "kindergarten": {
+   "kinder_code": "1ecec08c-f46d-b044-e053-0a32095ab044",
+   "sgg_code": "52113",
+   "name": "예일유치원",
+   "establishment": "사립(사인)",
+   "address": "전북특별자치도 전주시 덕진구 한배미5길 12-6",
+   "phone": "063-245-1133",
+   "homepage": "http://cafe.naver.com/yeail1133",
+   "hours": "08:30~17:00",
+   "office_edu": "전북특별자치도교육청",
+   "sub_office_edu": "전주교육지원청",
+   "area": "전북 전주시 덕진구",
+   "classes_total": 11,
+   "capacity_total": 253,
+   "enrolled_total": 208,
+   "disclosure_label": "2026년 1차"
+  },
+  "source": {
+   "code": "KINDERGARTEN_ALIMI_OPEN_API",
+   "label": "교육부 유치원알리미",
+   "fetched_at": "2026-10-08T03:00:00+00:00",
+   "stale": false
+  },
+  "info_requests": {},
+  "requestable": [],
+  "meal_plans": {
+   "visible": true,
+   "title": "유치원 공개 급식표",
+   "items": [
+    {
+     "id": "mps_a58d40cad7a94ff7aa90",
+     "kind": "DOCUMENT",
+     "label": null,
+     "registered_at": "2026-10-05T00:30:00+00:00",
+     "source_label": "유치원 공개 자료, LOTBI 직원 등록",
+     "file": {
+      "name": "10월 식단표.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 74
+     },
+     "content_path": "/v2/life/my-children/mci_6df56210432a425790fc/meal-plans/mps_a58d40cad7a94ff7aa90/content"
+    }
+   ],
+   "allergen_checked": false,
+   "notice": "학교·유치원이 공개한 급식표를 그대로 보여 줘요. 알레르기 번호를 읽지 않아 자동 강조·알림은 되지 않으니 직접 확인해 주세요."
+  }
+ },
+ "meal_plan_pdf_base64": "JVBERi0xLjQKMSAwIG9iajw8IC9UeXBlIC9DYXRhbG9nID4+ZW5kb2JqCnRyYWlsZXI8PCAvUm9vdCAxIDAgUiA+PgolJUVPRgo="
+}

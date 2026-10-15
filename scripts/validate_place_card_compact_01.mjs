@@ -81,9 +81,9 @@ const PLACE_RESULT = {
 };
 
 function browserPath() {
-  for (const name of [process.env.CHROME_BIN, '/opt/pw-browsers/chromium', 'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean)) {
-    if (name.includes('/') && fs.existsSync(name)) return name;
-    const found = spawnSync('which', [name], {encoding: 'utf8'});
+  for (const name of [process.env.CHROME_BIN, 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', '/opt/pw-browsers/chromium', 'google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'].filter(Boolean)) {
+    if (fs.existsSync(name)) return name;
+    const found = spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', [name], {encoding: 'utf8'});
     if (found.status === 0 && found.stdout.trim()) return found.stdout.trim();
   }
   throw new Error('Chrome/Chromium is required');
@@ -161,7 +161,10 @@ try {
     actions:actions.map(node=>({
       action:node.dataset.action,
       text:(node.textContent||'').trim(),
+      // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: the approved LOTBI icon images again.
       iconSrc:node.querySelector('.lotbi-place-action-icon-image')?.getAttribute('src')||'',
+      iconSize:(()=>{const icon=node.querySelector('.lotbi-place-action-icon');if(!icon)return 0;const r=icon.getBoundingClientRect();return Math.round(Math.max(r.width,r.height));})(),
+      lineIcon:Boolean(node.querySelector('svg.lotbi-place-action-icon')),
       aria:node.getAttribute('aria-label')||'',
       target:node.getAttribute('target')||'',
       rel:node.getAttribute('rel')||'',
@@ -170,10 +173,14 @@ try {
     mediaHidden:center.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
     mediaState:center.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
     photoSrc:center.querySelector('.lotbi-place-photo')?.src||'',
-    sideMediaHidden:side.querySelector('.lotbi-rich-card-place-media')?.hidden===true,
-    sideMediaState:side.querySelector('.lotbi-rich-card-place-media')?.dataset.mediaState||'',
+    sideMediaPresent:Boolean(side.querySelector('.lotbi-rich-card-place-media')),
+    sideMediaPlaceholder:side.querySelectorAll('.lotbi-rich-card-media, .lotbi-rich-card-placeholder, .lotbi-rich-card-media-empty').length,
+    railPhotoClass:rail.classList.contains('has-place-photo'),
     sideOpacity:Number.parseFloat(getComputedStyle(side).opacity),
-    sideActionsVisible:[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0),
+    sidePointer:getComputedStyle(side).pointerEvents,
+    // A side card is shown dimmed (on phones only its edge, LIFE-MEDICAL-AUTO-SEARCH-CARD-01);
+    // its phone / map links are never shown or pressable.
+    sideActionsVisible:Number.parseFloat(getComputedStyle(side).opacity)>0&&[...side.querySelectorAll('.lotbi-rich-card-action')].some(n=>n.getClientRects().length>0&&getComputedStyle(n).visibility==='visible'),
     sideActionTabIndexes:[...side.querySelectorAll('.lotbi-rich-card-action')].map(n=>n.tabIndex),
     consumerText:rail.textContent||'',
     noPhoneActions:side.querySelectorAll('[data-action="phone"]').length,
@@ -194,8 +201,10 @@ function waitServer() {
 }
 
 function wrapperMarkup(testCase) {
-  return `<!doctype html><html><body style="margin:0"><iframe id="frame" src="/${INNER_REL}" width="${testCase.width}" height="${testCase.height}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
+  return `<!doctype html><html><body style="margin:0"><iframe id="frame" src="about:blank" width="${testCase.width}" height="${testCase.height}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
   const frame=document.getElementById('frame'),out=document.getElementById('result');
+  document.cookie='lotbi_default_map_provider_v1=${testCase.provider}; Path=/; SameSite=Lax';
+  frame.src='/${INNER_REL}';
   const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('placecard-result');if(child&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e)});clearInterval(timer)}},25);
   setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},70000);
   <\/script></body></html>`;
@@ -204,7 +213,9 @@ function wrapperMarkup(testCase) {
 function run(browser, testCase) {
   fs.writeFileSync(WRAPPER, wrapperMarkup(testCase), 'utf8');
   const userAgent=testCase.mobile?MOBILE_UA:DESKTOP_UA;
+  const profile = fs.mkdtempSync(path.join(FIXTURE_DIR, 'profile-'));
   const result=spawnSync(browser,[
+    `--user-data-dir=${profile}`,
     '--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--ignore-certificate-errors',
     `--user-agent=${userAgent}`,'--window-size=1500,1000','--force-device-scale-factor=1',
     '--force-prefers-reduced-motion=reduce','--virtual-time-budget=80000','--dump-dom',ORIGIN+'/'+WRAPPER_REL,
@@ -233,17 +244,24 @@ try {
   fs.writeFileSync(INNER, buildInner(), 'utf8');
   server=spawn('python3',['-m','http.server',String(PORT),'--bind','127.0.0.1'],{cwd:ROOT,stdio:'ignore'});
   waitServer();
-  for (const testCase of CASES) {
+  const providerActions={NAVER_MAP:'naver-map',KAKAO_NAVI:'kakao-navi',TMAP:'tmap',GOOGLE_MAPS:'google-maps'};
+  for (const baseCase of CASES) for (const provider of Object.keys(providerActions)) {
+    const testCase={...baseCase,provider,label:`${baseCase.label}/${provider}`};
     const reading=run(browser,testCase);
-    const expected=['phone','naver-map','kakao-navi','tmap','google-maps'];
+    const expected=['phone',providerActions[provider]];
     assert.deepEqual(reading.actions.map(x=>x.action),expected,`${testCase.label}: actions`);
     for(const action of reading.actions) {
       assert.ok(action.w>=44&&action.h>=44,`${testCase.label}: ${action.action} ${action.w}x${action.h}`);
+      // LIFE-MEDICAL-AUTO-SEARCH-CARD-01: a small round icon button, not half the card.
+      assert.ok(action.w<=48&&action.h<=48,`${testCase.label}: ${action.action} stays a small icon button (${action.w}x${action.h})`);
       assert.equal(action.text,'',`${testCase.label}: ${action.action} visible label`);
-      assert.match(action.iconSrc,/^\/assets\/place-actions\/[a-z-]+\.png\?v=place-icons-20260925$/u,
-        `${testCase.label}: ${action.action} icon`);
+      // The approved LOTBI phone icon and the chosen map app's icon (no line drawing).
+      const iconName={phone:'phone','naver-map':'naver-map','kakao-navi':'kakao-map',tmap:'tmap','google-maps':'google-maps'}[action.action];
+      assert.equal(action.iconSrc,`/assets/place-actions/${iconName}.png?v=place-icons-20260925`,`${testCase.label}: ${action.action} icon`);
+      assert.equal(action.lineIcon,false,`${testCase.label}: ${action.action} has no generic line icon`);
+      assert.equal(action.iconSize,32,`${testCase.label}: ${action.action} icon ${action.iconSize}px`);
       assert.ok(action.aria.includes(PLACE_RESULT.results[0].name),`${testCase.label}: aria`);
-      if(action.action!=='phone'&&action.action!=='tmap') {
+      if(action.action!=='phone') {
         assert.equal(action.target,'_blank');
         assert.match(action.rel,/noopener/u);
         assert.match(action.rel,/noreferrer/u);
@@ -252,11 +270,17 @@ try {
     assert.equal(reading.mediaHidden,false,`${testCase.label}: verified photo banner remains visible`);
     assert.equal(reading.mediaState,'loaded',`${testCase.label}: verified photo media state`);
     assert.equal(reading.photoSrc,PLACE_RESULT.results[0].image_url,`${testCase.label}: verified photo src preserved`);
-    assert.equal(reading.sideMediaHidden,false,`${testCase.label}: no-photo side banner remains visible`);
-    assert.equal(reading.sideMediaState,'empty-no-photo',`${testCase.label}: no-photo side media state`);
+    // LIFE-DIRECT-CHAT-CARD-COMPACTION-01: no photo, no photo box at all.
+    assert.equal(reading.sideMediaPresent,false,`${testCase.label}: a card without a photo has no media box`);
+    assert.equal(reading.sideMediaPlaceholder,0,`${testCase.label}: no empty placeholder on a card without a photo`);
+    assert.equal(reading.railPhotoClass,true,`${testCase.label}: the rail keeps the photo height while a card shows a photo`);
     assert.ok(reading.card.h<=reading.rail.h+1,`${testCase.label}: card ${reading.card.h} > rail ${reading.rail.h}`);
-    assert.ok(reading.card.w<=Math.min(testCase.width*.82,286)+2,`${testCase.label}: card width ${reading.card.w}`);
-    assert.ok(reading.sideOpacity<=.2,`${testCase.label}: side opacity ${reading.sideOpacity}`);
+    // Phones show one whole card inside the rail; wider screens keep the orbit card size.
+    const maxCardWidth=testCase.mobile?Math.min(reading.rail.w-16,400):286;
+    assert.ok(reading.card.w<=maxCardWidth+2,`${testCase.label}: card width ${reading.card.w} (max ${maxCardWidth})`);
+    assert.ok(reading.card.x>=reading.rail.x-1&&reading.card.x+reading.card.w<=reading.rail.x+reading.rail.w+1,`${testCase.label}: card cut by the rail`);
+    assert.ok(reading.sideOpacity >= .3 && reading.sideOpacity <= .6, `${testCase.label}: neighbour shown dimmed (${reading.sideOpacity})`);
+    assert.equal(reading.sidePointer, 'auto', `${testCase.label}: neighbour selectable`);
     assert.equal(reading.sideActionsVisible,false,`${testCase.label}: side actions visible`);
     assert.ok(reading.sideActionTabIndexes.every(x=>x===-1),`${testCase.label}: side focusable`);
     assert.equal(reading.noPhoneActions,0,`${testCase.label}: dead phone visible`);

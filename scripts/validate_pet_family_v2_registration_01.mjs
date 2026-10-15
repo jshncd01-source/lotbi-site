@@ -15,8 +15,15 @@ for (const forbidden of [
 ]) {
   assert.ok(!uiSource.includes(forbidden), `required-marker copy returned: ${forbidden}`);
 }
-assert.ok(uiSource.indexOf("stepChrome('PHOTOS')") < uiSource.indexOf("stepChrome('BASIC')"),
-  'the registration source must place the photo step before basic information');
+// SAFECARE-WEB-UI-REDESIGN-01: registration reads 기본정보 → 사진 10장 → 최종 확인
+// → 등록 완료, like the person screen. Core's PHOTOS -> BASIC photo gate is
+// still the only way past the photo step, and finalize re-validates both.
+assert.ok(uiSource.indexOf("stepChrome('BASIC')") < uiSource.indexOf("stepChrome('PHOTOS')")
+  && uiSource.indexOf("stepChrome('PHOTOS')") < uiSource.indexOf("stepChrome('REVIEW')")
+  && uiSource.indexOf("stepChrome('REVIEW')") < uiSource.indexOf("stepChrome('DONE')"),
+  'the registration source must read basic information, photos, final check, done');
+assert.ok(uiSource.includes("if (registrationDraft.currentStep === 'PHOTOS') await saveDraft({current_step: 'BASIC'});"),
+  "leaving the photo step must still pass through Core's PHOTOS -> BASIC photo gate");
 assert.ok(uiSource.includes('petDraftPhotoInspectionMessage'), 'draft photo reason codes must drive visible inspection guidance');
 assert.ok(uiSource.includes('next.disabled = !progression.ready'), 'BASIC must stay disabled until the progression contract is green');
 assert.ok(!uiSource.includes('registrationDraft.photos.length !== PET_PHOTO_SLOT_CODES.length'),
@@ -130,8 +137,11 @@ const rejectedProgression = client.petDraftPhotoProgression({
   )),
 });
 assert.equal(rejectedProgression.presentCount, 10);
-assert.equal(rejectedProgression.ready, false, '10/10 with one rejected photo must not authorize BASIC');
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): three accepted face photos and two
+// accepted whole-body photos are the set; FACE_LEFT refused leaves two faces.
+assert.equal(rejectedProgression.ready, false, 'a refused face photo that leaves two faces must not authorize BASIC');
 assert.deepEqual(rejectedProgression.rejectedSlots, ['FACE_LEFT']);
+assert.deepEqual([rejectedProgression.faceAccepted, rejectedProgression.bodyAccepted], [2, 3]);
 
 const pendingProgression = client.petDraftPhotoProgression({
   species: 'DOG',
@@ -142,8 +152,27 @@ const pendingProgression = client.petDraftPhotoProgression({
   )),
 });
 assert.equal(pendingProgression.presentCount, 10);
-assert.equal(pendingProgression.ready, false, '10/10 with one pending photo must not authorize BASIC');
+// A pending photo neither counts nor blocks once the set is accepted without it
+// (Core moves only accepted photos to the pet at registration).
+assert.equal(pendingProgression.ready, true, 'BODY_LEFT and BACK_REAR accepted: one pending body photo does not block');
 assert.deepEqual(pendingProgression.pendingSlots, ['BODY_RIGHT']);
+assert.deepEqual([pendingProgression.faceAccepted, pendingProgression.bodyAccepted], [3, 2]);
+const pendingNeeded = client.petDraftPhotoProgression({
+  species: 'DOG',
+  photos: acceptedDogPhotos
+    .filter(photo => photo.slotCode !== 'BACK_REAR')
+    .map(photo => (photo.slotCode === 'BODY_RIGHT' ? {...photo, inspectionState: 'PENDING', inspectionReasonCode: 'PET_PHOTO_SPECIES_CHECK_UNAVAILABLE'} : photo)),
+});
+assert.equal(pendingNeeded.ready, false, 'a pending photo the set still needs does not count');
+
+// The minimum set: 3 face + 2 whole-body accepted photos; close-ups never count toward it.
+const subset = codes => client.petDraftPhotoProgression({species: 'DOG', photos: acceptedDogPhotos.filter(photo => codes.includes(photo.slotCode))});
+const five = subset(['FACE_FRONT', 'FACE_LEFT', 'FACE_RIGHT', 'BODY_LEFT', 'BACK_REAR']);
+assert.equal(five.ready, true, 'three face photos and two whole-body photos authorize BASIC');
+assert.equal(five.requiredCount, 5);
+assert.equal(subset(['FACE_FRONT', 'FACE_LEFT', 'FACE_RIGHT', 'BODY_LEFT']).ready, false, 'one body photo is not enough');
+assert.equal(subset(['FACE_FRONT', 'FACE_LEFT', 'BODY_LEFT', 'BODY_RIGHT', 'NOSE_FRONT', 'NOSE_LEFT', 'NOSE_RIGHT', 'DISTINCTIVE']).ready, false, 'close-ups never stand in for a face photo');
+assert.deepEqual({...client.petPhotoSetCounts(['FACE_FRONT', 'BODY_RIGHT', 'NOSE_FRONT', 'BACK_REAR'])}, {faceCount: 1, bodyCount: 2, complete: false});
 
 const mismatchProgression = client.petDraftPhotoProgression({
   species: 'DOG',

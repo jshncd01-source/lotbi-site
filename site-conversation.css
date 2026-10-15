@@ -20,7 +20,9 @@
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;
-  word-break: normal;
+  /* CONVERSATION-ANSWER-UX-01 (QA #11): a Korean word is not split mid-word;
+     overflow-wrap:anywhere still breaks a URL longer than the line. */
+  word-break: keep-all;
 }
 
 .chat-message-user {
@@ -185,6 +187,129 @@
   margin: 0;
 }
 
+/* SITE-CHAT-ANSWER-QUALITY-P0 — comparison tables. A phone used to show the
+   raw "| a | b |" source. "항목 | A | B" fits a 375px screen as two columns
+   with a divider between the options; wider tables scroll sideways inside
+   their own box, never the page. */
+.chat-table-scroll {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 10px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--lotbi-border-default, #e5e5e5);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary, #ffffff);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.chat-table-scroll:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring, #454545);
+  outline-offset: 2px;
+}
+
+.chat-message-paragraph + .chat-table-scroll,
+.chat-message-list + .chat-table-scroll {
+  margin-top: 12px;
+}
+
+.chat-table-scroll + .chat-message-paragraph,
+.chat-table-scroll + .chat-message-list {
+  margin-top: 10px;
+}
+
+.chat-message-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  white-space: normal;
+  color: inherit;
+}
+
+.chat-message-table th,
+.chat-message-table td {
+  padding: 9px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--lotbi-border-default, #e5e5e5);
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.chat-message-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.chat-message-table thead th {
+  background: var(--lotbi-surface-hover, #f0f0f0);
+  font-weight: 600;
+}
+
+.chat-message-table tbody th {
+  font-weight: 600;
+  color: inherit;
+}
+
+.chat-message-table .chat-table-empty {
+  color: var(--lotbi-text-disabled, #8a8a8a);
+}
+
+/* 항목 | A | B: fixed columns so long product names wrap instead of pushing
+   the table wider than the bubble, and a vertical divider between A and B. */
+.chat-message-table.is-comparison {
+  table-layout: fixed;
+}
+
+.chat-message-table.is-comparison :is(th, td):first-child {
+  width: 26%;
+}
+
+.chat-message-table.is-comparison :is(th, td):nth-child(2) {
+  border-left: 1px solid var(--lotbi-border-default, #e5e5e5);
+}
+
+.chat-message-table.is-comparison :is(th, td):nth-child(3) {
+  border-left: 1px solid var(--lotbi-border-strong, #c9c9c9);
+}
+
+/* Three or more options: keep each column readable and let the box scroll. */
+.chat-table-scroll.is-wide .chat-message-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.chat-table-scroll.is-wide .chat-message-table :is(th, td) {
+  min-width: 6.5em;
+  max-width: 14em;
+}
+
+.chat-table-scroll.is-wide .chat-message-table :is(th, td):first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 5.5em;
+  background: var(--lotbi-surface-primary, #ffffff);
+  border-right: 1px solid var(--lotbi-border-default, #e5e5e5);
+}
+
+.chat-table-scroll.is-wide .chat-message-table thead th:first-child {
+  background: var(--lotbi-surface-hover, #f0f0f0);
+}
+
+@media (max-width: 480px) {
+  .chat-message-table {
+    font-size: 14px;
+  }
+
+  .chat-message-table th,
+  .chat-message-table td {
+    padding: 8px 8px;
+  }
+}
+
 .chat-message-meta {
   display: block;
   margin-top: 8px;
@@ -198,6 +323,7 @@
    Ghost buttons so the row never competes with the answer, but on the
    composer's 44px touch contract so a thumb hits them on every phone. */
 .chat-message-actions {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -245,6 +371,27 @@
   background: var(--lotbi-surface-hover, #f0f2f7);
 }
 
+/* CHAT-READ-ALOUD-RESTORE-P0 — 읽어주기 is the one answer tool with a word
+   next to its icon: it changes meaning while it plays (읽어주기 ↔ 중지), and
+   an icon alone does not say which. Same 44px touch height as the row. */
+.chat-message-action-read {
+  gap: 4px;
+  padding: 0 10px 0 8px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.chat-message-action-read .chat-message-action-label {
+  pointer-events: none;
+}
+
+.chat-message-action-read[data-speaking="true"] {
+  background: var(--lotbi-surface-hover, #f0f2f7);
+  color: var(--lotbi-text-primary, #303642);
+}
+
 .chat-message-action-feedback {
   margin-left: 6px;
   color: var(--lotbi-text-muted, #737b88);
@@ -255,6 +402,85 @@
 .chat-message-action-feedback[data-tone="error"] {
   color: var(--lotbi-text-secondary, #3d4653);
   font-weight: 700;
+}
+
+.lotbi-share-menu {
+  position: absolute;
+  left: 46px;
+  bottom: 46px;
+  z-index: 45;
+  width: 224px;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--lotbi-border-default, #d9dee8);
+  border-radius: 14px;
+  background: var(--lotbi-surface-primary, #fff);
+  box-shadow: 0 14px 34px rgb(24 42 70 / 14%);
+}
+
+.lotbi-share-menu[hidden] { display: none; }
+
+.lotbi-share-menu-item {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lotbi-text-primary, #303642);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lotbi-share-menu-item:hover,
+.lotbi-share-menu-item:focus-visible { background: var(--lotbi-surface-hover, #f0f2f7); }
+
+.lotbi-share-menu-item:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring, #4f78c5);
+  outline-offset: -2px;
+}
+
+.lotbi-share-menu-item svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: currentColor;
+}
+
+/* LOTBI-KAKAO-SHARE-ACTUAL-01 — what the KakaoTalk item sends, under its name. */
+.lotbi-share-menu-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+@media (max-width: 760px) {
+  .lotbi-share-menu {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: auto;
+    max-width: 390px;
+    margin-inline: auto;
+    padding: 8px;
+    border-radius: 18px;
+    box-shadow: 0 18px 52px rgb(20 31 49 / 22%);
+  }
+
+  .lotbi-share-menu-item { min-height: 48px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -275,6 +501,11 @@
 
   .chat-message-action svg {
     fill: currentColor;
+  }
+
+  .lotbi-share-menu-item {
+    border: 1px solid ButtonBorder;
+    color: ButtonText;
   }
 }
 
@@ -646,6 +877,16 @@
   color: #9b2441;
 }
 
+/* AUTH-SESSION-CONTINUITY-P0-02 — one quiet line a screenshot can carry:
+   error code, how many code/state parameters arrived, running asset version. */
+.auth-callback-shell .auth-callback-diagnostic {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  opacity: 0.72;
+  overflow-wrap: anywhere;
+}
+
 .auth-callback-retry {
   margin-top: 20px;
   display: inline-flex;
@@ -765,6 +1006,16 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
   scroll-padding-bottom: 168px;
 }
 
+/* CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 GATE FIX 02 — the padding keeps a focused
+   or revealed conversation item clear of the sticky composer. The composer's
+   own caret sits inside that band, so while the composer has focus Chrome
+   scrolled the transcript on every keystroke to "reveal" it (83-93px per
+   line at 360x780) and the question held at the top went off screen. With
+   the composer focused there is nothing of the conversation to reveal. */
+.chat-home-shell:has(.chat-input:focus) {
+  scroll-padding-bottom: 0;
+}
+
 .conversation-active .chat-home-shell {
   width: 100%;
   margin-inline: 0;
@@ -852,6 +1103,42 @@ body[data-chat-color="gray"] { --user-bubble: #374151; }
 .chat-composer-stack .chat-composer {
   width: 100%;
   margin: 0;
+}
+
+/* CHAT-LONG-ANSWER-SCROLL-ANCHOR-01 — the room the newest question needs to
+   reach the top of the screen while its answer is still shorter than the
+   screen. Its height is set and shrunk by site-conversation.js only. */
+.conversation-turn-space {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 0;
+  pointer-events: none;
+}
+
+/* The one control that moves a reader to the newest message on request. It
+   floats just above the composer, so it costs the conversation no height. */
+.conversation-jump-latest {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  z-index: 1;
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 1px solid var(--lotbi-border-default, #e5e5e5);
+  border-radius: 999px;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #212121);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 12%);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.conversation-jump-latest[hidden] {
+  display: none;
 }
 
 .chat-safety-copy {
@@ -1025,6 +1312,15 @@ body.mobile-keyboard-open.conversation-active .chat-home-shell {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;
+  /* SITE-MOBILE-COMPOSER-KEYBOARD-LAYOUT-HOTFIX — the sticky composer stops at the
+     scroller's padding, so the 6px bottom padding showed the conversation
+     scrolling under the composer, right above the keyboard. The room (and the
+     safe area) is the composer stack's opaque padding instead. */
+  padding-bottom: 0;
+}
+
+body.mobile-keyboard-open.conversation-active .chat-composer-stack {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
 body.mobile-keyboard-open.conversation-active .chat-hero {
@@ -1085,8 +1381,10 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   position: absolute;
   left: 12px;
   bottom: 80px;
-  width: 264px;
-  padding: 7px;
+  box-sizing: border-box;
+  width: 276px;
+  min-height: 244px;
+  padding: 8px;
   display: grid;
   gap: 2px;
   border: 1px solid #d9dee8;
@@ -1095,14 +1393,26 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   box-shadow: 0 14px 36px rgba(24, 42, 70, .13);
 }
 
+.profile-popover::after {
+  content: '';
+  position: absolute;
+  left: 64px;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  border-right: 1px solid #d9dee8;
+  border-bottom: 1px solid #d9dee8;
+  background: inherit;
+  transform: rotate(45deg);
+}
+
 .profile-popover-summary {
-  margin-bottom: 4px;
-  padding: 11px 10px 13px;
+  margin-bottom: 2px;
+  padding: 5px 4px 8px;
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
+  grid-template-columns: 40px minmax(0, 1fr) 44px;
   align-items: center;
   gap: 10px;
-  border-bottom: 1px solid #e6e9ef;
 }
 
 .profile-popover-summary .sidebar-profile-avatar {
@@ -1117,7 +1427,6 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
 }
 
 .profile-popover-summary-name,
-.profile-popover-summary-handle,
 .profile-popover-summary-plan {
   min-width: 0;
   overflow: hidden;
@@ -1130,7 +1439,6 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   font-size: 14px;
 }
 
-.profile-popover-summary-handle,
 .profile-popover-summary-plan {
   color: var(--lotbi-text-primary, var(--text, #212121));
   font-size: 12px;
@@ -1142,8 +1450,7 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   letter-spacing: .02em;
 }
 
-.profile-popover button,
-.profile-popover a[role="menuitem"] {
+.profile-popover .profile-menu-item {
   display: grid;
   grid-template-columns: 19px minmax(0, 1fr) 14px;
   align-items: center;
@@ -1161,6 +1468,22 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   line-height: 1.45;
   text-align: left;
   text-decoration: none;
+  cursor: pointer;
+}
+
+.profile-popover .profile-popover-close {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font: inherit;
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -1191,11 +1514,17 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   transform: rotate(45deg);
 }
 
-.profile-popover button:not(:disabled):hover,
-.profile-popover button:not(:disabled):focus-visible,
-.profile-popover a[role="menuitem"]:hover,
-.profile-popover a[role="menuitem"]:focus-visible {
+.profile-popover .profile-menu-item:not(:disabled):hover,
+.profile-popover .profile-menu-item:not(:disabled):focus-visible,
+.profile-popover .profile-popover-close:hover,
+.profile-popover .profile-popover-close:focus-visible {
   background: #f0f2f7;
+}
+
+.profile-popover .profile-menu-item:focus-visible,
+.profile-popover .profile-popover-close:focus-visible {
+  outline: 2px solid var(--brand-blue, #2454b8);
+  outline-offset: 1px;
 }
 
 .profile-popover button:disabled {
@@ -1205,8 +1534,8 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
 
 .profile-popover .profile-menu-logout {
   margin-top: 4px;
-  box-shadow: inset 0 1px #e6e9ef;
-  color: #9b2f49;
+  background: rgba(239, 68, 68, .08);
+  color: #e02424;
 }
 
 .profile-popover .profile-menu-logout .profile-menu-chevron {
@@ -1225,6 +1554,65 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   place-items: center;
   padding: 20px;
   background: rgba(20, 28, 40, .42);
+}
+
+html[data-profile-photo-embed="true"],
+html[data-profile-photo-embed="true"] body {
+  min-height: 100%;
+  background: transparent !important;
+}
+
+html[data-profile-photo-embed="true"] body > :not(.site-modal-backdrop) {
+  display: none !important;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-backdrop {
+  padding: 0;
+  background: transparent;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-close {
+  display: none;
+}
+
+html[data-profile-photo-embed="true"] .site-modal {
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-header {
+  padding: 22px 24px 8px;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-header h2 {
+  font-size: 20px;
+}
+
+html[data-profile-photo-embed="true"] .site-modal-content {
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px 16px;
+  padding: 10px 24px 22px;
+}
+
+html[data-profile-photo-embed="true"] .profile-photo-preview {
+  grid-row: 1 / span 2;
+  width: 72px;
+  height: 72px;
+  font-size: 21px;
+}
+
+html[data-profile-photo-embed="true"] .profile-photo-picker {
+  width: 100%;
+}
+
+html[data-profile-photo-embed="true"] .site-field-error {
+  grid-column: 2;
+  margin: 0;
 }
 
 .site-modal {
@@ -1282,6 +1670,9 @@ body.mobile-keyboard-open.conversation-active .conversation-thread {
   background: var(--lotbi-surface-primary, #fff); box-shadow: 0 12px 30px rgba(21, 36, 59, .14);
 }
 .profile-photo-source-menu[hidden] { display: none; }
+/* PROFILE-PHOTO-ACCOUNT-SYNC-01 — removes the account photo; only shown when there is one. */
+.profile-photo-remove { min-height: 36px; padding: 6px 12px; font-size: 13px; }
+.profile-photo-remove[hidden] { display: none; }
 .profile-photo-source-option {
   min-width: 0; min-height: 58px; padding: 9px 6px; border: 1px solid var(--lotbi-border-default, #d5dbe6);
   border-radius: 12px; background: var(--lotbi-surface-subtle, #f5f7fa); color: var(--lotbi-text-primary, #303642);
@@ -1526,14 +1917,14 @@ body[data-site-theme="dark"] .response-grade-option:hover,
 body[data-site-theme="dark"] .response-grade-option:focus-visible,
 body[data-site-theme="dark"] .response-grade-option[aria-checked="true"] { background: #2a3140; }
 body[data-site-theme="dark"] .chat-input,
-body[data-site-theme="dark"] .profile-popover button,
-body[data-site-theme="dark"] .profile-popover a[role="menuitem"],
+body[data-site-theme="dark"] .profile-popover .profile-menu-item,
+body[data-site-theme="dark"] .profile-popover .profile-popover-close,
 body[data-site-theme="dark"] .profile-popover-summary-name { color: var(--lotbi-text-primary, var(--text, #212121)); }
-body[data-site-theme="dark"] .profile-popover-summary { border-color: #424b59; }
-body[data-site-theme="dark"] .profile-popover button:not(:disabled):hover,
-body[data-site-theme="dark"] .profile-popover button:not(:disabled):focus-visible,
-body[data-site-theme="dark"] .profile-popover a[role="menuitem"]:hover,
-body[data-site-theme="dark"] .profile-popover a[role="menuitem"]:focus-visible { background: var(--lotbi-surface-hover, #2a3140); }
+body[data-site-theme="dark"] .profile-popover::after { border-color: #424b59; }
+body[data-site-theme="dark"] .profile-popover .profile-menu-item:not(:disabled):hover,
+body[data-site-theme="dark"] .profile-popover .profile-menu-item:not(:disabled):focus-visible,
+body[data-site-theme="dark"] .profile-popover .profile-popover-close:hover,
+body[data-site-theme="dark"] .profile-popover .profile-popover-close:focus-visible { background: var(--lotbi-surface-hover, #2a3140); }
 body[data-site-theme="dark"] .profile-popover .profile-menu-logout { color: var(--lotbi-error-text, #ff8ba7); }
 body[data-site-theme="dark"] .profile-popover-summary-handle,
 body[data-site-theme="dark"] .profile-popover-summary-plan { color: var(--lotbi-text-primary, var(--text, #212121)); }
@@ -1549,21 +1940,22 @@ body[data-site-theme="dark"] .color-option { background: #171c25; color: var(--l
   body[data-site-theme="system"] .chat-topbar { background: #151922; }
   body[data-site-theme="system"] .chat-composer { background: #202631; }
   body[data-site-theme="system"] .chat-input { color: var(--lotbi-text-primary, var(--text, #212121)); }
-  body[data-site-theme="system"] .profile-popover button,
-  body[data-site-theme="system"] .profile-popover a[role="menuitem"],
+  body[data-site-theme="system"] .profile-popover .profile-menu-item,
+  body[data-site-theme="system"] .profile-popover .profile-popover-close,
   body[data-site-theme="system"] .profile-popover-summary-name { color: var(--lotbi-text-primary, #edf0f5); }
-  body[data-site-theme="system"] .profile-popover button:not(:disabled):hover,
-  body[data-site-theme="system"] .profile-popover button:not(:disabled):focus-visible,
-  body[data-site-theme="system"] .profile-popover a[role="menuitem"]:hover,
-  body[data-site-theme="system"] .profile-popover a[role="menuitem"]:focus-visible { background: var(--lotbi-surface-hover, #2a3140); }
+  body[data-site-theme="system"] .profile-popover .profile-menu-item:not(:disabled):hover,
+  body[data-site-theme="system"] .profile-popover .profile-menu-item:not(:disabled):focus-visible,
+  body[data-site-theme="system"] .profile-popover .profile-popover-close:hover,
+  body[data-site-theme="system"] .profile-popover .profile-popover-close:focus-visible { background: var(--lotbi-surface-hover, #2a3140); }
   body[data-site-theme="system"] .profile-popover .profile-menu-logout { color: var(--lotbi-error-text, #ff8ba7); }
 }
 
 @media (max-width: 900px) {
   .profile-popover {
-    position: absolute; inset: auto 10px 10px; width: auto; border-radius: 18px;
+    position: absolute; inset: auto 10px 10px; width: auto; min-height: 244px; border-radius: 18px;
     padding: 9px max(9px, env(safe-area-inset-right)) max(9px, env(safe-area-inset-bottom)) max(9px, env(safe-area-inset-left));
   }
+  .profile-popover::after { display: none; }
 }
 
 @media (max-width: 760px) {
@@ -2113,6 +2505,34 @@ body[data-site-theme="dark"] .conversation-calendar-action-button {
 body[data-site-theme="dark"] .conversation-calendar-action-button:hover:not(:disabled),
 body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible { background: #262d38; }
 
+/* LIFE-PUBLIC-DATA-01 / LIFE-MEDICAL-AUTO-SEARCH-01: a message describing an
+   emergency symptom gets a one-tap 119 call under the answer (whose first
+   sentence already says to call 119) — one small button, no box. A plain
+   응급실 search has none. */
+.conversation-emergency-call {
+  display: flex;
+  margin-top: 8px;
+}
+
+.conversation-emergency-call-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: #be2626;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.conversation-emergency-call-link:focus-visible {
+  outline: 2px solid rgba(190, 38, 38, .45);
+  outline-offset: 2px;
+}
+
 .conversation-pet-action-button {
   min-height: 44px;
   margin-top: 10px;
@@ -2131,6 +2551,19 @@ body[data-site-theme="dark"] .conversation-calendar-action-button:focus-visible 
 .conversation-pet-action-button:focus-visible {
   border-color: #1f2937;
   background: #1f2937;
+}
+
+/* CALENDAR-GUEST-RECURRING-LOGIN-01: the way past "반복 일정은 로그인한 뒤",
+   a full-size control rather than a chip. */
+.conversation-login-action-button {
+  min-height: 48px;
+  padding: 10px 18px;
+  font-size: 14px;
+}
+
+/* LIFE-PUBLIC-DATA-01: the nearby-vet hand-off sits next to the Pet SOS action. */
+.conversation-life-action-button {
+  margin-left: 8px;
 }
 
 .conversation-pet-action-button:focus-visible {
@@ -2175,7 +2608,14 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
   height: 326px;
   margin-top: 12px;
   padding: 0;
+  /* The orbit places cards with transforms and never scrolls. It inherited
+     the product rail's mandatory inline scroll snap, so every rotation
+     re-snapped this hidden scroller (153-161px on phones) and pushed the
+     center card off to the side. clip (hidden as the fallback) also keeps
+     focus/find-in-page from scrolling it. */
   overflow: hidden;
+  overflow: clip;
+  scroll-snap-type: none;
   overscroll-behavior: contain;
   touch-action: pan-y;
   cursor: grab;
@@ -2463,6 +2903,25 @@ body[data-site-theme="dark"] .conversation-pet-action-button:focus-visible {
   border: 0;
 }
 
+/* PLACE-CARD-NAVER-SEARCH-CLICK-01 — the card body's NAVER search link is not
+   drawn; the card itself shows the focus ring while the link has focus. */
+.lotbi-place-search-link {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.lotbi-place-orbit-card:has(.lotbi-place-search-link:focus-visible) {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 3px;
+}
+
 body[data-site-theme="dark"] .lotbi-rich-card-place .lotbi-rich-card-price,
 body[data-site-theme="dark"] .lotbi-place-license-evidence,
 body[data-site-theme="dark"] .lotbi-place-license-status {
@@ -2680,14 +3139,15 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 
 .lotbi-place-card-actions {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 3px;
+  grid-template-columns: repeat(2, minmax(44px, 1fr));
+  gap: 6px;
   min-height: 54px;
   padding: 4px 5px 6px;
   border-color: color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 74%, transparent);
 }
 
 .lotbi-place-card-actions .lotbi-rich-card-action {
+  width: 100%;
   min-width: 0;
   min-height: 44px;
   padding: 4px;
@@ -2772,6 +3232,507 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
   }
 }
 
+/* PLACE-MEDICAL-CARD-UX-FINAL-01 — 장소·의료 카드 최종 정리.
+   - 카드 아래 한 줄: 지금 위치(1/5). 카드와 화살표는 그 줄을 뺀 높이의
+     가운데에 선다(PLACE-CARD-RAIL-ALL-RESULTS-01: "다른 … 보기"는 없앴다).
+   - 사진이 없는 카드에는 사진 칸이 없다(site-conversation.js).
+   - 휴대폰(≤760px)에는 좌우 화살표가 없다. 손가락으로 밀면 돈다. 가운데 카드
+     하나만 보이고, 옆 카드는 화면 밖에서 기다리다 미는 동안에만 들어온다 —
+     잘리거나 겹쳐 보이는 카드가 없다. 넓은 화면은 화살표를 둔다(배치는
+     맨 아래 PLACE-CARD-RAIL-ALL-RESULTS-01). */
+.lotbi-place-orbit {
+  --lotbi-place-orbit-footer: 0px;
+}
+
+.lotbi-place-orbit.has-orbit-footer {
+  --lotbi-place-orbit-footer: 40px;
+}
+
+.lotbi-place-orbit-card,
+.lotbi-place-orbit-control {
+  top: calc((100% - var(--lotbi-place-orbit-footer)) / 2);
+}
+
+.lotbi-place-orbit-card[hidden] {
+  display: none;
+}
+
+.lotbi-place-orbit-card.is-orbit-repositioning {
+  transition: none;
+}
+
+/* The card's text answers a press itself. Besides showing the press, this
+   keeps a tap on the text — just above the 전화 / 길찾기 row — on the text:
+   Chrome moves a tap that lands within a few px of a link onto that link
+   unless the spot under the finger responds to touch on its own, and the
+   card around the text does not count (it holds the links). Without it a tap
+   on the address could call the place. */
+.lotbi-place-orbit-card[data-orbit-slot="CENTER"] .lotbi-rich-card-copy:active {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 92%, #cbd6e5);
+}
+
+.lotbi-place-orbit-footer {
+  position: absolute;
+  z-index: 6;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: var(--lotbi-place-orbit-footer);
+  pointer-events: none;
+}
+
+.lotbi-place-orbit-footer > * {
+  pointer-events: auto;
+}
+
+.lotbi-place-orbit-footer[hidden],
+.lotbi-place-orbit-position[hidden] {
+  display: none;
+}
+
+.lotbi-place-orbit-position {
+  min-width: 2.6em;
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 12.5px;
+  font-weight: 750;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 760px) {
+  .lotbi-place-orbit-control {
+    display: none;
+  }
+
+  /* The cards share one grid cell, so the rail is as tall as its tallest
+     card plus the footer row by layout alone — nothing is cut at the top or
+     bottom before (or without) the script's fit. */
+  .lotbi-place-orbit,
+  .lotbi-place-orbit.has-place-photo,
+  .lotbi-place-orbit.has-place-banner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    align-items: center;
+    justify-items: center;
+    height: auto;
+    padding: 4px 0;
+  }
+
+  .lotbi-place-orbit.has-orbit-footer {
+    grid-template-rows: auto var(--lotbi-place-orbit-footer);
+  }
+
+  .lotbi-place-orbit-card {
+    grid-area: 1 / 1;
+    position: relative;
+    top: auto;
+    left: auto;
+    width: min(calc(100% - 16px), 360px);
+    min-width: 0;
+  }
+
+  .lotbi-place-orbit-footer {
+    grid-area: 2 / 1;
+    position: static;
+    width: 100%;
+  }
+
+  /* Side cards wait off the card, unseen, with their full content so every
+     card counts at its real height and the rail never jumps. */
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) {
+    opacity: 0;
+    filter: none;
+    pointer-events: none;
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="CENTER"] {
+    transform: translateX(var(--lotbi-orbit-drag-x));
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"],
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"] {
+    transform: translateX(calc(-100% - 16px + var(--lotbi-orbit-drag-x)));
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"],
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+    transform: translateX(calc(100% + 16px + var(--lotbi-orbit-drag-x)));
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-rich-card-copy {
+    gap: 3px;
+    padding: 9px 11px 7px;
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-rich-card-price {
+    display: -webkit-box;
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-badges,
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions {
+    display: flex;
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-license-note {
+    display: block;
+  }
+
+  /* While a finger drags, the next card shows at the edge it comes in from. */
+  .lotbi-place-orbit.is-dragging .lotbi-place-orbit-card[data-orbit-slot$="_FRONT"] {
+    opacity: 1;
+  }
+}
+
+/* LIFE-MEDICAL-AUTO-SEARCH-CARD-01 — 병원·약국·응급실(및 모든 장소) 회전형 카드.
+   - 휴대폰: 가운데 카드가 가장 크고, 양옆 카드의 끝(약 20px)이 보여 넘겨 볼
+     카드가 더 있다는 것을 숫자(1/3) 없이도 안다. 화살표는 계속 없고, 손가락으로
+     밀거나 옆 카드 끝을 누르면 돈다. 옆 카드 안의 전화·지도·검색 링크는 보이지도
+     눌리지도 않는다. 레일 밖은 잘려 가로 스크롤이 생기지 않는다.
+   - 네 곳 이상이면 뒤쪽 카드(_BACK)는 앞쪽 카드 뒤에 숨는다.
+   - 넓은 화면은 아래 PLACE-CARD-RAIL-ALL-RESULTS-01 이 옆 카드를 숨긴다.
+   - 전화·지도: 원형 44px 버튼에 22px 선 아이콘 두 개, 카드 오른쪽 끝.
+   - 카드 한 장이면 옆 카드도 1/3 도 없다(site-conversation.js). */
+.lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"],
+.lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"] {
+  opacity: .5;
+  filter: saturate(.85);
+}
+
+.lotbi-place-orbit-card {
+  transition:
+    transform 280ms cubic-bezier(.22, .8, .24, 1),
+    opacity 240ms ease,
+    filter 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.lotbi-place-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 2px 8px 8px;
+}
+
+.lotbi-place-card-actions .lotbi-rich-card-action {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lotbi-text-secondary, #4d535d);
+}
+
+/* The approved LOTBI icon images (32px, rounded tile); a missing image shows
+   its short word instead (data-icon-state="MISSING"). */
+.lotbi-place-card-actions .lotbi-place-action-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.lotbi-place-card-actions .lotbi-place-action-icon[data-icon-state="MISSING"] {
+  width: auto;
+  min-width: 32px;
+  overflow: visible;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lotbi-place-card-actions .lotbi-rich-card-action:hover,
+.lotbi-place-card-actions .lotbi-rich-card-action:focus-visible {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+
+body[data-site-theme="dark"] .lotbi-place-card-actions .lotbi-rich-card-action {
+  border-color: transparent;
+  background: transparent;
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+
+body[data-site-theme="dark"] .lotbi-place-card-actions .lotbi-rich-card-action:hover,
+body[data-site-theme="dark"] .lotbi-place-card-actions .lotbi-rich-card-action:focus-visible {
+  background: #262d38;
+}
+
+/* "실제 운영 여부는 전화로 확인" — one muted line under the hours. */
+.lotbi-place-medical-line[data-medical-state="CONFIRM"] {
+  color: var(--lotbi-text-muted, #687180);
+  font-weight: 500;
+  word-break: keep-all;
+}
+
+/* 약국 결과 아래 조건 고르기: 지금 운영 중 · 야간 · 휴일 · 24시간. */
+.lotbi-place-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+  margin-top: 8px;
+}
+
+.lotbi-place-filter-chip {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 92%, transparent);
+  border-radius: 999px;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #202632);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lotbi-place-filter-chip:hover {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+
+.lotbi-place-filter-chip:focus-visible {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 2px;
+}
+
+body[data-site-theme="dark"] .lotbi-place-filter-chip {
+  border-color: #515b69;
+  background: rgba(23, 28, 37, .94);
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+
+body[data-site-theme="dark"] .lotbi-place-filter-chip:hover {
+  background: #262d38;
+}
+
+@media (max-width: 760px) {
+  .lotbi-place-orbit {
+    --lotbi-place-peek: 20px;
+    --lotbi-place-gap: 8px;
+  }
+
+  /* The answer text sits right of the 42px avatar column (+ 8px gap, + the
+     message's 4px padding: the mobile .chat-assistant-row rule above). The
+     cards sit below that text, so on a phone they also use the width under
+     the avatar: at 320px the center card is ~216px instead of ~162px. */
+  .chat-assistant-row .chat-message-assistant > .lotbi-place-orbit,
+  .chat-assistant-row .chat-message-assistant > .lotbi-place-filter-row {
+    width: calc(100% + 54px);
+    max-width: none;
+    margin-left: -54px;
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(calc(100% - 2 * (var(--lotbi-place-peek) + var(--lotbi-place-gap))), 380px);
+    min-width: 0;
+  }
+
+  /* Only one card: it uses the width the side cards would have shown in. */
+  .lotbi-place-orbit[data-card-count="1"] .lotbi-place-orbit-card {
+    width: min(calc(100% - 16px), 380px);
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) {
+    opacity: .5;
+    filter: saturate(.85);
+    pointer-events: auto;
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_FRONT"],
+  .lotbi-place-orbit-card[data-orbit-slot="LEFT_BACK"] {
+    transform-origin: right center;
+    transform: translateX(calc(-100% - var(--lotbi-place-gap) + var(--lotbi-orbit-drag-x))) scale(.92);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_FRONT"],
+  .lotbi-place-orbit-card[data-orbit-slot="RIGHT_BACK"] {
+    transform-origin: left center;
+    transform: translateX(calc(100% + var(--lotbi-place-gap) + var(--lotbi-orbit-drag-x))) scale(.92);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot$="_BACK"] {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* A side card keeps its full content (so every card counts at its real
+     height) but nothing in it can be seen or pressed: a tap on its edge only
+     turns the cards. */
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions,
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-search-link {
+    visibility: hidden;
+  }
+
+  .lotbi-place-orbit.is-dragging .lotbi-place-orbit-card[data-orbit-slot$="_FRONT"] {
+    opacity: .85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-place-orbit-card {
+    transition: none;
+  }
+}
+
+
+/* PLACE-CARD-RAIL-ALL-RESULTS-01 — 넓은 화면(>760px): 가운데 카드 한 장과
+   바로 옆 ‹ › 화살표.
+   전에는 이전·다음 카드가 가운데 카드 뒤 양옆에 반쯤(흐리게) 겹쳐 보여, 카드
+   여러 장이 하나로 합쳐진 것처럼 보였다. 이제 옆 카드는 넓은 화면에서 보이지도
+   눌리지도 않는다. 넘길 때만 옆에서 밀려 들어오고 밀려 나간다. 1/5 와 화살표가
+   더 있다는 것을 알려 준다.
+   - 레일 폭 = 카드 + 양쪽 화살표 자리. 그래서 화살표가 카드 바로 옆에 붙는다.
+   - 겹침 없이 세 장을 나란히 두지 않은 이유: 대화 칸(약 700px)에 280px 카드
+     세 장과 화살표가 다 들어가지 않는다. 그러면 옆 카드가 또 반쯤 잘려 보인다.
+   - 휴대폰(≤760px)은 그대로다: 화살표 없이 밀어서 넘기고, 옆 카드 끝 20px 만
+     보인다. */
+@media (min-width: 761px) {
+  .lotbi-place-orbit {
+    --lotbi-place-arrow-lane: 56px;
+    width: min(100%, calc(280px + 2 * var(--lotbi-place-arrow-lane)));
+  }
+
+  .lotbi-place-orbit-card {
+    width: min(calc(100% - 2 * var(--lotbi-place-arrow-lane)), 280px);
+    min-width: 0;
+  }
+
+  .lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) {
+    opacity: 0;
+    filter: none;
+    pointer-events: none;
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot^="LEFT"] {
+    transform: translate(calc(-150% - 16px + var(--lotbi-orbit-drag-x)), -50%);
+  }
+
+  .lotbi-place-orbit-card[data-orbit-slot^="RIGHT"] {
+    transform: translate(calc(50% + 16px + var(--lotbi-orbit-drag-x)), -50%);
+  }
+
+  .lotbi-place-orbit-control-prev {
+    left: 0;
+  }
+
+  .lotbi-place-orbit-control-next {
+    right: 0;
+  }
+}
+
+/* SITE-CONVERSATION-ROTATION-01 — all screens: front-facing center,
+   outward perspective neighbours, explicit result buttons, no arrows. */
+.lotbi-place-orbit,
+.lotbi-place-orbit.has-place-photo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto;
+  align-items: center;
+  justify-items: center;
+  width: min(100%, 660px);
+  height: auto;
+  padding: 4px 0;
+  --lotbi-place-gap: 8px;
+}
+.lotbi-place-orbit.has-orbit-footer {
+  --lotbi-place-orbit-footer: 52px;
+  grid-template-rows: auto auto;
+}
+.lotbi-place-orbit-card {
+  grid-area: 1 / 1;
+  position: relative;
+  top: auto;
+  left: auto;
+  width: min(calc(100% - 56px), 280px);
+  min-width: 0;
+  transform-origin: center center;
+  transition: transform 400ms cubic-bezier(.2, .78, .2, 1), opacity 400ms ease;
+}
+.lotbi-place-orbit-card[data-orbit-slot="CENTER"] {
+  transform: translateX(var(--lotbi-orbit-drag-x)) rotateY(0deg);
+}
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) {
+  opacity: .5;
+  pointer-events: auto;
+}
+.lotbi-place-orbit-card[data-orbit-slot^="LEFT"] {
+  transform-origin: right center;
+  transform: translateX(calc(-100% - 8px + var(--lotbi-orbit-drag-x))) perspective(900px) rotateY(-12deg) scale(.92);
+}
+.lotbi-place-orbit-card[data-orbit-slot^="RIGHT"] {
+  transform-origin: left center;
+  transform: translateX(calc(100% + 8px + var(--lotbi-orbit-drag-x))) perspective(900px) rotateY(12deg) scale(.92);
+}
+.lotbi-place-orbit-card[data-orbit-slot$="_BACK"] {
+  opacity: 0;
+  pointer-events: none;
+}
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-card-actions,
+.lotbi-place-orbit-card:not([data-orbit-slot="CENTER"]) .lotbi-place-search-link {
+  visibility: hidden;
+}
+.lotbi-place-orbit-footer {
+  grid-area: 2 / 1;
+  position: static;
+  width: 100%;
+  height: auto;
+  min-height: 52px;
+  gap: 4px;
+}
+.lotbi-place-orbit-dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: calc(100% - 44px);
+  pointer-events: auto;
+}
+.lotbi-place-orbit-dot {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--lotbi-text-secondary, #4d535d);
+  cursor: pointer;
+}
+.lotbi-place-orbit-dot::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.lotbi-place-orbit-dot[aria-current="true"] { color: var(--lotbi-accent, #2454b8); }
+.lotbi-place-orbit-dot[aria-current="true"]::before { width: 10px; height: 10px; }
+.lotbi-place-orbit-dot:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; border-radius: 8px; }
+.lotbi-place-orbit-card.is-orbit-repositioning { transition: none; }
+@media (max-width: 760px) {
+  .lotbi-place-orbit-card { width: min(calc(100% - 56px), 380px); }
+  .lotbi-place-orbit[data-card-count="1"] .lotbi-place-orbit-card { width: min(calc(100% - 16px), 380px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lotbi-place-orbit-card { transition: none; }
+}
 
 /* LOTBI reusable text output card — completed text meant to be copied, shared,
    edited or reused. Ordinary assistant replies never use this surface. */
@@ -2912,5 +3873,471 @@ body[data-site-theme="dark"] .lotbi-place-orbit-control:hover:not(:disabled) {
 @media (prefers-reduced-motion: reduce) {
   .reusable-output-action {
     transition: none;
+  }
+}
+
+/* LIFE-PUBLIC-DATA-01 / NEIS school card: meals, 학사일정, 시간표, school choice. */
+.lotbi-school-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(116, 126, 145, .22);
+  border-radius: 16px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.lotbi-school-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.lotbi-school-card-title { font-size: 14px; font-weight: 800; }
+.lotbi-school-card-range,
+.lotbi-school-date,
+.lotbi-school-calories,
+.lotbi-school-legend,
+.lotbi-school-source { color: var(--lotbi-text-secondary, #4d535d); font-size: 12px; font-weight: 650; }
+.lotbi-school-legend { margin: 0; }
+.lotbi-school-dishes,
+.lotbi-school-events,
+.lotbi-school-timetable { margin: 4px 0 0; padding-left: 18px; }
+.lotbi-school-timetable { list-style: none; padding-left: 0; }
+.lotbi-school-allergens { color: var(--lotbi-text-secondary, #4d535d); font-size: 11px; letter-spacing: .02em; }
+.lotbi-school-event { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; margin: 2px 0; }
+
+.lotbi-school-calendar-add,
+.lotbi-school-change,
+.lotbi-school-candidate,
+.lotbi-school-link {
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid rgba(116, 126, 145, .32);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.lotbi-school-candidates { display: grid; gap: 6px; }
+.lotbi-school-candidate { display: grid; gap: 2px; justify-items: start; border-radius: 14px; text-align: left; }
+.lotbi-school-candidate span { color: var(--lotbi-text-secondary, #4d535d); font-size: 11.5px; font-weight: 600; }
+.lotbi-school-card-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+
+.lotbi-school-calendar-add:focus-visible,
+.lotbi-school-change:focus-visible,
+.lotbi-school-candidate:focus-visible,
+.lotbi-school-link:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
+
+/* NEIS-SCHOOL-LINKS-01: [급식·식단 원문] / [학교 홈페이지] — rendered only when a link exists. */
+.lotbi-school-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.lotbi-school-link {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  max-width: 100%;
+  text-decoration: none;
+}
+
+body[data-site-theme="dark"] .lotbi-school-card { border-color: rgba(198, 207, 221, .24); }
+
+/* SCHOOL-MEAL-01: compact one-day meals ("더 보기" for long menus), a week with
+   only the days that have meals and today marked, and the staff-entry badge. */
+.lotbi-school-card { min-width: 0; overflow-wrap: anywhere; }
+.lotbi-school-meal { display: grid; gap: 2px; min-width: 0; }
+.lotbi-school-meal-head,
+.lotbi-school-day-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.lotbi-school-meal-badge,
+.lotbi-school-today {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(116, 126, 145, .14);
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.lotbi-school-today { background: rgba(79, 120, 197, .16); color: inherit; }
+.lotbi-school-dish { overflow-wrap: anywhere; }
+.lotbi-school-more summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.lotbi-school-more summary:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
+.lotbi-school-week { display: grid; gap: 6px; min-width: 0; }
+.lotbi-school-day {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(116, 126, 145, .18);
+  border-radius: 12px;
+}
+.lotbi-school-day.is-today { border-color: rgba(79, 120, 197, .55); background: rgba(79, 120, 197, .07); }
+.lotbi-school-day-meal { margin: 0; overflow-wrap: anywhere; }
+.lotbi-school-day-meal-name { margin-right: 6px; }
+.lotbi-school-day-meal .lotbi-school-meal-badge { margin-right: 6px; }
+.lotbi-school-day-meal .lotbi-school-calories { display: block; }
+.lotbi-school-empty { margin: 0; color: var(--lotbi-text-secondary, #4d535d); font-size: 12px; font-weight: 650; }
+.lotbi-school-weekly { justify-content: center; }
+
+body[data-site-theme="dark"] .lotbi-school-day { border-color: rgba(198, 207, 221, .2); }
+body[data-site-theme="dark"] .lotbi-school-day.is-today { border-color: rgba(138, 170, 230, .6); background: rgba(138, 170, 230, .12); }
+body[data-site-theme="dark"] .lotbi-school-meal-badge { background: rgba(198, 207, 221, .16); }
+body[data-site-theme="dark"] .lotbi-school-today { background: rgba(138, 170, 230, .24); }
+
+/* SITE-REFRESH-ROUTE-RESTORE-01 — neutral shell while a reload reopens the
+   screen its URL names (html[data-site-route-pending], set in index.html and
+   auth-callback.js); the conversation home must not flash first. The
+   animations lift it on their own after 8 s if the runtime never answers. */
+html[data-site-route-pending] #main-content > * {
+  opacity: 0;
+  visibility: hidden;
+  animation: site-route-pending-release 0s linear 8s forwards;
+}
+html[data-site-route-pending] #main-content::before {
+  content: '화면을 불러오고 있어요';
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--lotbi-text-secondary, #4d535d);
+  font-size: 14px;
+  font-weight: 600;
+  pointer-events: none;
+  animation: site-route-pending-label 0s linear 8s forwards;
+}
+@keyframes site-route-pending-release { to { opacity: 1; visibility: visible; } }
+@keyframes site-route-pending-label { to { visibility: hidden; } }
+
+/* JEONBUK-PILOT-01 — 전북 맛집·음식 / 행정기관 연락처: compact official-record
+   cards. No media area at all; one line per published field; 44px actions;
+   long Korean addresses wrap inside the card. */
+.lotbi-regional-card {
+  display: grid;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(116, 126, 145, .22);
+  border-radius: 16px;
+  color: var(--lotbi-text-primary, var(--text, #212121));
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.lotbi-regional-card-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.lotbi-regional-card-title { margin: 0; font-size: 14px; font-weight: 800; }
+.lotbi-regional-card-basis,
+.lotbi-regional-meta,
+.lotbi-regional-fax,
+.lotbi-regional-source,
+.lotbi-regional-notice,
+.lotbi-regional-more { color: var(--lotbi-text-secondary, #4d535d); font-size: 12px; font-weight: 650; }
+.lotbi-regional-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lotbi-regional-item { display: grid; gap: 2px; min-width: 0; padding-top: 8px; border-top: 1px solid rgba(116, 126, 145, .16); }
+.lotbi-regional-item:first-child { padding-top: 0; border-top: 0; }
+.lotbi-regional-name { margin: 0; font-size: 14px; font-weight: 750; }
+.lotbi-regional-meta,
+.lotbi-regional-address,
+.lotbi-regional-detail,
+.lotbi-regional-source,
+.lotbi-regional-notice,
+.lotbi-regional-more { margin: 0; }
+.lotbi-regional-detail { font-size: 12.5px; }
+.lotbi-regional-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.lotbi-regional-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 6px 14px;
+  border: 1px solid rgba(116, 126, 145, .32);
+  border-radius: 999px;
+  color: inherit;
+  font-size: 12.5px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.lotbi-regional-source-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.lotbi-regional-card-footer { display: grid; gap: 2px; }
+.lotbi-regional-action:focus-visible,
+.lotbi-regional-source-link:focus-visible { outline: 2px solid rgba(79, 120, 197, .30); outline-offset: 2px; }
+body[data-site-theme="dark"] .lotbi-regional-card { border-color: rgba(198, 207, 221, .24); }
+body[data-site-theme="dark"] .lotbi-regional-item { border-top-color: rgba(198, 207, 221, .16); }
+body[data-site-theme="dark"] .lotbi-regional-action { border-color: rgba(198, 207, 221, .32); }
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .lotbi-regional-card { border-color: rgba(198, 207, 221, .24); }
+  body[data-site-theme="system"] .lotbi-regional-item { border-top-color: rgba(198, 207, 221, .16); }
+  body[data-site-theme="system"] .lotbi-regional-action { border-color: rgba(198, 207, 221, .32); }
+}
+
+/* 전북 맛집·음식 entry form: a short label above each chip row. */
+.consumer-life-chip-label { margin: 4px 0 -4px; color: var(--lotbi-text-secondary, #4d535d); font-size: 13px; font-weight: 600; }
+
+/* NEARBY-LOCATION-ALLOW-PROMPT-01 — the shared 위치 허용 row
+   (site-location-allow.js): [위치 허용하고 찾기] [지역 고르기] side by side at
+   the same weight (48px, USER_FIRST_STANDARD 6), the saved region when there
+   is one, and one line saying what happened (blocked → 자물쇠, Windows 위치,
+   PC 위치 오차). Used under a "where?" answer and on the 지역정보 screens. */
+.lotbi-location-allow {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.lotbi-location-allow-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+}
+.lotbi-location-allow-chip {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid color-mix(in srgb, var(--lotbi-border-default, #d9dde5) 92%, transparent);
+  border-radius: 999px;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #202632);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.lotbi-location-allow-chip:hover {
+  background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5);
+}
+.lotbi-location-allow-chip:focus-visible {
+  outline: 3px solid rgba(64, 116, 255, .35);
+  outline-offset: 2px;
+}
+.lotbi-location-allow-chip[aria-busy="true"] {
+  cursor: progress;
+}
+.lotbi-location-allow-note {
+  max-width: 36em;
+  margin: 0;
+  color: var(--lotbi-text-primary, #202632);
+  font-size: 13.5px;
+  line-height: 1.5;
+  text-align: center;
+  word-break: keep-all;
+}
+.lotbi-location-allow-note[hidden] {
+  display: none;
+}
+body[data-site-theme="dark"] .lotbi-location-allow-chip {
+  border-color: #515b69;
+  background: rgba(23, 28, 37, .94);
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+body[data-site-theme="dark"] .lotbi-location-allow-chip:hover {
+  background: #262d38;
+}
+body[data-site-theme="dark"] .lotbi-location-allow-note {
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+.lotbi-location-request-row > .lotbi-location-allow {
+  flex: 1 1 100%;
+}
+
+/* CONVERSATION-ANSWER-UX-01 (QA #7): [현재 위치 사용] [지역 선택] under an
+   "어느 지역에서 찾을까요?" answer, and the region picker it opens. */
+.lotbi-location-request-row .lotbi-place-filter-chip {
+  min-height: 48px;
+  padding: 0 18px;
+  font-size: 14.5px;
+}
+.lotbi-region-picker {
+  display: grid;
+  gap: 12px;
+  padding: 4px 2px 8px;
+  color: var(--lotbi-text-primary, #212121);
+}
+.lotbi-region-picker-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+.lotbi-region-picker-note,
+.lotbi-region-picker-status {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--lotbi-text-secondary, #212121);
+}
+.lotbi-region-picker-status:empty { display: none; }
+/* NEARBY-LOCATION-ALLOW-PROMPT-01: 시·도 / 시·군 as chips (one tap each), the
+   same as 지역뉴스 (REGIONAL-NEWS-CITY-SELECT-01). */
+.lotbi-region-picker-step {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lotbi-text-secondary, #212121);
+}
+.lotbi-region-picker-step:empty { display: none; }
+.lotbi-region-picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lotbi-region-picker-chips[hidden] { display: none; }
+.lotbi-region-picker-chip {
+  min-height: 48px;
+  min-width: 56px;
+  padding: 0 16px;
+  border: 1px solid var(--lotbi-border-default, #e5e5e5);
+  border-radius: 999px;
+  background: var(--lotbi-surface-elevated, #fff);
+  color: var(--lotbi-text-primary, #212121);
+  font: inherit;
+  font-size: 15px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.lotbi-region-picker-chip:hover { background: color-mix(in srgb, var(--lotbi-surface-elevated, #fff) 68%, #cbd6e5); }
+.lotbi-region-picker-chip:focus-visible { outline: 3px solid rgba(64, 116, 255, .35); outline-offset: 2px; }
+.lotbi-region-picker-chip.is-back { border-style: dashed; }
+.lotbi-region-picker-saved .lotbi-region-picker-chip {
+  border-color: transparent;
+  background: var(--lotbi-text-primary, #212121);
+  color: var(--lotbi-surface-elevated, #fff);
+  font-weight: 700;
+}
+body[data-site-theme="dark"] .lotbi-region-picker-chip {
+  border-color: #515b69;
+  background: rgba(23, 28, 37, .94);
+  color: var(--lotbi-text-primary, #e8ecf2);
+}
+body[data-site-theme="dark"] .lotbi-region-picker-saved .lotbi-region-picker-chip {
+  border-color: transparent;
+  background: var(--lotbi-text-primary, #e8ecf2);
+  color: #171c25;
+}
+.lotbi-region-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.lotbi-region-picker-secondary {
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.lotbi-region-picker-secondary {
+  border: 1px solid var(--lotbi-border-default, #e5e5e5);
+  background: transparent;
+  color: var(--lotbi-text-primary, #212121);
+}
+
+/* SITE-CONVERSATION-DESIGN-01 — shared Account palette, scoped to chat.
+   Place rail geometry, gestures and result contracts remain unchanged. */
+body.chat-home-page.conversation-active .chat-home-shell {
+  background: var(--lotbi-surface-subtle);
+}
+body.chat-home-page.conversation-active .chat-composer-stack {
+  background: linear-gradient(to bottom, transparent, var(--lotbi-surface-subtle) 18px);
+}
+body.chat-home-page.conversation-active .chat-composer-stack .chat-composer {
+  border-color: var(--lotbi-border-strong);
+  background: var(--lotbi-surface-elevated);
+  box-shadow: 0 3px 14px rgb(0 0 0 / 4%);
+}
+body.chat-home-page.conversation-active .chat-composer-stack .chat-composer:focus-within {
+  border-color: var(--lotbi-focus-ring);
+  box-shadow: 0 0 0 2px var(--lotbi-border-default);
+}
+body.chat-home-page.conversation-active .composer-button.send-button:disabled {
+  background: var(--lotbi-surface-hover);
+  color: var(--lotbi-text-disabled);
+  opacity: 1;
+  cursor: default;
+}
+body.chat-home-page.conversation-active .composer-button.send-button:not(:disabled) {
+  background: var(--brand-blue);
+  color: var(--lotbi-brand-solid-text);
+}
+body.chat-home-page.conversation-active .chat-message-assistant > .chat-message-body {
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 16px;
+  background: var(--lotbi-surface-primary);
+  font-size: 17px;
+  line-height: 1.75;
+}
+body.chat-home-page.conversation-active .chat-message-body > :is(p, ul, .chat-table-scroll, pre) + :is(p, ul, .chat-table-scroll, pre) {
+  margin-top: 14px;
+}
+body.chat-home-page.conversation-active .chat-message-assistant .chat-message-list {
+  gap: 6px;
+}
+body.chat-home-page.conversation-active .chat-message-assistant .chat-code-block {
+  border-color: var(--lotbi-border-default);
+  background: var(--lotbi-surface-subtle);
+  line-height: 1.6;
+  font-size: .9em;
+}
+body.chat-home-page.conversation-active .chat-message-assistant > .chat-message-actions {
+  gap: 4px;
+  margin: 12px 0 0;
+}
+body.chat-home-page.conversation-active .chat-message-actions .chat-message-action:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+}
+body.chat-home-page .nav-history-list .conversation-history-open {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 8px 56px 8px 12px;
+  border-radius: 8px;
+}
+body.chat-home-page.conversation-active .nav-history-list .conversation-history-open[aria-current="true"] {
+  background: var(--lotbi-selected-bg);
+  color: var(--lotbi-selected-text);
+  box-shadow: inset 3px 0 var(--brand-blue);
+  font-weight: 650;
+}
+body.chat-home-page .conversation-history-actions {
+  right: 2px;
+}
+body.chat-home-page .conversation-history-menu-trigger {
+  width: 44px;
+  height: 44px;
+}
+body.chat-home-page .conversation-history-item:has(.conversation-history-open[aria-current="true"]) > .conversation-history-actions > summary {
+  color: var(--lotbi-selected-text);
+}
+body.chat-home-page .conversation-history-menu-trigger:focus-visible,
+body.chat-home-page .conversation-history-open:focus-visible {
+  outline: 2px solid var(--lotbi-focus-ring);
+  outline-offset: -2px;
+}
+@media (max-width: 760px) {
+  body.chat-home-page.conversation-active .chat-message-assistant > .chat-message-body {
+    padding: 12px;
+    font-size: 16px;
   }
 }

@@ -135,10 +135,10 @@ assert.match(intent, /scheme=nmap/u);
 assert.match(intent, /S\.browser_fallback_url=https%3A%2F%2Fmap\.naver\.com%2Fp%2Fsearch%2F/u);
 
 const desktop = nav.buildNaverMapsWebSearchUrl(place);
-assert.match(desktop, /^https:\/\/map\.naver\.com\/p\/search\//u);
-// The full road address must reach the search query -- not a leading
-// two-word fragment ("전북 전주시") that can match the wrong place.
-assert.match(decodeURIComponent(desktop), /전주 실제 카페 전북 전주시 완산구 기린대로 1/u);
+assert.equal(
+  decodeURIComponent(desktop),
+  'https://map.naver.com/p/search/전주 실제 카페?c=127.1480000,35.8242000,15,0,0,0,dh',
+);
 
 function fakeWindow() {
   const calls = [];
@@ -197,13 +197,13 @@ assert.match(decodeURIComponent(fallbackUri).replace(/\+/gu, ' '), /전주 실�
 assert.equal(typeof nav.buildNaverStaticMapThumbnailUrl, 'undefined');
 assert.doesNotMatch(navSource, /buildNaverStaticMapThumbnailUrl|maps\.apigw\.ntruss\.com|x-ncp-apigw-api-key/iu);
 
-const rendererStart = conversationSource.indexOf('const createPlaceCardRail = placeValue => {');
+const rendererStart = conversationSource.indexOf('const createPlaceCardRail = (placeValue, placeOptions = {}) => {');
 const rendererEnd = conversationSource.indexOf('const normalizeConversationCalendarResult = value => {', rendererStart);
 assert.ok(rendererStart >= 0 && rendererEnd > rendererStart);
 const renderer = conversationSource.slice(rendererStart, rendererEnd);
 
 // Consumer card contract: no administrative diagnostics, phone appears only when verified,
-// every map action remains visible as an icon, and handoffs leave the LOTBI tab intact.
+// the selected map action remains visible as an icon, and handoffs leave the LOTBI tab intact.
 for (const forbidden of [
   '인허가 대조', '인허가 정보 불일치', '공공 인허가', '행정 인허가',
   'WGS84 확인', 'NAVER Maps Geocoding · WGS84 확인', '사진 정보 없음',
@@ -212,16 +212,20 @@ for (const forbidden of [
 }
 assert.match(renderer, /if \(phoneHref\) \{/u);
 assert.doesNotMatch(renderer, /전화번호 정보 없음/u);
-assert.match(renderer, /dataset\.tmapState = isTmapHandoffAvailable\(\) \? 'MOBILE_APP' : 'INSTALL_GUIDE'/u);
+assert.match(renderer, /const defaultMapProvider = readDefaultMapProvider\(document\.cookie\)/u);
+assert.match(renderer, /mapAction\.href = buildDefaultMapHref\(defaultMapProvider, place\)/u);
 assert.doesNotMatch(renderer, /TMAP_MOBILE_ONLY/u);
 assert.doesNotMatch(renderer, /globalThis\.location\.href/u);
-assert.match(renderer, /navigate\.target = '_blank'/u);
-assert.match(renderer, /navigate\.rel = 'noopener noreferrer'/u);
-assert.match(renderer, /dataset\.action = 'kakao-navi'/u);
-assert.match(renderer, /dataset\.action = 'google-maps'/u);
-for (const iconName of ['phone', 'naver-map', 'kakao-map', 'tmap', 'google-maps']) {
-  assert.match(renderer, new RegExp(`addActionIcon\\([^,]+, '${iconName}'\\)`, 'u'));
-}
+assert.match(renderer, /mapAction\.target = '_blank'/u);
+assert.match(renderer, /mapAction\.rel = 'noopener noreferrer'/u);
+assert.match(renderer, /mapAction\.dataset\.action = mapPresentation\.action/u);
+// REGIONAL-INFO-APPROVED-UX-RESTORE-P0: the chosen map app's approved icon
+// image again (not a generic route line); its name stays in the label.
+assert.match(renderer, /addActionIcon\(mapAction, mapPresentation\.icon\)/u);
+assert.match(renderer, /\/assets\/place-actions\/\$\{iconName\}\.png\?v=\$\{PLACE_ACTION_ICON_VERSION\}/u);
+assert.doesNotMatch(renderer, /PLACE_ACTION_ICON_PATHS|addActionIcon\(mapAction, 'route'\)/u);
+assert.match(renderer, /길찾기 \(\$\{mapPresentation\.label\}\)/u);
+assert.match(renderer, /addActionIcon\(phone, 'phone'\)/u);
 assert.doesNotMatch(renderer, /addActionLabel|lotbi-place-action-label/u);
 
 // Carousel interaction and inactive-card accessibility remain part of the NAVER place surface.
@@ -235,10 +239,13 @@ assert.match(renderer, /rail\.addEventListener\('pointerup'/u);
 assert.match(renderer, /Math\.abs\(delta\) >= 44/u);
 assert.match(renderer, /control\.tabIndex = current \? 0 : -1/u);
 assert.match(renderer, /control\.setAttribute\('aria-disabled', current \? 'false' : 'true'\)/u);
+// PLACE-CARD-NAVER-SEARCH-CLICK-01: the card body opens NAVER search; only the
+// map button opens the map handoff.
 assert.match(
   renderer,
-  /if \(index !== activeIndex\) \{\s*setActiveIndex\(index\);\s*return;\s*\}\s*openPlaceInNaverMap\(placeResult\.results\[index\]\);/u,
+  /if \(index !== activeIndex\) \{\s*setActiveIndex\(index\);\s*return;\s*\}\s*cards\[index\]\.querySelector\('\[data-place-search\]'\)\?\.click\(\);/u,
 );
+assert.doesNotMatch(renderer, /querySelector\('\[data-map-provider\]'\)\?\.click\(\)/u);
 
 // Current generated asset version must be the one the conversation runtime imports.
 assert.ok(conversationSource.includes(`./site-navigation.js?v=${assetVersion}`));

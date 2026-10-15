@@ -6,37 +6,49 @@ const {calendarItemActionPolicy, monthGridKeyboardTargetDate, rovingTabTargetInd
 const manager = fs.readFileSync('site-calendar-manager.js', 'utf8');
 const css = fs.readFileSync('site-calendar.css', 'utf8');
 
-// A product-view regression must fail this gate: these are four different
-// information surfaces, not renamed versions of the former Month/Year/Agenda.
-assert.ok(manager.includes("['week', '주'], ['month', '월'], ['year', '년'], ['agenda', '일정']"));
+// Embedded callers keep their compact controls; the primary workspace exposes
+// the complete approved 주 · 월 · 년 · 일정 navigation.
+assert.ok(manager.includes("const MODES = Object.freeze([['week', '주'], ['month', '월'], ['agenda', '목록']]);"));
+assert.ok(manager.includes("const WORKSPACE_MODES = Object.freeze([['week', '주'], ['month', '월'], ['year', '년'], ['agenda', '일정']]);"));
+assert.ok(manager.includes("const VIEW_KEYS = Object.freeze(['day', 'month', 'week', 'year', 'agenda']);"));
 assert.ok(manager.includes('function renderWeek(state, actions'));
-assert.ok(manager.includes("strip.className = 'calendar-week-strip'"));
+// A desk keeps the seven-column hour grid; a touch width lists the days down
+// a rail beside the picked day (validate_calendar_week_mobile_vertical_01).
+assert.ok(manager.includes("return usesFlowingDayDetail() ? 'vertical' : 'timegrid';"));
+assert.ok(manager.includes('const layout = calendarWeekLayout();'));
+assert.ok(manager.includes(': renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}));'));
+assert.ok(manager.includes('? renderWeekVertical(state, actions, {weatherByDate, holidayMap})'));
 assert.ok(manager.includes("group.dataset.calendarWeekGroup = day.date"));
+assert.ok(manager.includes("group.dataset.weekday = String(day.weekday)"));
 assert.ok(manager.includes("'이번 주에는 일정이 없어요.'"));
 
 // Month is deliberately bounded regardless of how many events a day has, and
 // it exposes measured weather rather than inventing values for missing days.
-assert.ok(manager.includes('monthCellSummary(events)'));
-assert.ok(manager.includes('summary.visible'));
-assert.ok(manager.includes('summary.moreLabel'));
+assert.ok(manager.includes('const VISIBLE_ROWS = 3;'));
+assert.ok(manager.includes('monthSpanSegments(cells, state.items)'));
+assert.ok(manager.includes("more.textContent = remaining ? `+${remaining}개 더` : '';"));
 assert.ok(manager.includes("temperature.className = 'calendar-weather-temperature'"));
 assert.ok(manager.includes('const weatherPresentation = calendarWeatherPresentation(weather)'));
 assert.ok(manager.includes('const temperatureLabel = weatherPresentation.monthLabel'));
 
-// The selected day belongs in the page on a phone and in a stable side rail on
-// desktop. The removed floating pointer must not survive in active CSS.
+// Embedded callers retain FLOW/SIDE; the primary workspace uses a desktop
+// overlay or mobile sheet so the month never loses columns.
 assert.ok(manager.includes("FLOW: 'FLOW', SIDE: 'SIDE'"));
 assert.ok(manager.includes('usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.FLOW : DAY_DETAIL_PRESENTATION.SIDE'));
-assert.ok(css.includes('.calendar-month-layout[data-day-detail="SIDE"]'));
+assert.ok(manager.includes('usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.SHEET : DAY_DETAIL_PRESENTATION.MODAL'));
+assert.ok(css.includes('.calendar-day-panel[data-presentation="SIDE"]'));
 assert.ok(css.includes('.calendar-day-panel[data-presentation="FLOW"]'));
 assert.ok(!css.includes('[data-arrow]::before'));
 
-// Schedule is a searchable/list-like surface with explicit, independent
-// filters. Its empty state is not a blank canvas.
-for (const scope of ['all', 'today', 'week', 'month', 'reservation', 'payment', 'schedule']) {
-  assert.ok(manager.includes(`['${scope}',`), `missing Schedule filter: ${scope}`);
+// 목록 is a list surface with explicit, independent filters -- four, each one
+// answerable from loaded data -- and its empty states are not a blank canvas.
+for (const scope of ['month', 'upcoming', 'amount', 'unscheduled']) {
+  assert.ok(manager.includes(`['${scope}',`), `missing 목록 filter: ${scope}`);
 }
-assert.ok(manager.includes("'이 기간에는 일정이 없어요.'"));
+for (const retired of ["['all', '전체']", "['reservation', '예약']", "['schedule', '일정']"]) {
+  assert.ok(!manager.includes(retired), `retired 목록 filter still rendered: ${retired}`);
+}
+assert.ok(manager.includes("'이 달에는 일정이 없어요.'"));
 
 // Common controls stay visually compact while retaining a full touch target.
 assert.ok(css.includes('min-height: 44px'));
@@ -44,17 +56,12 @@ assert.ok(manager.includes("previous.dataset.calendarNavigation = 'previous'"));
 assert.ok(manager.includes("next.dataset.calendarNavigation = 'next'"));
 assert.ok(css.includes('.calendar-nav-button[data-calendar-navigation="next"]::before'));
 assert.ok(css.includes('.calendar-week-agenda'));
-assert.ok(css.includes('.calendar-week-day'));
-// Week is a real Google-Calendar-style time grid: 7 side-by-side day columns
-// against an hour axis, not the removed single-column agenda list, at any
-// width -- there is no longer a >=901px override collapsing it back to one
-// column.
-assert.match(css, /\.calendar-week-grid-header,\s*\n\.calendar-week-allday-row,\s*\n\.calendar-week-grid-scroll\s*\{[^}]*grid-template-columns:\s*var\(--calendar-week-axis-width\) repeat\(7, minmax\(var\(--calendar-week-column-min\), 1fr\)\);/);
-assert.ok(!css.includes('.calendar-week-days'));
-assert.ok(css.includes('.calendar-week-grid-event {'));
-assert.match(css, /\.calendar-week-grid-event\s*\{[^}]*position:\s*absolute;/);
-assert.ok(manager.includes("block.style.top = `${(entry.start / MINUTES_PER_DAY) * 100}%`"));
-assert.ok(css.includes('.calendar-week-allday-row'));
+assert.ok(css.includes('.calendar-week-grid'));
+// Week uses seven date columns with a vertical time axis on every width and
+// keeps LOTBI's red/blue weekend surfaces.
+assert.ok(css.includes('.calendar-week-day[data-weekday="0"] { background: var(--lotbi-calendar-weekend-sun-surface);'));
+assert.ok(css.includes('.calendar-week-day[data-weekday="6"] { background: var(--lotbi-calendar-weekend-sat-surface);'));
+assert.ok(css.includes('.calendar-week-hour-axis'));
 assert.ok(css.includes('.calendar-week-add-actions .calendar-add-button { width: auto;'));
 assert.ok(manager.includes("loading.textContent = '일정을 불러오는 중'"));
 assert.ok(manager.includes("'일정을 불러오지 못했습니다.'"));
@@ -68,7 +75,6 @@ assert.equal(rovingTabTargetIndex('Home', 2, 4), 0);
 assert.equal(rovingTabTargetIndex('End', 1, 4), 3);
 assert.equal(rovingTabTargetIndex('Enter', 1, 4), null);
 assert.ok(manager.includes('bindRovingTablist(modes'));
-assert.ok(manager.includes('bindRovingTablist(strip'));
 
 // Month Home/End must follow the visual row owned by the configured week start.
 assert.equal(monthGridKeyboardTargetDate('2026-09-24', 'Home', 0), '2026-09-20');
@@ -101,14 +107,15 @@ assert.deepEqual(calendarItemActionPolicy({
 // Selection restores focus only to a target guaranteed by the active view.
 assert.ok(manager.includes('function focusSelectedCalendarTarget'));
 assert.ok(manager.includes("state.mode === 'week'"));
-assert.ok(manager.includes('data-calendar-week-date'));
+assert.ok(manager.includes('data-calendar-week-group'));
 assert.ok(manager.includes("state.mode === 'month'"));
-assert.ok(manager.includes("selector = '.calendar-day-close'"));
+assert.ok(manager.includes("panel?.querySelector('.calendar-day-heading')"));
+assert.ok(manager.includes("button('닫기', 'calendar-day-close')"), 'month day detail must have an explicit close control');
 
-// A Fold crossing the product breakpoint swaps FLOW/SIDE immediately.
-assert.ok(manager.includes('let lastDayDetailPresentation = dayDetailPresentation()'));
+// A Fold crossing the product breakpoint swaps the active presentation immediately.
+assert.ok(manager.includes('let lastDayDetailPresentation = dayDetailPresentationFor(state)'));
 assert.ok(manager.includes('nextDayDetailPresentation !== lastDayDetailPresentation'));
-assert.ok(manager.includes('if (state.mode === \'month\') render()'));
+assert.ok(manager.includes("if (state.mode !== 'year') render();"));
 
 // The semantic date button itself, not only the enclosing cell, is a full
 // touch target at every width.

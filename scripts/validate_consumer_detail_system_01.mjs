@@ -30,14 +30,23 @@ assert.match(authStart, /color: #212121/);
 assert.match(authStart, /max-width: 460px/);
 assert.match(authStart, /a:focus-visible/);
 assert.match(authStart, /\[hidden\] \{ display: none !important/);
-assert.match(read('site-scam-shield.js'), /분석 근거 자세히 보기/);
-assert.match(read('site-consumer-sections.js'), /질문 준비하기/);
-assert.match(read('site-consumer-sections.js'), /확인 없이 진행하지 않습니다/);
+// SCAM-PHISHING-REDESIGN-02 — the technical evidence stays one tap away, folded
+// under 상세 분석 (closed by default) below the plain-language result.
+assert.match(read('site-scam-shield.js'), /section\('tech', '상세 분석', '기술 정보 · 필요할 때만 보세요'/);
+assert.match(read('site-scam-shield.js'), /open: \{sig: true\}/);
+// LIFE-MEDICAL-AUTO-SEARCH-01: a life request is sent at once, never drafted for a second tap.
+assert.match(read('site-consumer-sections.js'), /롯비에게 물어보기/);
+assert.match(read('site-consumer-sections.js'), /누르면 바로 롯비에게 물어봐요/);
+assert.doesNotMatch(read('site-consumer-sections.js'), /질문 준비하기|다음 화면에서 질문을 확인한 뒤 보내세요/);
 // Conditional scam questions must stay hidden until the user chooses the incident path.
-assert.match(read('site-scam-shield.css'), /\.scam-dialog \[hidden\]\s*\{\s*display:\s*none\s*!important/);
+assert.match(read('site-scam-shield.css'), /\.scam-page\.sp-root \[hidden\]\s*\{\s*display:\s*none\s*!important/);
+assert.match(read('site-scam-shield.js'), /state\.incident === 'yes' \? followUp\(\) : null/);
 const layout = read('site-consumer-layout.css');
 const manager = read('site-calendar-manager.js');
-assert.match(read('site-consumer-design.css'), /\.calendar-settings-button\s*\{ grid-column: 3; grid-row: 2; width: 44px; min-width: 44px; box-sizing: border-box; padding-inline: 0/, 'mobile settings control must fit its 44px toolbar track');
+// LIFE UX 01: the phone toolbar is two rows (‹ month › 오늘 ⚙ / 월 주 목록); the
+// settings control still sits in its own 44px track.
+assert.match(read('site-consumer-design.css'), /\.calendar-toolbar \{ grid-template-columns: 44px minmax\(0, 1fr\) 44px auto 44px; gap: 4px; \}/, 'mobile Calendar toolbar must keep a 44px settings track in two rows');
+assert.match(read('site-consumer-design.css'), /\.calendar-settings-button\s*\{ width: 44px; min-width: 44px; box-sizing: border-box; padding-inline: 0/, 'mobile settings control must fit its 44px toolbar track');
 const yearRenderer = manager.slice(manager.indexOf('function renderYear('), manager.indexOf('function renderYear(') + 2500);
 assert.match(yearRenderer, /for \(const weekday of weekdayOrder\(state\.weekStart\)\)/, 'year weekday headings must occupy seven separate cells');
 assert.match(yearRenderer, /weekdays\.appendChild\(label\)/);
@@ -47,7 +56,8 @@ assert.match(layout, /\.calendar-mini-weekdays\s*\{ font-size: 12px/);
 assert.match(layout, /\.calendar-year-month\s*\{ display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start/);
 assert.match(layout, /\.calendar-mini-grid span\s*\{ min-height: 22px; font-size: 12px/);
 // Workspace is the backdrop's class; .site-modal is its child, not its ancestor.
-assert.match(layout, /body\.chat-home-page \.consumer-workspace \.site-modal \.consumer-search input\s*\{[^}]*border:\s*0\s*!important;[^}]*background:\s*transparent\s*!important/);
-assert.match(layout, /\.consumer-search:focus-within\s*\{[^}]*outline:/);
+// 생활정보 home has no free-question bar or footer row any more; no leftover styles.
+assert.doesNotMatch(layout + read('site-consumer-design.css'), /consumer-search|consumer-section-footer/);
+assert.match(layout, /\.consumer-workspace:has\(\[data-consumer-surface='life'\]\) \.site-modal-description \{ margin-bottom: 24px; \}/);
 assert.match(layout, /\.scam-dialog\s*\{[^}]*width:\s*min\(640px, calc\(100vw - 32px\)\)/);
 console.log('CONSUMER_DETAIL_SYSTEM_01 PASS — source coverage, not authenticated E2E');

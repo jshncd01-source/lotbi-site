@@ -11,8 +11,8 @@ const conversation = read('site-conversation.js');
 const core = read('site-core.js');
 
 const start = index.indexOf('<div class="response-grade-control"');
-const end = index.indexOf('<button class="composer-button mic-button"', start);
-assert.ok(start >= 0 && end > start, 'response-grade markup must remain immediately before mic for future activation');
+const end = index.indexOf('<button class="composer-button send-button"', start);
+assert.ok(start >= 0 && end > start, 'response-grade markup must remain immediately before send for future activation');
 const gradeMarkup = index.slice(start, end);
 
 // PHASE 7: no selector flash for anonymous visitors. The control remains in the
@@ -45,13 +45,11 @@ assert.match(conversation, /const selectResponseGrade = grade => \{[\s\S]*if \(!
 assert.match(conversation, /document\.body\.dataset\.responseGrade = preferences\.responseGrade/);
 
 // Existing future-facing keyboard/a11y handlers may remain dormant; hiding the
-// feature must not remove mic/send or reorder the composer controls.
+// feature must not remove send or reorder the remaining composer controls.
 const gradePos = index.indexOf('data-response-grade-control');
-const micPos = index.indexOf('class="composer-button mic-button"', gradePos);
-const sendPos = index.indexOf('class="composer-button send-button"', micPos);
-assert.ok(gradePos >= 0 && micPos > gradePos && sendPos > micPos, 'grade, mic and send DOM order must remain stable');
-assert.match(conversation, /micButton\.disabled = false/);
-assert.match(conversation, /micButton\.addEventListener\('click'/);
+const sendPos = index.indexOf('class="composer-button send-button"', gradePos);
+assert.ok(gradePos >= 0 && sendPos > gradePos, 'grade and send DOM order must remain stable');
+assert.match(conversation, /const PUBLIC_SITE_VOICE_RELEASE_ENABLED = false/);
 assert.match(conversation, /sendConversationMessage\([\s\S]*activeSessionToken,[\s\S]*message,[\s\S]*attachments\.map\(item => item\.id\)/);
 
 // Authoritative response-grade support does not exist yet. Attachment IDs may

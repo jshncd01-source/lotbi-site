@@ -1,89 +1,325 @@
-import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-de88e6e1b0a7';
-
-const BASE = '/v2/person-profiles';
+// Owner-only Person + SOS Core client. No public person search or contact data.
+import {CORE_ORIGIN, SiteCoreError} from './site-core.js?v=aset-7ce47b43cff4';
 
 function token(value) {
   const result = typeof value === 'string' ? value.trim() : '';
-  if (!result) throw new SiteCoreError('사람 정보를 보려면 로그인이 필요합니다.', {code: 'SITE_SESSION_REQUIRED', status: 401});
+  if (!result) throw new SiteCoreError('사람 가족 지킴이는 로그인 후 사용할 수 있습니다.', {code: 'SESSION_REQUIRED', status: 401});
   return result;
 }
-
-function requestKey() {
-  const id = globalThis.crypto?.randomUUID?.()?.replaceAll('-', '')
-    || `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`.padEnd(32, '0').slice(0, 32);
-  return `prq_${Date.now().toString().padStart(13, '0')}_${id.slice(0, 32)}`;
+async function request(path, sessionToken, {method = 'GET', body, requestKey = ''} = {}, fetchImpl = globalThis.fetch) {
+  const headers = {Authorization: `Bearer ${token(sessionToken)}`, Accept: 'application/json'};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (requestKey) headers['Idempotency-Key'] = requestKey;
+  let response;
+  try { response = await fetchImpl(`${CORE_ORIGIN}${path}`, {method, mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', headers, ...(body === undefined ? {} : {body: JSON.stringify(body)})}); }
+  catch { throw new SiteCoreError('사람 가족 지킴이 서버에 연결하지 못했습니다.', {code: 'PERSON_NETWORK_ERROR', retryable: true}); }
+  let payload = {}; try { payload = await response.json(); } catch {}
+  if (!response.ok) {
+    const detail = payload?.detail && typeof payload.detail === 'object' ? payload.detail : {};
+    throw new SiteCoreError('요청을 처리하지 못했습니다.', {code: typeof detail.code === 'string' ? detail.code : `HTTP_${response.status}`, status: response.status});
+  }
+  return payload;
 }
+function person(row) { return Object.freeze({personId: row.person_id, registrationNumber: typeof row.registration_number === 'string' && row.registration_number.trim() ? row.registration_number : (typeof row.person_id === 'string' ? row.person_id : ''), displayName: row.display_name, nickname: row.nickname || '', relationship: row.relationship, birthYear: row.birth_year == null ? null : Number(row.birth_year), birthMonth: row.birthday_month == null ? null : Number(row.birthday_month), revision: row.revision, hasPhoto: row.has_photo === true, identityPhotoCount: Number(row.identity_photo_count || 0), identityPhotoRequired: Number(row.identity_photo_required || 5), ...identityPhotoSet(row), identityPhotoState: row.identity_photo_state || 'INCOMPLETE', identityPhotoExpiresAt: row.identity_photo_expires_at || null, identityPhotoDaysRemaining: row.identity_photo_days_remaining ?? null, identityPhotoRenewalReminderDays: row.identity_photo_renewal_reminder_days ?? null, identityPhotoValidityDays: row.identity_photo_validity_days ?? null, identityPhotoRenewalPolicy: row.identity_photo_renewal_policy || null}); }
+function identityPhoto(row) { return Object.freeze({slotIndex: Number(row.slot_index), slotCode: row.slot_code || row.angle_code, category: row.category === 'BODY' || row.category === 'FACE' ? row.category : (/BODY/.test(row.slot_code || '') ? 'BODY' : 'FACE'), revision: Number(row.revision), width: Number(row.width), height: Number(row.height), updatedAt: row.updated_at}); }
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): three face photos and two body
+// photos (five) complete a registration and allow an SOS; ten are recommended.
+// An older Core sends no counts: then only the full ten count as complete.
+export const PERSON_IDENTITY_FACE_MINIMUM = 3;
+export const PERSON_IDENTITY_BODY_MINIMUM = 2;
+export const PERSON_IDENTITY_PHOTO_MAX = 10;
+function identityPhotoSet(row) {
+  const count = Number(row.identity_photo_count || 0);
+  const known = typeof row.identity_photo_complete === 'boolean';
+  return {
+    identityPhotoComplete: known ? row.identity_photo_complete : count >= PERSON_IDENTITY_PHOTO_MAX,
+    identityPhotoFaceCount: Number.isInteger(row.identity_photo_face_count) ? row.identity_photo_face_count : null,
+    identityPhotoBodyCount: Number.isInteger(row.identity_photo_body_count) ? row.identity_photo_body_count : null,
+    identityPhotoFaceMinimum: Number(row.identity_photo_face_minimum || PERSON_IDENTITY_FACE_MINIMUM),
+    identityPhotoBodyMinimum: Number(row.identity_photo_body_minimum || PERSON_IDENTITY_BODY_MINIMUM),
+  };
+}
+function sighting(row) { if (row.automatic_identity_decision !== false || row.contact_details_exposed !== false) throw new SiteCoreError('사람 제보 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({reportId: row.report_id, observedAt: row.observed_at, locationSummary: row.location_summary, description: row.description || '', reviewState: row.review_state, photoCount: Number(row.photo_count), minimumPhotoCount: Number(row.minimum_photo_count), maximumPhotoCount: Number(row.maximum_photo_count), canSubmit: row.can_submit === true, message: row.message}); }
+function sos(row) { if (row.matching_scope !== 'ACTIVE_SOS_ONLY' || row.automatic_identity_decision !== false) throw new SiteCoreError('SOS 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({sosId: row.sos_id, personId: row.person_id, displayName: row.display_name, status: row.status, lastSeenAt: row.last_seen_at, lastSeenSummary: row.last_seen_summary, description: row.description || '', intake: sosIntake(row.intake)}); }
+// SAFECARE-SOS-ADMIN-INTAKE (contract B1): Core records every SOS in the
+// LOTBI SafeCare admin inbox and reports whether the admins were notified. An
+// older Core sends no `intake` block (null = unknown). The block can never fail
+// the SOS itself, and `police_report_filed` is not read: LOTBI never files a
+// police report and the screen never says it did.
+const SOS_REVIEW_STATUSES = new Set(['RECEIVED', 'IN_REVIEW', 'RESOLVED']);
+const SOS_ADMIN_NOTIFICATIONS = new Set(['PENDING', 'DELIVERED', 'RETRYING', 'FAILED']);
+function sosIntake(value) {
+  if (!value || typeof value !== 'object') return null;
+  return Object.freeze({
+    received: value.received === true,
+    reviewStatus: SOS_REVIEW_STATUSES.has(value.review_status) ? value.review_status : '',
+    adminNotification: SOS_ADMIN_NOTIFICATIONS.has(value.admin_notification) ? value.admin_notification : '',
+  });
+}
+export const PERSON_SOS_NOT_POLICE_NOTICE = '이 접수는 경찰 신고가 아닙니다. 긴급한 경우 112에 바로 신고해 주세요.';
+// SAFECARE-PHOTO-EASY-UPLOAD-01: say what happens today. An SOS opens an
+// administrator intake case and found reports go to the administrators' list;
+// automatic photo comparison is not switched on, so no sentence promises it.
+export const PERSON_SOS_EMERGENCY_TEXT = 'LOTBI 실종 전환은 경찰 신고가 아닙니다. 위급하거나 실종이 확실하면 먼저 112에 신고해 주세요. 아동·장애인·치매 어르신 실종은 182에서도 도와줍니다.';
+export const PERSON_SOS_FORM_NOTE = '실종 상태로 전환하면 가족 지킴이 관리자에게 바로 접수되고, 들어온 발견 제보는 관리자가 확인합니다. AI가 같은 사람이라고 확정하지 않습니다.';
+export const PERSON_SOS_ACTIVE_NOTE = '가족 지킴이 관리자에게 접수되었습니다. 들어온 발견 제보는 관리자가 확인합니다. 위급하면 112에 바로 신고해 주세요.';
+export const PERSON_FOUND_EMERGENCY_TEXT = '도움이 필요해 보이는 사람이 지금 위험해 보이면 먼저 112에 신고해 주세요. 길을 잃은 아동·장애인·치매 어르신은 182에서도 도와줍니다.';
+export const PERSON_FOUND_FORM_NOTE = '즉시 일치 여부를 알려드리지 않습니다. 보내 주신 제보는 가족 지킴이 관리자가 확인합니다.';
+const SOS_ADMIN_NOTIFICATION_COPY = Object.freeze({
+  DELIVERED: '담당 관리자에게 알림을 보냈습니다.',
+  PENDING: '관리자 알림을 다시 보내고 있습니다. 접수는 이미 완료되었습니다.',
+  RETRYING: '관리자 알림을 다시 보내고 있습니다. 접수는 이미 완료되었습니다.',
+  FAILED: '관리자 알림 전송이 지연되고 있습니다. 접수는 완료되었으며 계속 다시 보냅니다.',
+});
+// The guardian's sentence after a successful POST /v2/person-sos. The 112 line
+// is always there; the admin inbox and notification lines only when Core said so.
+export function personSosReceivedMessage(displayName, value) {
+  const name = typeof displayName === 'string' && displayName.trim() ? `${displayName.trim()} ` : '';
+  const intake = value?.intake;
+  const lines = intake?.received === true
+    ? [`${name}실종 상태로 전환했고 LOTBI 가족 지킴이 관리자 접수함에 등록했습니다.`, SOS_ADMIN_NOTIFICATION_COPY[intake.adminNotification] || '']
+    : [`${name}실종 상태로 전환했습니다.`];
+  return [...lines.filter(Boolean), PERSON_SOS_NOT_POLICE_NOTICE].join(' ');
+}
+function notice(row) { if (row.automatic_identity_decision !== false || row.contact_details_exposed !== false) throw new SiteCoreError('후보 안전 계약이 올바르지 않습니다.', {code: 'PERSON_RESPONSE_INVALID'}); return Object.freeze({noticeId: row.notice_id, candidateId: row.candidate_id, personId: row.person_id, displayName: row.display_name, status: row.status, response: row.response || '', faceScore: row.face_score, photoPath: row.registered_photo_path}); }
+function personRequestKeyRandomHex() {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  if (uuid) return uuid.replaceAll('-', '').toLowerCase();
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
+  else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+  return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+}
+export const personRequestKey = () => `prq_${Date.now()}_${personRequestKeyRandomHex()}`;
+export async function listPeople(sessionToken, fetchImpl) { const payload = await request('/v2/person-profiles', sessionToken, {}, fetchImpl); return Object.freeze((payload.people || []).map(person)); }
+export async function getPerson(sessionToken, personId, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}`, sessionToken, {}, fetchImpl); return person(payload.person); }
+export async function createPerson(sessionToken, input, fetchImpl) {
+  const options = {method: 'POST', requestKey: input.requestKey || personRequestKey('create'), body: {display_name: input.displayName, relationship: input.relationship, birth_year: Number(input.birthYear), birthday_month: Number(input.birthMonth), birthday_day: null, nickname: input.nickname || null}};
+  const retryDelays = [250, 750, 1500];
+  for (let attempt = 0; ; attempt += 1) {
+    try { return person((await request('/v2/person-profiles', sessionToken, options, fetchImpl)).person); }
+    catch (error) {
+      if (error?.code !== 'PERSON_NETWORK_ERROR' || attempt >= retryDelays.length) throw error;
+      await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+    }
+  }
+}
+export async function updatePerson(sessionToken, input, fetchImpl) {
+  const original = input.original;
+  const body = {expected_revision: input.revision};
+  for (const [clientKey, serverKey] of [['displayName','display_name'],['relationship','relationship'],['nickname','nickname']]) {
+    if (!Object.hasOwn(input,clientKey)) continue;
+    const value = clientKey === 'nickname' ? input[clientKey] || null : input[clientKey];
+    const previous = clientKey === 'nickname' ? original?.[clientKey] || null : original?.[clientKey];
+    if (!original || value !== previous) body[serverKey] = value;
+  }
+  if (Object.hasOwn(input,'birthYear') || Object.hasOwn(input,'birthMonth')) {
+    const year = Number(input.birthYear ?? original?.birthYear);
+    const month = Number(input.birthMonth ?? original?.birthMonth);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+      throw new SiteCoreError('출생 연도와 월을 확인해 주세요.',{code:'PERSON_FIELD_INVALID'});
+    }
+    // Core validates birth year/month together even if only the month changed.
+    if (!original || year !== original.birthYear || month !== original.birthMonth) {
+      body.birth_year = year; body.birthday_month = month;
+    }
+  }
+  if (original && Object.keys(body).length === 1) return original;
+  const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}`, sessionToken, {method:'PATCH',body}, fetchImpl);
+  return person(payload.person);
+}
+// registrationCancel: Core deletes only an unfinished registration (identity photo
+// set not complete, no missing-person case ever) — SAFECARE-PERSON-DARK-CANCEL-01.
+export async function deletePerson(sessionToken, value, fetchImpl, {registrationCancel = false} = {}) { await request(`/v2/person-profiles/${encodeURIComponent(value.personId)}?expected_revision=${value.revision}${registrationCancel ? '&registration_cancel=1' : ''}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
+export async function putPersonPhoto(sessionToken, input, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(input.personId)}/photo`, sessionToken, {method: 'PUT', requestKey: input.requestKey || personRequestKey('photo'), body: {expected_revision: input.revision, photo_data_uri: input.dataUri}}, fetchImpl); return person(payload.person); }
+export async function listPersonIdentityPhotos(sessionToken, personId, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos`, sessionToken, {}, fetchImpl); return Object.freeze((payload.photos || []).map(identityPhoto)); }
+// SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): one everyday photo, no slot. Core
+// decides FACE or BODY, refuses only wrong or useless photos and places it in
+// a free card. "identityCheck" is SAME or UNVERIFIED (never a stronger claim).
+export async function addPersonIdentityPhoto(sessionToken, personId, dataUri, fetchImpl) {
+  const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos`, sessionToken, {method: 'POST', body: {photo_data_uri: dataUri}}, fetchImpl);
+  const validity = payload.validity || {};
+  return Object.freeze({
+    photo: identityPhoto(payload.photo),
+    category: payload.category === 'BODY' ? 'BODY' : 'FACE',
+    identityCheck: payload.identity_check === 'SAME' ? 'SAME' : 'UNVERIFIED',
+    replayed: payload.idempotent_replay === true,
+    complete: validity.complete === true,
+    faceCount: Number(validity.face_count || 0),
+    bodyCount: Number(validity.body_count || 0),
+    photoCount: Number(validity.photo_count || 0),
+  });
+}
+export async function deletePersonIdentityPhoto(sessionToken, personId, slotIndex, fetchImpl) { await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos/${slotIndex}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
+export async function putPersonIdentityPhoto(sessionToken, personId, slotIndex, dataUri, fetchImpl) { const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos/${slotIndex}`, sessionToken, {method: 'PUT', body: {photo_data_uri: dataUri}}, fetchImpl); return identityPhoto(payload.photo); }
 
-const MESSAGES = Object.freeze({
-  PERSON_CARE_PROFILE_LIMIT_REACHED: '안심케어 프로필 한도에 도달했습니다. 기존 프로필을 정리하거나 플랜을 확인해 주세요.',
-  PERSON_FIELD_INVALID: '이름과 입력 내용을 확인해 주세요.',
-  PERSON_RELATIONSHIP_INVALID: '관계를 다시 선택해 주세요.',
-  PERSON_PHOTO_TOO_LARGE: '사진은 2MB 이하로 선택해 주세요.',
-  PERSON_PHOTO_UNSUPPORTED: 'JPG, PNG 또는 WEBP 사진을 선택해 주세요.',
-  PERSON_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진으로 다시 시도해 주세요.',
-  PERSON_PHOTO_BOUNDS_INVALID: '사진 크기가 너무 큽니다. 다른 사진으로 다시 시도해 주세요.',
-  SESSION_REQUIRED: '로그인이 필요합니다.',
-  SESSION_INVALID: '로그인이 만료되었습니다. 다시 로그인해 주세요.',
-  SESSION_EXPIRED: '로그인이 만료되었습니다. 다시 로그인해 주세요.',
-  SESSION_AUDIENCE_RESTRICTED: '이 브라우저에서는 아직 사람 등록을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+// SAFECARE-PHOTO-BULK-UPLOAD-01 (contract A): Core's identity slot table
+// (slot_index = position + 1) and the classify hint. Classify stores nothing
+// and compares no people; it only says which slot kinds the unchanged intake
+// gate would take. The per-slot PUT above still decides every save.
+export const PERSON_IDENTITY_SLOT_CODES = Object.freeze([
+  'FACE_FRONT', 'FACE_LEFT_45', 'FACE_RIGHT_45', 'FACE_LEFT_PROFILE', 'FACE_RIGHT_PROFILE',
+  'UPPER_BODY_FRONT', 'FULL_BODY_FRONT', 'FACE_FRONT_ALT', 'FACE_LEFT_ALT', 'FACE_RIGHT_ALT',
+]);
+const CLASSIFY_STATUSES = new Set(['CLEAR', 'UNCERTAIN', 'REJECTED']);
+const CLASSIFY_VIEWS = new Set(['FRONT', 'LEFT_TURN', 'RIGHT_TURN', 'LEFT_PROFILE', 'RIGHT_PROFILE', 'UPPER_BODY', 'FULL_BODY', 'UNKNOWN']);
+function classification(row) {
+  const invalid = () => new SiteCoreError('사진 분류 결과를 확인하지 못했습니다.', {code: 'PERSON_RESPONSE_INVALID'});
+  if (!row || typeof row !== 'object') throw invalid();
+  // A hint that claims an identity check or a stored photo is not this contract.
+  if (row.identity_checked !== false || row.stored !== false) throw invalid();
+  if (!CLASSIFY_STATUSES.has(row.status) || typeof row.detected_view !== 'string') throw invalid();
+  const indexes = row.suggested_slot_indexes;
+  const codes = row.suggested_slot_codes;
+  if (!Array.isArray(indexes) || !Array.isArray(codes) || indexes.length !== codes.length || new Set(indexes).size !== indexes.length) throw invalid();
+  indexes.forEach((index, position) => {
+    if (!Number.isInteger(index) || index < 1 || index > PERSON_IDENTITY_SLOT_CODES.length || codes[position] !== PERSON_IDENTITY_SLOT_CODES[index - 1]) throw invalid();
+  });
+  const rejected = row.status === 'REJECTED';
+  if (rejected && (typeof row.rejection_code !== 'string' || !/^[A-Z0-9_]{1,80}$/.test(row.rejection_code) || indexes.length)) throw invalid();
+  if (!rejected && (row.rejection_code != null || !indexes.length)) throw invalid();
+  return Object.freeze({
+    status: row.status,
+    detectedView: CLASSIFY_VIEWS.has(row.detected_view) ? row.detected_view : 'UNKNOWN',
+    suggestedSlotIndexes: Object.freeze([...indexes]),
+    suggestedSlotCodes: Object.freeze([...codes]),
+    rejectionCode: rejected ? row.rejection_code : null,
+    identityChecked: false,
+    stored: false,
+  });
+}
+export async function classifyPersonIdentityPhoto(sessionToken, personId, dataUri, fetchImpl) {
+  const payload = await request(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos/classify`, sessionToken, {method: 'POST', body: {photo_data_uri: dataUri}}, fetchImpl);
+  return classification(payload?.classification);
+}
+export async function listPersonSos(sessionToken, fetchImpl) { const payload = await request('/v2/person-sos?status=ACTIVE', sessionToken, {}, fetchImpl); return Object.freeze((payload.items || []).map(sos)); }
+export async function createPersonSos(sessionToken, input, fetchImpl) { const payload = await request('/v2/person-sos', sessionToken, {method: 'POST', body: {person_id: input.personId, last_seen_at: input.lastSeenAt, last_seen_summary: input.lastSeenSummary, description: input.description || null, matching_consent_confirmed: input.matchingConsentConfirmed === true}}, fetchImpl); return sos(payload.sos); }
+export async function closePersonSos(sessionToken, sosId, fetchImpl) { const payload = await request(`/v2/person-sos/${encodeURIComponent(sosId)}/close`, sessionToken, {method: 'PUT'}, fetchImpl); return sos(payload.sos); }
+export async function listGuardianNotices(sessionToken, fetchImpl) { const payload = await request('/v2/person-sos/notices/candidates', sessionToken, {}, fetchImpl); return Object.freeze((payload.notices || []).map(notice)); }
+export async function respondGuardianNotice(sessionToken, noticeId, response, fetchImpl) { const payload = await request(`/v2/person-sos/notices/${encodeURIComponent(noticeId)}/response`, sessionToken, {method: 'POST', body: {response}}, fetchImpl); return notice(payload.notice); }
+export async function listHumanSightings(sessionToken, fetchImpl) { const payload = await request('/v2/safecare/human-sightings', sessionToken, {}, fetchImpl); return Object.freeze((payload.reports || []).map(sighting)); }
+export async function createHumanSighting(sessionToken, input, fetchImpl) { const payload = await request('/v2/safecare/human-sightings', sessionToken, {method: 'POST', body: {observed_at: input.observedAt, location_summary: input.locationSummary, description: input.description || null}}, fetchImpl); return sighting(payload.report); }
+export async function putHumanSightingPhoto(sessionToken, reportId, slotIndex, dataUri, fetchImpl) { const payload = await request(`/v2/safecare/human-sightings/${encodeURIComponent(reportId)}/photos/${slotIndex}`, sessionToken, {method: 'PUT', body: {photo_data_uri: dataUri}}, fetchImpl); return identityPhoto(payload.photo); }
+export async function submitHumanSighting(sessionToken, reportId, fetchImpl) { const payload = await request(`/v2/safecare/human-sightings/${encodeURIComponent(reportId)}/submit`, sessionToken, {method: 'POST'}, fetchImpl); return sighting(payload.report); }
+export async function listHumanSightingPhotos(sessionToken, reportId, fetchImpl) { const payload = await request(`/v2/safecare/human-sightings/${encodeURIComponent(reportId)}/photos`, sessionToken, {}, fetchImpl); return Object.freeze((payload.photos || []).map(identityPhoto)); }
+export async function deleteHumanSightingPhoto(sessionToken, reportId, slotIndex, fetchImpl) { await request(`/v2/safecare/human-sightings/${encodeURIComponent(reportId)}/photos/${slotIndex}`, sessionToken, {method: 'DELETE'}, fetchImpl); }
+
+// Core error code -> a sentence the guardian can act on. The code itself is
+// never shown; the screen keeps it on a data attribute for diagnosis.
+const PERSON_ERROR_MESSAGES = Object.freeze({
+  SESSION_REQUIRED: '로그인 후 사용할 수 있습니다.',
+  PERSON_NETWORK_ERROR: '가족 지킴이 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+  PERSON_IDENTITY_PHOTO_DUPLICATE: '이미 올린 사진이에요. 다른 사진을 골라 주세요.',
+  PERSON_IDENTITY_PHOTOS_FULL: '사진은 10장까지 등록할 수 있어요. 새 사진을 넣으려면 사진 갱신·관리에서 기존 사진을 먼저 빼 주세요.',
+  HUMAN_SIGHTING_PHOTO_DUPLICATE: '같은 사진은 여러 장으로 사용할 수 없습니다. 다른 방향에서 찍은 사진을 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_TOO_LARGE: '사진 용량이 너무 큽니다. 더 작은 사진을 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_UNSUPPORTED: 'JPG, PNG, WEBP 사진만 등록할 수 있습니다.',
+  PERSON_IDENTITY_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.',
+  // Identity-photo intake gate (Core decides; nothing is stored on refusal).
+  PERSON_IDENTITY_PHOTO_NON_IDENTITY_IMAGE: '사람 식별 사진이 아닙니다. 문서·사물·화면 사진은 등록할 수 없습니다.',
+  PERSON_IDENTITY_PHOTO_NO_PERSON: '사람이 보이지 않는 사진이에요. 동물·물건·풍경 사진은 등록할 수 없어요.',
+  PERSON_IDENTITY_PHOTO_NO_FACE: '사람 얼굴을 확인할 수 없습니다. 얼굴이 화면에 충분히 보이게 조금 뒤에서 촬영해 주세요.',
+  PERSON_IDENTITY_PHOTO_MULTIPLE_FACES: '여러 사람이 함께 나온 사진은 등록할 수 없습니다. 등록할 사람 한 명만 나온 사진을 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_WRONG_POSE: '촬영 방향이 맞지 않습니다. 안내 그림과 같은 방향으로 얼굴을 돌려 다시 촬영해 주세요.',
+  PERSON_IDENTITY_PHOTO_WRONG_FRAMING: '사진 구도가 이 칸과 맞지 않습니다. 안내 그림처럼 잘리지 않게 다시 촬영해 주세요.',
+  PERSON_IDENTITY_PHOTO_TOO_BLURRY: '사진이 너무 흐립니다. 얼굴이 선명하게 보이도록 다시 촬영해 주세요.',
+  PERSON_IDENTITY_PHOTO_OCCLUDED: '얼굴이 가려져 있습니다. 마스크·선글라스·손 등으로 눈·코·입이 가리지 않게 다시 촬영해 주세요.',
+  PERSON_IDENTITY_PHOTO_SUBJECT_TOO_SMALL: '사람이 너무 작게 나왔습니다. 조금 더 가까이에서 찍은 사진을 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_CHECK_UNAVAILABLE: '지금은 사진을 확인할 수 없어 저장하지 않았습니다. 잠시 후 다시 시도해 주세요.',
+  PERSON_IDENTITY_PHOTO_DIFFERENT_PERSON: '등록된 사람과 다른 사람으로 보이는 사진입니다. 같은 사람의 사진을 선택해 주세요.',
+  PERSON_IDENTITY_PHOTO_IDENTITY_UNCLEAR: '같은 사람인지 확인하기 어렵습니다. 얼굴이 선명하게 보이도록 다시 촬영해 주세요.',
+  PERSON_REID_PHOTO_INVALID: '사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.',
+  PERSON_REID_PHOTO_QUALITY_INSUFFICIENT: '얼굴이나 모습이 선명하게 보이지 않습니다. 밝은 곳에서 다시 찍은 사진을 선택해 주세요.',
+  PERSON_BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',
+  BIRTH_INFO_REQUIRED: '출생 연·월을 먼저 입력해 주세요. 사진 갱신 주기를 계산하는 데 필요합니다.',
+  PERSON_IDENTITY_PHOTOS_INCOMPLETE: '얼굴 사진 3장과 몸(상반신·전신) 사진 2장을 등록해야 실종 상태로 전환할 수 있습니다.',
+  PERSON_REGISTRATION_CANCEL_NOT_ALLOWED: '등록이 끝났거나 실종 기록이 있는 사람은 여기서 삭제할 수 없습니다. 목록에서 정보를 확인해 주세요.',
+  PERSON_PHOTO_REQUIRED: '얼굴 사진 3장과 몸(상반신·전신) 사진 2장을 등록해야 실종 상태로 전환할 수 있습니다.',
+  PERSON_IDENTITY_PHOTOS_EXPIRED: '식별 사진 유효기간이 지나 실종 상태로 전환할 수 없습니다. 사진을 먼저 갱신해 주세요.',
+  PERSON_REID_CONSENT_REQUIRED: '실종 기간 동안 사진을 후보 검색에 사용하는 데 동의해 주세요.',
+  PERSON_SOS_LOCATION_INVALID: '마지막으로 본 장소를 확인해 주세요.',
+  PERSON_SOS_NOT_FOUND: '실종 정보를 찾지 못했습니다. 화면을 새로 열어 주세요.',
+  HUMAN_SIGHTING_LOCATION_INVALID: '발견 장소를 확인해 주세요.',
+  HUMAN_SIGHTING_PHOTOS_INCOMPLETE: '서로 다른 방향의 사진 5장 이상이 필요합니다.',
+  HUMAN_SIGHTING_ANGLES_INCOMPLETE: '서로 다른 방향의 사진 5장 이상이 필요합니다.',
+  HUMAN_SIGHTING_ALREADY_SUBMITTED: '이미 제출한 제보입니다.',
+  HUMAN_SIGHTING_NOT_FOUND: '제보를 찾지 못했습니다. 화면을 새로 열어 주세요.',
+  HUMAN_SIGHTING_PHOTO_SLOT_INVALID: '사진은 최대 10장까지 등록할 수 있습니다.',
 });
 
-async function payload(response) {
-  try { return await response.json(); } catch { return {}; }
-}
+// Framing refusals read differently per slot: a face slot needs the whole face,
+// the body slots need the upper body or the whole figure.
+const IDENTITY_FRAMING_MESSAGES = Object.freeze({
+  upper: '상반신이 충분히 보이지 않습니다. 머리부터 허리까지 정면에서 다시 촬영해 주세요.',
+  full: '전신이 충분히 보이지 않습니다. 머리부터 발끝까지 한 장에 담기도록 다시 촬영해 주세요.',
+});
 
-function apiError(response, body, fallback) {
-  const detail = body && typeof body.detail === 'object' ? body.detail : {};
-  const code = typeof detail.code === 'string' ? detail.code : `HTTP_${response.status}`;
-  const message = MESSAGES[code]
-    || (response.status >= 500 ? '서버에 일시적인 문제가 있습니다. 잠시 후 다시 시도해 주세요.' : fallback);
-  return new SiteCoreError(message, {code, status: response.status, retryable: response.status >= 500});
-}
-
-async function jsonRequest(path, sessionToken, {method = 'GET', body, idempotent = false} = {}, fetchImpl = globalThis.fetch) {
-  const headers = {Authorization: `Bearer ${token(sessionToken)}`};
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (idempotent) headers['Idempotency-Key'] = requestKey();
-  let response;
-  try {
-    response = await fetchImpl(`${CORE_ORIGIN}${path}`, {
-      method, mode: 'cors', credentials: 'omit', headers,
-      ...(body !== undefined ? {body: JSON.stringify(body)} : {}),
-    });
-  } catch {
-    throw new SiteCoreError('안심케어 서버에 연결하지 못했습니다.', {code: 'PERSON_NETWORK_ERROR', retryable: true});
+// SAFECARE-PHOTO-UPLOAD-FIX-03: "촬영 방향이 맞지 않습니다" did not tell a
+// guardian whether the head was turned too far, too little or the other way.
+// Core returns one code; the slot says which view it needed.
+function identityPoseMessage(slot) {
+  const side = slot?.direction === 'right' ? '오른쪽' : '왼쪽';
+  if (slot?.view === 'turn' && slot?.extra) {
+    return `방향이 맞지 않습니다. 사진 속 얼굴이 화면 ${side}을 바라보도록 고개를 돌린 사진을 선택해 주세요. 셀카는 좌우가 바뀌어 저장될 수 있습니다.`;
   }
-  const data = response.status === 204 ? {} : await payload(response);
-  if (!response.ok) throw apiError(response, data, '요청을 완료하지 못했습니다.');
-  return data;
+  if (slot?.view === 'turn') {
+    return `45도 각도가 아닙니다. 두 눈·코·입이 모두 보이도록 고개를 반쯤만 돌려 주세요. 눈이 한쪽만 보이면 '${side} 옆면' 칸에 올려 주세요. 셀카는 좌우가 바뀌어 저장될 수 있으니 사진 속 얼굴이 화면 ${side}을 보는지 확인해 주세요.`;
+  }
+  if (slot?.view === 'profile') {
+    const other = slot?.direction === 'right' ? '왼쪽' : '오른쪽';
+    return `옆면 사진이 아닙니다. 고개를 조금 더 옆으로 돌려 주세요. 사진 속 얼굴이 화면 ${side}을 바라봐야 합니다(화면 ${other}을 보면 '${other} 옆면' 칸). 두 눈이 다 보이면 '${side} 45도' 칸에 올려 주세요.`;
+  }
+  return '정면 사진이 아닙니다. 카메라를 똑바로 바라본 사진을 선택해 주세요.';
 }
 
-export async function listPersonProfiles(sessionToken, fetchImpl = globalThis.fetch) {
-  const data = await jsonRequest(BASE, sessionToken, {}, fetchImpl);
-  return Array.isArray(data.people) ? data.people : [];
+export function personIdentityPhotoErrorMessage(error, slot, fallback) {
+  const code = error && typeof error === 'object' && typeof error.code === 'string' ? error.code : '';
+  const body = slot?.view === 'upper' || slot?.view === 'full';
+  if (code === 'PERSON_IDENTITY_PHOTO_WRONG_POSE' && slot) return identityPoseMessage(slot);
+  // A real person whose turned face could not be judged (FIX-03: a head turned
+  // a little past the side) hears what to change, not just "no face".
+  if (code === 'PERSON_IDENTITY_PHOTO_NO_FACE' && slot?.view === 'profile') {
+    return '옆얼굴을 확인할 수 없습니다. 고개를 옆보다 더 뒤로 돌리지 말고, 한쪽 눈과 코끝이 보이게 얼굴이 화면에 충분히 들어오도록 다시 찍어 주세요.';
+  }
+  // PROFILE-SLOT-ACCEPTANCE-01: a refused side photo says what to change, not
+  // "try again" — the guardian had retaken slot 4 about twenty times.
+  if (code === 'PERSON_IDENTITY_PHOTO_IDENTITY_UNCLEAR' && slot?.view === 'profile') {
+    return '같은 사람인지 확인하기 어렵습니다. 고개를 아주 조금만 덜 돌려, 한쪽 눈과 코끝·입 옆선이 선명하게 보이게 다시 찍어 주세요.';
+  }
+  if (code === 'PERSON_IDENTITY_PHOTO_OCCLUDED' && slot?.view === 'profile') {
+    return '얼굴이 가려져 있습니다. 눈·코·입 옆선이 가리지 않게 다시 찍어 주세요. 머리카락이 귀를 조금 가리는 것은 괜찮습니다.';
+  }
+  if (code === 'PERSON_IDENTITY_PHOTO_NO_FACE' && slot?.view === 'turn') {
+    return '얼굴을 확인할 수 없습니다. 두 눈·코·입이 모두 보이게 고개를 반쯤만 돌려 다시 찍어 주세요.';
+  }
+  if (code === 'PERSON_IDENTITY_PHOTO_WRONG_FRAMING') {
+    return IDENTITY_FRAMING_MESSAGES[slot?.view] || '얼굴 전체가 화면 안에 들어오지 않았습니다. 이마부터 턱까지 잘리지 않게 다시 촬영해 주세요.';
+  }
+  if (code === 'PERSON_IDENTITY_PHOTO_SUBJECT_TOO_SMALL' && !body) {
+    return '얼굴이 너무 작게 나왔습니다. 얼굴이 조금 더 크게 보이게 가까이에서 다시 촬영해 주세요.';
+  }
+  return personErrorMessage(error, fallback);
 }
 
-export async function createPersonProfile(sessionToken, input, fetchImpl = globalThis.fetch) {
-  const data = await jsonRequest(BASE, sessionToken, {method: 'POST', body: input, idempotent: true}, fetchImpl);
-  if (!data.person?.person_id) throw new SiteCoreError('사람 등록 응답이 올바르지 않습니다.', {code: 'PERSON_CONTRACT_INVALID'});
-  return data.person;
+export function personErrorMessage(error, fallback) {
+  const code = error && typeof error === 'object' && typeof error.code === 'string' ? error.code : '';
+  if (PERSON_ERROR_MESSAGES[code]) return PERSON_ERROR_MESSAGES[code];
+  const status = error && typeof error === 'object' ? error.status : 0;
+  if (status === 401) return '로그인이 만료되었습니다. 다시 로그인해 주세요.';
+  if (status === 413) return '사진 용량이 너무 큽니다. 더 작은 사진을 선택해 주세요.';
+  if (status === 429) return '요청이 많습니다. 잠시 후 다시 시도해 주세요.';
+  if (status >= 500) return '서버에 일시적인 문제가 있습니다. 잠시 후 다시 시도해 주세요.';
+  return fallback;
 }
 
-export async function uploadPersonPhoto(sessionToken, personId, revision, photoDataUri, fetchImpl = globalThis.fetch) {
-  const data = await jsonRequest(`${BASE}/${encodeURIComponent(personId)}/photo`, sessionToken, {
-    method: 'PUT', body: {expected_revision: revision, photo_data_uri: photoDataUri}, idempotent: true,
-  }, fetchImpl);
-  return data.person;
-}
-
-export async function deletePersonProfile(sessionToken, personId, revision, fetchImpl = globalThis.fetch) {
-  await jsonRequest(`${BASE}/${encodeURIComponent(personId)}?expected_revision=${revision}`, sessionToken, {method: 'DELETE'}, fetchImpl);
-}
-
-export async function personThumbnailUrl(sessionToken, personId, fetchImpl = globalThis.fetch) {
-  const response = await fetchImpl(`${CORE_ORIGIN}${BASE}/${encodeURIComponent(personId)}/photo/thumbnail`, {
-    method: 'GET', mode: 'cors', credentials: 'omit', headers: {Authorization: `Bearer ${token(sessionToken)}`},
-  });
-  if (!response.ok) throw apiError(response, await payload(response), '사진을 불러오지 못했습니다.');
+// Private photo bytes for an on-screen preview only. Same bearer session, no
+// cookies, no referrer; the object URL never leaves this tab.
+async function privateObjectUrl(path, sessionToken, fetchImpl = globalThis.fetch) {
+  let response;
+  try { response = await fetchImpl(`${CORE_ORIGIN}${path}`, {method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', headers: {Authorization: `Bearer ${token(sessionToken)}`}}); }
+  catch { throw new SiteCoreError('사진을 불러오지 못했습니다.', {code: 'PERSON_NETWORK_ERROR', retryable: true}); }
+  if (!response.ok) throw new SiteCoreError('사진을 불러오지 못했습니다.', {code: `HTTP_${response.status}`, status: response.status});
   return URL.createObjectURL(await response.blob());
 }
+export function fetchPersonIdentityPhotoObjectUrl(sessionToken, personId, slotIndex, fetchImpl) { return privateObjectUrl(`/v2/person-profiles/${encodeURIComponent(personId)}/identity-photos/${slotIndex}/content`, sessionToken, fetchImpl); }
+export function fetchHumanSightingPhotoObjectUrl(sessionToken, reportId, slotIndex, fetchImpl) { return privateObjectUrl(`/v2/safecare/human-sightings/${encodeURIComponent(reportId)}/photos/${slotIndex}/content`, sessionToken, fetchImpl); }

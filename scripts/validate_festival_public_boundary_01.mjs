@@ -11,10 +11,10 @@
 // having real festival rows in it.
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const client = await import(path.join(ROOT, 'site-festival-client.js'));
+const client = await import(pathToFileURL(path.join(ROOT, 'site-festival-client.js')).href);
 
 const {
   FESTIVAL_STATUS,
@@ -189,7 +189,7 @@ function capturingFetch(handler) {
   const insecureHomepagePage = await browseFestivals({latitude: 37.5, longitude: 127.0}, jsonFetch(withInsecureHomepage));
   assert.equal(insecureHomepagePage.festivals[0].homepageUrl, '', 'a non-https homepage_url must never reach the card');
 
-  // 상시 운영 rows are the one shape allowed through with no real date range at
+  // 장기 운영 rows are the one shape allowed through with no real date range at
   // all -- every other row is still rejected without both start/end dates.
   const alwaysOpenNoDates = {
     ...raw,

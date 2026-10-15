@@ -51,6 +51,12 @@
   gap: 5px;
 }
 
+/* COMMON-UI-POLISH-01 (QA #17) — display:flex above outranks the UA [hidden]
+   rule, so the empty '고정' heading stayed on screen with no pinned chat. */
+.nav-section[hidden] {
+  display: none;
+}
+
 .nav-section-title {
   margin: 0 10px 7px;
   color: var(--lotbi-text-primary, var(--text, #212121));
@@ -166,8 +172,9 @@
 }
 
 .mobile-menu-button {
-  width: 44px;
-  height: 44px;
+  /* USER_FIRST_STANDARD 6 — 48px touch target (was 44). */
+  width: 48px;
+  height: 48px;
   padding: 0;
   display: none;
   place-items: center;
@@ -211,8 +218,14 @@
 }
 
 .account-login {
+  /* The fill follows the theme with its ink: a fixed translucent white fill
+     under the dark theme's white ink left 로그인 at 1.69:1 on the mobile header.
+     SITE-HEADER-AUTH-BUTTONS-DARK-01 — no fill of its own: the topbar under
+     it is the surface its theme ink is chosen for, so Dark no longer shows a
+     second, slightly different dark pill on the navy topbar. Dark edge:
+     site-theme-tokens.css. */
   border: 1px solid var(--brand-line);
-  background: rgba(255, 255, 255, .72);
+  background: transparent;
   color: var(--lotbi-text-primary, var(--text, #212121));
 }
 
@@ -419,8 +432,8 @@
   }
 
   .mobile-drawer-close {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     padding: 0;
     border-radius: 10px;
     font-size: 26px;
@@ -451,8 +464,8 @@
   }
 
   .mobile-menu-button {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
   }
 
   .account-actions {
@@ -460,7 +473,8 @@
   }
 
   .account-action {
-    min-height: 36px;
+    /* COMMON-UI-POLISH-01 (QA #20) — 36px was below the 44px touch floor. */
+    min-height: 44px;
     padding: 7px 11px;
     font-size: 12px;
   }
@@ -537,3 +551,7 @@
     transition: none !important;
   }
 }
+
+/* CONVERSATION-ANSWER-UX-01 (QA #11): Korean words wrap whole ("내용은",
+   "찾아보세요."); a single word too long for its line still breaks. */
+body { word-break: keep-all; overflow-wrap: break-word; }

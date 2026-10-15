@@ -2,6 +2,9 @@ const NAVER_MAPS_WEB_APPNAME = 'https://lotbiai.com';
 const NAVER_MAPS_ANDROID_PACKAGE = 'com.nhn.android.nmap';
 const NAVER_MAPS_WEB_SEARCH_BASE = 'https://map.naver.com/p/search/';
 const NAVIGATION_TTL_MS = 60 * 60 * 1000;
+// NAVER geocoding for Place results; 국립중앙의료원 registry WGS84 for the
+// LIFE-PUBLIC-DATA-01 medical results. Both are provider-confirmed points.
+const NAVIGATION_COORDINATE_AUTHORITIES = new Set(['NAVER_MAPS_GEOCODING', 'NMC_OFFICIAL']);
 
 // SITE-PLACE-CARD-MAP-DEEPLINK-01 — KakaoMap과 티맵 손잡이.
 //
@@ -44,7 +47,7 @@ function normalizeVerifiedPhoto(place) {
       || !(host === 'googleusercontent.com' || host.endsWith('.googleusercontent.com'))
       || evidence.provider !== 'GOOGLE_PLACES'
       || evidence.verification_state !== 'VERIFIED'
-      || !['EXACT_NAME_AND_ADDRESS', 'EXACT_NAME_AND_80M_COORDINATE'].includes(text(evidence.match_basis))
+      || !['EXACT_NAME_AND_ADDRESS', 'EXACT_NAME_AND_PHONE', 'EXACT_NAME_AND_80M_COORDINATE'].includes(text(evidence.match_basis))
       || !text(evidence.provider_place_id)
       || !Number.isFinite(Date.parse(text(evidence.fetched_at)))
     ) return Object.freeze({url: '', evidence: null});
@@ -85,6 +88,75 @@ export function buildVerifiedPhoneHref(place) {
   return normalizeVerifiedPhone({phone: number, phone_verified: true}).href;
 }
 
+// LIFE-PUBLIC-DATA-01 / NIGHT MEDICAL. 국립중앙의료원 등록 진료시간·응급실 실시간 보고.
+// Only what Core sent is kept; ER bed numbers survive only for a FRESH report.
+const OPEN_STATES = new Set(['OPEN', 'CLOSED', 'NOT_LISTED', 'LISTED', 'ALL_DAY']);
+const REALTIME_STATES = new Set(['FRESH', 'STALE', 'UNAVAILABLE', 'NOT_CHECKED']);
+const KINDS = new Set(['HOSPITAL', 'PHARMACY', 'EMERGENCY']);
+const SAFE_TEXT_RE = /[\u0000-\u001f<>]/gu;
+
+function boundedText(value, max = 80) {
+  return typeof value === 'string' ? value.replace(SAFE_TEXT_RE, ' ').replace(/\s+/gu, ' ').trim().slice(0, max) : '';
+}
+
+export function normalizeMedicalStatus(value) {
+  if (!value || typeof value !== 'object') return null;
+  const kind = boundedText(value.kind).toUpperCase();
+  const openState = boundedText(value.open_state).toUpperCase();
+  if (!KINDS.has(kind) || !OPEN_STATES.has(openState) || value.basis !== 'NMC_REGISTERED_HOURS') return null;
+  return Object.freeze({
+    kind,
+    openState,
+    hoursLabel: boundedText(value.hours_label, 60),
+    targetLabel: boundedText(value.target_label, 40),
+    // Core could not read this year's public holidays: hours are by weekday.
+    holidayUnverified: value.holiday_basis === 'UNVERIFIED_YEAR',
+    badges: Object.freeze((Array.isArray(value.status_badges) ? value.status_badges : [])
+      .map(item => boundedText(item, 24).toUpperCase())
+      .filter(item => ['NIGHT', 'HOLIDAY', 'ALL_DAY', 'CLOSING_SOON'].includes(item))
+      .slice(0, 4)),
+  });
+}
+
+// JEONBUK-PILOT-01. 전북특별자치도 의료기관 현황: 종별·진료과목·등록 상태 only.
+// It never carries hours, so it can never make a card say "진료 중".
+const REGISTRY_STATES = new Set(['ACTIVE', 'CLOSED_IN_REGISTRY', 'SUSPENDED_IN_REGISTRY', 'UNKNOWN']);
+
+export function normalizeMedicalRegistry(value) {
+  if (!value || typeof value !== 'object' || value.source !== 'JEONBUK_MEDICAL_REGISTRY' || value.hours_provided !== false) return null;
+  const registryState = boundedText(value.registry_state).toUpperCase();
+  if (!REGISTRY_STATES.has(registryState)) return null;
+  return Object.freeze({
+    institutionType: boundedText(value.institution_type, 30),
+    departments: Object.freeze((Array.isArray(value.departments) ? value.departments : []).map(item => boundedText(item, 20)).filter(Boolean).slice(0, 8)),
+    registryState,
+    registryOnly: value.registry_only === true,
+  });
+}
+
+export function normalizeEmergencyStatus(value) {
+  if (!value || typeof value !== 'object') return null;
+  const realtimeState = boundedText(value.realtime_state).toUpperCase();
+  if (!REALTIME_STATES.has(realtimeState) || value.acceptance_guaranteed !== false) return null;
+  const fresh = realtimeState === 'FRESH';
+  const beds = fresh && Array.isArray(value.beds)
+    ? value.beds
+      .filter(item => item && typeof item === 'object' && Number.isInteger(item.available) && boundedText(item.label))
+      .slice(0, 9)
+      .map(item => Object.freeze({label: boundedText(item.label, 20), available: item.available}))
+    : [];
+  return Object.freeze({
+    realtimeState,
+    updatedAtLabel: boundedText(value.updated_at_label, 20),
+    beds: Object.freeze(beds),
+    erOperating: value.er_operating === true ? true : (value.er_operating === false ? false : null),
+    severeAcceptanceReported: Object.freeze(
+      (Array.isArray(value.severe_acceptance_reported) ? value.severe_acceptance_reported : []).map(item => boundedText(item, 20)).filter(Boolean).slice(0, 12),
+    ),
+    messages: Object.freeze((Array.isArray(value.messages) ? value.messages : []).map(item => boundedText(item, 120)).filter(Boolean).slice(0, 2)),
+  });
+}
+
 const FOOD_LICENSE_STATES = new Set(['VERIFIED', 'AMBIGUOUS', 'NOT_FOUND', 'CONFLICTING', 'UNAVAILABLE']);
 
 function normalizeFoodLicenseVerification(value) {
@@ -99,6 +171,48 @@ function normalizeFoodLicenseVerification(value) {
   });
 }
 
+// LIFE-PUBLIC-DATA-01 / ANIMAL HOSPITAL. 행정안전부 동물병원 등록 대조 결과.
+// "공식 등록"은 Core 가 공공 대조에 성공했다고 밝힌 경우(VERIFIED + true)에만
+// 말한다. NAVER 에 나온다는 사실만으로는 등록 병원이라고 하지 않는다.
+const ANIMAL_HOSPITAL_STATES = new Set(['VERIFIED', 'INACTIVE', 'AMBIGUOUS', 'NOT_FOUND', 'CONFLICTING', 'UNAVAILABLE']);
+
+function normalizeAnimalHospitalVerification(value) {
+  if (!value || typeof value !== 'object') return null;
+  const state = text(value.state).toUpperCase();
+  if (!ANIMAL_HOSPITAL_STATES.has(state)) return null;
+  if (text(value.source) !== 'MOIS_ANIMAL_HOSPITAL' || value.ai_calls !== 0) return null;
+  return Object.freeze({
+    state,
+    source: 'MOIS_ANIMAL_HOSPITAL',
+    officialRegistered: state === 'VERIFIED' && value.official_registered === true,
+    administrativeStatus: ['VERIFIED', 'INACTIVE'].includes(state) ? text(value.administrative_status) : '',
+  });
+}
+
+function normalizeDistanceMeters(value) {
+  return Number.isInteger(value) && value >= 0 && value <= 300_000 ? value : null;
+}
+
+export function formatDistanceMeters(meters) {
+  if (!Number.isInteger(meters)) return '';
+  return meters < 1000 ? `${meters}m` : `${(meters / 1000).toFixed(1)}km`;
+}
+
+// One short status line under the address. Empty when the result itself states
+// nothing — no line is ever invented for an ordinary place.
+export function placeLifeBadges(place) {
+  const badges = [];
+  const verification = place?.animalHospitalVerification;
+  if (verification) {
+    if (verification.officialRegistered) badges.push({kind: 'registration', state: 'OFFICIAL_REGISTERED', label: '공식 등록 동물병원'});
+    else if (verification.state === 'INACTIVE') badges.push({kind: 'registration', state: 'INACTIVE', label: '등록 상태 확인 필요'});
+    else badges.push({kind: 'registration', state: 'UNVERIFIED', label: '공식 등록 확인 안 됨'});
+  }
+  const distance = formatDistanceMeters(place?.distanceMeters);
+  if (distance) badges.push({kind: 'distance', state: 'DISTANCE', label: distance});
+  return badges;
+}
+
 function coordinateReady(place) {
   const latitude = finiteCoordinate(place?.latitude);
   const longitude = finiteCoordinate(place?.longitude);
@@ -109,7 +223,7 @@ function coordinateReady(place) {
     && longitude >= 122.37
     && longitude <= 132
     && text(place?.coordinate_system).toUpperCase() === 'WGS84'
-    && text(place?.coordinate_authority) === 'NAVER_MAPS_GEOCODING'
+    && NAVIGATION_COORDINATE_AUTHORITIES.has(text(place?.coordinate_authority))
     && place?.navigation_capability === true;
 }
 
@@ -118,15 +232,23 @@ function normalizePlace(place, index) {
   const name = text(place.name);
   const address = text(place.road_address) || text(place.address);
   if (!name || !address) return null;
+  const medicalStatus = normalizeMedicalStatus(place.medical_status);
+  const emergencyStatus = normalizeEmergencyStatus(place.emergency_status);
+  const medicalRegistry = normalizeMedicalRegistry(place.medical_registry);
   const latitude = finiteCoordinate(place.latitude);
   const longitude = finiteCoordinate(place.longitude);
   const sourceUrl = text(place.source_url);
   const verifiedPhone = normalizeVerifiedPhone(place);
   const verifiedPhoto = normalizeVerifiedPhoto(place);
   const foodLicenseVerification = normalizeFoodLicenseVerification(place.food_license_verification);
+  const animalHospitalVerification = normalizeAnimalHospitalVerification(place.animal_hospital_verification);
+  const distanceMeters = normalizeDistanceMeters(place.distance_meters);
   return Object.freeze({
     candidateIndex: index,
     resultId: text(place.result_id) || `place-${index + 1}`,
+    medicalStatus,
+    emergencyStatus,
+    medicalRegistry,
     placeId: text(place.place_id),
     name,
     category: text(place.category),
@@ -142,16 +264,33 @@ function normalizePlace(place, index) {
     phoneHref: verifiedPhone.href,
     phoneVerified: Boolean(verifiedPhone.href),
     foodLicenseVerification,
+    animalHospitalVerification,
+    distanceMeters,
     navigationCapable: coordinateReady(place),
   });
 }
 
-export function normalizePlaceResult(value, {capturedAt = Date.now()} = {}) {
+// CONVERSATION-ANSWER-UX-01 (QA #9): NAVER's category is a path such as
+// "여행,명소>동물원" or "음식점>한식>소고기구이". A card shows its last, most
+// specific step; a step that still lists several names reads "카페·디저트".
+// The raw value stays in the result for everything else that reads it.
+export function placeCategoryLabel(category) {
+  const value = typeof category === 'string' ? category.trim() : '';
+  if (!value) return '';
+  const steps = value.split('>').map(step => step.trim()).filter(Boolean);
+  const last = steps.length ? steps[steps.length - 1] : value;
+  return last.split(',').map(part => part.trim()).filter(Boolean).join('·').slice(0, 40);
+}
+
+// A conversation card rail keeps at most five places; the 지역정보 병원·응급실·약국
+// screen (LIFE-MEDICAL-MERGE-01) lists more and passes its own limit.
+export function normalizePlaceResult(value, {capturedAt = Date.now(), limit = 5} = {}) {
   if (!value || typeof value !== 'object') return null;
   if (value.contract_id !== 'CORE-PLACE-RESULT-01' || value.schema_version !== 1) return null;
   const resultSetId = text(value.result_set_id);
   if (!/^plrs_[0-9a-f]{20}$/u.test(resultSetId) || !Array.isArray(value.results)) return null;
-  const results = value.results.slice(0, 5).map(normalizePlace).filter(Boolean);
+  const cap = Number.isInteger(limit) && limit >= 1 && limit <= 15 ? limit : 5;
+  const results = value.results.slice(0, cap).map(normalizePlace).filter(Boolean);
   if (!results.length) return null;
   return Object.freeze({
     contractId: value.contract_id,
@@ -178,10 +317,82 @@ export function isPlaceResultFresh(placeResult, now = Date.now()) {
 // wrong place in NAVER/TMAP search. The 120-char cap is a defensive upper
 // bound for the URL, not an address truncation; real Korean addresses stay
 // far under it even combined with a venue/festival name.
+//
+// EV-CHARGER-MAP-LINK-FIX-01 — a place may carry its own `searchText`. A charger
+// station's name ("전북 전주 세이브존2(7kW)", "오거리", "… 아파트 4") is not a place
+// NAVER can search for, so the name+address query answered "조건에 맞는 업체가
+// 없습니다" and left the map on its default view. That card passes the official
+// WGS84 point ("lat,lng") instead, which NAVER resolves to the address at that
+// point and pins. Places without searchText are unchanged.
 function searchQuery(place) {
+  const own = text(place?.searchText);
+  if (own) return own.slice(0, 120);
   const name = text(place?.name);
   const address = text(place?.address);
   return [name, address].filter(Boolean).join(' ').slice(0, 120);
+}
+
+// PLACE-CARD-NAVER-SEARCH-CLICK-01 — 카드 본문은 지도가 아니라 네이버 "검색"
+// 결과(메뉴·사진·리뷰·영업정보·블로그)로 연다. 검색어는 장소 이름 그대로에
+// 지역 하나만 앞에 붙인다. 지역은 사용자가 검색에 쓴 말(Core query) 중 이
+// 장소 주소의 행정구역과 맞는 것을 먼저 쓰고, 없으면 주소의 시·군(구)을 쓴다.
+// 이름에 이미 그 지역이 들어 있으면 붙이지 않는다. 주소 전체나 query 의 다른
+// 단어("메뉴" 등)는 절대 넣지 않는다.
+const NAVER_SEARCH_URL = 'https://search.naver.com/search.naver';
+const ADMIN_AREA_SUFFIX_RE = /(특별자치도|특별자치시|특별시|광역시|도|시|군|구|읍|면|동)$/u;
+const MUNICIPAL_RE = /^[가-힣]{2,}(특별자치시|특별시|광역시|시|군)$/u;
+const DISTRICT_RE = /^[가-힣]{1,}구$/u;
+
+function compactText(value) {
+  return text(value).replace(/\s+/gu, '');
+}
+
+function shortAreaName(token) {
+  const short = token.replace(ADMIN_AREA_SUFFIX_RE, '');
+  return short.length >= 2 ? short : token;
+}
+
+function addressAreaTokens(address) {
+  return text(address).split(/\s+/u).slice(0, 4).filter(token => /^[가-힣]+$/u.test(token) && ADMIN_AREA_SUFFIX_RE.test(token));
+}
+
+function regionFromSearchContext(searchContext, address) {
+  const forms = new Set();
+  for (const token of addressAreaTokens(address)) {
+    forms.add(token);
+    forms.add(shortAreaName(token));
+  }
+  for (const token of text(searchContext).split(/\s+/u)) {
+    if (forms.has(token)) return token;
+  }
+  return '';
+}
+
+function regionFromAddress(address) {
+  const tokens = addressAreaTokens(address).slice(0, 3);
+  const municipal = tokens.find(token => MUNICIPAL_RE.test(token));
+  if (municipal) return shortAreaName(municipal);
+  return tokens.find(token => DISTRICT_RE.test(token)) || '';
+}
+
+export function buildNaverPlaceSearchQuery(place, {searchContext = ''} = {}) {
+  // Control characters out, whitespace collapsed. Nothing else is stripped: the
+  // query only ever travels URL-encoded in a search parameter.
+  const name = text(place?.name).replace(/[\u0000-\u001f\u007f]/gu, ' ').replace(/\s+/gu, ' ').trim().slice(0, 80);
+  if (!name) return '';
+  const address = text(place?.address) || text(place?.road_address);
+  const region = regionFromSearchContext(searchContext, address) || regionFromAddress(address);
+  const compactName = compactText(name);
+  if (!region || compactName.includes(compactText(region)) || compactName.includes(shortAreaName(region))) return name;
+  return `${region} ${name}`;
+}
+
+export function buildNaverPlaceSearchUrl(place, options = {}) {
+  const query = buildNaverPlaceSearchQuery(place, options);
+  if (!query) throw new TypeError('place search query is required');
+  const url = new URL(NAVER_SEARCH_URL);
+  url.searchParams.set('query', query);
+  return url.href;
 }
 
 function navigationParams(place, appname) {
@@ -219,9 +430,14 @@ export function buildNaverMapsAndroidIntentUri(place, {appname = NAVER_MAPS_WEB_
 }
 
 export function buildNaverMapsWebSearchUrl(place) {
-  const query = searchQuery(place);
+  const destination = destinationCoordinates(place);
+  const exactNaverPlace = destination && text(place?.placeId).startsWith('naver:');
+  const query = exactNaverPlace ? text(place?.name) : searchQuery(place);
   if (!query) throw new TypeError('place search query is required');
-  return NAVER_MAPS_WEB_SEARCH_BASE + encodeURIComponent(query);
+  const searchUrl = NAVER_MAPS_WEB_SEARCH_BASE + encodeURIComponent(query);
+  return exactNaverPlace
+    ? `${searchUrl}?c=${destination.longitude},${destination.latitude},15,0,0,0,dh`
+    : searchUrl;
 }
 
 // 좌표는 navigation_capability 가 참일 때만 쓴다. NAVER 버튼이 지키는 규칙과
@@ -257,6 +473,30 @@ export function buildKakaoNaviHandoffUrl(place, {origin = 'https://lotbiai.com'}
   url.searchParams.set('x', String(payload.x));
   url.searchParams.set('y', String(payload.y));
   url.searchParams.set('coordType', 'wgs84');
+  return url.href;
+}
+
+export function buildKakaoMapsDirectionsUrl(place) {
+  const payload = buildKakaoNaviSdkPayload(place);
+  return `https://map.kakao.com/link/to/${encodeURIComponent(payload.name)},${payload.y},${payload.x}`;
+}
+
+export function buildKakaoMapsSearchUrl(place) {
+  const query = searchQuery(place);
+  if (!query) throw new TypeError('place search query is required');
+  const url = new URL('https://map.kakao.com/');
+  url.searchParams.set('q', query);
+  return url.href;
+}
+
+export function buildIosMapHandoffUrl(provider, place, {origin = 'https://lotbiai.com'} = {}) {
+  if (provider !== 'NAVER_MAP' && provider !== 'TMAP') throw new TypeError('unsupported iOS handoff provider');
+  const nativeUri = provider === 'NAVER_MAP' ? buildNaverMapsMobileUri(place) : buildTmapMobileUri(place);
+  const fallbackUri = buildNaverMapsWebSearchUrl(place);
+  const url = new URL('/map-handoff.html', origin);
+  url.searchParams.set('provider', provider);
+  url.searchParams.set('native', nativeUri);
+  url.searchParams.set('fallback', fallbackUri);
   return url.href;
 }
 
@@ -297,14 +537,15 @@ export function isTmapHandoffAvailable({userAgent = globalThis.navigator?.userAg
   return android || ios;
 }
 
-function openNewBrowsingContext(windowRef, uri) {
+function openNewBrowsingContext(windowRef, uri, {preloadUri = ''} = {}) {
   if (!windowRef || typeof windowRef.open !== 'function') {
     return Object.freeze({opened: false, child: null});
   }
   try {
-    const child = windowRef.open(uri, '_blank', 'noopener,noreferrer');
+    const child = windowRef.open(preloadUri || uri, '_blank', 'noopener,noreferrer');
     if (!child) return Object.freeze({opened: false, child: null});
     child.opener = null;
+    if (preloadUri && child.location) child.location.href = uri;
     return Object.freeze({opened: true, child});
   } catch {
     return Object.freeze({opened: false, child: null});
@@ -314,16 +555,31 @@ function openNewBrowsingContext(windowRef, uri) {
 export function openKakaoNaviPlace(place, {
   windowRef = globalThis.window,
   origin = globalThis.location?.origin || 'https://lotbiai.com',
+  userAgent = globalThis.navigator?.userAgent || '',
 } = {}) {
   if (!place || typeof place !== 'object') return Object.freeze({opened: false, mode: 'BLOCKED'});
   let uri = '';
+  let fallbackUri = '';
   try {
-    uri = buildKakaoNaviHandoffUrl(place, {origin});
+    const {android, ios} = mobilePlatform(userAgent);
+    const mobile = android || ios;
+    fallbackUri = place.navigationCapable === true
+      ? buildKakaoMapsDirectionsUrl(place)
+      : buildKakaoMapsSearchUrl(place);
+    uri = mobile && place.navigationCapable === true
+      ? buildKakaoNaviHandoffUrl(place, {origin})
+      : fallbackUri;
   } catch {
     return Object.freeze({opened: false, mode: 'BLOCKED'});
   }
   const result = openNewBrowsingContext(windowRef, uri);
-  return Object.freeze({opened: result.opened, mode: result.opened ? 'KAKAO_NAVI_OFFICIAL_SDK_NEW_TAB' : 'BLOCKED', uri});
+  const web = uri === fallbackUri;
+  return Object.freeze({
+    opened: result.opened,
+    mode: result.opened ? (web ? 'KAKAO_MAPS_WEB_NEW_TAB' : 'KAKAO_NAVI_OFFICIAL_SDK_NEW_TAB') : 'BLOCKED',
+    uri,
+    fallbackUri,
+  });
 }
 
 export function openTmapPlace(place, {
@@ -332,18 +588,24 @@ export function openTmapPlace(place, {
 } = {}) {
   if (!windowRef || !place || typeof place !== 'object') return Object.freeze({opened: false, mode: 'BLOCKED'});
   const {android, ios} = mobilePlatform(userAgent);
-  if (!android && !ios) return Object.freeze({opened: false, mode: 'TMAP_MOBILE_ONLY'});
-  const uri = android ? buildTmapAndroidIntentUri(place) : buildTmapMobileUri(place);
-  const result = openNewBrowsingContext(windowRef, uri);
+  const webFallback = buildNaverMapsWebSearchUrl(place);
+  const uri = !android && !ios
+    ? buildNaverMapsWebSearchUrl(place)
+    : android
+      ? buildTmapAndroidIntentUri(place)
+      : buildTmapMobileUri(place);
+  const result = openNewBrowsingContext(windowRef, uri, {preloadUri: ios ? webFallback : ''});
   return Object.freeze({
     opened: result.opened,
     mode: result.opened
-      ? (place.navigationCapable
+      ? (!android && !ios
+        ? 'TMAP_DESKTOP_NAVER_WEB_FALLBACK'
+        : place.navigationCapable
         ? (android ? 'TMAP_ROUTE_INTENT_NEW_TAB' : 'TMAP_ROUTE_URL_SCHEME_NEW_TAB')
         : (android ? 'TMAP_SEARCH_INTENT_NEW_TAB' : 'TMAP_SEARCH_URL_SCHEME_NEW_TAB'))
       : 'BLOCKED',
     uri,
-    fallbackUri: android ? TMAP_ANDROID_STORE_URL : TMAP_IOS_STORE_URL,
+    fallbackUri: android ? TMAP_ANDROID_STORE_URL : webFallback,
   });
 }
 
@@ -365,7 +627,7 @@ export function openGoogleMapsPlace(place, {windowRef = globalThis.window} = {})
     return Object.freeze({opened: false, mode: 'BLOCKED'});
   }
   const result = openNewBrowsingContext(windowRef, uri);
-  return Object.freeze({opened: result.opened, mode: result.opened ? 'GOOGLE_MAPS_NEW_TAB' : 'BLOCKED', uri});
+  return Object.freeze({opened: result.opened, mode: result.opened ? 'GOOGLE_MAPS_NEW_TAB' : 'BLOCKED', uri, fallbackUri: uri});
 }
 
 export function naverMapsPlaceActionLabel(place, {userAgent = globalThis.navigator?.userAgent || ''} = {}) {
@@ -386,7 +648,7 @@ export function openNaverMapsPlace(place, {
     : ios
       ? buildNaverMapsMobileUri(place)
       : webUrl;
-  const result = openNewBrowsingContext(windowRef, uri);
+  const result = openNewBrowsingContext(windowRef, uri, {preloadUri: ios ? webUrl : ''});
   return Object.freeze({
     opened: result.opened,
     mode: result.opened
@@ -399,4 +661,47 @@ export function openNaverMapsPlace(place, {
     uri,
     fallbackUri: webUrl,
   });
+}
+
+const DEFAULT_MAP_PRESENTATION = Object.freeze({
+  NAVER_MAP: Object.freeze({action: 'naver-map', icon: 'naver-map', label: '네이버지도', success: '선택한 장소를 네이버지도에서 엽니다.'}),
+  KAKAO_NAVI: Object.freeze({action: 'kakao-navi', icon: 'kakao-map', label: '카카오내비', success: '선택한 장소를 카카오내비 길안내로 연결합니다.'}),
+  TMAP: Object.freeze({action: 'tmap', icon: 'tmap', label: '티맵', success: '선택한 장소를 티맵 길안내로 연결합니다.'}),
+  GOOGLE_MAPS: Object.freeze({action: 'google-maps', icon: 'google-maps', label: 'Google Maps', success: '선택한 장소를 Google Maps에서 엽니다.'}),
+});
+
+export function defaultMapProviderPresentation(provider, {userAgent = globalThis.navigator?.userAgent || ''} = {}) {
+  const {android, ios} = mobilePlatform(userAgent);
+  if (provider === 'TMAP' && !android && !ios) return Object.freeze({
+    ...DEFAULT_MAP_PRESENTATION.TMAP,
+    label: '티맵 대신 네이버지도 웹',
+    success: '티맵은 모바일 전용이라 네이버지도 웹에서 엽니다.',
+  });
+  return DEFAULT_MAP_PRESENTATION[provider] || DEFAULT_MAP_PRESENTATION.NAVER_MAP;
+}
+
+export function buildDefaultMapHref(provider, place, {userAgent = globalThis.navigator?.userAgent || '', origin = globalThis.location?.origin || 'https://lotbiai.com'} = {}) {
+  if (provider === 'KAKAO_NAVI') {
+    const {android, ios} = mobilePlatform(userAgent);
+    if ((android || ios) && place?.navigationCapable === true) return buildKakaoNaviHandoffUrl(place, {origin});
+    return place?.navigationCapable === true ? buildKakaoMapsDirectionsUrl(place) : buildKakaoMapsSearchUrl(place);
+  }
+  if (provider === 'TMAP') {
+    const {android, ios} = mobilePlatform(userAgent);
+    if (android) return buildTmapAndroidIntentUri(place);
+    if (ios) return buildIosMapHandoffUrl('TMAP', place, {origin});
+    return buildNaverMapsWebSearchUrl(place);
+  }
+  if (provider === 'GOOGLE_MAPS') return buildGoogleMapsDirectionsUrl(place);
+  const {android, ios} = mobilePlatform(userAgent);
+  if (android) return buildNaverMapsAndroidIntentUri(place);
+  if (ios) return buildIosMapHandoffUrl('NAVER_MAP', place, {origin});
+  return buildNaverMapsWebSearchUrl(place);
+}
+
+export function openDefaultMapPlace(provider, place, options = {}) {
+  if (provider === 'KAKAO_NAVI') return openKakaoNaviPlace(place, options);
+  if (provider === 'TMAP') return openTmapPlace(place, options);
+  if (provider === 'GOOGLE_MAPS') return openGoogleMapsPlace(place, options);
+  return openNaverMapsPlace(place, options);
 }

@@ -18,7 +18,7 @@ Date: 2026-10-05 (Asia/Seoul)
 - Renewal cancellation and immediate termination/refund are separate paths.
 - Mid-term refunds deduct only the prorated used period. There is no additional 10% penalty and usage counts are not deducted again.
 - Refunds use the original payment method in principle; the company-side request deadline and the payment-provider/card reflection time are separated.
-- Monthly plans and prices remain Basic 9,900 KRW, Plus 19,900 KRW, and Pro 39,900 KRW, VAT included.
+- New-customer monthly plans are Basic 9,900 KRW, Plus 29,900 KRW, and Pro 39,900 KRW, VAT included. Existing Plus 19,900 KRW contracts retain their agreed price.
 - Price increases and free-to-paid conversions require consent and notice 30 days in advance.
 - `/exchange` remains available for compatibility, but its content now explains digital-service outage, defect, and non-delivery remedies.
 

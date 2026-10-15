@@ -163,6 +163,45 @@ const GUIDES = Object.freeze({
   },
 });
 
+const DOG_REQUIRED_SHEET = 'assets/family-guardian/approved-pet-dog-required-bichon-20261013.png';
+const DOG_OPTIONAL_SHEET = 'assets/family-guardian/approved-pet-dog-optional-bichon-20261013.png';
+const CAT_REQUIRED_SHEET = 'assets/family-guardian/approved-pet-cat-required-20261013.png';
+const CAT_OPTIONAL_SHEET = 'assets/family-guardian/approved-pet-cat-optional-20261013.png';
+
+const approvedExample = (sheet, viewBox) => Object.freeze({
+  sheet,
+  sheetWidth: 1536,
+  sheetHeight: 1024,
+  viewBox,
+});
+
+const approvedSpeciesExamples = (requiredSheet, optionalSheet, requiredCrops = {}) => Object.freeze({
+  FACE_FRONT: approvedExample(requiredSheet, requiredCrops.faceFront || '0 0 505 505'),
+  FACE_LEFT: approvedExample(requiredSheet, requiredCrops.faceLeft || '516 0 505 505'),
+  FACE_RIGHT: approvedExample(requiredSheet, requiredCrops.faceRight || '1031 0 505 505'),
+  BODY_LEFT: approvedExample(requiredSheet, requiredCrops.bodyLeft || '0 516 763 508'),
+  BODY_RIGHT: approvedExample(requiredSheet, requiredCrops.bodyRight || '773 516 763 508'),
+  BACK_REAR: approvedExample(optionalSheet, '0 0 505 505'),
+  NOSE_FRONT: approvedExample(optionalSheet, '516 0 505 505'),
+  NOSE_LEFT: approvedExample(optionalSheet, '1031 0 505 505'),
+  NOSE_RIGHT: approvedExample(optionalSheet, '0 516 763 508'),
+  DISTINCTIVE: approvedExample(optionalSheet, '773 516 763 508'),
+});
+
+// FAMILY-GUARDIAN-APPROVED-PETS-01: the registration examples are realistic
+// virtual pets, never the previous drawn guides. The dog is deliberately a
+// small white Bichon so it reads as an ordinary companion animal at a glance.
+export const PET_APPROVED_EXAMPLE_CROPS = Object.freeze({
+  DOG: approvedSpeciesExamples(DOG_REQUIRED_SHEET, DOG_OPTIONAL_SHEET, {
+    faceFront: '70 0 370 370',
+    faceLeft: '590 0 370 370',
+    faceRight: '1110 0 370 370',
+    bodyLeft: '0 560 763 464',
+    bodyRight: '773 560 763 464',
+  }),
+  CAT: approvedSpeciesExamples(CAT_REQUIRED_SHEET, CAT_OPTIONAL_SHEET),
+});
+
 export const PET_PHOTO_SLOT_LABELS = Object.freeze(
   Object.fromEntries(Object.entries(GUIDES).map(([code, guide]) => [code, guide.label])),
 );
@@ -173,6 +212,23 @@ export function petPhotoSlotLabel(slotCode) {
 
 export function petPhotoSlotHint(slotCode) {
   return GUIDES[slotCode]?.hint || '';
+}
+
+export function petPhotoSlotArtwork(slotCode, species) {
+  const normalizedSpecies = species === 'CAT' ? 'CAT' : species === 'DOG' ? 'DOG' : '';
+  const example = PET_APPROVED_EXAMPLE_CROPS[normalizedSpecies]?.[slotCode];
+  if (!example) return null;
+
+  const [x, y, width, height] = example.viewBox.split(' ').map(Number);
+  const crop = document.createElement('span');
+  crop.className = 'pet-slot-guide-image';
+  crop.setAttribute('role', 'img');
+  crop.setAttribute('aria-label', `${petPhotoSlotLabel(slotCode)} 가상 반려동물 예시 사진`);
+  crop.dataset.petApprovedSource = example.sheet;
+  crop.style.backgroundImage = `url("${example.sheet}")`;
+  crop.style.backgroundSize = `${(example.sheetWidth / width) * 100}% ${(example.sheetHeight / height) * 100}%`;
+  crop.style.backgroundPosition = `${(x / (example.sheetWidth - width)) * 100}% ${(y / (example.sheetHeight - height)) * 100}%`;
+  return crop;
 }
 
 function shape(tag, attributes) {
@@ -204,10 +260,26 @@ export function petPhotoSlotDiagram(slotCode, species) {
     'aria-hidden': 'true',
     focusable: 'false',
   });
-  const face = species === 'DOG' ? '🐶' : '🐱';
-  const body = species === 'DOG' ? '🐕' : '🐈';
-  const animalLabel = species === 'DOG' ? '강아지' : '고양이';
-  const bodySlot = ['BODY_LEFT', 'BODY_RIGHT'].includes(slotCode);
+  root.setAttribute('data-pet-guide-species', species.toLowerCase());
+  const {draw} = guide;
+  const mirror = draw.mirror ? 'translate(72 0) scale(-1 1)' : '';
+  const transformed = local => [mirror, local].filter(Boolean).join(' ');
+  const appendVector = (paths, circles = [], localTransform = '') => {
+    const transform = transformed(localTransform);
+    for (const d of paths || []) {
+      const node = shape('path', {d, class: 'pet-slot-guide-shape'});
+      if (transform) node.setAttribute('transform', transform);
+      root.appendChild(node);
+    }
+    for (const [cx, cy, rx, ry] of circles || []) {
+      const className = Math.max(rx, ry) >= 5 ? 'pet-slot-guide-callout' : 'pet-slot-guide-detail';
+      const node = shape('ellipse', {cx, cy, rx, ry, class: className});
+      if (transform) node.setAttribute('transform', transform);
+      root.appendChild(node);
+    }
+  };
+
+  for (const d of FRAME) root.appendChild(shape('path', {d, class: 'pet-slot-guide-frame'}));
   if (slotCode === 'BACK_REAR') {
     root.setAttribute('data-pet-rear-species', species);
     root.appendChild(shape('image', {
@@ -219,7 +291,9 @@ export function petPhotoSlotDiagram(slotCode, species) {
       preserveAspectRatio: 'xMidYMid meet',
     }));
   } else {
-    root.appendChild(diagramText(bodySlot ? body : face, 36, 35, 'pet-slot-species-mark', animalLabel));
+    appendVector(draw.paths, draw.circles);
+    appendVector(draw.turned, draw.turnedCircles, NOSE_TURN);
+    appendVector(draw.zoomed, [], NOSE_ZOOM_TURN);
   }
 
   if (slotCode.endsWith('_LEFT')) {

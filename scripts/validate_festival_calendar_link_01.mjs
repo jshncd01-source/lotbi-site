@@ -5,11 +5,11 @@
 // scripts/validate_life_calendar_client_01.mjs.
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const bridge = await import(path.join(ROOT, 'site-festival-calendar.js'));
-const guestModule = await import(path.join(ROOT, 'site-calendar-guest.js'));
+const bridge = await import(pathToFileURL(path.join(ROOT, 'site-festival-calendar.js')).href);
+const guestModule = await import(pathToFileURL(path.join(ROOT, 'site-calendar-guest.js')).href);
 
 const {
   VISIT_SCOPE,

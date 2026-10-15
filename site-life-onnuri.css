@@ -1,0 +1,380 @@
+/* ONNURI-MERCHANT-01 — 생활정보 온누리상품권 가맹점 찾기. Theme tokens only.
+   ONNURI-MERCHANT-LOCATION-UX-P0 — 내 주변/지역 선택, compact cards in a
+   responsive grid. */
+.onnuri-surface {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.onnuri-intro {
+  display: grid;
+  gap: 6px;
+}
+
+.onnuri-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lotbi-text-primary);
+}
+
+/* Reserved for the approved official logo. Until approval nothing is drawn. */
+.onnuri-logo-slot {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.onnuri-logo-slot[data-logo-state="PENDING_APPROVAL"] {
+  display: none;
+}
+
+.onnuri-logo-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* 내 주변 / 지역 선택 */
+.onnuri-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary);
+}
+
+.onnuri-mode {
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.onnuri-mode.is-active {
+  background: var(--lotbi-text-primary);
+  color: var(--lotbi-surface-primary);
+}
+
+.onnuri-mode:focus-visible {
+  outline: 2px solid var(--lotbi-border-strong);
+  outline-offset: 2px;
+}
+
+.onnuri-nearby-panel,
+.onnuri-region-panel {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.onnuri-nearby-panel[hidden],
+.onnuri-region-panel[hidden] {
+  display: none;
+}
+
+.onnuri-locate {
+  min-height: 44px;
+}
+
+.onnuri-location-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.onnuri-region-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.onnuri-region-field[hidden] {
+  display: none;
+}
+
+.onnuri-region-field select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 10px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  font: inherit;
+  padding: 0 8px;
+}
+
+.onnuri-chip-row {
+  flex-wrap: wrap;
+}
+
+.onnuri-scope {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lotbi-text-primary);
+}
+
+.onnuri-status {
+  margin: 0;
+  color: var(--lotbi-text-primary);
+}
+
+.onnuri-coverage:empty,
+.onnuri-region-note:empty,
+.onnuri-scope:empty {
+  display: none;
+}
+
+.onnuri-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.onnuri-empty-actions[hidden] {
+  display: none;
+}
+
+.onnuri-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--lotbi-error-text);
+}
+
+/* Cards: a compact list on phones, two columns from 480px, three from 860px. */
+.onnuri-results {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+@media (min-width: 480px) {
+  .onnuri-results {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 860px) {
+  .onnuri-results {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.onnuri-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--lotbi-border-default);
+  border-radius: 12px;
+  background: var(--lotbi-surface-primary);
+  color: var(--lotbi-text-primary);
+  min-width: 0;
+}
+
+.onnuri-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.onnuri-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border: 1px solid var(--lotbi-border-strong);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.onnuri-card-distance {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.onnuri-card-title {
+  margin: 2px 0 0;
+  font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.onnuri-card-meta,
+.onnuri-card-address,
+.onnuri-card-accept,
+.onnuri-card-basis {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.onnuri-card-meta {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.onnuri-card-address {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.onnuri-card-meta,
+.onnuri-card-accept,
+.onnuri-card-basis {
+  color: var(--consumer-muted, var(--lotbi-text-primary));
+}
+
+.onnuri-card-basis {
+  font-size: 12px;
+}
+
+.onnuri-card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.onnuri-card-actions .consumer-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 4px 8px;
+  font-size: 13px;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* A verified phone takes its own row; a lone action takes the whole row. */
+.onnuri-card-actions > .onnuri-card-phone,
+.onnuri-card-actions > a:only-child,
+.onnuri-card-actions > .onnuri-card-phone + a:last-child {
+  grid-column: 1 / -1;
+}
+
+.onnuri-more {
+  justify-self: center;
+  min-height: 44px;
+}
+
+/* QA-02 E1: .consumer-action sets display, so [hidden] needs its own rule. */
+.onnuri-more[hidden] {
+  display: none;
+}
+
+.onnuri-source {
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .onnuri-region-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 생활정보 바로가기: keep the icon box so the label lines up; draw nothing. */
+.consumer-shortcut .onnuri-logo-slot[data-logo-state="PENDING_APPROVAL"] {
+  display: inline-flex;
+  visibility: hidden;
+  width: 24px;
+  height: 24px;
+}
+
+body.chat-home-page .consumer-workspace .consumer-shortcut .onnuri-logo-slot {
+  width: 20px;
+  height: 20px;
+}
+
+/* ONNURI-REMOVE-RELATION-MAP-01: one map button with the saved app's icon. */
+.onnuri-card-map {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.onnuri-map-icon {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+/* ONNURI-REGION-FIRST-UX-01 (QA #16): named chip rows, folded notice. */
+.onnuri-chip-field {
+  display: grid;
+  gap: 6px;
+}
+
+.onnuri-chip-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lotbi-text-secondary);
+}
+
+.onnuri-disclaimer-box {
+  margin: 0;
+}
+
+.onnuri-disclaimer-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  word-break: keep-all;
+}
+
+.onnuri-disclaimer-summary::-webkit-details-marker {
+  display: none;
+}
+
+.onnuri-disclaimer-more {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.onnuri-disclaimer-box[open] .onnuri-disclaimer-more {
+  display: none;
+}
+
+.onnuri-disclaimer-box .onnuri-disclaimer {
+  margin: 0;
+  word-break: keep-all;
+}

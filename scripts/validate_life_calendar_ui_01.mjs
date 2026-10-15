@@ -172,11 +172,10 @@ const responses = {
 
   calls.length = 0;
   const today = await loadLifeCalendarManagerView('site-token', {...base, view: 'today'});
-  assert.equal(today.key, 'month');
-  assert.equal(calls.length, 4);
-  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-08-30&end=2026-10-04')));
-  assert.ok(calls.some(call => call.url.includes('/v2/life/attention?timezone=Asia%2FSeoul&horizon_days=365')));
-  assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-09-30&end=2026-10-04&timezone=Asia%2FSeoul')));
+  assert.equal(today.key, 'day');
+  assert.equal(calls.length, 3);
+  assert.ok(calls.some(call => call.url.includes('/v2/life/agenda?timezone=Asia%2FSeoul&start=2026-09-30&end=2026-09-30')));
+  assert.ok(calls.some(call => call.url.includes('/v2/life/weather?start=2026-09-30&end=2026-09-30&timezone=Asia%2FSeoul')));
   assert.ok(calls.some(call => call.url.includes('/v2/life/holidays?year=2026&country=KR')));
 
   calls.length = 0;

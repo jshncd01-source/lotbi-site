@@ -1,0 +1,479 @@
+// LIFE-MEDICAL-CATEGORY-ENTRY-01 — 생활정보 카드 목록과 병원·응급실·약국 진입 카드.
+// LIFE-MEDICAL-MERGE-01 (owner decision 2026-10-11) — 병원·응급실·약국 is ONE card
+// and it opens its own screen (site-life-medical-list.js, checked in depth by
+// validate_life_medical_list_01.mjs); it asks the conversation nothing, so the
+// fixed-question steps this validator had for 병원·의원 / 약국 / 응급실 are gone.
+// 지역생활정보 keeps its form, which sends at once.
+//
+// LIFE-UTILITY-BILL-MENU-REMOVE-01: 공과금 확인 stays hidden. The life home is a
+// category picker only: no free-question bar and no saved-items/help row. It
+// has nine cards (병원·응급실·약국, 지역뉴스, 온누리상품권, 내 아이 학교·유치원 included;
+// no 전북 맛집·음식 — REGIONAL-CARDS-BUNDLE-01, owner decision 2026-10-10): four rows
+// of two and the odd last card on its own full row, so there is no empty grid cell.
+// LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk too, so
+// any draft handoff (onDraft) in the life cards fails.
+//
+// Browser part: real touch/mouse input through the DevTools protocol on
+// 360x780, 375x812, 390x844, 412x915 and 1280x900. Viewport emulation only —
+// not an iPhone Safari / Android device run. External hosts do not resolve.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {spawn, spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {LIFE_SHORTCUTS} from '../site-consumer-sections.js';
+import {LIFE_LOCAL_CARD_ENABLED as LOCAL_ON} from '../site-feature-flags.js';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+
+// ── Shortcut list ───────────────────────────────────────────────────────
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실·약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', ...(LOCAL_ON ? ['지역생활정보'] : []), '내 아이 학교·유치원']);
+// LIFE-MEDICAL-MERGE-01: no card asks a fixed question any more; 병원·응급실·약국
+// opens its own screen.
+assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => item.id), []);
+const medicalCard = LIFE_SHORTCUTS.find(item => item.id === 'medical');
+assert.equal(medicalCard.choices, undefined);
+assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'pharmacy'), false, '약국 is not a card of its own');
+for (const id of ['festivals', 'news', ...(LOCAL_ON ? ['local'] : []), 'onnuri', 'ev-chargers', 'my-child']) assert.ok(LIFE_SHORTCUTS.some(item => item.id === id), `existing ${id} shortcut kept`);
+// REGIONAL-INFO-BACK-NAVIGATION-01 (owner decision 2026-10-10): 내 아이 학교·유치원
+// opens the saved schools screen at once — no 내 아이 정보 / 유치원·학교 찾기 choice.
+assert.equal(LIFE_SHORTCUTS.find(item => item.id === 'my-child').children, undefined, '내 아이 학교·유치원 opens its screen at once');
+assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills' || /공과금/u.test(item.label)), false, '공과금 확인 stays hidden');
+assert.ok(Object.isFrozen(LIFE_SHORTCUTS));
+
+// ── Source contract ─────────────────────────────────────────────────────
+const source = read('site-consumer-sections.js');
+assert.match(source, /else if \(item\.id === 'medical'\) openMedical\(item\);/u, 'the medical card opens its own screen');
+// Owner decision 2026-10-10: signed out, 내 아이 학교·유치원 links the public lookup again.
+assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/u, '유치원·학교 asks through onAsk');
+assert.match(source, /mountMyChild\(host, \{onAsk\}\)/u, '내 아이 학교·유치원 asks through the same onAsk');
+assert.doesNotMatch(source, /openMedicalDetail|data-medical-field|data-medical-choice|LIFE_MEDICAL_QUESTIONS|질문 준비하기|onDraft/u, 'no region/condition form, no draft handoff');
+assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|geolocation|getCurrentPosition/u, 'no own search engine, storage or location request');
+const conversation = read('site-conversation.js');
+assert.match(conversation, /onAsk: text => \{[\s\S]{0,400}?surfaceRestoreFocus = undefined;\s*closeSurface\(\);\s*askWithoutKeyboard\(text\);/u,
+  'closing 생활정보 does not hand focus back to the composer');
+
+// ── Browser ─────────────────────────────────────────────────────────────
+function browserPath() {
+  const candidates = [
+    process.env.CHROME_BIN,
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    '/opt/pw-browsers/chromium',
+    'google-chrome-stable',
+    'google-chrome',
+    'chromium',
+    'chromium-browser',
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+    const lookup = process.platform === 'win32' ? 'where.exe' : 'which';
+    const found = spawnSync(lookup, [candidate], {encoding: 'utf8'});
+    if (found.status === 0 && found.stdout.trim()) return found.stdout.trim().split(/\r?\n/)[0];
+  }
+  throw new Error('Chrome/Chromium is required for the life medical entry validation.');
+}
+
+const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36';
+const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36';
+const CASES = [
+  {label: 'mobile-light-360x780', theme: 'light', width: 360, height: 780, mobile: true, userAgent: ANDROID_UA},
+  {label: 'mobile-dark-360x780', theme: 'dark', width: 360, height: 780, mobile: true, userAgent: ANDROID_UA},
+  {label: 'mobile-light-375x812', theme: 'light', width: 375, height: 812, mobile: true, userAgent: IPHONE_UA},
+  {label: 'mobile-dark-390x844', theme: 'dark', width: 390, height: 844, mobile: true, userAgent: IPHONE_UA},
+  {label: 'mobile-light-412x915', theme: 'light', width: 412, height: 915, mobile: true, userAgent: ANDROID_UA},
+  {label: 'desktop-light-1280x900', theme: 'light', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA},
+  {label: 'desktop-dark-1280x900', theme: 'dark', width: 1280, height: 900, mobile: false, userAgent: DESKTOP_UA},
+];
+
+function buildInner() {
+  let html = read('index.html');
+  const runtime = html.match(/<script type="module" src="site-conversation\.js\?v=[^"]+"><\/script>/u);
+  assert.ok(runtime, 'index.html must load site-conversation.js as a module');
+  html = html.replace('<head>', '<head>\n  <base href="/">\n  <style>#lme-result{display:none}</style>');
+  const harness = `<script type="module">
+const out = document.getElementById('lme-result');
+try {
+  localStorage.clear();
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+  const json = body => Promise.resolve(new Response(JSON.stringify(body), {status:200,headers:{'Content-Type':'application/json'}}));
+  globalThis.__sent = [];
+  globalThis.fetch = (url, init) => {
+    let parsed;
+    try { parsed = new URL(String((url&&url.url)||url), location.origin); } catch { return nativeFetch(url, init); }
+    if (parsed.pathname === '/v2/conversation/guest/sessions') return json({
+      contract_id:'CORE-GUEST-SESSION-01',schema_version:1,guest_token:'g'.repeat(43),
+      expires_at:new Date(Date.now()+3600000).toISOString(),
+    });
+    if (parsed.pathname === '/v2/conversation/guest/messages') {
+      try { globalThis.__sent.push(JSON.parse(String(init?.body || '{}'))); } catch { globalThis.__sent.push({unparsed:true}); }
+      return json({
+        contract_id:'CORE-WEB-CHAT-01',schema_version:1,status:'ANSWERED',
+        assistant_text:'확인했어요.',response_mode:'DETERMINISTIC',correlation_id:'req_lifemedicalentry01',
+        intent:{action:'ANSWER',domain:'GENERAL'},
+        follow_up:{required:false,action:'NONE',automatic_execution:false},
+        safety:{execution_authority:false,external_side_effect:false,transaction_created:false,
+          order_created:false,payment_attempted:false,reservation_created:false,merchant_execution_started:false},
+        retry_safe:true,
+      });
+    }
+    if (parsed.origin !== location.origin) return json({items:[]});
+    return nativeFetch(url, init);
+  };
+  const conversation = await import('/site-conversation.js?v=lifemedicalentry01');
+  if (!conversation.mountConversation()) throw new Error('mount');
+  out.textContent = JSON.stringify({ok:true});
+} catch (e) { out.textContent = JSON.stringify({ok:false,error:String((e&&e.stack)||e)}); }
+</script><pre id="lme-result">pending</pre>`;
+  return html.replace(runtime[0], harness);
+}
+
+// Page-side reading of the open life surface.
+const PROBE = `(() => {
+  const box = node => { if (!node) return null; const r = node.getBoundingClientRect(); return {x:r.x,y:r.y,w:r.width,h:r.height,right:r.right,bottom:r.bottom,cx:r.x+r.width/2,cy:r.y+r.height/2}; };
+  const workspace = document.querySelector('.consumer-workspace');
+  const panel = workspace?.querySelector('.site-modal');
+  const lines = node => { const range = document.createRange(); range.selectNodeContents(node); const tops = new Set([...range.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top))); return tops.size; };
+  const lineTexts = node => { const rows = []; const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    for (let text = walker.nextNode(); text; text = walker.nextNode()) for (let i = 0; i < text.length; i += 1) {
+      const range = document.createRange(); range.setStart(text, i); range.setEnd(text, i + 1);
+      const rect = [...range.getClientRects()].find(r => r.width > 0);
+      if (!rect) { if (rows.length) rows[rows.length - 1].text += text.data[i]; continue; }
+      const top = Math.round(rect.top); const row = rows.find(item => Math.abs(item.top - top) <= 2);
+      if (row) row.text += text.data[i]; else rows.push({top, text: text.data[i]});
+    }
+    return rows.map(row => row.text); };
+  const shortcuts = [...(workspace?.querySelectorAll('.consumer-shortcut') || [])].map(button => {
+    const label = button.querySelector('.consumer-shortcut-title');
+    const description = button.querySelector('.consumer-shortcut-description');
+    const hit = (() => { const b = box(button); const el = document.elementFromPoint(b.cx, Math.min(Math.max(b.cy, 0), innerHeight - 1)); return el?.closest?.('.consumer-shortcut') === button; })();
+    // KINDERGARTEN-OFFICIAL-INFO-01: an odd last card may take its whole row.
+    const spansRow = button.getBoundingClientRect().width >= button.parentElement.getBoundingClientRect().width - 2;
+    return {id: button.dataset.lifeShortcut, label: label?.textContent || '', description: description?.textContent || '', ariaLabel: button.getAttribute('aria-label') || '', box: box(button), labelBox: box(label), descriptionBox: box(description), lines: label ? lines(label) : 0, lineTexts: label ? lineTexts(label) : [],
+      labelClipped: label ? label.scrollWidth > label.parentElement.clientWidth : true, hit, icon: Boolean(button.querySelector('svg path')), brandSlot: button.querySelector('[data-brand-logo-slot]')?.dataset.brandLogoSlot || '',
+      spansRow: getComputedStyle(button).gridColumnStart === '1' && getComputedStyle(button).gridColumnEnd === '-1'};
+  });
+  const detail = workspace?.querySelector('.consumer-life-detail');
+  const fields = [...(detail?.querySelectorAll('.consumer-life-field') || [])].map(label => ({
+    label: label.firstChild?.textContent || '', key: label.querySelector('[data-medical-field]')?.dataset.medicalField || '',
+    tag: label.querySelector('input, textarea')?.tagName || '', placeholder: label.querySelector('input, textarea')?.placeholder || '',
+    value: label.querySelector('input, textarea')?.value || '', required: Boolean(label.querySelector('input, textarea')?.required), box: box(label.querySelector('input, textarea')),
+  }));
+  const chips = [...(detail?.querySelectorAll('[data-medical-chip]') || [])].map(chip => ({id: chip.dataset.medicalChip, label: chip.textContent, pressed: chip.getAttribute('aria-pressed'), box: box(chip), lines: lines(chip)}));
+  return {
+    open: Boolean(workspace), title: panel?.querySelector('.site-modal-header h2, h2')?.textContent || '',
+    viewport: {w: innerWidth, h: innerHeight}, panel: box(panel),
+    panelOverflowX: panel ? panel.scrollWidth - panel.clientWidth : null,
+    pageOverflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    search: Boolean(workspace?.querySelector('.consumer-search, input[type=search]')), saved: /저장한 정보 다시 보기/u.test(workspace?.textContent || ''),
+    freeQuery: /어떤 생활정보가 필요하세요|롯비에게 물어보기/u.test(workspace?.textContent || ''), footer: Boolean(workspace?.querySelector('.consumer-section-footer')),
+    homeChildren: [...(workspace?.querySelector('[data-consumer-surface]')?.children || [])].map(child => child.className),
+    header: box(panel?.querySelector('.site-modal-header')), description: box(panel?.querySelector('.site-modal-description')), label: box(workspace?.querySelector('.consumer-section-label')),
+    location: box(workspace?.querySelector('.consumer-life-location')), locationText: workspace?.querySelector('.consumer-life-location-label')?.textContent || '', locationTag: workspace?.querySelector('.consumer-life-location-tag:not([hidden])')?.textContent || '', locationNote: box(workspace?.querySelector('.consumer-life-location-note')), locationNoteText: workspace?.querySelector('.consumer-life-location-note')?.textContent || '', labelHeight: workspace?.querySelector('.consumer-section-label')?.getBoundingClientRect().height ?? -1, regionChange: box(workspace?.querySelector('.consumer-life-region-change')),
+    focusedShortcut: document.activeElement?.dataset?.lifeShortcut || '',
+    shortcuts,
+    detail: detail ? {id: detail.dataset.lifeDetail || '', title: detail.querySelector('h3')?.textContent || '', box: box(detail), back: box([...detail.querySelectorAll('.consumer-action')].find(b => b.textContent === '지역정보로 돌아가기')),
+      submit: box(detail.querySelector('form button[type=submit]')), note: detail.querySelector('.consumer-feature-note')?.textContent || '',
+      emergency: Boolean(detail.querySelector('.conversation-emergency-call')), emergencyText: detail.querySelector('.conversation-emergency-call')?.textContent || '',
+      call: detail.querySelector('.conversation-emergency-call-link')?.getAttribute('href') || '', fields, chips} : null,
+    composer: document.getElementById('lotbi-prompt')?.value ?? null,
+    composerFocused: document.activeElement === document.getElementById('lotbi-prompt'),
+    festival: Boolean(document.querySelector('.festival-manager')),
+    gridColumns: (() => { const grid = workspace?.querySelector('.consumer-shortcuts'); return grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length : 0; })(),
+    billsVisible: Boolean(workspace?.querySelector('[data-life-shortcut="bills"]')) || /공과금|고지서/u.test(workspace?.textContent || ''),
+  };
+})()`;
+
+function startServer() {
+  const serverCode = `
+    const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
+    const root=${JSON.stringify(ROOT)};
+    const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.woff2':'font/woff2'};
+    const server=http.createServer((req,res)=>{
+      const pathname=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname);
+      const target=path.resolve(root,'.'+pathname);
+      if(!target.startsWith(root)){res.writeHead(403);res.end();return;}
+      fs.readFile(target,(error,data)=>{if(error){res.writeHead(404);res.end();return;}res.writeHead(200,{'Content-Type':types[path.extname(target)]||'application/octet-stream'});res.end(data);});
+    });
+    server.listen(0,'127.0.0.1',()=>process.stdout.write(String(server.address().port)+'\\n'));
+  `;
+  return spawn(process.execPath, ['-e', serverCode], {cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit']});
+}
+
+async function serverPort(server) {
+  return await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('local server start timeout')), 5000);
+    server.once('error', reject);
+    server.stdout.once('data', chunk => { clearTimeout(timer); resolve(Number.parseInt(String(chunk).trim(), 10)); });
+  });
+}
+
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function waitFor(fn, label, timeoutMs = 20000) {
+  const started = Date.now();
+  for (;;) {
+    const value = await fn();
+    if (value) return value;
+    if (Date.now() - started > timeoutMs) throw new Error(`timeout: ${label}`);
+    await sleep(100);
+  }
+}
+
+async function openBrowser(browser, profile) {
+  const chrome = spawn(browser, [
+    '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--no-first-run',
+    '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1',
+    '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--window-size=1280,900', 'about:blank',
+  ], {stdio: 'ignore'});
+  const portFile = path.join(profile, 'DevToolsActivePort');
+  await waitFor(() => fs.existsSync(portFile) && fs.readFileSync(portFile, 'utf8').includes('\n'), 'DevToolsActivePort');
+  const [port] = fs.readFileSync(portFile, 'utf8').split(/\r?\n/);
+  const version = await waitFor(() => fetch(`http://127.0.0.1:${port}/json/version`).then(r => r.json()).catch(() => null), 'browser endpoint');
+  const socket = new WebSocket(version.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
+  let nextId = 0;
+  const pending = new Map();
+  socket.onmessage = event => {
+    const message = JSON.parse(String(event.data));
+    if (message.id && pending.has(message.id)) {
+      const {resolve, reject} = pending.get(message.id);
+      pending.delete(message.id);
+      if (message.error) reject(new Error(JSON.stringify(message.error))); else resolve(message.result);
+    }
+  };
+  const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+    nextId += 1;
+    pending.set(nextId, {resolve, reject});
+    socket.send(JSON.stringify({id: nextId, method, params, ...(sessionId ? {sessionId} : {})}));
+  });
+  const close = () => { try { socket.close(); } catch {} chrome.kill('SIGTERM'); };
+  return {send, close};
+}
+
+async function runCase(browser, origin, dir, testCase) {
+  const innerRel = `scripts/${path.basename(dir)}/inner.html`;
+  const profile = fs.mkdtempSync(path.join(dir, 'profile-'));
+  const cdp = await openBrowser(browser, profile);
+  const shots = process.env.LIFE_MEDICAL_SCREENSHOT_DIR || '';
+  try {
+    const {targetInfos} = await cdp.send('Target.getTargets');
+    const pageTarget = targetInfos.find(item => item.type === 'page');
+    const {sessionId} = await cdp.send('Target.attachToTarget', {targetId: pageTarget.targetId, flatten: true});
+    const page = (method, params) => cdp.send(method, params, sessionId);
+    const evaluate = async expression => {
+      const result = await page('Runtime.evaluate', {expression, returnByValue: true, awaitPromise: true});
+      if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails));
+      return result.result.value;
+    };
+    await page('Page.enable');
+    await page('Runtime.enable');
+    await page('Emulation.setDeviceMetricsOverride', {width: testCase.width, height: testCase.height, deviceScaleFactor: 1, mobile: testCase.mobile});
+    await page('Emulation.setUserAgentOverride', {userAgent: testCase.userAgent});
+    if (testCase.mobile) await page('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
+    await page('Emulation.setEmulatedMedia', {features: [{name: 'prefers-reduced-motion', value: 'reduce'}]});
+    await cdp.send('Browser.setPermission', {origin, permission: {name: 'geolocation'}, setting: 'denied'});
+    await page('Page.navigate', {url: `${origin}/${innerRel}`});
+    const ready = await waitFor(async () => {
+      const text = await evaluate("document.getElementById('lme-result')?.textContent || 'pending'").catch(() => 'pending');
+      return text !== 'pending' ? text : null;
+    }, `${testCase.label}: harness`, 60000);
+    const parsedReady = JSON.parse(ready);
+    if (!parsedReady.ok) throw new Error(`${testCase.label}: ${parsedReady.error}`);
+    await evaluate(`document.body.dataset.siteTheme = ${JSON.stringify(testCase.theme)}, true`);
+
+    const probe = () => evaluate(PROBE);
+    const tap = async ({cx: x, cy: y}) => {
+      if (testCase.mobile) {
+        await page('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x, y}]});
+        await sleep(40);
+        await page('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []});
+      } else {
+        await page('Input.dispatchMouseEvent', {type: 'mouseMoved', x, y});
+        await page('Input.dispatchMouseEvent', {type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1});
+        await sleep(40);
+        await page('Input.dispatchMouseEvent', {type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1});
+      }
+      await sleep(200);
+    };
+    // Scroll an element into the middle of the viewport, then read its box.
+    const reveal = async selector => {
+      await evaluate(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block: 'center'}), true`);
+      await sleep(120);
+      return await evaluate(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return {cx: r.x + r.width / 2, cy: r.y + r.height / 2}; })()`);
+    };
+    const typeInto = async (selector, text) => {
+      await tap(await reveal(selector));
+      await evaluate(`(() => { const f = document.querySelector(${JSON.stringify(selector)}); f.select(); return document.activeElement === f; })()`)
+        .then(focused => assert.equal(focused, true, `${testCase.label}: ${selector} focused by tap`));
+      await page('Input.insertText', {text});
+      await sleep(80);
+    };
+    const shot = async name => {
+      if (!shots) return;
+      const {data} = await page('Page.captureScreenshot', {format: 'png'});
+      fs.mkdirSync(shots, {recursive: true});
+      fs.writeFileSync(path.join(shots, `${testCase.label}-${name}.png`), Buffer.from(data, 'base64'));
+    };
+    const openLife = async () => {
+      await evaluate("document.querySelector('[data-consumer-section=\"life\"]').click(), true");
+      await waitFor(async () => (await probe()).shortcuts.length === LIFE_SHORTCUTS.length, `${testCase.label}: life shortcuts`);
+      await sleep(250);
+    };
+    const tapShortcut = async id => {
+      const center = await reveal(`.consumer-workspace [data-life-shortcut="${id}"]`);
+      const before = await probe();
+      const card = before.shortcuts.find(item => item.id === id);
+      assert.equal(card.hit, true, `${testCase.label}: ${id} card is the element under its own center (touchable)`);
+      await tap(center);
+    };
+
+    // 1. Life main: nine cards (병원·응급실·약국 one card — LIFE-MEDICAL-MERGE-01 —,
+    // 전기차 충전소 after it — EV-CHARGER-NEARBY-LIST-P0 —, no 전북 맛집·음식,
+    // 유치원·학교 inside 내 아이 학교·유치원; 공과금 확인 hidden), full rows, no empty
+    // cell — an odd last card would take its whole row.
+    await openLife();
+    const main = await probe();
+    assert.equal(main.title, '지역정보');
+    assert.deepEqual(main.shortcuts.map(item => item.label), ['병원·응급실·약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', ...(LOCAL_ON ? ['지역생활정보'] : []), '내 아이 학교·유치원']);
+    assert.equal(main.billsVisible, false, `${testCase.label}: 공과금 확인 is not shown anywhere on the life surface`);
+    // ONNURI-MERCHANT-01 / KINDERGARTEN-OFFICIAL-INFO-01: with an odd number of cards the
+    // last one spans the row (site-life-onnuri.css, site-life-education.css), so a
+    // spanning card fills every column.
+    // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: the applied (computed) grid is the
+    // approved four columns on desktop and two on phones.
+    const expectedColumns = testCase.mobile ? 2 : 4;
+    assert.equal(main.gridColumns, expectedColumns, `${testCase.label}: 지역정보 menu uses ${expectedColumns} columns (computed ${main.gridColumns})`);
+    assert.equal(main.shortcuts.at(-1).spansRow, main.shortcuts.length % expectedColumns !== 0, `${testCase.label}: only an incomplete last row spans the grid`);
+    const cells = main.shortcuts.reduce((sum, card) => sum + (card.spansRow ? main.gridColumns : 1), 0);
+    assert.ok(main.gridColumns >= 1 && cells % main.gridColumns === 0, `${testCase.label}: ${main.shortcuts.length} cards fill ${main.gridColumns} columns without an empty cell`);
+    const rows = new Map();
+    for (const card of main.shortcuts) { const top = Math.round(card.box.y); rows.set(top, (rows.get(top) || 0) + (card.spansRow ? main.gridColumns : 1)); }
+    assert.deepEqual([...rows.values()], Array(cells / main.gridColumns).fill(main.gridColumns), `${testCase.label}: every row is full ${JSON.stringify([...rows])}`);
+    // Eight approved cards are 4×2 on desktop and 2×4 on phones. Feature-flagged
+    // extra cards keep the existing last-card full-row rule.
+    const incomplete = main.shortcuts.length % expectedColumns !== 0;
+    assert.deepEqual(main.shortcuts.filter(card => card.spansRow).map(card => card.label), incomplete ? ['내 아이 학교·유치원'] : [], `${testCase.label}: only an incomplete final row spans the grid`);
+    assert.deepEqual([...rows.values()], Array(cells / expectedColumns).fill(expectedColumns), `${testCase.label}: every row full ${JSON.stringify([...rows])}`);
+    const lastRowTop = Math.round(main.shortcuts.at(-1).box.y);
+    assert.equal(main.shortcuts.filter(card => Math.round(card.box.y) === lastRowTop).length, incomplete ? 1 : expectedColumns, `${testCase.label}: final row count`);
+    assert.equal(new Set(main.shortcuts.filter(item => !item.spansRow || main.gridColumns === 1).map(item => Math.round(item.box.w))).size, 1, `${testCase.label}: all cards share one width`);
+    // Category list right under the description; nothing above or below it.
+    assert.equal(main.search, false, `${testCase.label}: no free-question bar on the life home`);
+    assert.equal(main.freeQuery, false, `${testCase.label}: no 어떤 생활정보가 필요하세요 / 롯비에게 물어보기`);
+    assert.equal(main.saved, false, `${testCase.label}: no 저장한 정보 다시 보기 on the life home`);
+    assert.equal(main.footer, false, `${testCase.label}: no footer row`);
+    assert.deepEqual(main.homeChildren, ['consumer-life-home'], `${testCase.label}: the main is isolated in one location + label + cards wrapper`);
+    assert.ok(main.header.y >= 0, `${testCase.label}: header inside the viewport (${main.header.y})`);
+    const descriptionToLocation = main.location.y - main.description.bottom;
+    // REGIONAL-INFO-UNIFY-01: region bar → one note line → the cards; 생활에 필요한 정보 stays as the
+    // list's heading for screen readers only (the design shows no label above the cards).
+    const locationToNote = main.locationNote.y - main.location.bottom;
+    const noteToList = main.shortcuts[0].box.y - main.locationNote.bottom;
+    assert.ok(descriptionToLocation >= 8 && descriptionToLocation <= 32, `${testCase.label}: description → location ${descriptionToLocation}px`);
+    assert.ok(locationToNote >= 4 && locationToNote <= 16, `${testCase.label}: location → note ${locationToNote}px`);
+    assert.ok(noteToList >= 12 && noteToList <= 32, `${testCase.label}: note → first category ${noteToList}px`);
+    assert.ok(main.labelHeight <= 1, `${testCase.label}: the list heading is for screen readers only (${main.labelHeight})`);
+    assert.ok(main.locationText.length > 0 && !/^현재 위치/u.test(main.locationText), `${testCase.label}: the saved region is named, not called the current position (${main.locationText})`);
+    if (main.locationText === '내 지역을 정해 주세요') {
+      assert.equal(main.locationTag, '', `${testCase.label}: nothing saved → no 「내가 정한 지역」 tag`);
+      assert.equal(main.locationNoteText, '한 번 정하면 병원·뉴스·축제가 그 지역부터 나와요.');
+    } else {
+      assert.equal(main.locationTag, '내가 정한 지역', `${testCase.label}: the saved region says it is the one the reader chose`);
+      assert.equal(main.locationNoteText, '아래 정보는 이 지역부터 보여 드려요. 화면 안에서 「현재 위치」로 바꿀 수 있어요.');
+    }
+    assert.ok(main.regionChange.h >= 44 && main.regionChange.w >= 44, `${testCase.label}: region change has a 44px target`);
+    if (!testCase.mobile) assert.ok(main.shortcuts.at(-1).box.bottom <= main.viewport.h, `${testCase.label}: desktop shows both rows without page clipping`);
+    assert.ok(main.pageOverflowX <= 0, `${testCase.label}: no horizontal page scroll (${main.pageOverflowX})`);
+    assert.ok(main.panelOverflowX <= 0, `${testCase.label}: panel does not scroll sideways (${main.panelOverflowX})`);
+    const heights = main.shortcuts.map(item => Math.round(item.box.h));
+    for (const card of main.shortcuts) {
+      assert.ok(card.box.x >= main.panel.x - 0.5 && card.box.right <= main.panel.right + 0.5, `${testCase.label}: ${card.label} inside the panel ${JSON.stringify(card.box)} / ${JSON.stringify(main.panel)}`);
+      assert.ok(card.box.x >= 0 && card.box.right <= main.viewport.w, `${testCase.label}: ${card.label} inside the viewport`);
+      // REGIONAL-INFO-APPROVED-UX-RESTORE-P0: in the phone two-column menu a long
+      // name (내 아이 학교·유치원) wraps at a word gap to a second line inside the
+      // same card height — never a third line, never clipped (checked below).
+      assert.ok(card.lines >= 1 && card.lines <= 2, `${testCase.label}: ${card.label} label on one or two lines (${card.lines})`);
+      assert.equal(card.labelClipped, false, `${testCase.label}: ${card.label} label not clipped`);
+      // A name of several words that takes two lines breaks at a word gap or
+      // right after a '·' (word-break: keep-all — never inside a word; on a 360px
+      // phone 내 아이 학교·유치원 reads 내 아이 학교· / 유치원), and both lines stay
+      // inside the shared card height (grid-auto-rows: 1fr, line-height 1.25 —
+      // site-consumer-layout.css).
+      if (card.lines === 2 && card.label.includes(' ')) {
+        const rebuilt = card.lineTexts.map(text => text.trim()).reduce((text, line) => text === '' ? line : text + (text.endsWith('·') ? '' : ' ') + line, '');
+        assert.equal(rebuilt, card.label, `${testCase.label}: ${card.label} wraps only at a word gap or after '·' ${JSON.stringify(card.lineTexts)}`);
+      }
+      assert.ok(card.labelBox.y >= card.box.y - 0.5 && card.labelBox.bottom <= card.box.bottom + 0.5, `${testCase.label}: ${card.label} label inside its card ${JSON.stringify(card.labelBox)} / ${JSON.stringify(card.box)}`);
+      assert.ok(card.box.h >= 44, `${testCase.label}: ${card.label} touch target ${card.box.h}px`);
+      assert.ok(card.description.length > 0, `${testCase.label}: ${card.label} has its one-line purpose`);
+      assert.equal(card.ariaLabel, `${card.label}. ${card.description}`, `${testCase.label}: ${card.label} has a complete screen-reader name`);
+      assert.ok(card.descriptionBox.y >= card.box.y && card.descriptionBox.bottom <= card.box.bottom + 0.5, `${testCase.label}: ${card.label} description stays inside its card`);
+      // 온누리상품권 keeps a reserved logo slot instead of an icon until the
+      // official logo is approved (ONNURI-MERCHANT-01).
+      assert.ok(card.icon || (card.id === 'onnuri' && card.brandSlot === 'onnuri'), `${testCase.label}: ${card.label} has its icon`);
+    }
+    assert.equal(new Set(heights).size, 1, `${testCase.label}: all cards share one height ${heights}`);
+    await shot('01-life-main');
+
+    // 2. 병원·응급실·약국 (LIFE-MEDICAL-MERGE-01): the card opens its own screen with the
+    // three choices and sends nothing — no question, nothing in the composer, no
+    // keyboard (the list itself is checked by validate_life_medical_list_01.mjs).
+    let state;
+    let sent = [];
+    await tapShortcut('medical');
+    state = await waitFor(async () => { const value = await probe(); return value.open && await evaluate("document.querySelectorAll('.medical-surface [data-medical-kind]').length === 3") ? value : null; }, `${testCase.label}: 병원·응급실·약국 screen`);
+    assert.deepEqual(await evaluate("[...document.querySelectorAll('.medical-surface [data-medical-kind]')].map(node => node.textContent)"), ['병원·의원', '응급실', '약국'], `${testCase.label}: the three choices`);
+    assert.equal(await evaluate('globalThis.__sent.length'), 0, `${testCase.label}: 병원·응급실·약국 sends nothing`);
+    assert.equal(state.composer, '', `${testCase.label}: nothing in the composer`);
+    assert.equal(await evaluate("document.activeElement === document.getElementById('lotbi-prompt')"), false, `${testCase.label}: composer not focused`);
+    await shot('02-medical-screen');
+
+    // 5. Existing shortcuts unchanged. 지역생활정보 (hidden while LIFE_LOCAL_CARD_ENABLED is off,
+    // QA_화면전수_01 H3) keeps its form, which sends at once, whenever it is shown.
+    if (LOCAL_ON) {
+      await openLife();
+      await tapShortcut('local');
+      state = await waitFor(async () => { const value = await probe(); return value.detail ? value : null; }, `${testCase.label}: local detail`);
+      assert.equal(state.detail.title, '지역생활정보');
+      assert.deepEqual(state.detail.fields.map(field => [field.label, field.required]), [['지역 또는 장소', true], ['궁금한 생활정보', true]]);
+      assert.deepEqual(state.detail.chips, []);
+      await typeInto('.consumer-life-detail input', '전주시 덕진구');
+      await typeInto('.consumer-life-detail .consumer-life-field:nth-of-type(2) input', '쓰레기 배출일');
+      assert.equal(state.detail.submit ? (await evaluate("document.querySelector('.consumer-life-detail form button[type=submit]').textContent")) : '', '롯비에게 물어보기');
+      await tap(await reveal('.consumer-life-detail form button[type=submit]'));
+      state = await waitFor(async () => { const value = await probe(); return !value.open ? value : null; }, `${testCase.label}: local submit`);
+      sent = await waitFor(() => evaluate(`globalThis.__sent.length === ${sent.length + 1} ? globalThis.__sent.slice() : null`), `${testCase.label}: local sent at once`);
+      assert.equal(sent.at(-1).text, '우리 지역 생활정보를 알려 줘\n지역 또는 장소: 전주시 덕진구\n궁금한 생활정보: 쓰레기 배출일');
+      assert.equal(state.composer, '', `${testCase.label}: local: nothing left in the composer`);
+      assert.equal(state.composerFocused, false, `${testCase.label}: local: composer not focused`);
+    }
+    await openLife();
+    await tapShortcut('festivals');
+    state = await waitFor(async () => { const value = await probe(); return value.festival ? value : null; }, `${testCase.label}: festival surface`);
+    return {cards: main.shortcuts.map(item => `${item.label}:${Math.round(item.box.w)}x${Math.round(item.box.h)}:${item.lineTexts.join('/')}`), sent: sent.map(body => body.text)};
+  } finally {
+    cdp.close();
+  }
+}
+
+const browser = browserPath();
+const dir = fs.mkdtempSync(path.join(ROOT, 'scripts/.life-medical-entry-'));
+const server = startServer();
+try {
+  fs.writeFileSync(path.join(dir, 'inner.html'), buildInner(), 'utf8');
+  const port = await serverPort(server);
+  const origin = `http://127.0.0.1:${port}`;
+  for (const testCase of CASES) {
+    const result = await runCase(browser, origin, dir, testCase);
+    console.log(`LIFE_MEDICAL_CATEGORY_ENTRY ${testCase.label}`, JSON.stringify(result));
+  }
+} finally {
+  server.kill('SIGTERM');
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try { fs.rmSync(dir, {recursive: true, force: true}); break; } catch { await sleep(250); }
+  }
+}
+
+console.log('LIFE-MEDICAL-CATEGORY-ENTRY-01 OK — 병원·응급실·약국 is one card that opens its own screen and sends nothing (no form, nothing in the composer, composer not focused); 공과금 확인 hidden, nine life cards fill their grid under the description, no free-question bar or footer row (viewport emulation, not a device run)');

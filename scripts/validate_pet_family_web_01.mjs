@@ -55,8 +55,8 @@ const desktopAside = index.match(/<aside class="chat-sidebar chat-sidebar-deskto
 const mobileAside = index.match(/<aside(?=[^>]*id="mobile-nav-drawer")[\s\S]*?<\/aside>/)?.[0] || '';
 for (const [label, block] of [['desktop', desktopAside], ['mobile', mobileAside]]) {
   assert.ok(block, `${label} sidebar markup missing`);
-  assert.ok(block.includes('data-consumer-section="care"'), `${label} must expose 안심케어`);
-  assert.match(block, /<span class="nav-item-label">안심케어<\/span>/, `${label} care label missing`);
+  assert.ok(block.includes('data-consumer-section="care"'), `${label} must expose 가족 지킴이`);
+  assert.match(block, /<span class="nav-item-label">가족 지킴이<\/span>/, `${label} care label missing`);
   assert.ok(!block.includes('data-pet-family-open'), `${label} must not duplicate pets as a primary menu`);
   // 캘린더 → 반려동물 → 최근 대화
   const calendarPos = block.indexOf('data-calendar-view="all"');
@@ -114,12 +114,20 @@ assert.ok(
   !/registerPet\(sessionToken/.test(petUi),
   'the UI must not allocate a stable Pet before the photo-first draft is finalized',
 );
+// SAFECARE-WEB-UI-REDESIGN-01: no inner three-card menu. The pets are the
+// screen, each card owns 사진 갱신·관리 / 실종 상태로 전환, and the found report
+// is a separate CTA.
 assert.ok(
-  petUi.includes("['pets', '내 반려동물'")
-    && petUi.includes("['sos', '실종 신고'")
-    && petUi.includes("['found', '발견 제보'"),
-  'Pet Home must expose three separate entry cards',
+  !petUi.includes("['pets', '등록된 반려동물'")
+    && !petUi.includes("['sos', '실종 관리'")
+    && !petUi.includes("['found', '발견 제보'"),
+  'the retired three-card Pet Home menu must not return',
 );
+assert.ok(petUi.includes('dataset.safecareFoundCta') && petUi.includes("'발견 제보하기'"),
+  'the found report must be its own clearly separate call to action');
+assert.match(petUi, /dataset\.petSosTarget/);
+assert.match(petUi, /실종 상태로 전환/);
+assert.match(petUi, /사진 갱신·관리/);
 
 // ----------------------------------------------------------- photo uploader
 
@@ -244,12 +252,18 @@ assert.ok(
   !renderListBody.includes('officialRegistrationNumber'),
   'list cards must not expose the official registration number',
 );
-assert.ok(
-  !renderListBody.includes('pet.petId)') || !renderListBody.includes('pet-card-id'),
+assert.doesNotMatch(
+  renderListBody,
+  /el\(\s*['"][^'"]*['"]\s*,\s*['"][^'"]*['"]\s*,\s*(?:pet\.petId|`[^`]*\$\{pet\.petId\}[^`]*`)\s*\)/,
   'list cards must not print the raw Pet ID as user-facing copy',
 );
+assert.doesNotMatch(
+  renderListBody,
+  /(?:textContent|innerText)\s*=\s*(?:pet\.petId|`[^`]*\$\{pet\.petId\}[^`]*`)/,
+  'list cards must not assign the raw Pet ID to visible text',
+);
 
-// Matching consent is opt-in and must say what it covers.
+// Matching consent is opt-in during an active SOS and must say what it covers.
 assert.ok(
   petClient.includes("value.matching_consent_state === 'GRANTED' ? 'GRANTED' : 'NOT_GRANTED'"),
   'matching consent must default to NOT_GRANTED for anything but an explicit GRANTED',
@@ -257,7 +271,7 @@ assert.ok(
 assert.match(
   petUi,
   /자동 알림이나 연락처 중개는 하지 않습니다/,
-  'the consent toggle must state that no alerts or contact relay happen',
+  'the active-SOS consent copy must state that no alerts or contact relay happen',
 );
 
 // ------------------------------------------------------- non-assertion rule
@@ -380,8 +394,15 @@ function innerFixtureHtml() {
   // petPhotoQuickLook's own guard) — this fixture takes that same, already
   // real, code path so the gate assertions test the gate, not decode timing.
   globalThis.createImageBitmap = undefined;
+  globalThis.addEventListener('error', event => {
+    document.getElementById('render-result').textContent = JSON.stringify({error: String(event.error?.stack || event.message || event.error)});
+  });
+  globalThis.addEventListener('unhandledrejection', event => {
+    document.getElementById('render-result').textContent = JSON.stringify({error: String(event.reason?.stack || event.reason)});
+  });
   let draftPhotos = [];
   let draftSpecies = '';
+  const draftFields = {};
   globalThis.fetch = async (url, options = {}) => {
     const target = String(url);
     if (/\\/v2\\/pet-catalog$/.test(target)) {
@@ -409,10 +430,13 @@ function innerFixtureHtml() {
     if (/\\/v2\\/pet-registration-drafts\\/pdraft_eeeeeeeeeeeeeeeeeeee$/.test(target) && options.method === 'PATCH') {
       const update = JSON.parse(options.body || '{}');
       if (typeof update.species === 'string') draftSpecies = update.species;
+      for (const key of ['name', 'sex', 'breed_code', 'breed', 'current_step']) if (key in update) draftFields[key] = update[key];
       return new Response(JSON.stringify({draft: {
         draft_id: 'pdraft_eeeeeeeeeeeeeeeeeeee',
-        status: 'ACTIVE', current_step: update.current_step || 'PHOTOS', revision: 2,
-        species: draftSpecies || 'DOG', matching_consent_state: 'NOT_GRANTED', photos: draftPhotos,
+        status: 'ACTIVE', current_step: draftFields.current_step || 'PHOTOS', revision: 2,
+        species: draftSpecies || 'DOG', name: draftFields.name || null, sex: draftFields.sex || null,
+        breed_code: draftFields.breed_code || null, breed: draftFields.breed || null,
+        matching_consent_state: 'NOT_GRANTED', photos: draftPhotos,
       }}), {status: 200, headers: {'Content-Type': 'application/json'}});
     }
     // PET-PHOTO-UX-03: FACE_FRONT is the one slot this fixture inspects
@@ -433,6 +457,22 @@ function innerFixtureHtml() {
       draftPhotos = [...draftPhotos.filter(item => item.slot_code !== slotCode), photo];
       return new Response(JSON.stringify({photo}), {status: 200, headers: {'Content-Type': 'application/json'}});
     }
+    // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): one slot-free POST per photo;
+    // Core places the first three as face photos and the next two as
+    // whole-body photos (accepted, species matched).
+    if (/\\/v2\\/pet-registration-drafts\\/pdraft_eeeeeeeeeeeeeeeeeeee\\/photos$/.test(target) && options.method === 'POST') {
+      const order = [['FACE_FRONT', 'FACE'], ['FACE_LEFT', 'FACE'], ['FACE_RIGHT', 'FACE'], ['BODY_LEFT', 'BODY'], ['BODY_RIGHT', 'BODY'], ['BACK_REAR', 'BODY']];
+      const [slotCode, category] = order.find(([code]) => !draftPhotos.some(item => item.slot_code === code));
+      const photo = {slot_code: slotCode, slot_index: 0, revision: 1, inspection_state: 'ACCEPTED', detected_species: draftSpecies};
+      draftPhotos = [...draftPhotos, photo];
+      globalThis.__draftPosts = (globalThis.__draftPosts || 0) + 1;
+      return new Response(JSON.stringify({photo, category, idempotent_replay: false, draft: {
+        draft_id: 'pdraft_eeeeeeeeeeeeeeeeeeee', status: 'ACTIVE', current_step: 'PHOTOS', revision: 3,
+        species: draftSpecies || 'DOG', name: draftFields.name || null, sex: draftFields.sex || null,
+        breed_code: draftFields.breed_code || null, breed: draftFields.breed || null,
+        matching_consent_state: 'NOT_GRANTED', photos: draftPhotos,
+      }}), {status: 201, headers: {'Content-Type': 'application/json'}});
+    }
     if (draftPhotoMatch && options.method === 'DELETE') {
       draftPhotos = draftPhotos.filter(item => item.slot_code !== draftPhotoMatch[1]);
       return new Response(JSON.stringify({}), {status: 200, headers: {'Content-Type': 'application/json'}});
@@ -445,8 +485,8 @@ function innerFixtureHtml() {
     if (/\\/v2\\/pets\\/[^/]+\\/photos$/.test(target)) {
       const filled = target.includes('AAAA')
         ? [{slot_code: 'NOSE_FRONT'}, {slot_code: 'NOSE_LEFT'}, {slot_code: 'FACE_FRONT'}]
-        : [];
-      return new Response(JSON.stringify({photos: filled, manifest: {slot_count: filled.length, state: 'UPLOAD_INCOMPLETE', manifest_version: 1}}), {status: 200, headers: {'Content-Type': 'application/json'}});
+        : ['NOSE_FRONT', 'NOSE_LEFT', 'NOSE_RIGHT', 'FACE_FRONT', 'FACE_LEFT', 'FACE_RIGHT', 'BODY_LEFT', 'BODY_RIGHT', 'BACK_REAR', 'DISTINCTIVE'].map(slot_code => ({slot_code}));
+      return new Response(JSON.stringify({photos: filled, manifest: {slot_count: filled.length, state: filled.length === 10 ? 'UPLOAD_COMPLETE' : 'UPLOAD_INCOMPLETE', manifest_version: 1}}), {status: 200, headers: {'Content-Type': 'application/json'}});
     }
     if (/\\/v2\\/pets\\/sos$/.test(target)) {
       return new Response(JSON.stringify({cases: [{
@@ -468,6 +508,7 @@ function innerFixtureHtml() {
         found_location: {label: '정자동 느티마을'},
         found_at: '2026-09-22T02:10:00Z',
         description: '회색 줄무늬',
+        review_state: 'DRAFT',
         status: 'ACTIVE',
       }]}), {status: 200, headers: {'Content-Type': 'application/json'}});
     }
@@ -494,12 +535,13 @@ function innerFixtureHtml() {
   const listText = list.textContent;
 
   // Detail view: the registration number is allowed here, but only masked
-  // until the owner reveals it, and the consent toggle must explain itself.
+  // until the owner reveals it. Matching consent is not a standing profile
+  // toggle; the copy must direct it to the active-SOS flow.
   list.querySelector('[data-pet-open="PET_KR_AAAAAAAAAAAAAAAAAAAA"]').click();
   const detail = document.querySelector('[data-pet-detail]');
   const detailTextBeforeReveal = detail.textContent;
   const maskedRegistration = detail.querySelector('.pet-registration-value').textContent;
-  const consentChecked = detail.querySelector('[data-pet-consent]').checked;
+  const standingConsentControlPresent = Boolean(detail.querySelector('[data-pet-consent]'));
   detail.querySelector('.pet-registration-reveal').click();
   const revealedRegistration = detail.querySelector('.pet-registration-value').textContent;
 
@@ -512,7 +554,7 @@ function innerFixtureHtml() {
   deleteTrigger.click();
   const deleteAfter = {trigger: box(deleteTrigger), confirm: box(confirmLine)};
 
-  // Photo uploader: 10 tiles, schematics on empty slots, blob previews on
+  // Photo uploader: 10 tiles, finished guides on empty slots, blob previews on
   // filled ones, and a progress line naming what is left.
   await new Promise(resolve => setTimeout(resolve, 400));
   const slotGrid = detail.querySelector('[data-pet-slot-grid]');
@@ -522,102 +564,126 @@ function innerFixtureHtml() {
     label: tile.querySelector('.pet-slot-label').textContent,
     hint: tile.querySelector('.pet-slot-hint').textContent,
     hasDiagram: Boolean(tile.querySelector('.pet-slot-diagram')),
+    artworkSrc: tile.querySelector('.pet-slot-guide-image')?.dataset.petApprovedSource || '',
     previewSrc: tile.querySelector('.pet-slot-photo')?.getAttribute('src')?.slice(0, 5) || '',
     stuckLoading: Boolean(tile.querySelector('.pet-slot-loading')),
-    accept: tile.querySelector('input[type="file"]').getAttribute('accept'),
+    inputs: tile.querySelectorAll('input').length,
   }));
+  const bulkInputs = [...detail.querySelectorAll('[data-pet-bulk] input[type="file"]')].map(input => ({
+    source: input.dataset.petPhotoSourceInput || '', bulk: input.hasAttribute('data-pet-bulk-input'), replace: input.hasAttribute('data-pet-bulk-replace-input'),
+    accept: input.getAttribute('accept') || '', multiple: input.multiple, capture: input.getAttribute('capture') || '',
+  }));
+  const bulkPick = detail.querySelector('[data-pet-bulk-pick]')?.textContent || '';
   const photoCount = detail.querySelector('.pet-photo-count').textContent;
   const progressNote = detail.querySelector('.pet-photo-progress-note').textContent;
 
-  // 실종 SOS / 발견 신고 sections.
+  // SAFECARE-WEB-UI-REDESIGN-01 — the missing state lives on the pet's card
+  // and only while an SOS is ACTIVE; the found report is a separate CTA; the
+  // SOS form and the found composer are focused panels with a way back.
   const sosSection = document.querySelector('[data-pet-sos]');
   const foundSection = document.querySelector('[data-pet-found]');
-  const cases = {
-    sos: [...sosSection.querySelectorAll('[data-pet-case]')].map(card => ({
-      status: card.dataset.petCaseStatus,
-      text: card.textContent,
-      hasResolve: Boolean(card.querySelector('[data-pet-case-resolve]')),
-      hasCancel: Boolean(card.querySelector('[data-pet-case-cancel]')),
-    })),
-    found: [...foundSection.querySelectorAll('[data-pet-case]')].map(card => ({
-      status: card.dataset.petCaseStatus,
-      text: card.textContent,
-      photoCount: card.querySelector('.pet-case-photo-count')?.textContent || '',
-    })),
-    safety: foundSection.querySelector('.pet-case-safety')?.textContent || '',
-    sosFormOpensFor: (() => {
-      sosSection.querySelector('[data-pet-sos-new]').click();
-      return Boolean(sosSection.querySelector('[data-pet-sos-form]'));
-    })(),
-    foundFormOpensFor: (() => {
-      foundSection.querySelector('[data-pet-found-new]').click();
-      return Boolean(foundSection.querySelector('[data-pet-found-form]'));
-    })(),
-  };
-
-  const homeCards = [...document.querySelectorAll('[data-pet-home-target]')].map(button => ({
-    target: button.dataset.petHomeTarget,
-    title: button.querySelector('.pet-home-card-title').textContent,
-  }));
-  const homeButtons = new Map(
-    [...document.querySelectorAll('[data-pet-home-target]')]
-      .map(button => [button.dataset.petHomeTarget, button]),
-  );
+  const foundCta = document.querySelector('[data-safecare-found-cta="pet"]');
   const listSection = list.closest('.pet-section');
-  const tabState = target => {
-    homeButtons.get(target).click();
-    return {
-      active: [...homeButtons.values()]
-        .find(button => button.dataset.petHomeActive === 'true')?.dataset.petHomeTarget || '',
-      pets: box(listSection),
-      register: box(document.querySelector('.pet-add-button')),
-      sos: box(sosSection),
-      sosAction: box(sosSection.querySelector('[data-pet-sos-new]')),
-      found: box(foundSection),
-      foundAction: box(foundSection.querySelector('[data-pet-found-new]')),
-    };
+  const cardFor = petId => list.querySelector('[data-pet-card="' + petId + '"]');
+  const activeSosBox = cardFor('PET_KR_AAAAAAAAAAAAAAAAAAAA').querySelector('[data-pet-active-sos]');
+  const surfaceState = () => ({
+    pets: box(listSection),
+    register: box(document.querySelector('.pet-add-button')),
+    foundCta: box(foundCta),
+    sos: box(sosSection),
+    found: box(foundSection),
+  });
+  const cases = {
+    sos: activeSosBox ? [{
+      text: activeSosBox.textContent,
+      hasResolve: Boolean(activeSosBox.querySelector('[data-pet-case-resolve]')),
+      hasCancel: Boolean(activeSosBox.querySelector('[data-pet-case-cancel]')),
+    }] : [],
+    activeSosCardHasTransition: Boolean(cardFor('PET_KR_AAAAAAAAAAAAAAAAAAAA').querySelector('[data-pet-sos-target]')),
+    idleCardHasActiveSos: Boolean(cardFor('PET_KR_BBBBBBBBBBBBBBBBBBBB').querySelector('[data-pet-active-sos]')),
+    idleCardHasTransition: Boolean(cardFor('PET_KR_BBBBBBBBBBBBBBBBBBBB').querySelector('[data-pet-sos-target]')),
   };
-  const homeTabs = {
-    pets: tabState('pets'),
-    sos: tabState('sos'),
-    found: tabState('found'),
-  };
-  homeButtons.get('pets').click();
+  const homeCards = document.querySelectorAll('[data-pet-home-target]').length;
+  const homeTabs = {pets: surfaceState()};
 
-  // Registration begins by choosing one supported species. Only that
-  // animal's ten private photo guides appear; no stable Pet ID exists yet.
+  list.querySelector('[data-pet-sos-target="PET_KR_BBBBBBBBBBBBBBBBBBBB"]').click();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  homeTabs.sos = surfaceState();
+  const directMissingAction = {
+    formFor: sosSection.querySelector('[data-pet-sos-form]')?.dataset.petSosForm || '',
+    fields: [...sosSection.querySelectorAll('[data-pet-sos-form] .site-field')].map(field => field.firstChild?.textContent || ''),
+    hasPetSelect: Boolean(sosSection.querySelector('[data-pet-sos-form] select')),
+  };
+  sosSection.querySelector('[data-pet-back-to-list]').click();
+  homeTabs.backFromSos = surfaceState();
+
+  foundCta.querySelector('[data-pet-found-open]').click();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  homeTabs.found = surfaceState();
+  cases.found = [...foundSection.querySelectorAll('[data-pet-case]')].map(card => ({
+    status: card.dataset.petCaseStatus,
+    reviewState: card.dataset.safecareReviewState,
+    text: card.textContent,
+    canResume: Boolean(card.querySelector('[data-pet-found-resume]')),
+  }));
+  cases.safety = foundSection.querySelector('.pet-case-safety')?.textContent || '';
+  cases.foundComposer = Boolean(foundSection.querySelector('[data-pet-found-composer]'));
+  cases.foundSubmitDisabled = foundSection.querySelector('[data-pet-found-submit]')?.disabled ?? null;
+  cases.foundAddLabel = foundSection.querySelector('[data-pet-found-add]')?.textContent || '';
+  foundSection.querySelector('[data-pet-back-to-list]').click();
+
+  // Registration: step 1 is 기본정보 with the species choice first, and the
+  // ten photo slots wait until it is saved. No stable Pet ID exists yet.
   document.querySelector('.pet-add-button').click();
   await new Promise(resolve => setTimeout(resolve, 100));
   const draftSlotsBeforeSpecies = [...document.querySelectorAll('[data-pet-draft-slot]')].length;
   const speciesChoices = [...document.querySelectorAll('input[name="pet-species"]')].map(input => input.value);
+  const basicStepLabel = document.querySelector('[data-pet-draft-progress]')?.textContent || '';
   document.querySelector('input[name="pet-species"][value="DOG"]').click();
   await new Promise(resolve => setTimeout(resolve, 100));
+  const draftSlotsAfterSpeciesOnly = [...document.querySelectorAll('[data-pet-draft-slot]')].length;
+  const basicForm = document.querySelector('[data-pet-register-form]');
+  basicForm.querySelector('input[type="text"]').value = '초코';
+  basicForm.querySelector('input[name="pet-sex"][value="MALE"]').click();
+  const breedSelect = basicForm.querySelector('select');
+  breedSelect.value = 'JINDO';
+  breedSelect.dispatchEvent(new Event('change', {bubbles: true}));
+  basicForm.requestSubmit();
+  for (let waited = 0; waited < 3000 && !document.querySelector('[data-safecare-renewal-dialog="pet"]'); waited += 100) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  const renewalDialog = document.querySelector('[data-safecare-renewal-dialog="pet"]');
+  const petRenewalNotice = renewalDialog?.textContent || '';
+  renewalDialog?.querySelector('[data-safecare-consent="privacy"]')?.click();
+  renewalDialog?.querySelector('[data-safecare-renewal-confirm]')?.click();
+  for (let waited = 0; waited < 3000 && !document.querySelector('[data-pet-draft-slot]'); waited += 100) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
   const draftSlots = [...document.querySelectorAll('[data-pet-draft-slot]')].map(tile => tile.dataset.petDraftSlot);
+  const photoGuide = document.querySelector('[data-safecare-guide]')?.dataset.safecareGuide || '';
 
-  // PET-PHOTO-UX-03: FACE_FRONT is the one photo the owner must confirm
-  // before anything else in the registration screen unlocks, and once it
-  // does, the remaining nine take any order the animal cooperates with.
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): no tile is locked and no tile
+  // has a picker; photos go in through '사진 여러 장 선택' (one slot-free POST
+  // each) and three face + two whole-body photos open the next step. This
+  // replaces the PET-PHOTO-UX-03 / PET-PHOTO-SEQUENTIAL-01 slot gate.
   const draftGate = () => ({
     banner: document.querySelector('.pet-draft-gate-banner')?.textContent || '',
+    counter: document.querySelector('[data-pet-draft-slot-grid]')?.closest('section, div')?.querySelector('[data-safecare-photo-count]')?.textContent || document.querySelector('[data-safecare-photo-count]')?.textContent || '',
+    complete: document.querySelector('[data-safecare-photo-count]')?.dataset.safecarePhotoComplete || '',
+    note: document.querySelector('[data-pet-draft-photo-note]')?.textContent || '',
+    nextDisabled: document.querySelector('[data-pet-draft-next="REVIEW"]')?.disabled ?? null,
+    rows: [...document.querySelectorAll('[data-pet-bulk-item]')].map(row => row.dataset.petBulkItem),
     tiles: [...document.querySelectorAll('[data-pet-draft-slot]')].map(tile => ({
       code: tile.dataset.petDraftSlot,
       locked: tile.dataset.petDraftSlotLocked,
-      chooseDisabled: tile.querySelector('.pet-slot-actions button')?.disabled ?? null,
-      lockHint: tile.querySelector('.pet-draft-photo-locked-hint')?.textContent || '',
+      controls: tile.querySelectorAll('input, .pet-slot-actions button:not([data-pet-draft-slot-delete])').length,
       stateText: tile.querySelector('.pet-draft-photo-state')?.textContent || '',
       filled: tile.dataset.petSlotFilled,
     })),
   });
-  const setDraftFile = slotCode => {
-    const tile = [...document.querySelectorAll('[data-pet-draft-slot]')]
-      .find(item => item.dataset.petDraftSlot === slotCode);
-    const input = tile.querySelector('input[type="file"]');
-    const file = new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], slotCode + '.png', {type: 'image/png'});
-    const transfer = new DataTransfer();
-    transfer.items.add(file);
-    input.files = transfer.files;
-    input.dispatchEvent(new Event('change', {bubbles: true}));
-  };
+  // The batch itself (prepare → POST, five photos open the next step) needs
+  // real time for image decoding, which this --virtual-time-budget render does
+  // not give: validate_safecare_pet_photo_easy_upload_01.mjs runs it.
   // Each upload still crosses the mocked fetch's own promise chain, so wait
   // for the actual outcome rather than a fixed sleep — bounded so a genuine
   // failure still surfaces quickly instead of hanging.
@@ -632,25 +698,23 @@ function innerFixtureHtml() {
   };
 
   const gateBeforeFaceFront = draftGate();
-  setDraftFile('FACE_FRONT');
-  await waitFor(() => draftGate().tiles.find(tile => tile.code === 'FACE_FRONT').stateText === '사진 확인됨');
-  const gateAfterFaceFront = draftGate();
-  // A closeup slot far from FACE_FRONT in the display order accepts an
-  // upload immediately: no forced 2 -> 3 -> 4 sequence through the middle.
-  setDraftFile('NOSE_RIGHT');
-  await waitFor(() => draftGate().tiles.find(tile => tile.code === 'NOSE_RIGHT').filled === 'true');
-  const noseRightAfterFreeOrder = draftGate().tiles.find(item => item.code === 'NOSE_RIGHT');
+  gateBeforeFaceFront.bulkPick = document.querySelector('[data-pet-bulk-pick]')?.textContent || '';
+  gateBeforeFaceFront.examples = document.querySelector('[data-pet-slot-examples]')?.textContent || '';
 
-  const registrationProgress = document.querySelector('.pet-draft-progress-label')?.textContent || '';
-  const registrationSteps = [...document.querySelectorAll('.pet-draft-step')].map(item => ({
-    number: item.querySelector('.pet-draft-step-number')?.textContent || '',
-    name: item.querySelector('.pet-draft-step-name')?.textContent || '',
+  const registrationProgress = document.querySelector('[data-pet-draft-progress]')?.textContent || '';
+  const registrationSteps = [...document.querySelectorAll('[data-pet-draft-step]')].map(item => ({
+    number: item.querySelector('.safecare-step-number')?.textContent || '',
+    name: item.querySelector('.safecare-step-name')?.textContent || '',
     active: item.dataset.petDraftStepActive,
   }));
   const registrationActionWhileOpen = box(document.querySelector('.pet-add-button'));
-  const speciesMarks = [...document.querySelectorAll('.pet-slot-species-mark')].map(item => item.textContent);
-  const rearSpecies = document.querySelector('[data-pet-rear-species]')?.dataset.petRearSpecies || '';
-  const rearImage = document.querySelector('[data-pet-rear-species] image')?.getAttribute('href') || '';
+  // PET-PHOTO-GUIDE-DEDUPE-01: the direction map above the tiles is gone, so
+  // the species check reads the example picture each empty tile shows.
+  const speciesMarks = [...document.querySelectorAll('[data-pet-draft-slot] .pet-slot-guide-image')].map(item => {
+    const src = item.dataset.petApprovedSource || '';
+    return src.includes('approved-pet-dog-') ? 'dog' : src.includes('approved-pet-cat-') ? 'cat' : src;
+  });
+  const rearImage = document.querySelector('[data-pet-draft-slot="BACK_REAR"] .pet-slot-guide-image')?.dataset.petApprovedSource || '';
 
   // Measure layout before the result sink is filled.
   const scrollWidth = document.documentElement.scrollWidth;
@@ -664,8 +728,10 @@ function innerFixtureHtml() {
     detailTextBeforeReveal,
     maskedRegistration,
     revealedRegistration,
-    consentChecked,
+    standingConsentControlPresent,
     slots,
+    bulkInputs,
+    bulkPick,
     cases,
     photoCount,
     progressNote,
@@ -673,19 +739,22 @@ function innerFixtureHtml() {
     deleteAfter,
     homeCards,
     homeTabs,
+    directMissingAction,
     draftSlots,
     draftSlotsBeforeSpecies,
+    draftSlotsAfterSpeciesOnly,
+    basicStepLabel,
+    petRenewalNotice,
+    photoGuide,
     gateBeforeFaceFront,
-    gateAfterFaceFront,
-    noseRightAfterFreeOrder,
     speciesChoices,
     registrationProgress,
     registrationSteps,
     registrationActionWhileOpen,
     speciesMarks,
-    rearSpecies,
     rearImage,
-    hasConsentCopy: detailTextBeforeReveal.includes('연락처 중개는 하지 않습니다'),
+    hasConsentCopy: detailTextBeforeReveal.includes('등록 사진은 평소 검색에 사용되지 않습니다')
+      && detailTextBeforeReveal.includes('연락처 중개는 하지 않습니다'),
     hasNotice: surface.textContent.includes('공개 자동 매칭과 보호자 알림은 아직 활성화되지 않았습니다'),
   });
 </script></body></html>`;
@@ -772,7 +841,8 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.deepEqual(result.cards.map(card => card.name), ['보리', '나비'], `${label}: pet names did not render`);
   assert.equal(result.cards[0].species, '강아지', `${label}: DOG must read 강아지`);
   assert.equal(result.cards[1].species, '고양이', `${label}: CAT must read 고양이`);
-  assert.equal(result.cards[0].progress, '사진 3/10', `${label}: photo completion must show filled/total`);
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the card counts photos; ten is not a target.
+  assert.equal(result.cards[0].progress, '사진 3장', `${label}: photo completion must show how many photos are stored`);
   assert.equal(result.cards[0].consent, '매칭 동의 안 함', `${label}: NOT_GRANTED must read as not consented`);
   assert.equal(result.cards[1].consent, '매칭 동의함', `${label}: GRANTED must read as consented`);
 
@@ -786,8 +856,8 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   assert.ok(result.maskedRegistration.includes('•'), `${label}: masked registration must be visibly masked`);
   assert.notEqual(result.maskedRegistration, RAW_REGISTRATION, `${label}: masked registration must differ from the raw value`);
   assert.equal(result.revealedRegistration, RAW_REGISTRATION, `${label}: explicit reveal must show the real number`);
-  assert.equal(result.consentChecked, false, `${label}: NOT_GRANTED must render as an unchecked opt-in`);
-  assert.ok(result.hasConsentCopy, `${label}: the consent toggle must explain what it covers`);
+  assert.equal(result.standingConsentControlPresent, false, `${label}: profile detail must not expose standing matching consent`);
+  assert.ok(result.hasConsentCopy, `${label}: active-SOS consent copy must explain what it covers`);
   assert.ok(result.hasNotice, `${label}: non-assertion notice must render`);
 
   assert.equal(result.slots.length, 10, `${label}: all ten photo slots must render`);
@@ -799,108 +869,100 @@ for (const [label, width, height] of [['mobile-360', 360, 780], ['fold-768', 768
   );
   for (const slot of result.slots) {
     assert.ok(slot.hint.length > 0, `${label}: slot ${slot.code} has no shooting hint`);
-    assert.equal(slot.accept, 'image/jpeg,image/png', `${label}: slot ${slot.code} accepts the wrong types`);
+    assert.equal(slot.inputs, 0, `${label}: slot ${slot.code} is an example without its own picker (2nd round)`);
     assert.ok(!slot.stuckLoading, `${label}: slot ${slot.code} is stuck on a loading label`);
     if (slot.filled === 'true') {
       assert.equal(slot.previewSrc, 'blob:', `${label}: filled slot ${slot.code} must preview from a blob, not a URL`);
     } else {
-      assert.ok(slot.hasDiagram, `${label}: empty slot ${slot.code} must show its shooting schematic`);
+      assert.match(
+        slot.artworkSrc,
+        /^assets\/family-guardian\/approved-pet-dog-(required|optional)-bichon-20261013\.png$/,
+        `${label}: empty slot ${slot.code} must show its dog shooting artwork`,
+      );
     }
   }
-  assert.equal(result.photoCount, '3/10', `${label}: photo progress must count filled slots`);
-  assert.match(result.progressNote, /^7장 남았습니다/, `${label}: progress note must name what is left`);
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): face 3 + whole body 2 is the set.
+  assert.equal(result.photoCount, '얼굴 1/3 · 몸 0/2 · 지금 3장', `${label}: photo progress must count face and body photos`);
+  assert.equal(result.progressNote, '얼굴 사진 2장과 몸 전체가 보이는 사진 2장이 더 있으면 실종 상태로 전환할 수 있어요.', `${label}: progress note must name what is left`);
+  assert.equal(result.bulkPick, '사진 여러 장 선택', `${label}: 사진 갱신·관리 adds photos through the batch`);
+  const bulkGallery = result.bulkInputs.find(input => input.bulk);
+  assert.deepEqual(bulkGallery, {source: 'gallery', bulk: true, replace: false, accept: 'image/*', multiple: true, capture: ''}, `${label}: the batch's gallery input takes several photos and never the narrow list`);
+  assert.deepEqual(result.bulkInputs.filter(input => !input.replace).map(input => [input.source, input.multiple, input.capture]), [['camera', false, 'environment'], ['gallery', true, ''], ['file', true, '']], `${label}: Camera / Gallery / File stay (SITE-PET-PHOTO-SOURCE-01)`);
 
-  assert.equal(result.cases.sos.length, 1, `${label}: the active SOS case must render`);
-  assert.equal(result.cases.sos[0].status, 'ACTIVE', `${label}: SOS status must render`);
+  assert.equal(result.cases.sos.length, 1, `${label}: the ACTIVE SOS must render on its pet's card`);
   assert.ok(result.cases.sos[0].text.includes('망원한강공원'), `${label}: SOS last-seen place must render`);
+  assert.ok(result.cases.sos[0].text.includes('실종 상태 진행 중'), `${label}: the card must say the missing state is active`);
   assert.ok(result.cases.sos[0].hasResolve && result.cases.sos[0].hasCancel,
     `${label}: an active SOS case must offer both ways to close it`);
-  assert.equal(result.cases.found.length, 1, `${label}: the active found case must render`);
+  assert.equal(result.cases.activeSosCardHasTransition, false, `${label}: a pet already missing must not offer 실종 상태로 전환 again`);
+  assert.equal(result.cases.idleCardHasActiveSos, false, `${label}: a pet without an ACTIVE SOS must not show any missing state`);
+  assert.equal(result.cases.idleCardHasTransition, true, `${label}: a pet without an ACTIVE SOS must offer 실종 상태로 전환`);
+  assert.equal(result.cases.found.length, 1, `${label}: the reporter's own found case must render`);
   assert.ok(result.cases.found[0].text.includes('고양이'), `${label}: found species must render in Korean`);
-  assert.equal(result.cases.found[0].photoCount, '첨부 사진 1/10', `${label}: found photo count must render`);
+  assert.ok(result.cases.found[0].text.includes('사진 1장'), `${label}: found photo count must render`);
+  assert.equal(result.cases.found[0].canResume, true, `${label}: a DRAFT found case must offer to continue writing`);
+  assert.ok(!result.cases.found[0].text.includes('확인 가능한 일치 대상 없음'), `${label}: a DRAFT must never read as no reliable match`);
   assert.ok(result.cases.safety.includes('붙잡아 사진을 찍지 마세요'),
     `${label}: the found report must keep its safety warning`);
-  assert.ok(result.cases.sosFormOpensFor, `${label}: the SOS form must open`);
-  assert.ok(result.cases.foundFormOpensFor, `${label}: the found report form must open`);
+  assert.ok(result.cases.foundComposer, `${label}: the found report composer must open`);
+  assert.equal(result.cases.foundSubmitDisabled, true, `${label}: final submit must stay disabled with no photos`);
+  assert.equal(result.cases.foundAddLabel, '사진 선택으로 작성 시작', `${label}: a found report must start from one photo`);
 
   assert.equal(result.deleteBefore.confirm, 0, `${label}: delete confirmation must be hidden until asked for`);
   assert.ok(result.deleteBefore.trigger > 0, `${label}: delete trigger must be visible`);
   assert.ok(result.deleteAfter.confirm > 0, `${label}: delete confirmation must appear after the first click`);
   assert.equal(result.deleteAfter.trigger, 0, `${label}: delete trigger must be replaced by its confirmation`);
-  assert.deepEqual(
-    result.homeCards,
-    [
-      {target: 'pets', title: '내 반려동물'},
-      {target: 'sos', title: '실종 신고'},
-      {target: 'found', title: '발견 제보'},
-    ],
-    `${label}: Pet Home must show the three separate surfaces`,
-  );
-  assert.equal(result.homeTabs.pets.active, 'pets', `${label}: pets tab must become active`);
-  assert.ok(result.homeTabs.pets.pets > 0 && result.homeTabs.pets.register > 0,
-    `${label}: pets tab must show the pet list and registration action`);
-  assert.equal(result.homeTabs.pets.sos, 0, `${label}: pets tab must hide the SOS surface`);
-  assert.equal(result.homeTabs.pets.found, 0, `${label}: pets tab must hide the found surface`);
-
-  assert.equal(result.homeTabs.sos.active, 'sos', `${label}: SOS tab must become active`);
-  assert.equal(result.homeTabs.sos.pets, 0, `${label}: SOS tab must hide the pet list`);
-  assert.ok(result.homeTabs.sos.sos > 0 && result.homeTabs.sos.sosAction > 0,
-    `${label}: SOS tab must show only the SOS surface and action`);
-  assert.equal(result.homeTabs.sos.found, 0, `${label}: SOS tab must hide the found surface`);
-
-  assert.equal(result.homeTabs.found.active, 'found', `${label}: found tab must become active`);
-  assert.equal(result.homeTabs.found.pets, 0, `${label}: found tab must hide the pet list`);
-  assert.equal(result.homeTabs.found.sos, 0, `${label}: found tab must hide the SOS surface`);
-  assert.ok(result.homeTabs.found.found > 0 && result.homeTabs.found.foundAction > 0,
-    `${label}: found tab must show only the found surface and action`);
+  assert.equal(result.homeCards, 0, `${label}: the retired three-card Pet Home menu must not render`);
+  assert.ok(result.homeTabs.pets.pets > 0 && result.homeTabs.pets.register > 0 && result.homeTabs.pets.foundCta > 0,
+    `${label}: the first screen must show the pet list, the registration action and the separate found CTA`);
+  assert.equal(result.homeTabs.pets.sos, 0, `${label}: the list must hide the SOS panel`);
+  assert.equal(result.homeTabs.pets.found, 0, `${label}: the list must hide the found panel`);
+  assert.equal(result.homeTabs.sos.pets, 0, `${label}: the SOS panel must replace the list`);
+  assert.equal(result.homeTabs.sos.foundCta, 0, `${label}: the SOS panel must hide the found CTA`);
+  assert.ok(result.homeTabs.sos.sos > 0, `${label}: the SOS panel must show`);
+  assert.ok(result.homeTabs.backFromSos.pets > 0 && result.homeTabs.backFromSos.sos === 0, `${label}: 목록으로 must return to the list`);
+  assert.equal(result.homeTabs.found.pets, 0, `${label}: the found panel must replace the list`);
+  assert.ok(result.homeTabs.found.found > 0, `${label}: the found panel must show`);
+  assert.equal(result.directMissingAction.formFor, 'PET_KR_BBBBBBBBBBBBBBBBBBBB',
+    `${label}: the per-pet missing action must open that pet's missing-state form`);
+  assert.equal(result.directMissingAction.hasPetSelect, false, `${label}: the card-opened form is about one pet, no pet picker`);
+  assert.deepEqual(result.directMissingAction.fields, ['실종 날짜·시간', '마지막으로 본 장소', '당시 특징·기타 (선택)'],
+    `${label}: the SOS form must offer only the fields Core stores`);
   assert.deepEqual(result.draftSlots, DRAFT_DISPLAY_ORDER,
     `${label}: registration must show all ten slots face-first (PET-PHOTO-UX-03), not Core's storage order`);
-  assert.equal(result.draftSlotsBeforeSpecies, 0, `${label}: photo slots must wait for one species selection`);
+  assert.equal(result.draftSlotsBeforeSpecies, 0, `${label}: photo slots must wait for basic information`);
+  assert.equal(result.draftSlotsAfterSpeciesOnly, 0, `${label}: choosing a species alone must not skip basic information`);
+  assert.equal(result.basicStepLabel, '반려동물 등록 1단계 / 4단계 · 기본정보', `${label}: registration must start with 기본정보`);
+  assert.ok(result.petRenewalNotice.includes('나이와 관계없이 · 6개월(180일)마다'), `${label}: pet photo step must confirm the six-month renewal policy`);
+  assert.equal(result.photoGuide, 'dog', `${label}: the dog photo guide must show above the ten slots`);
 
-  // PET-PHOTO-UX-03: only FACE_FRONT is open at first; the other nine are
-  // locked with a stated, disabled reason until it is accepted, then all
-  // nine open at once in any order.
-  const faceFrontBefore = result.gateBeforeFaceFront.tiles.find(tile => tile.code === 'FACE_FRONT');
-  assert.equal(faceFrontBefore.locked, 'false', `${label}: FACE_FRONT must be open before anything is confirmed`);
-  assert.equal(faceFrontBefore.chooseDisabled, false, `${label}: FACE_FRONT's upload action must not be disabled`);
-  for (const tile of result.gateBeforeFaceFront.tiles.filter(item => item.code !== 'FACE_FRONT')) {
-    assert.equal(tile.locked, 'true', `${label}: ${tile.code} must be locked before FACE_FRONT is confirmed`);
-    assert.equal(tile.chooseDisabled, true, `${label}: ${tile.code}'s upload action must be disabled while locked`);
-    assert.ok(tile.lockHint.length > 0, `${label}: ${tile.code} must state why it is locked`);
-    assert.ok(!/^[A-Z_]+$/.test(tile.lockHint), `${label}: ${tile.code}'s lock reason must not be a bare internal code`);
+  // SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round, owner decision 2026-10-10): no
+  // slot is locked or has its own picker; photos go in through the batch and
+  // three face + two whole-body photos open the next step (the person rule).
+  for (const tile of result.gateBeforeFaceFront.tiles) {
+    assert.equal(tile.locked, undefined, `${label}: ${tile.code} must not be locked`);
+    assert.equal(tile.controls, 0, `${label}: ${tile.code} is an example without a picker`);
   }
-  assert.match(result.gateBeforeFaceFront.banner, /먼저 얼굴 정면/,
-    `${label}: the banner must say to confirm the face-front photo first`);
-
-  assert.equal(
-    result.gateAfterFaceFront.tiles.find(tile => tile.code === 'FACE_FRONT').stateText,
-    '사진 확인됨',
-    `${label}: an accepted FACE_FRONT photo must say so`,
-  );
-  for (const tile of result.gateAfterFaceFront.tiles.filter(item => item.code !== 'FACE_FRONT')) {
-    assert.equal(tile.locked, 'false', `${label}: ${tile.code} must unlock once FACE_FRONT is confirmed`);
-    assert.equal(tile.chooseDisabled, false, `${label}: ${tile.code}'s upload action must re-enable once unlocked`);
-  }
-  assert.match(result.gateAfterFaceFront.banner, /순서와 관계없이/,
-    `${label}: the banner must say the remaining photos are free order once unlocked`);
-  assert.equal(result.noseRightAfterFreeOrder.locked, 'false',
-    `${label}: a closeup slot must accept an upload out of display order once unlocked`);
-  assert.ok(result.noseRightAfterFreeOrder.stateText.length > 0,
-    `${label}: NOSE_RIGHT must show a saved/inspection state once uploaded out of order`);
+  assert.equal(result.gateBeforeFaceFront.banner, '', `${label}: no 'face front first' banner any more`);
+  assert.equal(result.gateBeforeFaceFront.counter, '얼굴 0/3 · 몸 0/2 · 지금 0장 (10장까지)', label);
+  assert.equal(result.gateBeforeFaceFront.nextDisabled, true, `${label}: nothing yet, no next step`);
+  assert.equal(result.gateBeforeFaceFront.complete, 'false', label);
+  assert.equal(result.gateBeforeFaceFront.note, '얼굴 사진 3장과 몸 전체가 보이는 사진 2장이 더 있으면 다음 단계로 넘어갈 수 있어요.', label);
+  assert.equal(result.gateBeforeFaceFront.bulkPick, '사진 여러 장 선택', `${label}: the batch is the way in`);
+  assert.equal(result.gateBeforeFaceFront.examples, '아래는 필수 5장의 촬영 방향을 보여 주는 가상 예시예요.', label);
   assert.deepEqual(result.speciesChoices, ['DOG', 'CAT'], `${label}: the first step must offer dog or cat before photos`);
-  assert.equal(result.registrationProgress, '반려동물 등록 1단계 / 4단계',
+  assert.equal(result.registrationProgress, '반려동물 등록 2단계 / 4단계 · 식별 사진',
     `${label}: registration must identify the current numbered step`);
-  assert.deepEqual(result.registrationSteps.map(step => step.name), ['사진', '기본 정보', '추가 정보', '검토'],
+  assert.deepEqual(result.registrationSteps.map(step => step.name), ['기본정보', '식별 사진', '최종 확인', '등록 완료'],
     `${label}: registration must show the four steps in order`);
-  assert.deepEqual(result.registrationSteps.map(step => step.number), ['1', '2', '3', '4'],
-    `${label}: registration steps must be numbered`);
-  assert.equal(result.registrationSteps[0].active, 'true', `${label}: photo step must be active first`);
+  assert.deepEqual(result.registrationSteps.map(step => step.number), ['✓', '2', '3', '4'],
+    `${label}: registration steps must be numbered, with the finished step checked`);
+  assert.equal(result.registrationSteps[1].active, 'true', `${label}: the photo step must follow basic information`);
   assert.equal(result.registrationActionWhileOpen, 0,
     `${label}: the list-level registration/resume action must disappear while its form is open`);
-  assert.ok(result.speciesMarks.length > 0 && result.speciesMarks.every(mark => ['🐶', '🐕'].includes(mark)),
+  assert.ok(result.speciesMarks.length > 0 && result.speciesMarks.every(mark => mark === 'dog'),
     `${label}: DOG selection must show only dog photo guides`);
-  assert.equal(result.rearSpecies, 'DOG', `${label}: rear slot must use the selected dog's back-facing guide`);
-  assert.equal(result.rearImage, '/assets/pet/dog-rear-v1.png',
+  assert.equal(result.rearImage, 'assets/family-guardian/approved-pet-dog-optional-bichon-20261013.png',
     `${label}: slot 9 must use only the selected dog's color rear-view artwork`);
 }
 

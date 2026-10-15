@@ -21,30 +21,65 @@
        Reads only. Wrapped in try/catch and does nothing on a bad or missing
        value: a storage failure must not stop a legal page from rendering. -->
   <script>
-    try {
-      var lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
-      if (lotbiSavedTheme === 'auto') {
-        // SITE-THEME-AUTO-SCHEDULE-02 — '자동모드' is resolved here, with the same
-        // 18:00/07:00 boundaries index.html uses, rather than stored already
-        // resolved: a stored answer goes stale the moment the clock crosses one.
-        // Measured before this: with the key at 'auto' these pages set no
-        // attribute at all and fell back to the OS, so at 22:00 on a light OS
-        // Home went dark by the clock and a legal page stayed rgb(247,248,251).
+    // LOTBI-CONSUMER-THEME-SYNC-01 — the screen mode is the lotbi_theme_preference_v1
+    // cookie shared with account.lotbiai.com; this origin's old key is read only
+    // when that cookie is absent. Reads only. Re-applied when the tab comes back
+    // and at the next 자동모드 boundary, so an open page never stays behind.
+    (function () {
+      var lotbiTimer;
+      function lotbiApplyTheme() {
+        var lotbiSavedTheme = null;
+        try {
+          var lotbiCookies = document.cookie ? document.cookie.split(';') : [];
+          for (var lotbiIndex = 0; lotbiIndex < lotbiCookies.length; lotbiIndex += 1) {
+            var lotbiCookie = lotbiCookies[lotbiIndex].replace(/^\s+/, '');
+            if (lotbiCookie.indexOf('lotbi_theme_preference_v1=') !== 0) continue;
+            var lotbiShared = lotbiCookie.slice('lotbi_theme_preference_v1='.length);
+            lotbiSavedTheme = lotbiSavedTheme === null || lotbiSavedTheme === lotbiShared ? lotbiShared : '';
+          }
+        } catch (error) {}
+        if (lotbiSavedTheme !== 'light' && lotbiSavedTheme !== 'dark' && lotbiSavedTheme !== 'system' && lotbiSavedTheme !== 'auto') {
+          try {
+            lotbiSavedTheme = window.localStorage.getItem('lotbi.site.theme.bootstrap.v1');
+          } catch (error) {
+            lotbiSavedTheme = null;
+          }
+        }
+        var lotbiPreference = lotbiSavedTheme;
         var lotbiHour = new Date().getHours();
-        lotbiSavedTheme = (lotbiHour >= 18 || lotbiHour < 7) ? 'dark' : 'light';
+        if (lotbiSavedTheme === 'auto') {
+          // '자동모드' is resolved here, by this device's clock, rather than
+          // stored resolved: a stored answer goes stale at 07:00 and 22:00.
+          lotbiSavedTheme = (lotbiHour >= 22 || lotbiHour < 7) ? 'dark' : 'light';
+        }
+        if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
+          document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
+          document.documentElement.dataset.siteThemePreference = lotbiPreference;
+        }
+        clearTimeout(lotbiTimer);
+        if (lotbiPreference === 'auto') {
+          var lotbiNext = new Date();
+          lotbiNext.setMinutes(0, 0, 0);
+          lotbiNext.setHours(lotbiHour < 7 || lotbiHour >= 22 ? 7 : 22);
+          if (lotbiNext.getTime() <= Date.now()) lotbiNext.setDate(lotbiNext.getDate() + 1);
+          lotbiTimer = setTimeout(lotbiApplyTheme, lotbiNext.getTime() - Date.now());
+        }
       }
-      if (lotbiSavedTheme === 'light' || lotbiSavedTheme === 'dark' || lotbiSavedTheme === 'system') {
-        document.documentElement.dataset.siteThemeBootstrap = lotbiSavedTheme;
-      }
-    } catch (error) {}
+      lotbiApplyTheme();
+      window.addEventListener('pageshow', lotbiApplyTheme);
+      window.addEventListener('focus', lotbiApplyTheme);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') lotbiApplyTheme();
+      });
+    })();
   </script>
-  <link rel="stylesheet" href="styles.css?v=aset-de88e6e1b0a7" />
-  <link rel="stylesheet" href="footer-business-info.css?v=aset-de88e6e1b0a7" />
-  <link rel="stylesheet" href="mobile-entry.css?v=aset-de88e6e1b0a7" />
-  <link rel="stylesheet" href="site-static-theme.css?v=aset-de88e6e1b0a7" />
-  <script src="mobile-entry.js?v=aset-de88e6e1b0a7" defer></script>
-  <link rel="stylesheet" href="site-consumer-documents.css?v=aset-de88e6e1b0a7" />
-  <script src="site-document-navigation.js?v=aset-de88e6e1b0a7" defer></script>
+  <link rel="stylesheet" href="styles.css?v=aset-7ce47b43cff4" />
+  <link rel="stylesheet" href="footer-business-info.css?v=aset-7ce47b43cff4" />
+  <link rel="stylesheet" href="mobile-entry.css?v=aset-7ce47b43cff4" />
+  <link rel="stylesheet" href="site-static-theme.css?v=aset-7ce47b43cff4" />
+  <script src="mobile-entry.js?v=aset-7ce47b43cff4" defer></script>
+  <link rel="stylesheet" href="site-consumer-documents.css?v=aset-7ce47b43cff4" />
+  <script src="site-document-navigation.js?v=aset-7ce47b43cff4" defer></script>
 </head>
 <body class="consumer-document">
   <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
@@ -121,7 +156,7 @@
       </ul>
 
       <h2>제8조 LOTBI 유료 플랜</h2>
-      <p>LOTBI 유료 플랜은 일반 AI 서비스 전체에 대한 무제한 사용권을 의미하지 않으며 LOTBI 서비스 범위의 월 정기구독입니다. 유료 플랜은 LOTBI Basic·LOTBI Plus·LOTBI Pro로 구성되며, 월 구독료는 부가가치세를 포함하여 각각 9,900원·19,900원·39,900원입니다.</p>
+      <p>LOTBI 유료 플랜은 일반 AI 서비스 전체에 대한 무제한 사용권을 의미하지 않으며 LOTBI 서비스 범위의 월 정기구독입니다. 유료 플랜은 LOTBI Basic·LOTBI Plus·LOTBI Pro로 구성되며, 월 구독료는 부가가치세를 포함하여 각각 9,900원·29,900원·39,900원입니다.</p>
       <p>플랜에 따라 일정 자동등록, 영수증·가계부 자동인식, 안심케어 프로필, 진위확인 심층분석과 AI·음성·메모리·자동화 이용범위가 달라지며, 구체적인 이용범위는 구독 안내 화면에 표시합니다. 로그인 및 계정 연결은 유료 사용량으로 차감하지 않습니다.</p>
       <p>판매가 활성화되는 경우 결제 채널은 Web의 Toss Payments, iPhone/iOS의 Apple App Store subscription, Android의 Google Play subscription을 사용할 수 있습니다.</p>
       <p>실제 유료결제 활성화 전에는 결제화면과 관련 안내에서 자동갱신 여부, 결제주기와 다음 결제일, 해지방법과 효력, 결제실패 처리, 환불·청약철회 및 디지털 서비스 제공 개시와 관련된 조건을 관계 법령과 각 판매채널 정책에 맞게 별도로 고지합니다.</p>

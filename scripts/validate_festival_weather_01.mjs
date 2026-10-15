@@ -226,7 +226,7 @@ assert.doesNotMatch(festivalUiJs, /normalizeCalendarWeatherResponse|calendarWeat
 
 // Rate-limit protection: the list card must never fetch or render weather —
 // only the program screen (behind [프로그램]) may.
-const cardBuilderMatch = /function buildCard\([\s\S]*?\n\}\n/.exec(festivalUiJs);
+const cardBuilderMatch = /function buildCard\([\s\S]*?\r?\n\}\r?\n/.exec(festivalUiJs);
 assert.ok(cardBuilderMatch, 'buildCard() must exist');
 assert.doesNotMatch(cardBuilderMatch[0], /getFestivalProgramWeather|[Ww]eather/,
   'the festival list card must never fetch or render weather');
@@ -236,7 +236,7 @@ assert.doesNotMatch(cardBuilderMatch[0], /getFestivalProgramWeather|[Ww]eather/,
 const weatherCallSites = [...festivalUiJs.matchAll(/getFestivalProgramWeather\(\{/g)];
 assert.equal(weatherCallSites.length, 1,
   'getFestivalProgramWeather must be called from exactly one place (opening the program screen), never per tab click');
-const buildDateTabsMatch = /function buildDateTabs\([\s\S]*?\n\}\n/.exec(festivalUiJs);
+const buildDateTabsMatch = /function buildDateTabs\([\s\S]*?\r?\n\}\r?\n/.exec(festivalUiJs);
 assert.ok(buildDateTabsMatch, 'buildDateTabs() must exist');
 assert.doesNotMatch(buildDateTabsMatch[0], /getFestivalProgramWeather/,
   'buildDateTabs() must only ever render an already-resolved weatherByDate — never fetch on its own, e.g. per tab click');
@@ -270,7 +270,7 @@ assert.ok(festivalUiJs.includes("button.setAttribute('aria-label', buildProgramD
 
 // Attribution is built once per program screen (renderProgramSurface's own
 // weather callback), never once per date tab inside buildDateTabs.
-const ariaLabelBuilderMatch = /function buildProgramDateAriaLabel\([\s\S]*?\n\}\n/.exec(festivalUiJs);
+const ariaLabelBuilderMatch = /function buildProgramDateAriaLabel\([\s\S]*?\r?\n\}\r?\n/.exec(festivalUiJs);
 assert.ok(ariaLabelBuilderMatch, 'buildProgramDateAriaLabel() must exist');
 assert.doesNotMatch(ariaLabelBuilderMatch[0], /calendarWeatherAttribution/,
   'attribution must not be built per date tab');

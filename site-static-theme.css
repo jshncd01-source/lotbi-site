@@ -38,6 +38,12 @@
  * app's #424242 so legal pages and the Home shell draw the same rule.
  */
 
+/* 회사정보는 메인 대화 화면에서만 보여준다. 정적 안내·약관 화면은 각 문서의
+   본문과 링크 푸터만 유지하며, 동의 증빙용 HTML 원문은 바꾸지 않는다. */
+.lotbi-footer > .company-legal {
+  display: none;
+}
+
 /* The dark wordmark is opt-in, exactly as it is in site-theme-tokens.css. */
 .lotbi-brand-logo-dark {
   display: none;
@@ -94,6 +100,17 @@ html[data-site-theme-bootstrap="dark"] .plan-picker > legend { color: #f5f5f5; }
 html[data-site-theme-bootstrap="dark"] .plan-status { color: #f5f5f5; }
 html[data-site-theme-bootstrap="dark"] .plan-buy { color: #212121; }
 html[data-site-theme-bootstrap="dark"] :where(.plan-buy:hover, .plan-buy:focus-visible) { background: #ffffff; }
+
+/* SITE-SUBSCRIBE-DARK-CONTRAST-01 — the three plan buttons and the 추천 badge sit
+   on --brand-navy exactly as .plan-buy does, so in Dark they sit on #f5f5f5, but
+   subscribe.css writes their label #fff. White on #f5f5f5 measured 1.09:1: the
+   labels of the very buttons that start a purchase could not be read. The link
+   rule in subscribe.css is five classes deep (and :hover/:visited deeper), so
+   the override repeats that path rather than relying on source order. */
+html[data-site-theme-bootstrap="dark"] .recommended-badge { color: #212121; }
+html[data-site-theme-bootstrap="dark"] .plan-picker .plan-grid .plan-card a.plan-card-cta,
+html[data-site-theme-bootstrap="dark"] .plan-picker .plan-grid .plan-card a.plan-card-cta:visited,
+html[data-site-theme-bootstrap="dark"] .plan-picker .plan-grid .plan-card a.plan-card-cta:hover { color: #212121; }
 
 html[data-site-theme-bootstrap="dark"] .lotbi-brand-logo-light { display: none; }
 html[data-site-theme-bootstrap="dark"] .lotbi-brand-logo-dark { display: block; }
@@ -154,6 +171,15 @@ html[data-site-theme-bootstrap="dark"] .lotbi-brand-logo-dark { display: block; 
   html:not([data-site-theme-bootstrap]) .plan-buy { color: #212121; }
   html[data-site-theme-bootstrap="system"] :where(.plan-buy:hover, .plan-buy:focus-visible),
   html:not([data-site-theme-bootstrap]) :where(.plan-buy:hover, .plan-buy:focus-visible) { background: #ffffff; }
+
+  html[data-site-theme-bootstrap="system"] .recommended-badge,
+  html:not([data-site-theme-bootstrap]) .recommended-badge { color: #212121; }
+  html[data-site-theme-bootstrap="system"] .plan-picker .plan-grid .plan-card a.plan-card-cta,
+  html[data-site-theme-bootstrap="system"] .plan-picker .plan-grid .plan-card a.plan-card-cta:visited,
+  html[data-site-theme-bootstrap="system"] .plan-picker .plan-grid .plan-card a.plan-card-cta:hover,
+  html:not([data-site-theme-bootstrap]) .plan-picker .plan-grid .plan-card a.plan-card-cta,
+  html:not([data-site-theme-bootstrap]) .plan-picker .plan-grid .plan-card a.plan-card-cta:visited,
+  html:not([data-site-theme-bootstrap]) .plan-picker .plan-grid .plan-card a.plan-card-cta:hover { color: #212121; }
 
   html[data-site-theme-bootstrap="system"] .lotbi-brand-logo-light,
   html:not([data-site-theme-bootstrap]) .lotbi-brand-logo-light { display: none; }

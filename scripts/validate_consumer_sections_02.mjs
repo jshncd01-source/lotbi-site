@@ -1,19 +1,46 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {LIFE_SHORTCUTS} from '../site-consumer-sections.js';
+import {LIFE_LOCAL_CARD_ENABLED as LOCAL_ON} from '../site-feature-flags.js';
 const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 const source = read('site-consumer-sections.js');
 const conversation = read('site-conversation.js');
 const css = read('site-consumer-design.css');
-assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['축제·행사', '지역생활정보', '공과금 확인']);
-assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, 3);
-assert.ok(LIFE_SHORTCUTS.filter(item => item.id !== 'festivals').every(item => typeof item.prompt === 'string'));
-assert.match(LIFE_SHORTCUTS.find(item => item.id === 'bills').prompt, /등록할지/);
-for (const label of ['사람 등록', '제휴처 찾아 연결하기']) assert.ok(source.includes(label));
+// REGIONAL-INFO-APPROVED-UX-RESTORE-P0: no 유치원·학교 card (owner decision 2026-10-10).
+// REGIONAL-CARDS-BUNDLE-01: no 전북 맛집·음식 card or entry form (owner decision
+// 2026-10-10: LOTBI serves the whole country, not 전북 only).
+// LIFE-MEDICAL-MERGE-01 (owner decision 2026-10-11): 병원·응급실·약국 is ONE card, so
+// nine cards in all.
+assert.deepEqual(LIFE_SHORTCUTS.map(item => item.label), ['병원·응급실·약국', '전기차 충전소', '축제·행사', '지역뉴스', '지하철 정보', '온누리상품권·지역화폐', '부동산 실거래가', ...(LOCAL_ON ? ['지역생활정보'] : []), '내 아이 학교·유치원']);
+// QA_화면전수_01 H3 (2026-10-11): 지역생활정보 stays hidden (LIFE_LOCAL_CARD_ENABLED) until its
+// result shows inside the screen, so eight cards; turning the flag on makes nine.
+assert.equal(new Set(LIFE_SHORTCUTS.map(item => item.id)).size, LOCAL_ON ? 9 : 8);
+assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'local'), LOCAL_ON);
+assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'jeonbuk-food' || item.regionalFood || /전북/u.test(item.label)), false);
+assert.doesNotMatch(source, /createJeonbukFoodForm|regionalFood|site-life-regional/);
+assert.equal(LIFE_SHORTCUTS.some(item => ['hospital', 'emergency', 'pharmacy', 'education'].includes(item.id)), false);
+// 병원·응급실·약국 asks nothing: it opens its own screen (site-life-medical-list.js)
+// that lists the nearest places itself (LIFE-MEDICAL-MERGE-01) — no card asks the
+// conversation any more.
+const medical = LIFE_SHORTCUTS.find(item => item.id === 'medical');
+assert.equal(medical.ask, undefined);
+assert.equal(medical.choices, undefined);
+assert.deepEqual(LIFE_SHORTCUTS.filter(item => item.ask).map(item => item.id), []);
+assert.match(source, /else if \(item\.id === 'medical'\) openMedical\(item\);/);
+assert.match(source, /if \(name === 'life-medical' && items\.medical\) openMedical\(items\.medical\);/);
+// 축제·행사 and 온누리상품권 open their own surfaces (ONNURI-MERCHANT-01);
+// 지역뉴스, 전기차 충전소 and 내 아이 학교·유치원 open their own screens.
+assert.ok(LIFE_SHORTCUTS.filter(item => !['medical', 'ev-chargers', 'festivals', 'news', 'subway', 'onnuri', 'real-estate', 'my-child'].includes(item.id) && !item.ask).every(item => typeof item.prompt === 'string'));
+// 공과금 확인 is hidden until an official integration exists — no entry, form or copy.
+assert.equal(LIFE_SHORTCUTS.some(item => item.id === 'bills'), false);
+assert.doesNotMatch(source, /공과금|고지서|납부기한/);
+assert.ok(source.includes('제휴처 찾아 연결하기'));
+for (const removed of ['사람 실종 신고', '반려동물 실종 신고', '112·119']) assert.ok(!source.includes(removed));
 assert.doesNotMatch(source, /\bfetch\(|localStorage|sessionStorage|innerHTML|type = 'file'/);
-assert.match(source, /mountLifeWallet\(\{root, authenticated, accountId, sessionExpiresAt\}\)/);
-assert.match(source, /mountPeople\(host, counts =>/);
-assert.doesNotMatch(source, /action\('사람 등록', null, \{disabled: true\}\)/);
+// The wallet also gets the session token and plan (LIFE-WALLET-SHARE-01: sharing, Free item limit).
+assert.match(source, /mountLifeWallet\(\{root, authenticated, accountId, sessionExpiresAt, sessionToken, subscription\}\)/);
+assert.match(source, /mountPeople\(host, initialSurface, counts =>/);
+assert.match(conversation, /mountPersonCareManager\(\{sessionToken, root, initialSurface, onCountChange: reportCounts/);
 assert.match(source, /role', 'tablist'/);
 assert.match(source, /aria-selected/);
 assert.match(source, /ArrowLeft.*ArrowRight.*Home.*End/);
@@ -22,16 +49,39 @@ assert.match(source, /!authenticated/);
 assert.match(source, /mounted\?\.dispose\?\.\(\)/);
 assert.match(conversation, /onClose: \(\) => mounted\?\.dispose\(\)/);
 assert.match(conversation, /mountPetFamilyManager\(\{sessionToken, root, subscription: serverSubscription/);
-assert.match(conversation, /mountPersonProfileManager\(\{sessionToken, root, subscription: serverSubscription/);
-assert.match(conversation, /onDraft: text => \{ closeSurface\(\); draft\(text\); \}/);
+assert.match(conversation, /mountPersonCareManager\(\{sessionToken, root, initialSurface/);
+assert.match(conversation, /onAsk: text => \{[\s\S]{0,400}?closeSurface\(\);\s*askWithoutKeyboard\(text\);/);
+// LIFE-DIRECT-CHAT-CARD-COMPACTION-01: 유치원·학교 asks through onAsk too, so no
+// draft handoff is left anywhere in 생활정보.
+assert.doesNotMatch(conversation, /onDraft|draft\(text\)|요청을 입력창에 넣었어요/);
+assert.doesNotMatch(source, /onDraft/);
+// The separate 유치원·학교 card is gone (owner decision 2026-10-10): 내 아이
+// 학교·유치원 opens 내 아이 정보 or 유치원·학교 찾기, and the public lookup still
+// asks through onAsk (LIFE-DIRECT-CHAT-CARD-COMPACTION-01).
+// REGIONAL-INFO-BACK-NAVIGATION-01 (owner decision 2026-10-10, "학교·유치원
+// 등록인데 메뉴를 왜 나눠?"): the card opens the saved schools / 유치원 screen at
+// once through its route 'life-my-child' — no 내 아이 정보 / 유치원·학교 찾기 choice.
+const child = LIFE_SHORTCUTS.find(item => item.id === 'my-child');
+assert.equal(child.children, undefined);
+assert.match(source, /else if \(item\.id === 'my-child'\) openMyChild\(item\);/);
+assert.match(source, /else if \(name === 'life-my-child' && items\['my-child'\]\) openMyChild\(/);
+assert.doesNotMatch(source, /openChildChoice|data-child-choice|childChoice/);
+// Owner decision 2026-10-10 ("1링크 다시 살리"): signed out only, the saved screen
+// links "로그인 없이 학교·유치원 찾기" — the public lookup, its own route.
+assert.match(source, /const lookup = authenticated \? null : node\('button', [^)]*'로그인 없이 학교·유치원 찾기'\);/);
+assert.match(source, /else if \(name === 'life-education' && items\['my-child'\]\) openEducation\(\);/);
+assert.match(source, /mountEducation\(\{root: host, onAsk, accountId\}\)/);
 assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+// Phones keep two columns: the later layout sheet must not turn the menu into one.
+assert.doesNotMatch(read('site-consumer-layout.css'), /\.consumer-shortcuts \{ grid-template-columns: minmax\(0, 1fr\); \}/);
 assert.match(css, /min-height: 44px/);
 assert.match(css, /input:focus-visible/);
-assert.match(read('site-scam-shield.js'), /scamOutsideBound/);
-const scam = read('site-scam-shield.js');
-assert.match(scam, /function restoreDialogFocus\(\)/, 'all close paths share visible-trigger focus restoration');
-assert.match(scam, /visibleTrigger \? dialogTrigger : document\.querySelector\('\[data-mobile-nav-open\]'\)/, 'a hidden mobile trigger must fall back to the visible menu button');
-assert.match(scam, /target\?\.focus\?\.\(\)/);
-assert.match(scam, /dialog\.addEventListener\('close', restoreDialogFocus\)/, 'native close restores focus');
-assert.match(scam, /dialog\.removeAttribute\('aria-modal'\);\s*restoreDialogFocus\(\);/, 'fallback close restores focus');
+// SCAM-PHISHING-REDESIGN-02 — 사기·피싱 확인 is a workspace page: every close path
+// (header ←, in-page 대화로 돌아가기, Escape, back) goes through closeSurface,
+// which restores focus to the control that opened it.
+const conversationSource = read('site-conversation.js');
+assert.match(conversationSource, /installSurfaceBehavior\(backdrop, panel, \{workspace: 'scam', route: 'scam'/);
+assert.match(conversationSource, /surfaceRestoreFocus = initiatingFocus;/, 'the opener is remembered');
+assert.match(conversationSource, /if \(restoreTarget\) queueMicrotask\(\(\) => \{ if \(restoreTarget\.isConnected\) restoreTarget\.focus\(\); \}\);/, 'closing restores focus');
+assert.match(conversationSource, /if \(isScamShieldOpen\(\)\) leaveSiteRoute\('', \(\) => \{ if \(isScamShieldOpen\(\)\) closeSurface\(\); \}\);/, 'in-page close shares the same path');
 console.log('CONSUMER_SECTIONS_02 PASS — entry UX and safety source contracts, not backend E2E');

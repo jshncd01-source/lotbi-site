@@ -1,16 +1,46 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, expenseSummaryPresentation} from '../site-calendar-expense.js';
+import {
+  amountDetailPresentation,
+  amountSummaryLinePresentation,
+  calendarAmountDetailNode,
+  calendarAmountSummaryBlock,
+  calendarAmountSummaryLine,
+  calendarExpenseSummaryNode,
+  expenseSummaryFromEntries,
+  expenseSummaryPresentation,
+} from '../site-calendar-expense.js';
 
-// Minimal DOM adapter for the actual renderer. No browser, storage, API or user
-// account is used; sample amounts below exist only in these isolated assertions.
+// CALENDAR_LEDGER_DESIGN_01, revised by CALENDAR LIFE UX 01.
+//
+// A month's recorded amounts have one total line under the grid followed by a
+// compact category overview; the count/currency breakdown remains behind the
+// total button. The approved surface names it "생활비 합계": an amount on a record
+// can be a booking's price as easily as money already spent, and the contract
+// does not yet say which. A record without an amount is an ordinary record, so
+// nothing ever says it was "left out".
+//
+// Minimal DOM adapter for the actual renderers. No browser, storage, API or
+// user account is used; sample amounts below exist only in these assertions.
 class Node {
-  constructor(tag) { this.tagName = tag; this.children = []; this.dataset = {}; this.attributes = {}; this.textContent = ''; }
+  constructor(tag) { this.tagName = tag; this.children = []; this.dataset = {}; this.attributes = {}; this.textContent = ''; this.listeners = {}; }
   append(...nodes) { this.children.push(...nodes); }
   appendChild(node) { this.children.push(node); return node; }
   setAttribute(name, value) { this.attributes[name] = value; }
+  addEventListener(type, handler) { this.listeners[type] = handler; }
 }
-const find = (node, name) => node.className === name ? node : node.children.map(child => find(child, name)).find(Boolean);
+const find = (node, name) => {
+  if (!node || typeof node !== 'object') return undefined;
+  if (node.className === name) return node;
+  return (node.children || []).map(child => find(child, name)).find(Boolean);
+};
+const findAll = (node, name, out = []) => {
+  if (!node || typeof node !== 'object') return out;
+  if (node.className === name) out.push(node);
+  for (const child of node.children || []) findAll(child, name, out);
+  return out;
+};
+const text = node => (typeof node === 'string' ? node : [node.textContent, ...(node.children || []).map(text)].join(''));
 const savedDocument = globalThis.document;
 globalThis.document = {createElement: tag => new Node(tag)};
 try {
@@ -20,50 +50,112 @@ try {
     {entry: {amount_minor: 12, currency: 'USD', expense_category: 'SHOPPING'}},
     {entry: {amount_minor: null, currency: 'KRW'}},
   ]);
+  // Money rules unchanged: currencies are never summed together or converted,
+  // and a record without an amount is counted, never estimated.
+  assert.equal(summary.entriesWithoutAmount, 1);
   const presentation = expenseSummaryPresentation(summary, {local: true});
   assert.deepEqual(presentation.lines.map(line => line.totalAmount), ['84,200원', '12 USD']);
-  assert.equal(presentation.lines[0].note, '금액 없는 일정 1건 제외');
+  assert.equal(presentation.lines[0].note, '', 'a record without an amount is never phrased as excluded');
   assert.equal(presentation.lines[1].note, '');
 
-  const monthLabel = '2026년 9월'; // Browsing a past month must not say 이번 달.
-  const ledger = calendarExpenseSummaryNode({state: 'ready', summary, monthLabel, local: true, showHeading: true});
-  assert.equal(ledger.attributes['aria-label'], '2026년 9월 지출 합계');
-  assert.equal(ledger.dataset.expenseLayout, 'workspace');
-  assert.equal(find(ledger, 'calendar-expense-heading').textContent, '월별 지출');
-  assert.equal(find(ledger, 'calendar-expense-scope').textContent, '2026년 9월 · 캘린더에 기록한 금액 기준');
-  assert.equal(find(ledger, 'calendar-expense-total-amount').textContent, '84,200원');
-  assert.equal(find(ledger, 'calendar-expense-storage-note').textContent, '이 기기에 저장됨');
-  assert.equal(ledger.children.filter(node => node.className === 'calendar-expense-line').length, 2);
-  assert.deepEqual(find(ledger, 'calendar-expense-line').children.map(node => node.className), ['calendar-expense-total', 'calendar-expense-items']);
-  assert.equal(find(ledger, 'calendar-expense-items').children.filter(node => node.className === 'calendar-expense-item').length, 6);
+  // ── the one line ──
+  const line = amountSummaryLinePresentation(summary, {month: 9});
+  assert.deepEqual(line, {label: '9월 생활비 합계', amounts: ['84,200원', '12 USD']});
+  // Owner decision 2026-10-10: a month with no amount keeps its line at 0원
+  // (the 10-06 redesign had hidden it, read as "가계부 표시가 사라졌다").
+  assert.deepEqual(amountSummaryLinePresentation({currencies: [], entriesWithoutAmount: 3}, {month: 9}),
+    {label: '9월 생활비 합계', amounts: ['0원']}, 'a month with no amount reads 0원, never vanishes');
+  let opened = null;
+  const lineNode = calendarAmountSummaryLine({state: 'ready', summary, month: 9, onOpen: opener => { opened = opener; }});
+  assert.equal(lineNode.tagName, 'button');
+  assert.equal(lineNode.dataset.calendarAmountSummary, 'ready');
+  assert.equal(find(lineNode, 'calendar-amount-line-label').textContent, '9월 생활비 합계');
+  assert.equal(find(lineNode, 'calendar-amount-line-amount').textContent, '84,200원 · 12 USD');
+  assert.equal(lineNode.attributes['aria-label'], '9월 생활비 합계 84,200원, 12 USD, 자세히 보기');
+  lineNode.listeners.click();
+  assert.equal(opened, lineNode, 'the line opens the detail and hands it back its opener for focus');
+  const loadingLine = calendarAmountSummaryLine({state: 'loading', summary});
+  assert.equal(loadingLine.attributes.role, 'status');
+  assert.match(loadingLine.textContent, /불러오는 중/);
+  assert.ok(!loadingLine.textContent.includes('0원'), 'loading must never masquerade as a 0원 total');
+  assert.equal(calendarAmountSummaryLine({state: 'guest', summary}), null, 'an unknown state must not claim any total');
+  const emptyLine = calendarAmountSummaryLine({state: 'ready', summary: {currencies: [], entriesWithoutAmount: 2}, month: 9});
+  assert.equal(emptyLine.dataset.calendarAmountSummary, 'ready');
+  assert.equal(find(emptyLine, 'calendar-amount-line-amount').textContent, '0원');
+  const emptyBlock = calendarAmountSummaryBlock({state: 'ready', summary: {currencies: [], entriesWithoutAmount: 2}, month: 9, onOpen: () => {}});
+  assert.deepEqual(findAll(emptyBlock, 'calendar-amount-category').map(node => [node.dataset.expenseCategory, text(node.children[1])]),
+    [['UNCLASSIFIED', '0원'], ['FOOD', '0원'], ['TRAVEL', '0원'], ['SHOPPING', '0원'], ['LIVING', '0원'], ['OTHER', '0원']],
+    'an empty month keeps the six fixed 0원 slots');
+  const failed = calendarAmountSummaryLine({state: 'error', errorMessage: '생활비 합계를 불러오지 못했어요.'});
+  assert.equal(failed.attributes.role, 'status');
+  assert.equal(failed.textContent, '생활비 합계를 불러오지 못했어요.');
+  assert.equal(find(failed, 'calendar-amount-line-amount'), undefined, 'a failed read shows no number');
 
-  const compact = calendarExpenseSummaryNode({state: 'ready', summary, monthLabel});
-  assert.equal(find(compact, 'calendar-expense-header'), undefined, 'legacy strip stays unchanged by default');
-  assert.deepEqual(find(compact, 'calendar-expense-line').children.map(node => node.className), ['calendar-expense-items', 'calendar-expense-total']);
-  for (const state of ['loading', 'error', 'guest']) {
-    const node = calendarExpenseSummaryNode({state, summary: null, monthLabel, showHeading: true});
-    assert.equal(find(node, 'calendar-expense-heading').textContent, '월별 지출');
-    assert.equal(find(node, 'calendar-expense-total'), undefined, `${state} must not claim zero spent`);
-    assert.ok(find(node, 'calendar-expense-notice').textContent.length);
-    if (state !== 'guest') assert.equal(find(node, 'calendar-expense-notice').attributes.role, 'status');
-  }
-  const empty = calendarExpenseSummaryNode({state: 'ready', summary: {currencies: [], entriesWithoutAmount: 0}, showHeading: true});
-  assert.equal(find(empty, 'calendar-expense-total-amount').textContent, '0원');
-  assert.equal(empty.dataset.expenseRecorded, 'false');
+  const block = calendarAmountSummaryBlock({state: 'ready', summary, month: 9, onOpen: () => {}});
+  assert.equal(block.tagName, 'section');
+  assert.deepEqual(findAll(block, 'calendar-amount-category').map(node => [
+    node.dataset.expenseCategory,
+    text(node.children[0]),
+    text(node.children[1]),
+  ]), [
+    ['UNCLASSIFIED', '미분류', '0원'],
+    ['FOOD', '음식', '4,200원'],
+    ['TRAVEL', '여행', '0원'],
+    ['SHOPPING', '쇼핑', '0원'],
+    ['LIVING', '생활비', '80,000원'],
+    ['OTHER', '기타', '0원'],
+    ['UNCLASSIFIED', '미분류', '0 USD'],
+    ['FOOD', '음식', '0 USD'],
+    ['TRAVEL', '여행', '0 USD'],
+    ['SHOPPING', '쇼핑', '12 USD'],
+    ['LIVING', '생활비', '0 USD'],
+    ['OTHER', '기타', '0 USD'],
+  ]);
+
+  // ── the detail behind it ──
+  const detail = amountDetailPresentation(summary, {local: true});
+  assert.equal(detail.recorded, true);
+  assert.deepEqual(detail.lines[0].categories.map(row => [row.label, row.amount, row.count]), [['음식', '4,200원', 1], ['생활비', '80,000원', 1]],
+    'only categories that were used, in the fixed order');
+  assert.equal(detail.storageNote, '이 기기에 저장된 일정 기준이에요.');
+  const detailNode = calendarAmountDetailNode({summary, local: true});
+  assert.equal(findAll(detailNode, 'calendar-amount-detail-currency').length, 2);
+  assert.equal(findAll(detailNode, 'calendar-amount-detail-row').length, 3);
+  assert.equal(find(detailNode, 'calendar-amount-detail-scope').textContent, '캘린더 일정에 입력한 금액을 더한 값이에요.');
+  assert.equal(find(detailNode, 'calendar-amount-detail-storage').textContent, '이 기기에 저장된 일정 기준이에요.');
+  const emptyDetail = calendarAmountDetailNode({summary: {currencies: [], entriesWithoutAmount: 0}});
+  assert.equal(emptyDetail.dataset.amountRecorded, 'false');
+  assert.equal(find(emptyDetail, 'calendar-amount-detail-empty').textContent, '이 달에 입력한 금액이 없어요.');
+
+  // The earlier always-visible card is no longer mounted by the Calendar; it
+  // stays exported for isolated shoot scripts and must not resurrect the copy.
+  const legacy = calendarExpenseSummaryNode({state: 'ready', summary, monthLabel: '2026년 9월', local: true, showHeading: true});
+  assert.ok(!text(legacy).includes('금액 없는'), 'the legacy card must not phrase a record without an amount as excluded');
 } finally {
   if (savedDocument === undefined) delete globalThis.document;
   else globalThis.document = savedDocument;
 }
 
 const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8');
-const css = read('site-consumer-detail.css');
 const manager = read('site-calendar-manager.js');
-assert.match(manager, /showHeading: root\.closest\('\.consumer-workspace'\) !== null/);
-assert.match(manager, /detailsSummary\.textContent = '장소·생활비·메모 \(선택\)'/);
-assert.match(css, /\.calendar-expense-item\[data-expense-category\] dt\s*\{ color: var\(--lotbi-text-primary\)/);
-assert.match(css, /\.calendar-expense-items\s*\{[^}]*repeat\(6, minmax\(0, 1fr\)\)/);
-assert.match(css, /\.calendar-expense-items\s*\{[^}]*repeat\(2, minmax\(0, 1fr\)\)/);
-assert.match(css, /\.calendar-expense-total\s*\{[^}]*grid-row: 1;/);
-assert.match(css, /\.calendar-expense-item dd\s*\{[^}]*overflow-wrap: anywhere;/);
-assert.match(css, /\.calendar-expense-coverage\s*\{ grid-column: 1 \/ -1;/);
-console.log('CALENDAR_LEDGER_DESIGN_01 PASS — real renderer, money/currency/coverage states, consumer-only layout; not API E2E');
+const expense = read('site-calendar-expense.js');
+const calendarCss = read('site-calendar.css');
+assert.ok(manager.includes('calendarAmountSummaryBlock({'), 'Today, Week and Month show the total and category overview');
+assert.ok(manager.includes('calendarAmountDetailNode({summary, local})'), 'the breakdown opens from the line');
+assert.ok(!manager.includes('calendarExpenseSummaryNode('), 'the always-visible ledger card must not be mounted');
+assert.ok(manager.includes("amountSlot.className = 'calendar-amount-slot'"), 'the amount overview owns the top shell row');
+assert.ok(!manager.includes("'월별 지출'"), 'no ledger heading on the Calendar');
+// Code only: the comments explain the rule by quoting the words it forbids.
+const withoutComments = source => source
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/^\s*\/\/.*$/gm, '')
+  .replace(/\s\/\/.*$/gm, '');
+for (const [name, source] of [['site-calendar-manager.js', manager], ['site-calendar-expense.js', expense]]) {
+  const code = withoutComments(source);
+  assert.ok(!code.includes('쓴 돈'), `${name} must not call a recorded amount "쓴 돈"`);
+  assert.ok(!code.includes('금액 없는 일정'), `${name} must not phrase a record without an amount as excluded`);
+}
+assert.match(calendarCss, /\.calendar-amount-line \{[^}]*min-height: 44px;/);
+assert.match(calendarCss, /\.calendar-amount-line-amount \{[^}]*font-variant-numeric: tabular-nums;/);
+assert.match(calendarCss, /\.calendar-amount-detail-row \{/);
+console.log('CALENDAR_LEDGER_DESIGN_01 PASS — total + visible categories + detail on request, 생활비 합계 wording, money/currency rules; not API E2E');

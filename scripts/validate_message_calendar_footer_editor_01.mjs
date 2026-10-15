@@ -11,8 +11,10 @@
 //
 //   - a message with a real Core calendar_draft opens the editor pre-filled,
 //     heading "일정 초안 확인"
-//   - a plain answer with neither a place nor a calendar_draft still opens the
-//     editor, blank, heading "일정 등록" — never the bare calendar view
+//   - CONVERSATION-ANSWER-UX-01 (QA #8): a plain answer with no calendar_draft
+//     offers no 캘린더에 추가 at all, so no null hint can reach openCalendar;
+//     the draft answer's button, pressed again after it, still opens the
+//     pre-filled editor — never the bare calendar view
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
@@ -98,12 +100,28 @@ const DRAFT={contract_id:'CORE-SMART-CALENDAR-DRAFT-01',schema_version:1,
 
 let draft=DRAFT;
 const calls=[];
+// "카카오톡 공유하기" exists only with explicit Share readiness. 'unset' is
+// Production today; 'configured' models the future Share-specific contract.
+const kakaoMode=new URLSearchParams(location.search).get('kakao')||'unset';
+const copied=[];
+const kakaoCalls={init:[],send:[]};
 function install(){
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{copied.push(text)}}});
+  if(kakaoMode==='configured'){
+    let initialized=false;
+    globalThis.Kakao={init:key=>{kakaoCalls.init.push(key);initialized=true},isInitialized:()=>initialized,
+      Share:{sendDefault:async payload=>{kakaoCalls.send.push(payload)}}};
+  }
   const native=globalThis.fetch.bind(globalThis);
   globalThis.fetch=(url,init={})=>{
     const parsed=new URL(String(url),location.origin);
     const method=(init.method||'GET').toUpperCase();
     calls.push({path:parsed.pathname,method});
+    if(parsed.pathname==='/app/config.json'){
+      return json({navigation:kakaoMode==='configured'
+        ?{kakao_share_ready:true,kakao_navi_ready:true,kakao_javascript_key:'fixture-js-key',kakao_javascript_sdk_url:'https://t1.kakaocdn.net/kakao_js_sdk/2.8.3/kakao.min.js'}
+        :{kakao_navi_ready:false,kakao_javascript_key:null,kakao_javascript_sdk_url:null}});
+    }
     if(parsed.pathname==='/v2/conversation/messages'){
       return json(draft?{contract_id:'CORE-WEB-CHAT-01',schema_version:1,status:'ANSWERED',
         assistant_text:'10월 5일 오전 10시 30분 전주 치과 정기검진 일정이네요.',
@@ -138,13 +156,15 @@ const send=async text=>{
   box.dispatchEvent(new Event('input',{bubbles:true}));
   await wait(()=>!sendButton.disabled,'composer ready');
   const before=calls.filter(c=>c.path==='/v2/conversation/messages').length;
-  const footersBefore=footerCalendarButtons().length;
+  const rowsBefore=document.querySelectorAll('.chat-message-actions').length;
   click(sendButton);
   await wait(()=>calls.filter(c=>c.path==='/v2/conversation/messages').length>before,'turn sent');
-  // Wait for THIS turn's own footer button, never a stale one still in the
+  // Wait for THIS turn's own answer tools, never a stale row still in the
   // thread from an earlier turn — a bare existence check would resolve
-  // instantly against the previous message's button and click the wrong one.
-  await wait(()=>footerCalendarButtons().length>footersBefore,"this turn's footer button rendered");
+  // instantly against the previous message's row. (CONVERSATION-ANSWER-UX-01:
+  // only an answer with a schedule has a 캘린더 button, so the row is what
+  // every answer has.)
+  await wait(()=>document.querySelectorAll('.chat-message-actions').length>rowsBefore,"this turn's answer tools rendered");
 };
 
 const openViaFooter=async label=>{
@@ -153,7 +173,8 @@ const openViaFooter=async label=>{
   await wait(()=>document.querySelector('.site-modal.site-calendar-modal'),label+': calendar modal opened');
   await new Promise(r=>setTimeout(r,600));
   return {
-    editor: document.querySelector('.calendar-editor-dialog'),
+    // The workspace Calendar (design 04) draws its editor as .c4-editor.
+    editor: document.querySelector('.calendar-editor-dialog, .c4-editor'),
     modal: document.querySelector('.site-modal.site-calendar-modal'),
   };
 };
@@ -188,11 +209,73 @@ try{
   // calendar view instead of "일정을 등록하시겠습니까?".
   draft=null;
   await send('오늘 날씨 어때');
-  const plain=await openViaFooter('plain');
+  const latestActions=[...document.querySelectorAll('.chat-message-actions')].pop();
+  result.messageActionLabels=[...latestActions.querySelectorAll(':scope > button')].map(button=>button.getAttribute('aria-label'));
+  const shareFeedback=latestActions.querySelector('.chat-message-action-feedback');
+  click(latestActions.querySelector('[data-message-action="copy"]'));
+  await wait(()=>copied.length,'ordinary answer copy');
+  await wait(()=>shareFeedback.textContent.trim()==='답변을 복사했습니다.','ordinary answer copy feedback');
+  result.answerCopied=[...copied];
+  copied.length=0;
+  shareFeedback.textContent='';
+  click(latestActions.querySelector('[data-message-action="share"]'));
+  await wait(()=>calls.some(c=>c.path==='/app/config.json'),'kakao config read when the share menu opens');
+  await new Promise(r=>setTimeout(r,50));
+  result.shareMenuItems=[...latestActions.querySelectorAll('[role="menuitem"]')].map(item=>item.getAttribute('aria-label'));
+  const selectedShareAction=kakaoMode==='configured'?'kakaotalk':'link-copy';
+  click(latestActions.querySelector('[data-share-action="'+selectedShareAction+'"]'));
+  await wait(()=>shareFeedback.textContent.trim(),'kakao share feedback');
+  result.kakaoFeedback=shareFeedback.textContent.trim();
+  result.kakaoFeedbackTone=shareFeedback.dataset.tone||'';
+  result.kakaoCopied=[...copied];
+  result.kakaoSend=kakaoCalls.send.map(p=>({objectType:p.objectType,link:p.link}));
+  result.kakaoInit=[...kakaoCalls.init];
+  result.kakaoSdkScripts=[...document.querySelectorAll('script[src*="kakaocdn"]')].length;
+  result.shareMenuClosed=latestActions.querySelector('.lotbi-share-menu').hidden;
+  // CONVERSATION-ANSWER-UX-01 (QA #8): an answer with no schedule offers no
+  // 캘린더에 추가 at all. The Calendar shell below is exercised from the draft
+  // answer above it, whose footer button must still open its editor.
+  result.plain_calendarButton=Boolean(latestActions.querySelector('[data-message-action="calendar"]'));
+  const plain=await openViaFooter('reopenedDraft');
   result.plain_editorOpened=Boolean(plain.editor);
   result.plain_heading=plain.editor?.querySelector('#calendar-editor-heading')?.textContent||'';
   result.plain_title=plain.editor?.querySelector('.calendar-editor-title')?.value||'';
   result.plain_calendarManagerView=plain.modal?.querySelector('.site-modal-content')?.dataset.calendarManagerView||'';
+  result.calendarRole=plain.modal?.getAttribute('role')||'';
+  result.calendarAriaModal=plain.modal?.getAttribute('aria-modal')||'';
+  result.calendarIsWorkspace=plain.modal?.parentElement?.classList.contains('consumer-workspace')||false;
+  result.bodyWorkspaceOpen=document.body.classList.contains('site-workspace-open');
+  result.bodyOverlayOpen=document.body.classList.contains('site-overlay-open');
+  result.chatRemainsVisible=!document.getElementById('main-content').hidden;
+  result.chatIsInert=document.getElementById('main-content').inert;
+
+  // The Calendar is a modal over the conversation, but unlike a short-lived
+  // confirmation dialog it must not disappear when the user taps blank space.
+  // Close the nested editor first so the clicks exercise the Calendar shell.
+  document.querySelector('.calendar-editor-close')?.click();
+  await wait(()=>!document.querySelector('.calendar-editor-dialog, .c4-editor'),'plain editor closed');
+  const conversationBeforeBackdrop=document.getElementById('conversation-thread').textContent;
+  click(plain.modal);
+  await new Promise(r=>setTimeout(r,50));
+  result.calendarStayedAfterInnerBlankClick=Boolean(document.querySelector('.site-modal.site-calendar-modal'));
+  const calendarBackdrop=plain.modal.parentElement;
+  calendarBackdrop.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true}));
+  click(calendarBackdrop);
+  await new Promise(r=>setTimeout(r,50));
+  result.calendarStayedAfterBackdropClick=Boolean(document.querySelector('.site-modal.site-calendar-modal'));
+  const calendarCloseButton=document.querySelector('.site-calendar-modal > .site-modal-header .site-modal-close');
+  result.calendarCloseButtonLabel=calendarCloseButton?.getAttribute('aria-label')||'';
+  calendarCloseButton?.click();
+  await wait(()=>!document.querySelector('.site-modal.site-calendar-modal'),'calendar closed by close button');
+  result.calendarClosedByCloseButton=!document.querySelector('.site-modal.site-calendar-modal');
+  result.conversationPreservedAfterClose=document.getElementById('conversation-thread').textContent===conversationBeforeBackdrop;
+
+  click(document.querySelector('[data-calendar-view="all"]'));
+  const escapeCalendar=await wait(()=>document.querySelector('.site-modal.site-calendar-modal'),'calendar reopened for Escape');
+  escapeCalendar.parentElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  await wait(()=>!document.querySelector('.site-modal.site-calendar-modal'),'calendar closed by Escape');
+  result.calendarClosedByEscape=!document.querySelector('.site-modal.site-calendar-modal');
+  result.conversationPreservedAfterEscape=document.getElementById('conversation-thread').textContent===conversationBeforeBackdrop;
 
   result.ok=true;
   out.textContent=JSON.stringify(result);
@@ -208,17 +291,20 @@ function waitServer() {
   throw new Error('server start');
 }
 
-function wrapperMarkup(w, h) {
-  return `<!doctype html><html><body style="margin:0"><iframe id="case-frame" src="/${INNER_REL}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
+function wrapperMarkup(w, h, kakao) {
+  return `<!doctype html><html><body style="margin:0"><iframe id="case-frame" src="/${INNER_REL}?kakao=${kakao}" width="${w}" height="${h}" style="display:block;border:0"></iframe><pre id="result">pending</pre><script>
   const frame=document.getElementById('case-frame'),out=document.getElementById('result');
   const timer=setInterval(()=>{try{const child=frame.contentDocument?.getElementById('footer-editor-result');if(child&&child.textContent!=='pending'){out.textContent=child.textContent;clearInterval(timer)}}catch(e){out.textContent=JSON.stringify({ok:false,error:String(e)});clearInterval(timer)}},25);
   setTimeout(()=>{if(out.textContent==='pending'){out.textContent=JSON.stringify({ok:false,error:'wrapper timeout'});clearInterval(timer)}},55000);
   <\/script></body></html>`;
 }
 
-function run(browser, w, h) {
-  fs.writeFileSync(WRAPPER, wrapperMarkup(w, h), 'utf8');
-  const r = spawnSync(browser, ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--window-size=1600,1000', '--force-device-scale-factor=1', '--force-prefers-reduced-motion=reduce', '--virtual-time-budget=60000', '--dump-dom', ORIGIN + '/' + WRAPPER_REL], {encoding: 'utf8', timeout: 120000, maxBuffer: 12 * 1024 * 1024});
+function run(browser, w, h, kakao, userAgent = '') {
+  fs.writeFileSync(WRAPPER, wrapperMarkup(w, h, kakao), 'utf8');
+  const args = ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--window-size=1600,1000', '--force-device-scale-factor=1', '--force-prefers-reduced-motion=reduce', '--virtual-time-budget=60000'];
+  if (userAgent) args.push(`--user-agent=${userAgent}`);
+  args.push('--dump-dom', ORIGIN + '/' + WRAPPER_REL);
+  const r = spawnSync(browser, args, {encoding: 'utf8', timeout: 120000, maxBuffer: 12 * 1024 * 1024});
   if (r.error) throw r.error;
   if (r.status !== 0) throw new Error('browser ' + r.status + ' ' + r.stderr);
   const a = '<pre id="result">', b = '</pre>';
@@ -230,32 +316,71 @@ function run(browser, w, h) {
   return v;
 }
 
+function assertList(actual, expected, label) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+
 const browser = browserPath();
 fs.writeFileSync(INNER, fixture, 'utf8');
 const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1'], {cwd: ROOT, stdio: 'ignore'});
 try {
   waitServer();
-  for (const [w, h] of [[390, 844], [1280, 900]]) {
-    const v = run(browser, w, h);
-    const label = `${w}x${h}`;
+  for (const [w, h, kakao, userAgent = ''] of [[375, 812, 'unset'], [390, 844, 'unset'], [1280, 900, 'unset'], [390, 844, 'configured'], [390, 844, 'unset', 'Mozilla/5.0 KAKAOTALK/25.0']]) {
+    const v = run(browser, w, h, kakao, userAgent);
+    const label = `${w}x${h} kakao=${kakao}${userAgent ? ' inapp=KakaoTalk' : ''}`;
 
     if (!v.withDraft_editorOpened) throw new Error(`${label}: a message with a calendar_draft must open the editor`);
     if (v.withDraft_heading !== '일정 초안 확인') throw new Error(`${label}: a real draft must read "일정 초안 확인", got "${v.withDraft_heading}"`);
     if (v.withDraft_title !== '전주 치과 정기검진') throw new Error(`${label}: the editor must pre-fill the draft's title, got "${v.withDraft_title}"`);
     if (v.withDraft_date !== '2026-10-05') throw new Error(`${label}: the editor must pre-fill the draft's date, got "${v.withDraft_date}"`);
 
-    // The regression: no place, no calendar_draft — must still reach the
-    // editor, never the bare calendar view.
-    if (!v.plain_editorOpened) throw new Error(`${label}: a plain answer's footer button must still open the editor, not the bare calendar view (calendarManagerView="${v.plain_calendarManagerView}")`);
-    if (v.plain_heading !== '일정 등록') throw new Error(`${label}: a blank fallback must read "일정 등록", got "${v.plain_heading}"`);
-    if (v.plain_title !== '') throw new Error(`${label}: a plain answer must not invent a title, got "${v.plain_title}"`);
+    // CONVERSATION-ANSWER-UX-01 (QA #8): no schedule, no 캘린더에 추가 (the old
+    // blank "기록 추가" fallback had no answer left to serve). The draft
+    // answer's button still reaches its pre-filled editor, never the bare view.
+    if (v.plain_calendarButton) throw new Error(`${label}: an answer with no schedule must not offer 캘린더에 추가`);
+    if (!v.plain_editorOpened) throw new Error(`${label}: the draft answer's footer button must still open the editor, not the bare calendar view (calendarManagerView="${v.plain_calendarManagerView}")`);
+    if (v.plain_heading !== '일정 초안 확인' || v.plain_title !== '전주 치과 정기검진') throw new Error(`${label}: reopening the draft must pre-fill it again, got "${v.plain_heading}" / "${v.plain_title}"`);
+    assertList(v.messageActionLabels, ['복사하기', '공유하기', '답변 읽어주기'], `${label}: chat answer tools`);
+    if (v.answerCopied.length !== 1 || !v.answerCopied[0].startsWith('오늘은 대체로 맑고')) throw new Error(`${label}: ordinary answer copy regressed, got ${JSON.stringify(v.answerCopied)}`);
+    // LOTBI-KAKAO-SHARE-ACTUAL-01: KakaoTalk comes first once Share is ready.
+    assertList(v.shareMenuItems, kakao === 'configured' ? ['카카오톡 공유하기', '링크 복사'] : ['링크 복사'], `${label}: share menu`);
+    // The owner-approved Calendar is a full-page workspace (approved full-page
+    // calendar, then design 04): a named region that takes the place of the
+    // chat while it is open and gives it back untouched when it closes.
+    if (v.calendarRole !== 'region') throw new Error(`${label}: the Calendar workspace must be a named region, got role "${v.calendarRole}"`);
+    if (!v.calendarIsWorkspace || !v.bodyWorkspaceOpen || v.bodyOverlayOpen) throw new Error(`${label}: Calendar must open as the full-page workspace`);
+    if (!v.chatIsInert) throw new Error(`${label}: the chat behind the Calendar workspace must be inert`);
+    if (!v.calendarStayedAfterInnerBlankClick) throw new Error(`${label}: Calendar must stay open after a blank area inside the modal is clicked`);
+    if (!v.calendarStayedAfterBackdropClick) throw new Error(`${label}: Calendar must stay open after its outer backdrop is clicked`);
+    if (v.calendarCloseButtonLabel !== '대화로 돌아가기') throw new Error(`${label}: the workspace back control must say where it goes, got "${v.calendarCloseButtonLabel}"`);
+    if (!v.calendarClosedByCloseButton) throw new Error(`${label}: Calendar close button must still close the modal`);
+    if (!v.conversationPreservedAfterClose) throw new Error(`${label}: closing Calendar must preserve the conversation`);
+    if (!v.calendarClosedByEscape) throw new Error(`${label}: Escape must still close the Calendar modal`);
+    if (!v.conversationPreservedAfterEscape) throw new Error(`${label}: closing Calendar with Escape must preserve the conversation`);
+    if (!v.shareMenuClosed) throw new Error(`${label}: choosing a share option must close the share menu`);
+    if (v.kakaoSdkScripts !== 0) throw new Error(`${label}: the Kakao SDK must not be added as a page script here`);
+    if (kakao === 'unset') {
+      // Production today: Kakao is absent; only the user's explicit Link Copy runs.
+      if (v.kakaoFeedback !== '링크를 복사했습니다.' || v.kakaoFeedbackTone) throw new Error(`${label}: Link Copy must remain explicit and functional, got "${v.kakaoFeedback}" (${v.kakaoFeedbackTone})`);
+      if (JSON.stringify(v.kakaoCopied) !== JSON.stringify(['https://lotbiai.com/'])) throw new Error(`${label}: only the canonical link must be copied, got ${JSON.stringify(v.kakaoCopied)}`);
+      if (v.kakaoSend.length || v.kakaoInit.length) throw new Error(`${label}: Kakao must not be called while unconfigured`);
+    } else {
+      if (v.kakaoFeedback !== '카카오톡에서 보낼 친구나 채팅방을 선택해 주세요.') throw new Error(`${label}: configured KakaoTalk share must hand over without claiming a send, got "${v.kakaoFeedback}"`);
+      if (v.kakaoCopied.length) throw new Error(`${label}: a configured share must not copy instead`);
+      if (JSON.stringify(v.kakaoInit) !== JSON.stringify(['fixture-js-key'])) throw new Error(`${label}: Kakao must be initialised once with Core's key`);
+      if (v.kakaoSend.length !== 1 || v.kakaoSend[0].objectType !== 'text' || v.kakaoSend[0].link?.webUrl !== 'https://lotbiai.com/') throw new Error(`${label}: one KakaoTalk text share with the LOTBI link, got ${JSON.stringify(v.kakaoSend)}`);
+    }
 
     console.log(label, JSON.stringify({
       withDraft: {heading: v.withDraft_heading, title: v.withDraft_title, date: v.withDraft_date},
-      plain: {heading: v.plain_heading, title: v.plain_title},
+      plainCalendarButton: v.plain_calendarButton,
+      reopenedDraft: {heading: v.plain_heading, title: v.plain_title},
+      kakao: v.kakaoFeedback,
     }));
   }
-  console.log('MESSAGE CALENDAR FOOTER EDITOR 01 PASS — a real draft opens the editor pre-filled ("일정 초안 확인"), and a plain answer with nothing to pre-fill still opens it blank ("일정 등록") instead of landing on the bare calendar view.');
+  console.log('MESSAGE CALENDAR FOOTER EDITOR 01 PASS — a real draft opens the editor pre-filled ("일정 초안 확인"), an answer with no schedule offers no 캘린더에 추가, and the Calendar opens as the full-page workspace and gives the conversation back');
 } finally {
   server.kill();
   try { fs.unlinkSync(INNER); } catch {}

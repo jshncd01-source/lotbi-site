@@ -67,6 +67,18 @@ body.chat-home-page .calendar-editor-actions { padding-inline: 0; padding-bottom
 /* A pristine form has no error to reserve a full paragraph for. Nonempty
    validation errors retain their role/appearance; no submission logic changes. */
 body.chat-home-page .calendar-editor-error:empty { display: none; }
+/* The record editor is a bottom sheet on touch widths (it rides the visual
+   viewport, so the keyboard never covers 저장) and a panel at the right edge
+   on a desk -- never a narrow box in the middle of the screen. */
+body.chat-home-page .calendar-editor-backdrop[data-editor-presentation='SHEET'] { padding: 0; align-items: flex-end; justify-content: center; }
+body.chat-home-page .calendar-editor-backdrop[data-editor-presentation='SHEET'] > .calendar-editor-dialog {
+  width: min(100%, 640px); height: auto; max-height: calc(var(--calendar-editor-visual-height, 100dvh) - 12px);
+  align-self: flex-end; padding: 18px 20px 0; border-width: 1px 0 0; border-radius: 18px 18px 0 0;
+}
+body.chat-home-page .calendar-editor-backdrop[data-editor-presentation='SHEET'] .calendar-editor-actions { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+body.chat-home-page .calendar-editor-backdrop[data-editor-presentation='SIDE'] { padding: 16px; justify-content: flex-end; align-items: stretch; }
+body.chat-home-page .calendar-editor-backdrop[data-editor-presentation='SIDE'] > .calendar-editor-dialog { width: min(440px, 100%); height: auto; max-height: 100%; align-self: stretch; }
+body.chat-home-page .calendar-editor-body > .calendar-editor-title-field { color: var(--consumer-detail-muted); font-size: 13px; }
 body.chat-home-page :is(.calendar-editor-close, .calendar-readonly-close, .calendar-settings-close, .site-modal-close) {
   width: 44px; min-height: 44px; padding: 8px; border: 0;
   border-radius: 10px; background: transparent; color: var(--lotbi-text-secondary);
@@ -101,19 +113,21 @@ body.chat-home-page .calendar-readonly-details dt { color: var(--consumer-detail
 body.chat-home-page :is(.pet-section, .pet-profile-controls, .pet-timeline, .pet-candidate-section, .pet-registration-review, .festival-detail, .festival-program-surface) {
   border-radius: 0; background: transparent; box-shadow: none;
 }
-body.chat-home-page :is(.pet-section-title, .pet-home-card-title, .pet-card-title, .pet-registration-title, .pet-profile-controls-title, .pet-timeline-title, .pet-candidate-title, .festival-card-title, .festival-program-title) {
+body.chat-home-page :is(.pet-section-title, .pet-card-title, .pet-registration-title, .pet-profile-controls-title, .pet-timeline-title, .pet-candidate-title, .festival-card-title, .festival-program-title) {
   font-weight: 600; letter-spacing: -.025em;
 }
-body.chat-home-page :is(.pet-home-card, .pet-card, .festival-card) { border-radius: var(--consumer-detail-radius); box-shadow: none; }
-body.chat-home-page .pet-home { gap: 6px; border-bottom: 1px solid var(--lotbi-border-default); padding-bottom: 12px; }
-body.chat-home-page .pet-home-card { min-height: 76px; border: 0; border-radius: 10px; padding: 12px; }
-body.chat-home-page .pet-home-card[data-pet-home-active='true'] { background: var(--lotbi-surface-subtle); color: var(--lotbi-text-primary); box-shadow: none; }
+body.chat-home-page :is(.pet-card, .festival-card) { border-radius: var(--consumer-detail-radius); box-shadow: none; }
 body.chat-home-page :is(.pet-form, .pet-registration-form) { gap: 20px; }
 body.chat-home-page :is(.pet-form, .pet-registration-form) label { font-weight: 500; font-size: 14px; }
 body.chat-home-page :is(.pet-button, .pet-submit, .pet-form button, .festival-cta-button, .festival-registration-link, .festival-region-option) {
   min-height: 44px; border-radius: 10px; font-size: 14px; font-weight: 500;
 }
 body.chat-home-page :is(.pet-empty, .lotbi-box-empty) { border: 0; background: transparent; padding: 32px 16px; }
+/* COMMON-UI-POLISH-01 (QA #25) — signed out, 사람 showed a dashed, centred box with an underlined
+   '로그인' while 반려동물 showed a title and a solid button. 사람 now takes 반려동물's shape. */
+body.chat-home-page .consumer-care-body .person-empty-panel { display: grid; justify-items: start; gap: 8px; border: 0; background: transparent; padding: 32px 16px; text-align: left; }
+body.chat-home-page .consumer-care-body .person-empty-panel > p { margin: 0; color: var(--lotbi-text-primary, #202634); font-size: 18px; font-weight: 500; }
+body.chat-home-page .consumer-care-body .person-login-link { text-decoration: none; }
 body.chat-home-page .consumer-workspace:has(.consumer-life-detail) > .site-modal > .site-modal-header h2 { font-size: 14px; color: var(--consumer-detail-muted); font-weight: 500; }
 body.chat-home-page .consumer-workspace:has(.consumer-life-detail) > .site-modal > .site-modal-description { display: none; }
 .consumer-life-detail > .consumer-action { min-height: 44px; }
@@ -134,7 +148,6 @@ body.chat-home-page :is(.site-modal, .scam-dialog, .calendar-settings-dialog, .c
   body.chat-home-page :is(.calendar-settings-dialog, .calendar-editor-dialog, .calendar-readonly-dialog, .calendar-delete-confirm-dialog) { padding: 20px; }
   body.chat-home-page .calendar-readonly-details { grid-template-columns: minmax(0, 1fr); gap: 5px; }
   body.chat-home-page .calendar-readonly-details dd { margin-bottom: 12px; }
-  body.chat-home-page .pet-home-card { padding: 10px 8px; }
   body.chat-home-page :is(.calendar-editor-actions, .calendar-delete-confirm-actions) button { flex: 1 1 auto; }
   body.chat-home-page :is(.calendar-editor-primary, .calendar-editor-details) { grid-template-columns: minmax(0, 1fr); }
   body.chat-home-page .calendar-editor-body { padding: 12px 0; }
@@ -271,13 +284,15 @@ body.chat-home-page .scam-dialog-inner {
 body.chat-home-page .scam-dialog-description { margin: 0; font-size: 17px; line-height: 1.7; }
 body.chat-home-page .scam-dialog .scam-input-kinds { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 20px 0 8px; }
 body.chat-home-page .scam-dialog .scam-input-kinds svg { width: 28px; height: 28px; }
-body.chat-home-page .scam-check-step { display: grid; gap: 16px; }
+/* minmax(0, 1fr): a long file name with no break point (KakaoTalk saves them,
+   some URL-like) must not widen the step past the dialog, whose body clips. */
+body.chat-home-page .scam-check-step { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 body.chat-home-page .scam-method-back {
   justify-self: start; min-height: 48px; padding: 0 4px; border: 0; border-radius: 8px;
   background: transparent; color: var(--lotbi-text-primary); font-size: 16px; cursor: pointer;
 }
 body.chat-home-page .scam-method-back:hover { background: var(--lotbi-surface-subtle); }
-body.chat-home-page .scam-input-panel { min-width: 0; display: grid; gap: 8px; }
+body.chat-home-page .scam-input-panel { position: relative; min-width: 0; display: grid; gap: 8px; }
 body.chat-home-page .scam-input-panel > label { font-size: 18px; font-weight: 600; line-height: 1.6; word-break: keep-all; }
 body.chat-home-page .scam-dialog .scam-input-panel input[type=file] {
   box-sizing: border-box; width: 100%; min-width: 0; min-height: 58px; padding: 7px;
@@ -290,13 +305,35 @@ body.chat-home-page .scam-input-panel input[type=file]::file-selector-button {
   border: 1px solid var(--lotbi-border-default); border-radius: 8px;
   background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font: inherit; cursor: pointer;
 }
+/* 사진·스크린샷 / 카메라: iOS labels every file control "파일 선택", even the one
+   that opens the camera, so the visible control is a named button and the input
+   stays focusable but visually hidden. */
+body.chat-home-page .scam-dialog .scam-input-panel input.scam-file-input[type=file] {
+  position: absolute; width: 1px; height: 1px; min-height: 0; margin: -1px; padding: 0;
+  border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; opacity: 0;
+}
+body.chat-home-page .scam-dialog .scam-input-panel .scam-file-pick {
+  box-sizing: border-box; display: flex; align-items: center; justify-content: center; min-height: 56px; padding: 8px 18px;
+  border: 1px solid var(--lotbi-text-primary); border-radius: 12px;
+  background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary);
+  font-size: 17px; font-weight: 600; line-height: 1.4; text-align: center; word-break: keep-all; cursor: pointer;
+}
+body.chat-home-page .scam-dialog .scam-input-panel .scam-file-pick:hover { background: var(--lotbi-surface-subtle); }
+body.chat-home-page .scam-dialog .scam-file-input:focus-visible + .scam-file-pick { outline: 2px solid var(--lotbi-focus-ring); outline-offset: 3px; }
 body.chat-home-page .scam-field-help { margin: 0; color: var(--consumer-detail-muted); font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
 body.chat-home-page .scam-file-preview {
-  display: grid; gap: 12px; padding: 16px; border: 1px solid var(--lotbi-border-default);
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--lotbi-border-default);
   border-radius: 14px; background: var(--lotbi-surface-subtle);
 }
-body.chat-home-page .scam-file-preview img { display: block; width: 100%; max-height: 300px; object-fit: contain; border-radius: 10px; background: #fff; }
-body.chat-home-page .scam-file-preview p { margin: 0; color: var(--lotbi-text-primary); font-size: 18px; font-weight: 600; line-height: 1.6; }
+/* The whole picture at its own aspect ratio, centered: the box is the picture
+   (no letterbox), capped by the preview width and 300px. Display only — the
+   chosen file itself is sent unchanged. */
+body.chat-home-page .scam-file-preview img { display: block; justify-self: center; width: auto; height: auto; max-width: 100%; max-height: 300px; object-fit: contain; border-radius: 10px; background: #fff; }
+/* The prompt carries the file name: wrap anywhere, at most three lines. */
+body.chat-home-page .scam-file-preview p {
+  display: -webkit-box; margin: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
+  color: var(--lotbi-text-primary); font-size: 18px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere;
+}
 body.chat-home-page .scam-file-preview button { min-height: 52px; border: 1px solid var(--lotbi-border-default); background: var(--lotbi-surface-primary); color: var(--lotbi-text-primary); font-size: 16px; }
 body.chat-home-page .scam-clicked { min-height: 44px; align-items: flex-start; padding-block: 10px; }
 body.chat-home-page .scam-clicked input { margin-top: 3px; }
@@ -313,6 +350,44 @@ body.chat-home-page .scam-status { overflow-wrap: anywhere; }
   }
   body.chat-home-page .scam-dialog .scam-input-kinds strong { font-size: 17px; }
   body.chat-home-page .scam-input-kinds svg { width: 24px; height: 24px; }
+}
+/* SCAM-PHISHING-C-REDESIGN-01 keeps the verification dialog contract while
+   presenting it as the approved full-page workspace. The navigation/dismiss
+   stays outside the one scrolling body; these stronger rules preserve the C
+   layout from the compact legacy dialog rules above. */
+body.chat-home-page .scam-dialog[data-scam-page] {
+  border-radius: 0; box-shadow: none;
+  background: radial-gradient(circle at 38% 5%, rgb(31 112 255 / 8%), transparent 34%), var(--lotbi-surface-primary, #fff);
+}
+body.chat-home-page .scam-dialog[data-scam-page] .scam-page-shell {
+  box-sizing: border-box; display: flex; flex: 1 1 auto; flex-direction: column;
+  width: min(1132px, calc(100% - 48px)); height: 100%; min-height: 0;
+}
+body.chat-home-page .scam-dialog[data-scam-page] .scam-dialog-inner {
+  flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto;
+  padding: 0;
+}
+body.chat-home-page .scam-dialog[data-scam-page] .scam-dialog-description {
+  margin: 0 0 8px; font-size: clamp(1.35rem, 2.5vw, 2rem); line-height: 1.35; letter-spacing: -.025em;
+}
+body.chat-home-page .scam-dialog[data-scam-page] .scam-input-kinds {
+  display: flex; grid-template-columns: none; gap: 32px; margin: 0 28px;
+}
+body.chat-home-page .scam-dialog[data-scam-page] .scam-input-panel textarea,
+body.chat-home-page .scam-dialog[data-scam-page] .scam-input-panel input[type="url"] {
+  width: 100%; min-height: 170px; border-radius: 13px; padding: 20px 22px 62px;
+  font-size: 1.05rem; line-height: 1.65;
+}
+body.chat-home-page .scam-dialog[data-scam-page] .scam-input-panel input[type="url"] { min-height: 76px; padding: 18px 20px; }
+body.chat-home-page .scam-dialog[data-scam-page] :is(button, summary) { font-weight: 700; }
+@media (max-width: 760px) {
+  body.chat-home-page .scam-dialog[data-scam-page] .scam-page-shell { width: 100%; padding: 8px 0 40px; }
+  body.chat-home-page .scam-dialog[data-scam-page] .scam-dialog-inner { padding: 0; }
+  body.chat-home-page .scam-dialog[data-scam-page] .scam-input-kinds { display: flex; grid-template-columns: none; gap: 14px; margin: 0 14px; }
+  body.chat-home-page .scam-dialog[data-scam-page] .scam-input-kinds :is(label, .scam-voice-method) {
+    min-height: 62px; padding: 0 4px; flex-direction: row; align-items: center; justify-content: flex-start; text-align: left;
+  }
+  body.chat-home-page .scam-dialog[data-scam-page] .scam-input-panel textarea { min-height: 180px; padding: 16px 16px 64px; }
 }
 /* App/Web chooser uses the same quiet entry surface without decorative gradients. */
 .lotbi-mobile-entry { background: var(--lotbi-surface-primary, #fff); }

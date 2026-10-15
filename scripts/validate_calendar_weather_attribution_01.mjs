@@ -10,7 +10,7 @@
 //
 // Covered contracts:
 //   - the credit renders directly under the month grid, inside .calendar-month
-//     (layout children 0/1 stay the month and the selected-day surface)
+//     (the month stays the first surface and no day detail mounts until a date is pressed)
 //   - it is not covered by the fixed day sheet that a phone opens by default
 //   - it names 기상청 and 공공누리 제1유형
 //   - it is one line, smaller than the date-cell text, and shorter than a cell
@@ -148,7 +148,7 @@ try{
   const monthSection=root.querySelector('.calendar-month');
   result.creditInsideMonth=monthSection.contains(line);
   result.layoutFirstIsMonth=layout.children[0]?.classList.contains('calendar-month');
-  result.layoutSecondIsDayPanel=layout.children[1]?.classList.contains('calendar-day-panel');
+  result.layoutHasSelectedDayPanel=Boolean(layout.querySelector('.calendar-day-panel'));
   const grid=root.querySelector('.calendar-month-grid');
   // 데스크톱에서 그리드는 제 행 높이를 1px 테두리만큼 넘긴다. 그래서 "그리드
   // 아래"의 기준은 픽셀 동일이 아니라 '텍스트가 그리드 끝 뒤에서 시작하고
@@ -213,7 +213,8 @@ try{
   // --- other views ------------------------------------------------------
   root=await mountCase(manager,stubFetch({weather:SHORT_ONLY}));
   await wait(()=>credit(root),'month before switch');
-  root.querySelector('[data-calendar-mode="year"]').click();
+  // LIFE UX 01: 년 is reached through the month title, not a tab.
+  root.querySelector('.calendar-title-button').click();
   await wait(()=>root.dataset.calendarManagerView==='year','year view');
   await new Promise(r=>setTimeout(r,120));
   result.yearCredit=Boolean(credit(root));
@@ -280,12 +281,13 @@ function run(browser, w, h) {
     throw new Error('site-calendar-weather.js must cite the 공공누리 제1유형 source it is honouring');
   }
 
-  // The credit gets an implicit fifth row. The Calendar redesign and the
-  // expense bar both hold .calendar-product-shell's grid-template-rows, so it
-  // must stay exactly as they left it.
+  // .calendar-product-shell keeps three explicit rows (toolbar, status, the
+  // view); LIFE UX 01's + 기록 bar takes an implicit row only while it is
+  // shown, so a hidden bar costs the month no gap. The credit lives inside
+  // the views and must not change this template.
   const calendarCss = fs.readFileSync('site-calendar.css', 'utf8');
-  if (!calendarCss.includes('grid-template-rows: auto auto minmax(0, 1fr) auto;')) {
-    throw new Error('.calendar-product-shell must keep its four explicit rows');
+  if (!/grid-template-rows: auto auto minmax\(0, 1fr\);\s*grid-auto-rows: auto;/.test(calendarCss)) {
+    throw new Error('.calendar-product-shell must keep its three explicit rows and an implicit row for the + 기록 bar');
   }
   if (!calendarCss.includes('grid-template-rows: auto minmax(0, 1fr);')) {
     throw new Error('.calendar-month must keep its two explicit desktop rows — the weather credit uses an implicit row instead');
@@ -308,7 +310,7 @@ try {
     // Placement.
     if (!value.creditInsideMonth) throw new Error(`${label}: the credit must sit inside .calendar-month, with the grid it credits`);
     if (!value.layoutFirstIsMonth) throw new Error(`${label}: month layout child 0 must stay the month grid`);
-    if (!value.layoutSecondIsDayPanel) throw new Error(`${label}: month layout child 1 must stay the selected-day surface`);
+    if (!value.layoutHasSelectedDayPanel) throw new Error(`${label}: approved Month must mount the selected-day detail with today selected`);
     if (!value.creditFollowsMonth) throw new Error(`${label}: the credit must render below the month grid`);
     if (value.coveredBySheet) throw new Error(`${label}: the credit must not sit under the day sheet a phone opens by default — it would be an obligation that is not on screen`);
     if (!value.creditOnScreen) throw new Error(`${label}: the credit must be on screen without scrolling`);

@@ -80,27 +80,35 @@
   flex: 0 0 auto;
 }
 
-/* SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the sidebar secondary menu is gone; its
-   four items (연결 서비스 / 프로필 / 설정 / 도움말) live only in the account
-   menu, which also carries 개인 맞춤 설정 and 로그아웃. The focus ring below is
-   kept for the account row, which still needs it. */
+/* SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the account row is the single profile
+   entry point. Its approved compact popup carries 프로필 관리 / 설정 / 로그아웃.
+   The focus ring below remains on the account row. */
 .sidebar-account-entry:focus-visible {
   outline: 2px solid var(--brand-violet, #7b62bb);
   outline-offset: 2px;
 }
 
-.sidebar-history-section {
+.sidebar-history-shell {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
 
 .sidebar-history-scroll {
-  flex: 1 1 auto;
+  height: 100%;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+}
+
+.sidebar-history-shell .sidebar-history-section {
+  min-height: auto;
+  overflow: visible;
+}
+
+.sidebar-pinned-section {
+  margin-bottom: 18px;
 }
 
 .nav-history-list li {
@@ -221,6 +229,13 @@
   box-shadow: 0 10px 28px rgba(25, 36, 56, .14);
 }
 
+/* COMMON-UI-POLISH-01 (QA #18) — a closed ⋯ menu must not leave 상단에 고정·
+   이름 바꾸기·삭제 laid out and reachable by Tab or a screen reader. Tied to
+   the open attribute itself, so it changes in the same frame as the toggle. */
+.conversation-history-actions:not([open]) > .conversation-history-menu {
+  display: none;
+}
+
 .nav-history-list .conversation-history-menu button {
   inline-size: 100%;
   min-height: 34px;
@@ -261,6 +276,29 @@ body[data-site-theme="dark"] .conversation-history-menu {
   box-shadow: 0 10px 28px rgba(0, 0, 0, .28);
 }
 
+/* COMMON-UI-POLISH-02 (QA 02 C7·C8) — Dark kept two Light colours: the initials ring
+   (#eef0f6 under #f5f5f5 ink, 1.05:1, wherever the Home skin does not repaint it) and
+   삭제 (#a02645 on #2f2f2f, 1.8:1). Both now have a Dark value, about 11:1 and 6:1. */
+body[data-site-theme="dark"] .sidebar-profile-avatar {
+  border-color: #424242;
+  background: #353535;
+}
+
+body[data-site-theme="dark"] .nav-history-list .conversation-history-delete {
+  color: #ff8fa3;
+}
+
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .sidebar-profile-avatar {
+    border-color: #424242;
+    background: #353535;
+  }
+
+  body[data-site-theme="system"] .nav-history-list .conversation-history-delete {
+    color: #ff8fa3;
+  }
+}
+
 body[data-site-theme="dark"] .conversation-history-menu-trigger:hover,
 body[data-site-theme="dark"] .conversation-history-menu-trigger:focus-visible,
 body[data-site-theme="dark"] .conversation-history-actions[open] > .conversation-history-menu-trigger,
@@ -288,9 +326,9 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 .sidebar-account-footer {
   flex: 0 0 auto;
   margin-top: auto;
-  padding: 12px 4px 0;
-  border-top: 1px solid #e2e6ee;
-  background: #f7f8fb;
+  padding: 8px 4px 0;
+  border-top: 0;
+  background: transparent;
 }
 
 .sidebar-account-slot {
@@ -326,16 +364,31 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 
 .sidebar-profile-trigger {
   inline-size: 100%;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
+  min-height: 50px;
+  padding: 8px 10px;
+  display: flex;
   align-items: center;
   align-content: normal;
-  gap: 9px;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  transition: background-color 140ms ease;
 }
 
+.sidebar-profile-trigger:hover {
+  background: #eceff5;
+}
+
+.sidebar-profile-trigger:active {
+  background: #f1f3f8;
+}
 
 .sidebar-profile-avatar {
-  width: 36px;
-  height: 36px;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -347,12 +400,32 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   font-weight: 850;
 }
 
+/* SOCIAL-SIGNUP-PROFILE-UX-01 — no name given and no photo: a plain person icon, not letters. */
+.sidebar-profile-avatar-default {
+  color: var(--lotbi-text-muted, #667085);
+}
+
+.sidebar-profile-avatar-icon {
+  width: 58%;
+  height: 58%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.profile-photo-preview-filled > .sidebar-profile-avatar-icon {
+  visibility: hidden;
+}
+
 .sidebar-profile-chevron {
-  width: 18px;
-  height: 18px;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
   display: grid;
   place-items: center;
-  color: var(--lotbi-text-primary, var(--text, #212121));
+  color: var(--lotbi-text-muted, #667085);
   transition: transform 140ms ease, color 140ms ease;
 }
 
@@ -362,7 +435,7 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   height: 6px;
   border-top: 1.5px solid currentColor;
   border-right: 1.5px solid currentColor;
-  transform: rotate(45deg);
+  transform: rotate(135deg);
 }
 
 .sidebar-profile-trigger:hover .sidebar-profile-chevron,
@@ -371,10 +444,17 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 }
 
 .sidebar-profile-trigger[aria-expanded="true"] .sidebar-profile-chevron {
-  transform: rotate(-90deg);
+  transform: rotate(180deg);
 }
 
-.sidebar-profile-copy { min-width: 0; display: grid; gap: 1px; }
+.sidebar-profile-copy {
+  min-width: 0;
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1px 4px;
+}
 
 .sidebar-account-name,
 .sidebar-account-handle {
@@ -391,10 +471,64 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
 }
 
 .sidebar-account-handle {
-  color: var(--lotbi-text-primary, var(--text, #212121));
+  flex-basis: 100%;
+  color: var(--lotbi-text-muted, #667085);
   font-size: 12px;
   font-weight: 650;
   line-height: 1.35;
+}
+
+.sidebar-account-plan {
+  max-width: 100%;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0;
+  overflow: hidden;
+  color: var(--lotbi-text-muted, #667085);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-account-plan::before {
+  content: '·';
+  margin-right: 4px;
+}
+
+body[data-site-theme="dark"] .sidebar-profile-trigger {
+  background: transparent;
+  box-shadow: none;
+}
+
+body[data-site-theme="dark"] .sidebar-profile-trigger:hover {
+  border-color: #566172;
+  background: #272e3a;
+}
+
+body[data-site-theme="dark"] .sidebar-account-plan {
+  color: var(--lotbi-text-muted, #aeb6c3);
+  background: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] .sidebar-profile-trigger {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  body[data-site-theme="system"] .sidebar-profile-trigger:hover {
+    border-color: #566172;
+    background: #272e3a;
+  }
+
+  body[data-site-theme="system"] .sidebar-account-plan {
+    color: var(--lotbi-text-muted, #aeb6c3);
+    background: transparent;
+  }
 }
 
 .sidebar-account-placeholder {
@@ -628,6 +762,13 @@ body[data-site-theme="dark"] .sidebar-guest-actions .sidebar-account-entry {
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
+}
+
+/* SITE-CONNECTED-SERVICES-HIDE-01 — display:flex on these rows outranks the UA [hidden], so the
+   switch in site-conversation.js (CONNECTED_SERVICES_MENU_VISIBLE) would otherwise change nothing. */
+.nav-item[data-consumer-section="mall"][hidden],
+.profile-popover [role="menuitem"][hidden] {
+  display: none;
 }
 
 .nav-item-pending[hidden] {

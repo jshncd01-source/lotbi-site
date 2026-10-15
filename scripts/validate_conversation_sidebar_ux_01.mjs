@@ -79,7 +79,8 @@ for (const [label, block] of [['desktop', desktopNavBlock], ['mobile', mobileNav
 // profile/settings/help into the account menu; this used to assert that the
 // desktop sidebar still listed them separately. Desktop has now made the same
 // move, so the contract is that NEITHER surface duplicates the account menu.
-// That the six items survive the move is locked by
+// The approved compact popover keeps only its three direct actions; the full
+// settings surface remains reachable through 설정.
 // scripts/validate_single_profile_entry_01.mjs.
 for (const [label, block] of [['desktop', desktopNavBlock], ['mobile', mobileNavBlock]]) {
   for (const action of ['profile', 'settings', 'help']) {
@@ -124,10 +125,10 @@ assert.ok(conversation.includes("storageKey(namespace, 'threads')"));
 assert.ok(continuity.includes("window.dispatchEvent(new CustomEvent('lotbi:sidebar-auth-rendered'))"), 'resolved anonymous auth state must notify the conversation mount after asynchronous boot');
 assert.ok(conversation.includes("!stateReady && document.body.dataset.siteAuthState === 'unauthenticated'"), 'guest namespace must hydrate after asynchronous unauthenticated state resolution');
 
-for (const label of ['개인테마', '프로필', '설정', '연결 서비스', '도움말', '로그아웃']) {
+for (const label of ['프로필 관리', '설정', '로그아웃']) {
   assert.ok(conversation.includes(label), `profile menu missing ${label}`);
 }
-for (const a11y of ["event.key === 'Escape'", "event.key !== 'Tab'", "setAttribute('aria-modal', 'true')", "surfaceRestoreFocus.focus()"] ) {
+for (const a11y of ["event.key === 'Escape'", "event.key !== 'Tab'", "setAttribute('aria-modal', 'true')", "restoreTarget.focus()"] ) {
   assert.ok(conversation.includes(a11y), `overlay accessibility missing ${a11y}`);
 }
 for (const imageContract of [

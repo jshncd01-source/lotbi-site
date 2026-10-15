@@ -13,7 +13,7 @@ for value in (
     "LOTBI Plus",
     "LOTBI Pro",
     "9,900원",
-    "19,900원",
+    "29,900원",
     "39,900원",
     "Basic 시작하기",
     "Plus 시작하기",
@@ -31,15 +31,16 @@ cards = re.findall(r'<label class="plan-card[^>]*>(.*?)</label>', SUBSCRIBE, re.
 assert len(cards) == 3, "upgrade surface must contain exactly three paid cards"
 assert all("LOTBI Free" not in card for card in cards), "Free must not be an upgrade card"
 assert sum("recommended-badge" in card for card in cards) == 1, "exactly one plan must be recommended"
-assert "LOTBI Plus" in next(card for card in cards if "recommended-badge" in card)
+assert "LOTBI Pro" in next(card for card in cards if "recommended-badge" in card)
 
-for forbidden in ("제휴몰 개수", "제휴 서비스 개수", "쇼핑·예약 실행 횟수", "미래 모든 기능"):
+# 공과금 확인 is not offered (LIFE INFO CLEANUP, 2026-10-08): the plans must not list it.
+for forbidden in ("제휴몰 개수", "제휴 서비스 개수", "쇼핑·예약 실행 횟수", "미래 모든 기능", "공과금", "고지서"):
     assert forbidden not in SUBSCRIBE, f"unavailable feature advertised: {forbidden}"
 
 assert "로그인 및 계정 연결은 유료 사용량으로 차감하지 않습니다." in TERMS
-assert "9,900원·19,900원·39,900원" in TERMS
-assert "29,900" not in SUBSCRIBE
-assert "29,900" not in TERMS
+assert "9,900원·29,900원·39,900원" in TERMS
+assert "19,900" not in SUBSCRIBE
+assert "19,900" not in TERMS
 assert re.search(r"\.plan-picker\s*\{[^}]*min-width:\s*0;[^}]*width:\s*100%;", STYLES, re.S), (
     "fieldset min-content sizing must not overflow mobile review screens"
 )

@@ -79,6 +79,95 @@ const SCAM_RISK_LEVELS = Object.freeze([
   'CURRENTLY_NO_RISK_SIGNAL', 'UNVERIFIED', 'SUSPICIOUS', 'HIGH_RISK', 'CONFIRMED_MALICIOUS',
 ]);
 
+// SCAM-SHIELD-DOUBLE-CHECK-P0 — the second, independent check that Core runs
+// before answering. Every field is optional so an older Core still renders.
+// SCAM-PHISHING-REDESIGN-02 — only an exact, pre-approved official host becomes
+// a link (the owner-approved report/consult channels plus the hosts in Core's
+// reviewed official registry); any other address, the checked suspicious one
+// included, stays plain text.
+export const SCAM_OFFICIAL_LINK_HOSTS = Object.freeze([
+  'www.counterscam112.go.kr', 'counterscam112.go.kr', 'ecrm.police.go.kr', 'www.police.go.kr', 'police.go.kr',
+  'www.boho.or.kr', 'boho.or.kr', 'www.fsc.go.kr', 'fsc.go.kr',
+  'www.scourt.go.kr', 'scourt.go.kr', 'ecfs.scourt.go.kr', 'www.spo.go.kr', 'spo.go.kr', 'sci.go.kr',
+  'www.nts.go.kr', 'nts.go.kr', 'www.hometax.go.kr', 'hometax.go.kr', 'www.fss.or.kr', 'fss.or.kr', 'fine.fss.or.kr',
+  'www.gov.kr', 'm.gov.kr', 'www.data.go.kr', 'data.go.kr',
+]);
+
+export function scamOfficialUrl(value) {
+  if (typeof value !== 'string') return '';
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.username || url.password || url.port || !SCAM_OFFICIAL_LINK_HOSTS.includes(url.hostname)) return '';
+    return url.href;
+  } catch {
+    return '';
+  }
+}
+
+const scamText = value => (typeof value === 'string' ? value : '');
+
+function normalizeScamSources(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter(item => item && typeof item === 'object').map(item => Object.freeze({
+    sourceId: scamText(item.source_id),
+    kind: scamText(item.kind),
+    agency: scamText(item.agency),
+    title: scamText(item.title),
+    url: scamOfficialUrl(item.url),
+    checkedAt: scamText(item.checked_at),
+    stale: item.stale === true,
+    statement: scamText(item.statement),
+    relevance: scamText(item.relevance),
+  })).filter(item => item.agency && item.title).slice(0, 8);
+}
+
+function normalizeScamDoubleCheck(value) {
+  if (!value || typeof value !== 'object') return null;
+  const status = value.status === 'COMPLETED' || value.status === 'FAILED' ? value.status : '';
+  if (!status) return null;
+  const signals = Array.isArray(value.signals) ? value.signals.filter(item => item && typeof item === 'object').map(item => Object.freeze({
+    code: scamText(item.code),
+    label: scamText(item.label),
+    severity: scamText(item.severity),
+    confirmedBy: scamText(item.confirmed_by),
+  })) : [];
+  const official = value.official_check && typeof value.official_check === 'object' ? value.official_check : {};
+  const lookup = value.individual_lookup && typeof value.individual_lookup === 'object' ? value.individual_lookup : {};
+  const unverified = Array.isArray(value.unverified) ? value.unverified.filter(item => typeof item === 'string') : [];
+  return Object.freeze({
+    status,
+    agreement: scamText(value.agreement),
+    signals: Object.freeze(signals),
+    scamTypes: Object.freeze(Array.isArray(value.scam_types) ? value.scam_types.map(item => scamText(item?.label)).filter(Boolean) : []),
+    officialState: scamText(official.state),
+    officialMessage: scamText(official.message),
+    lookupMessage: scamText(lookup.message),
+    selfChecks: Object.freeze(normalizeScamSources(lookup.self_check)),
+    reportPaths: Object.freeze(normalizeScamSources(value.report_paths)),
+    unverifiedCount: unverified.length,
+  });
+}
+
+function normalizeScamPoliceStatistics(value) {
+  if (!value || typeof value !== 'object' || value.affects_risk_level !== false) return null;
+  const figures = value.figures && typeof value.figures === 'object' ? value.figures : {};
+  const number = key => (Number.isFinite(figures[key]) ? figures[key] : null);
+  const baseYear = Number.isInteger(value.base_year) ? value.base_year : null;
+  if (!baseYear || !scamText(value.category)) return null;
+  return Object.freeze({
+    agency: scamText(value.agency),
+    title: scamText(value.title),
+    category: scamText(value.category),
+    baseYear,
+    cases: number('cases'),
+    damage100mKrw: number('damage_100m_krw'),
+    arrested: number('arrested'),
+    note: scamText(value.note),
+    sourceUrl: scamOfficialUrl(value.source_url),
+    dataVersion: scamText(value.data_version),
+  });
+}
+
 function normalizeScamShieldResult(payload) {
   const caseId = typeof payload?.case_id === 'string' ? payload.case_id.trim() : '';
   const list = value => Array.isArray(value) && value.every(item => typeof item === 'string') ? [...value] : null;
@@ -95,7 +184,7 @@ function normalizeScamShieldResult(payload) {
     || payload?.untrusted_file_execution !== false
     || payload?.public_file_upload_to_third_party !== false
   ) {
-    throw new SiteCoreError('진위확인 응답 형식이 올바르지 않습니다.', {code: 'SCAM_SHIELD_CONTRACT_INVALID'});
+    throw new SiteCoreError('사기·피싱 확인 응답 형식이 올바르지 않습니다.', {code: 'SCAM_SHIELD_CONTRACT_INVALID'});
   }
   const evidence = Array.isArray(payload.evidence) ? payload.evidence.filter(item => item && typeof item === 'object').map(item => ({
     type: typeof item.evidence_type === 'string' ? item.evidence_type : '',
@@ -107,6 +196,10 @@ function normalizeScamShieldResult(payload) {
     caseId,
     riskLevel: payload.risk_level,
     headline: payload.headline,
+    summary: typeof payload?.summary === 'string' ? payload.summary : '',
+    doubleCheck: normalizeScamDoubleCheck(payload?.double_check),
+    officialSources: Object.freeze(normalizeScamSources(payload?.official_sources)),
+    policeStatistics: normalizeScamPoliceStatistics(payload?.police_statistics),
     reasons: Object.freeze(reasons),
     confirmedFacts: Object.freeze(confirmedFacts),
     unverifiedItems: Object.freeze(unverifiedItems),
@@ -126,7 +219,7 @@ function normalizeScamShieldResult(payload) {
 export async function analyzeScamShield(sessionToken, formData, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
   const token = typeof sessionToken === 'string' ? sessionToken.trim() : '';
-  if (!token) throw new SiteCoreError('진위확인은 개인정보 보호를 위해 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
+  if (!token) throw new SiteCoreError('사기·피싱 확인은 개인정보 보호를 위해 로그인 후 사용할 수 있습니다.', {code: 'SCAM_SHIELD_SESSION_REQUIRED', status: 401});
   if (!(formData instanceof FormData)) throw new SiteCoreError('확인할 내용을 선택해 주세요.', {code: 'SCAM_SHIELD_INPUT_REQUIRED', status: 422});
   let response;
   try {
@@ -135,13 +228,19 @@ export async function analyzeScamShield(sessionToken, formData, fetchImpl = glob
       headers: {Authorization: `Bearer ${token}`}, body: formData,
     });
   } catch {
-    throw new SiteCoreError('진위확인 서버에 접속하지 못했습니다.', {code: 'SCAM_SHIELD_NETWORK_ERROR', retryable: true});
+    throw new SiteCoreError('사기·피싱 확인 서버에 접속하지 못했습니다.', {code: 'SCAM_SHIELD_NETWORK_ERROR', retryable: true});
   }
   const payload = await readPayload(response);
   if (!response.ok) {
-    const error = errorFromResponse(response, payload, '진위확인을 완료하지 못했습니다.');
+    const error = errorFromResponse(response, payload, '사기·피싱 확인을 완료하지 못했습니다.');
     announceInvalidSiteSession(error);
     throw error;
+  }
+  // SCAM-PHISHING-REDESIGN-02 — 202: the same input is still being checked
+  // (Core will not run it twice). It is not a result; say so instead of
+  // reporting a broken response.
+  if (response.status === 202) {
+    throw new SiteCoreError('같은 내용을 아직 확인하고 있어요. 잠시 후 다시 눌러 주세요.', {code: 'SCAM_ANALYSIS_RESULT_PENDING', status: 202, retryable: true});
   }
   return normalizeScamShieldResult(payload);
 }
@@ -452,6 +551,10 @@ export function normalizeSmartCalendarDraft(value) {
   const documentKind = normalizeCalendarDraftText(value.document_kind, 24);
   const detectionConfidence = normalizeCalendarDraftText(value.detection_confidence, 8);
   const dedupeFingerprint = normalizeCalendarDraftText(value.dedupe_fingerprint, 64);
+  const reviewNotices = value.review_notices == null ? [] : value.review_notices;
+  if (!Array.isArray(reviewNotices) || reviewNotices.length > 5 || reviewNotices.some(item => typeof item !== 'string' || !item.trim() || item.length > 240)) {
+    throw new SiteCoreError('LOTBI 사진 확인 안내 형식이 올바르지 않습니다.', {code: 'WEB_CONVERSATION_CONTRACT_INVALID'});
+  }
   const entry = value.entry && typeof value.entry === 'object' ? value.entry : null;
   const sourceIds = Array.isArray(value.source_attachment_ids) ? value.source_attachment_ids.map(item => String(item || '').trim()) : null;
   const amountMinor = entry?.amount_minor == null ? null : Number(entry.amount_minor);
@@ -505,6 +608,7 @@ export function normalizeSmartCalendarDraft(value) {
     documentKind,
     detectionConfidence,
     dedupeFingerprint,
+    reviewNotices: Object.freeze(reviewNotices.map(item => item.trim())),
     // Core decides whether a draft nobody asked for may raise a save card. The
     // Site does not re-derive that judgement; it only reports what it was told,
     // and an older Core that says nothing is treated as not volunteering.
@@ -513,6 +617,9 @@ export function normalizeSmartCalendarDraft(value) {
       amountMinor,
       currency,
       expenseCategory,
+      // CALENDAR-DESIGN-04: Core가 사진 종류로 제안하는 예정/실제 지출. 모르는 값이나
+      // 옛 Core(값 없음)는 제안 없음(null) -- 확인 창이 날짜로 기본값을 정한다.
+      expenseStatus: amountMinor !== null && (entry?.expense_status === 'PLANNED' || entry?.expense_status === 'PAID') ? entry.expense_status : null,
       memo,
       place,
       merchant,
@@ -688,8 +795,32 @@ function normalizeEvidenceCoverage(placeResult) {
   });
 }
 
+// LIFE-PUBLIC-DATA-01: optional coarse location for one life lookup turn.
+// Anything malformed is dropped here rather than sent; Core rejects the rest.
+function normalizeConversationClientLocation(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const source = value.source === 'BROWSER_CURRENT' || value.source === 'SAVED_REGION' ? value.source : '';
+  const latitude = Number(value.latitude);
+  const longitude = Number(value.longitude);
+  if (
+    !source
+    || !Number.isFinite(latitude) || !Number.isFinite(longitude)
+    || latitude < 31 || latitude > 44.5 || longitude < 122 || longitude > 132.5
+  ) return null;
+  const label = typeof value.label === 'string'
+    ? value.label.replace(/[^0-9A-Za-z가-힣·.\- ]/gu, ' ').replace(/\s+/gu, ' ').trim().slice(0, 40).trim()
+    : '';
+  return Object.freeze({
+    latitude: Math.round(latitude * 1000) / 1000,
+    longitude: Math.round(longitude * 1000) / 1000,
+    source,
+    ...(source === 'SAVED_REGION' && label ? {label} : {}),
+  });
+}
+
 function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   const timezoneName = typeof timezone === 'string' ? timezone.trim() : '';
+  const school = normalizeConversationClientSchool(identity?.school);
   const createdAt = typeof turnCreatedAt === 'string' ? turnCreatedAt.trim() : '';
   const conversationId = typeof identity?.conversationId === 'string' ? identity.conversationId.trim() : '';
   const turnId = typeof identity?.turnId === 'string' ? identity.turnId.trim() : '';
@@ -697,6 +828,7 @@ function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   const stateVersion = Number.isInteger(identity?.stateVersion) && identity.stateVersion >= 0
     ? identity.stateVersion
     : null;
+  const location = normalizeConversationClientLocation(identity?.location);
   const safeIdentity = value => !value || /^[A-Za-z0-9._:-]{1,160}$/.test(value);
   if (!timezoneName && !createdAt && !conversationId && !turnId && !logicalRequestId && stateVersion === null) return null;
   if (!TIMEZONE_RE.test(timezoneName) || timezoneName.length > 64) {
@@ -713,12 +845,22 @@ function conversationClientContext(timezone, turnCreatedAt, identity = {}) {
   }
   return Object.freeze({
     timezone: timezoneName,
+    ...(school ? {school} : {}),
     ...(createdAt ? {turn_created_at: createdAt} : {}),
     ...(conversationId ? {conversation_id: conversationId} : {}),
     ...(turnId ? {turn_id: turnId} : {}),
     ...(logicalRequestId ? {logical_request_id: logicalRequestId} : {}),
     ...(stateVersion !== null ? {state_version: stateVersion} : {}),
+    ...(location ? {location} : {}),
   });
+}
+
+// LIFE-PUBLIC-DATA-01 / NIGHT MEDICAL: only whether the 119 notice applies.
+function normalizeMedicalResultNotice(value) {
+  if (!value || typeof value !== 'object' || value.contract_id !== 'CORE-MEDICAL-RESULT-01') return null;
+  const notices = Array.isArray(value.notices) ? value.notices : [];
+  // partial: Core read only part of a long registry list (shown on the cards).
+  return Object.freeze({emergencyCall: notices.includes('CALL_119'), partial: value.coverage === 'PARTIAL'});
 }
 
 function normalizeAttachmentIds(attachmentIds) {
@@ -906,16 +1048,42 @@ export async function sendConversationMessage(sessionToken, text, fetchImpl = gl
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
+    schoolResult: payload.school_result && typeof payload.school_result === 'object' && payload.school_result.contract_id === 'CORE-SCHOOL-RESULT-01' ? Object.freeze({...payload.school_result}) : null,
+    newsResult: payload.news_result && typeof payload.news_result === 'object' && payload.news_result.contract_id === 'CORE-REGIONAL-NEWS-01' ? Object.freeze({...payload.news_result}) : null,
+    regionalFoodResult: payload.regional_food_result && typeof payload.regional_food_result === 'object' && payload.regional_food_result.contract_id === 'CORE-REGIONAL-FOOD-RESULT-01' ? Object.freeze({...payload.regional_food_result}) : null,
+    regionalContactResult: payload.regional_contact_result && typeof payload.regional_contact_result === 'object' && payload.regional_contact_result.contract_id === 'CORE-REGIONAL-CONTACT-RESULT-01' ? Object.freeze({...payload.regional_contact_result}) : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
     sources: normalizeConversationSources(payload.sources),
     reusableOutput: normalizeReusableOutput(payload.reusable_output),
+    medicalNotice: normalizeMedicalResultNotice(payload.medical_result),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
     evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
     selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
     calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),
     calendarDraft: normalizeSmartCalendarDraft(payload.calendar_draft),
+    productLookup: payload.lookup_result && typeof payload.lookup_result === 'object' && payload.lookup_result.contract_id === 'CORE-PRODUCT-LOOKUP-01' ? Object.freeze({...payload.lookup_result}) : null,
+  });
+}
+
+// LIFE-PUBLIC-DATA-01 / NEIS: the chosen school's public NEIS identifiers only.
+function normalizeConversationClientSchool(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const officeCode = typeof value.office_code === 'string' ? value.office_code.trim().toUpperCase() : '';
+  const schoolCode = typeof value.school_code === 'string' ? value.school_code.trim() : '';
+  const name = typeof value.name === 'string' ? value.name.replace(/\s+/gu, ' ').trim() : '';
+  if (!/^[A-Z][0-9]{2}$/u.test(officeCode) || !/^[0-9]{7,10}$/u.test(schoolCode) || !/^[0-9A-Za-z가-힣·()\- ]{2,60}$/u.test(name)) return null;
+  const kind = typeof value.kind === 'string' && /^[가-힣]{2,20}$/u.test(value.kind.trim()) ? value.kind.trim() : '';
+  const grade = Number.isInteger(value.grade) && value.grade >= 1 && value.grade <= 6 ? value.grade : null;
+  const className = typeof value.class_name === 'string' && /^[0-9A-Za-z가-힣]{1,4}$/u.test(value.class_name.trim()) ? value.class_name.trim() : '';
+  return Object.freeze({
+    office_code: officeCode,
+    school_code: schoolCode,
+    name,
+    ...(kind ? {kind} : {}),
+    ...(grade !== null ? {grade} : {}),
+    ...(className ? {class_name: className} : {}),
   });
 }
 
@@ -990,6 +1158,7 @@ function normalizeConversationRecentContext(recentContext) {
 
 export async function sendGuestConversationMessage({
   guestToken,
+  school = null,
   text,
   idempotencyKey,
   recentContext = [],
@@ -1000,6 +1169,7 @@ export async function sendGuestConversationMessage({
   turnId = '',
   logicalRequestId = '',
   stateVersion = null,
+  location = null,
 }, fetchImpl = globalThis.fetch) {
   assertFetch(fetchImpl);
   const token = typeof guestToken === 'string' ? guestToken.trim() : '';
@@ -1018,10 +1188,12 @@ export async function sendGuestConversationMessage({
   }
 
   const clientContext = conversationClientContext(timezoneName, turnCreatedAt, {
+    school,
     conversationId,
     turnId,
     logicalRequestId,
     stateVersion,
+    location,
   });
   const body = {
     text: message || '첨부 파일을 확인해 주세요.',
@@ -1084,15 +1256,21 @@ export async function sendGuestConversationMessage({
     correlationId: payload.correlation_id,
     retrySafe: payload.retry_safe === true,
     stateVersion: Number.isInteger(payload.state_version) && payload.state_version >= 0 ? payload.state_version : null,
+    schoolResult: payload.school_result && typeof payload.school_result === 'object' && payload.school_result.contract_id === 'CORE-SCHOOL-RESULT-01' ? Object.freeze({...payload.school_result}) : null,
+    newsResult: payload.news_result && typeof payload.news_result === 'object' && payload.news_result.contract_id === 'CORE-REGIONAL-NEWS-01' ? Object.freeze({...payload.news_result}) : null,
+    regionalFoodResult: payload.regional_food_result && typeof payload.regional_food_result === 'object' && payload.regional_food_result.contract_id === 'CORE-REGIONAL-FOOD-RESULT-01' ? Object.freeze({...payload.regional_food_result}) : null,
+    regionalContactResult: payload.regional_contact_result && typeof payload.regional_contact_result === 'object' && payload.regional_contact_result.contract_id === 'CORE-REGIONAL-CONTACT-RESULT-01' ? Object.freeze({...payload.regional_contact_result}) : null,
     intent: payload.intent && typeof payload.intent === 'object' ? Object.freeze({...payload.intent}) : Object.freeze({action: 'UNKNOWN'}),
     readPlan: normalizeConversationReadPlan(payload.intent),
     sources: normalizeConversationSources(payload.sources),
     reusableOutput: normalizeReusableOutput(payload.reusable_output),
+    medicalNotice: normalizeMedicalResultNotice(payload.medical_result),
     placeResult: payload.place_result && typeof payload.place_result === 'object' ? Object.freeze({...payload.place_result}) : null,
     evidenceCoverage: normalizeEvidenceCoverage(payload.place_result),
     selectedPlace: payload.selected_place && typeof payload.selected_place === 'object' ? Object.freeze({...payload.selected_place}) : null,
     calendarCandidate: normalizeCalendarCandidate(payload.calendar_candidate),
     calendarCandidateSet: normalizeCalendarCandidateSet(payload.calendar_candidate_set),
+    productLookup: payload.lookup_result && typeof payload.lookup_result === 'object' && payload.lookup_result.contract_id === 'CORE-PRODUCT-LOOKUP-01' ? Object.freeze({...payload.lookup_result}) : null,
   });
 }
 
@@ -1360,6 +1538,7 @@ export async function reviewProductCard(sessionToken, {
 }
 
 const SYNTHETIC_EMAIL_FIRST_HANDLE_RE = /^e1[0-9a-f]{20}$/;
+const SIGNUP_PROVIDERS = Object.freeze(['KAKAO', 'NAVER', 'GOOGLE', 'APPLE']);
 
 function optionalIdentityText(value, field) {
   if (value === null || value === undefined) return '';
@@ -1379,11 +1558,16 @@ function userFacingIdentity(user) {
   const synthetic = user?.account_handle_is_synthetic === true
     || Boolean(rawAccountHandle && email && SYNTHETIC_EMAIL_FIRST_HANDLE_RE.test(rawAccountHandle));
   const publicHandle = canonicalPublicHandle || (!synthetic ? rawAccountHandle : '');
+  // SOCIAL-SIGNUP-PROFILE-UX-01 — Core marks the social signup placeholder name
+  // and the server-generated u... handle; neither is the person's own choice.
+  // Older Core sends no marks and everything stays as it was.
   return Object.freeze({
-    name,
+    name: user?.display_name_is_default === true ? '' : name,
     email,
     publicHandle,
     accountHandle: publicHandle,
+    ...(publicHandle && user?.public_handle_is_generated === true ? {publicHandleGenerated: true} : {}),
+    ...(SIGNUP_PROVIDERS.includes(user?.signup_provider) ? {signupProvider: user.signup_provider} : {}),
   });
 }
 
@@ -1406,7 +1590,69 @@ export async function getCurrentSiteUser(sessionToken, fetchImpl = globalThis.fe
     sessionId,
     installationId,
     expiresAt: typeof session.expires_at === 'string' ? session.expires_at : '',
+    profilePhoto: normalizeSiteProfilePhoto(user.profile_photo),
   });
+}
+
+// PROFILE-PHOTO-ACCOUNT-SYNC-01 — the profile photo belongs to the LOTBI
+// account, not to this browser: Core stores it and Account, Site and App all
+// read the same one. /v2/me carries only its version (a new one on every
+// replacement); the bytes come from the owner-only route with the session
+// bearer and live in memory as an object URL, never in storage.
+const PROFILE_PHOTO_PATH = '/v2/account/profile/photo';
+const PROFILE_PHOTO_VERSION_PATTERN = /^mda_[A-Za-z0-9_-]{1,60}$/;
+
+export function normalizeSiteProfilePhoto(value) {
+  // Lenient on purpose: a malformed photo must never break identity/login.
+  if (!value || typeof value !== 'object') return null;
+  const version = typeof value.version === 'string' ? value.version.trim() : '';
+  return PROFILE_PHOTO_VERSION_PATTERN.test(version) ? Object.freeze({version}) : null;
+}
+
+export async function saveSiteProfilePhoto(sessionToken, photoDataUri, fetchImpl = globalThis.fetch) {
+  if (typeof photoDataUri !== 'string' || !/^data:image\/(?:jpeg|png|webp);base64,/.test(photoDataUri)) {
+    throw new SiteCoreError('프로필에는 사진만 사용할 수 있어요.', {code: 'SITE_PROFILE_PHOTO_UNSUPPORTED'});
+  }
+  const payload = await siteSessionRequest(PROFILE_PHOTO_PATH, sessionToken, {method: 'PUT', body: {photo_data_uri: photoDataUri}}, fetchImpl);
+  const photo = normalizeSiteProfilePhoto(payload?.profile_photo);
+  if (!photo) {
+    throw new SiteCoreError('프로필 사진 저장 결과를 확인하지 못했습니다.', {code: 'SITE_PROFILE_PHOTO_CONTRACT_INVALID'});
+  }
+  return photo;
+}
+
+export async function deleteSiteProfilePhoto(sessionToken, fetchImpl = globalThis.fetch) {
+  const payload = await siteSessionRequest(PROFILE_PHOTO_PATH, sessionToken, {method: 'DELETE'}, fetchImpl);
+  if (!payload || payload.profile_photo !== null) {
+    throw new SiteCoreError('프로필 사진 삭제 결과를 확인하지 못했습니다.', {code: 'SITE_PROFILE_PHOTO_CONTRACT_INVALID'});
+  }
+}
+
+export async function fetchSiteProfilePhotoObjectUrl(sessionToken, photo, fetchImpl = globalThis.fetch) {
+  assertFetch(fetchImpl);
+  const version = normalizeSiteProfilePhoto(photo)?.version;
+  if (!version) throw new SiteCoreError('프로필 사진 정보가 올바르지 않습니다.', {code: 'SITE_PROFILE_PHOTO_CONTRACT_INVALID'});
+  let response;
+  try {
+    response = await fetchImpl(`${CORE_ORIGIN}${PROFILE_PHOTO_PATH}/content?v=${encodeURIComponent(version)}`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: {Authorization: `Bearer ${bearerToken(sessionToken)}`, Accept: 'image/jpeg'},
+    });
+  } catch {
+    throw new SiteCoreError('프로필 사진을 불러오지 못했습니다.', {code: 'SITE_PROFILE_PHOTO_NETWORK_ERROR', retryable: true});
+  }
+  if (!response.ok) {
+    throw new SiteCoreError('프로필 사진을 불러오지 못했습니다.', {code: 'SITE_PROFILE_PHOTO_UNAVAILABLE', status: response.status});
+  }
+  const blob = await response.blob();
+  if (!blob.size || !/^image\/jpeg(?:;|$)/.test(blob.type || response.headers.get('content-type') || '')) {
+    throw new SiteCoreError('프로필 사진 형식이 올바르지 않습니다.', {code: 'SITE_PROFILE_PHOTO_CONTRACT_INVALID'});
+  }
+  return URL.createObjectURL(blob);
 }
 
 export async function updateCurrentSiteProfile(sessionToken, {

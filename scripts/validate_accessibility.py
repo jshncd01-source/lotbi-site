@@ -114,13 +114,13 @@ def main() -> int:
 
             composer_buttons = [
                 button for button in parser.buttons
-                if has_class(button, "mic-button") or has_class(button, "send-button")
+                if has_class(button, "send-button")
             ]
-            if len(composer_buttons) != 2:
-                errors.append("index.html: expected microphone and send composer buttons")
+            if len(composer_buttons) != 1:
+                errors.append("index.html: expected one send composer button")
             for button in composer_buttons:
                 if "disabled" not in button:
-                    errors.append("index.html: pre-integration mic/send controls must remain disabled")
+                    errors.append("index.html: pre-integration send control must remain disabled")
                 if not (button.get("aria-label") or "").strip():
                     errors.append("index.html: composer button requires an aria-label")
 

@@ -34,8 +34,17 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
   // SITE-NAV-SINGLE-PROFILE-ENTRY-01 — the mobile drawer had already moved
   // these four into the account menu while desktop still listed them twice.
   // Both surfaces now defer to the account menu, so neither may carry them.
+  // CONNECTED-SERVICES-NAME-01 — 대표 결정(2026-10-10 "연결서비스로 통합"): the primary
+  // item that was labelled 제휴몰 already opened Account's 연결 서비스 page, so it now
+  // carries that name. Exactly that one primary button may; nothing else may.
+  const connectedItems = [...block.matchAll(/<button[^>]*data-consumer-section="mall"[^>]*>[\s\S]*?<\/button>/g)].map(match => match[0]);
+  assert.equal(connectedItems.length, 1, `${label} sidebar must carry exactly one 연결 서비스 primary item`);
+  assert.ok(connectedItems[0].includes('aria-label="연결 서비스"') && connectedItems[0].includes('<span class="nav-item-label">연결 서비스</span>'),
+    `${label} sidebar primary item must be named 연결 서비스`);
+  assert.ok(!block.includes('제휴몰'), `${label} sidebar must not keep the retired 제휴몰 name`);
+  const outsidePrimary = block.replace(connectedItems[0], '');
   for (const moved of ['연결 서비스', '프로필', '설정', '도움말']) {
-    assert.ok(!block.includes(moved), `${label} sidebar must move ${moved} into the account menu`);
+    assert.ok(!outsidePrimary.includes(moved), `${label} sidebar must move ${moved} into the account menu`);
   }
 
   for (const removed of ['오늘', '확인 필요', '내 작업', '라이브러리', '주문 내역', '예약 내역', '>내 계정<', '도움말 / 문의', '>전체 일정<', '>예정된 일정<', '>날짜별 보기<', '>어제<', '>최근 7일<', '>이전<']) {
@@ -78,11 +87,12 @@ for (const [label, block] of [['desktop', desktop], ['mobile', mobile]]) {
 
   const primaryPos = block.indexOf('consumer-primary-nav');
   const calendarPos = block.indexOf('data-calendar-view="all"');
-  const menuHooks = ['data-new-conversation', 'data-calendar-view="all"', 'data-consumer-section="wallet"', 'data-scam-open', 'data-consumer-section="care"', 'data-consumer-section="life"', 'data-consumer-section="mall"'];
+  // TROUBLE-HELPER-01: 분쟁·사고 도우미 (data-trouble-open) right after 진위확인.
+  const menuHooks = ['data-new-conversation', 'data-calendar-view="all"', 'data-consumer-section="wallet"', 'data-scam-open', 'data-trouble-open', 'data-consumer-section="care"', 'data-consumer-section="life"', 'data-consumer-section="mall"'];
   const positions = menuHooks.map(hook => primary.indexOf(hook));
-  assert.ok(positions.every(position => position >= 0), `${label} seven primary destinations required`);
+  assert.ok(positions.every(position => position >= 0), `${label} eight primary destinations required`);
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b), `${label} approved menu order must be preserved`);
-  assert.equal((primary.match(/<button\b/g) || []).length, 7, `${label} exactly seven primary menu buttons required`);
+  assert.equal((primary.match(/<button\b/g) || []).length, 8, `${label} exactly eight primary menu buttons required`);
   const recentPos = block.indexOf('sidebar-history-section');
   const accountPos = block.indexOf('sidebar-account-footer');
   assert.ok(

@@ -4,48 +4,6 @@
   gap: 18px;
 }
 
-.pet-home {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.pet-home-card {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-  min-height: 92px;
-  padding: 15px;
-  border: 1px solid var(--lotbi-border-default, #e2e6ee);
-  border-radius: 15px;
-  background: var(--lotbi-surface-primary, #fff);
-  color: var(--lotbi-text-primary, #202634);
-  text-align: left;
-  cursor: pointer;
-}
-
-.pet-home-card[data-pet-home-active='true'] {
-  border-color: var(--brand-violet, #7b62bb);
-  background: color-mix(in srgb, var(--brand-violet, #7b62bb) 8%, var(--lotbi-surface-primary, #fff));
-  box-shadow: inset 0 0 0 1px var(--brand-violet, #7b62bb);
-}
-
-.pet-home-card:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--brand-violet, #7b62bb) 38%, transparent);
-  outline-offset: 2px;
-}
-
-.pet-home-card-title {
-  font-size: 15px;
-  font-weight: 900;
-}
-
-.pet-home-card-copy {
-  color: var(--lotbi-text-muted, #6a7280);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 .pet-status {
   margin: 0;
   min-height: 18px;
@@ -104,16 +62,32 @@
   background: var(--lotbi-surface-primary, #fff);
 }
 
+.pet-card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.pet-card-actions .site-button {
+  width: 100%;
+  min-height: 44px;
+}
+
 .pet-profile-thumbnail {
   width: 72px;
   height: 72px;
-  margin-bottom: 10px;
+  margin-bottom: 0;
   overflow: hidden;
   border-radius: 20px;
   background: var(--lotbi-surface-muted, #eef1f5);
   display: grid;
   place-items: center;
 }
+
+.pet-card-identity {display:flex;align-items:center;gap:12px;min-width:0}
+.pet-profile-thumbnail-empty {color:var(--lotbi-text-muted,#687386);font-size:.8rem}
+.pet-photo-kind-summary {margin:0;color:var(--lotbi-text-secondary,#4c5563);font-size:.86rem;font-weight:750;line-height:1.45}
 
 .pet-profile-thumbnail-image,
 .pet-candidate-photo-image {
@@ -221,9 +195,10 @@
 
 .pet-card-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px 10px;
 }
 
 .pet-card-name {
@@ -481,7 +456,8 @@
 }
 
 .pet-draft-species-choice {
-  min-width: 124px;
+  min-width: 180px;
+  padding: 8px 14px;
   justify-content: center;
 }
 
@@ -490,9 +466,13 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-violet, #7b62bb) 18%, transparent);
 }
 
-.pet-draft-species-icon {
-  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-  font-size: 22px;
+.pet-draft-species-photo {
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  border-radius: 12px;
+  background-color: var(--lotbi-surface-hover, #f1f3f8);
+  background-repeat: no-repeat;
 }
 
 .pet-draft-species-prompt {
@@ -534,14 +514,7 @@
 }
 
 @media (max-width: 640px) {
-  .pet-home {
-    grid-template-columns: 1fr;
-  }
-
-  .pet-home-card {
-    min-height: 72px;
-  }
-
+  .pet-card-actions { grid-template-columns: 1fr; }
   .pet-draft-step { font-size: 10px; }
 }
 
@@ -711,12 +684,42 @@
 
 .pet-slot-media {
   position: relative;
-  aspect-ratio: 72 / 52;
+  aspect-ratio: 1;
   display: grid;
   place-items: center;
   overflow: hidden;
   border-radius: 9px;
   background: var(--lotbi-surface-hover, #f1f3f8);
+}
+
+.pet-slot-guide-image {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+}
+
+.pet-photo-optional {
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 12px;
+  padding: 0 12px;
+}
+
+.pet-photo-optional[open] {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+
+.pet-photo-optional > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .pet-slot-diagram {
@@ -1090,6 +1093,27 @@ body[data-site-theme="dark"] .pet-photo-source-option:focus-visible {
     width: 100%;
     max-height: 92svh;
   }
+
+  .pet-slot-grid-required {
+    display: flex;
+    contain: layout paint inline-size;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    grid-auto-flow: column;
+    grid-auto-columns: min(42vw, 142px);
+    grid-template-columns: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x proximity;
+    padding-bottom: 6px;
+  }
+
+  .pet-slot-grid-required > * {
+    flex: 0 0 min(42vw, 142px);
+    scroll-snap-align: start;
+  }
 }
 
 @media (min-width: 901px) {
@@ -1256,4 +1280,86 @@ body[data-site-theme="dark"] .pet-number-block {
 body[data-site-theme="dark"] .pet-number-note,
 body[data-site-theme="dark"] .pet-number-term {
   color: var(--lotbi-text-primary, var(--text, #212121));
+}
+
+/* SAFECARE-WEB-UI-REDESIGN-01 ------------------------------------------- */
+/* Several new controls set display, which beats the UA [hidden] rule. */
+.pet-family-surface [hidden] {
+  display: none !important;
+}
+
+.pet-profile-renewal,
+.pet-photo-context-note {
+  margin: 0;
+  color: var(--lotbi-text-secondary, #3d4653);
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.pet-draft-extra {
+  border: 1px solid var(--lotbi-border-default, #e2e6ee);
+  border-radius: 12px;
+  padding: 0 12px;
+}
+
+.pet-draft-extra[open] {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+
+.pet-draft-extra > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--lotbi-text-primary, #202634);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  word-break: keep-all;
+}
+
+.pet-draft-review-photos {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pet-draft-review-photo {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.pet-draft-done {
+  display: grid;
+  gap: 12px;
+}
+
+.pet-family-surface .safecare-found {
+  display: grid;
+  gap: 12px;
+}
+
+/* SAFECARE-PHOTO-EASY-UPLOAD-01 (2nd round): the pet batch panel reuses the
+   person batch styles (site-person-bulk.css). Its result rows have no
+   thumbnail column, and a refused photo's next step keeps a 44px touch
+   target on phones. */
+.pet-bulk .person-bulk-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.pet-bulk .person-bulk-item[data-pet-bulk-item="STORED"] { border-color: var(--lotbi-success-text, #247647); }
+.pet-bulk .person-bulk-item[data-pet-bulk-item="FAILED"] { border-color: var(--lotbi-error-text, #a02645); }
+.pet-bulk .pet-slot-retry-action {
+  justify-self: start;
+  min-height: 44px;
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 8px 14px;
+  font-size: 14px;
+  white-space: normal;
+  word-break: keep-all;
 }

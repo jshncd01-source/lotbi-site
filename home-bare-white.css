@@ -40,6 +40,42 @@ body.chat-home-page[data-site-theme="dark"]:not(.conversation-active) {
   }
 }
 
+/* SITE-HOME-DARK-FIRST-PAINT-01 — the dark skin above is keyed on
+   body[data-site-theme], which site-conversation.js sets only after the
+   session check. Until then (1~3 s, 8 s and more under load) the shell fell
+   back to the light skin: a white page with Dark's light ink, nearly unreadable.
+   index.html's inline bootstrap already puts the resolved theme on
+   html[data-site-theme-bootstrap] before first paint, so the same skin is keyed
+   on it too, only while the body has no attribute of its own yet (the live
+   choice still wins afterwards). Same pattern as site-theme-tokens.css. */
+html[data-site-theme-bootstrap="dark"] body.chat-home-page:not([data-site-theme]):not(.conversation-active) {
+  --home-skin-bg: #212121;
+  --home-skin-surface: #212121;
+  --home-skin-text: var(--lotbi-text-primary);
+  --home-skin-muted: var(--lotbi-text-primary);
+  --home-skin-line: #424242;
+  --home-skin-hover: #2f2f2f;
+  --home-skin-selected: #353535;
+  --home-skin-action: #2f2f2f;
+  --home-skin-strong: #f5f5f5;
+  --home-skin-strong-text: #212121;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-site-theme-bootstrap="system"] body.chat-home-page:not([data-site-theme]):not(.conversation-active) {
+    --home-skin-bg: #212121;
+    --home-skin-surface: #212121;
+    --home-skin-text: var(--lotbi-text-primary);
+    --home-skin-muted: var(--lotbi-text-primary);
+    --home-skin-line: #424242;
+    --home-skin-hover: #2f2f2f;
+    --home-skin-selected: #353535;
+    --home-skin-action: #2f2f2f;
+    --home-skin-strong: #f5f5f5;
+    --home-skin-strong-text: #212121;
+  }
+}
+
 body.chat-home-page:not(.conversation-active),
 body.chat-home-page:not(.conversation-active) .chat-app-shell,
 body.chat-home-page:not(.conversation-active) .chat-home-shell,
@@ -141,31 +177,14 @@ body.chat-home-page:not(.conversation-active) .home-value-proposition p {
   display: none;
 }
 
-.home-example-prompts {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.home-example-prompts button {
-  min-height: 40px;
-  padding: 8px 14px;
-  border: 1px solid var(--home-skin-line, #e7e9ed);
-  border-radius: 999px;
-  background: var(--home-skin-surface, #fff);
-  color: var(--home-skin-text, #20242a);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.home-example-prompts button:hover,
-.home-example-prompts button:focus-visible {
-  background: var(--home-skin-hover, #f6f7f8);
-}
-
 body.chat-home-page:not(.conversation-active) .chat-composer-stack {
+  background: var(--home-skin-bg);
+}
+
+/* COMMON-UI-POLISH-01 (QA #19) — the topbar kept the conversation navy
+   (#151922) on the Dark home, a 64px band over the #212121 skin. It follows
+   the same skin as everything around it; conversation mode is untouched. */
+body.chat-home-page:not(.conversation-active) .chat-topbar {
   background: var(--home-skin-bg);
 }
 
@@ -272,17 +291,6 @@ body.chat-home-page:not(.conversation-active) .chat-home-footer a:focus-visible 
     font-size: 14px;
   }
 
-  .home-example-prompts {
-    gap: 6px;
-    margin-top: 10px;
-  }
-
-  .home-example-prompts button {
-    min-height: 38px;
-    padding: 7px 11px;
-    font-size: 13px;
-  }
-
   body.chat-home-page:not(.conversation-active) .chat-composer {
     padding: 9px 9px 8px 13px;
     border-radius: 21px;
@@ -334,6 +342,27 @@ body.chat-home-page[data-site-theme="dark"] {
 
 @media (prefers-color-scheme: dark) {
   body.chat-home-page[data-site-theme="system"] {
+    --home-sidebar-bg: #212121;
+    --home-sidebar-text: #f5f5f5;
+    --home-sidebar-line: #424242;
+    --home-sidebar-hover: #2f2f2f;
+    --home-sidebar-selected: #353535;
+  }
+}
+
+/* SITE-HOME-DARK-FIRST-PAINT-01 — the desktop sidebar's variables, keyed on the
+   html bootstrap too while the body has no theme of its own yet (the account
+   row at the bottom of the sidebar stayed white). */
+html[data-site-theme-bootstrap="dark"] body.chat-home-page:not([data-site-theme]) {
+  --home-sidebar-bg: #212121;
+  --home-sidebar-text: #f5f5f5;
+  --home-sidebar-line: #424242;
+  --home-sidebar-hover: #2f2f2f;
+  --home-sidebar-selected: #353535;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-site-theme-bootstrap="system"] body.chat-home-page:not([data-site-theme]) {
     --home-sidebar-bg: #212121;
     --home-sidebar-text: #f5f5f5;
     --home-sidebar-line: #424242;

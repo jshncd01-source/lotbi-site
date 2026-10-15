@@ -1,6 +1,9 @@
 /* Consumer information/support pages only. Policy text and form owners stay intact. */
 body.consumer-document { background: var(--panel); color: var(--text); }
-.consumer-document .wrap { max-width: 960px; padding-inline: 32px; }
+/* TOP5-2: the wrap is exactly the reading column (760) + gutters, so the logo, the nav, the text and the footer
+   share one left and one right edge. It was 960 wide with the column centred inside, which left the text 68px
+   right of the logo. */
+.consumer-document .wrap { max-width: 824px; padding-inline: 32px; }
 .consumer-document .topbar { height: 88px; border-color: var(--line); gap: 20px; }
 .consumer-document .topbar .lotbi-official-brand-logo { width: 116px; height: auto; }
 .consumer-document .topbar nav { gap: 20px; font-size: 14px; font-weight: 500; }
@@ -8,6 +11,10 @@ body.consumer-document { background: var(--panel); color: var(--text); }
 .consumer-document :is(.section, .about-hero) > h1 { margin: 0 0 24px; font-size: clamp(28px, 4vw, 42px); font-weight: 600; line-height: 1.3; letter-spacing: -.045em; word-break: keep-all; }
 .consumer-document .kicker { margin: 0 0 12px; color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: .04em; }
 .consumer-document .kicker::before { content: none; }
+/* COMMON-UI-POLISH-02 (QA 02 E2) — every page carried an English eyebrow (TERMS, PRIVACY,
+   LOTBI PHILOSOPHY…) above its Korean h1. Hidden here rather than deleted page by page:
+   privacy.html and terms.html bytes are consent evidence and must not move. */
+.consumer-document .kicker { display: none; }
 .consumer-document .lead-small { max-width: 720px; font-size: 16px; line-height: 1.8; }
 .consumer-document :is(.section h2, .about-section h2) { margin-top: 40px; margin-bottom: 12px; font-size: 21px; font-weight: 600; line-height: 1.5; letter-spacing: -.03em; scroll-margin-top: 24px; }
 .consumer-document :is(.section h3, .about-principle h3) { font-size: 16px; font-weight: 600; line-height: 1.5; }
@@ -38,11 +45,14 @@ body.consumer-document { background: var(--panel); color: var(--text); }
 .consumer-document .feedback-form :is(input:not([type=radio]), textarea) { font-size: 16px; color: var(--text); background: var(--panel); border-color: var(--line); border-radius: 10px; }
 .consumer-document .feedback-submit { min-height: 48px; border-radius: 10px; font-weight: 500; background: var(--text); color: var(--panel); }
 .consumer-document .feedback-done { border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
-.consumer-document-toc { margin: 28px 0 40px; padding: 16px 0; border-block: 1px solid var(--line); font-size: 14px; }
-.consumer-document-toc summary { min-height: 44px; display: list-item; align-content: center; cursor: pointer; color: var(--text); font-weight: 500; }
-.consumer-document-toc nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 20px; padding-top: 12px; }
-.consumer-document .consumer-document-toc a { display: flex; align-items: center; min-height: 44px; color: var(--muted); text-decoration: none; font-size: 14px; overflow-wrap: anywhere; }
-.consumer-document .consumer-document-toc a:hover { color: var(--text); text-decoration: underline; }
+.consumer-document-toc { margin: 28px 0 40px; border: 1px solid var(--line); border-radius: 16px; background: var(--soft); }
+.consumer-document-toc summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 0 18px; cursor: pointer; list-style: none; color: var(--text); font-size: 16px; font-weight: 600; }
+.consumer-document-toc summary::-webkit-details-marker { display: none; }
+.consumer-document-toc summary::after { content: ""; flex: none; width: 9px; height: 9px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+.consumer-document-toc[open] summary::after { transform: translateY(2px) rotate(-135deg); }
+.consumer-document-toc nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; padding: 6px 18px 12px; border-top: 1px solid var(--line); }
+.consumer-document .consumer-document-toc a { display: flex; align-items: center; min-height: 48px; color: var(--text); text-decoration: none; font-size: 15px; word-break: keep-all; overflow-wrap: anywhere; }
+.consumer-document .consumer-document-toc a:hover { text-decoration: underline; }
 @media (max-width: 600px) {
   .consumer-document .wrap { padding-inline: 20px; }
   .consumer-document .topbar { height: 76px; }
@@ -63,6 +73,10 @@ body.consumer-document { background: var(--panel); color: var(--text); }
 .consumer-document { font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; }
 .consumer-document :is(.section, .about-section) { max-width: 760px; margin-inline: auto; }
 .consumer-document .lead-small { color: var(--text); }
+/* TOP5-2 (QA N5): lines break at spaces, not inside a Korean word ("소비자/가", "관문입/니다"). Text styling only —
+   no document wording or markup is touched. Very long strings (addresses, URLs) still wrap through overflow-wrap. */
+.consumer-document :is(h1, h2, h3, p, li, dt, dd, summary, blockquote, strong, .lead-small, .about-quote) { word-break: keep-all; }
+.consumer-document :is(h1, h2, .about-core-message strong) { text-wrap: balance; }
 /* Keep the seven-column notice inside the same reading column as its prose.
    Wide table contents may scroll inside it; the page itself never breaks out.
    The existing mobile labelled-row layout in styles.css remains unchanged. */

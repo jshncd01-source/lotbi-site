@@ -1,6 +1,6 @@
-import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-de88e6e1b0a7';
-import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-de88e6e1b0a7';
-import {createGuestCalendarRepository} from './site-calendar-guest.js?v=aset-de88e6e1b0a7';
+import {createLifeActivity, editLifeActivity, getCalendarWeather, getKoreaHolidays, getLifeActivity, getLifeAgenda, getLifeAttention, getLifeExpenseSummary, getLifeUnscheduled, removeLifeActivity} from './site-calendar.js?v=aset-7ce47b43cff4';
+import {festivalLinkFromCalendarItem} from './site-festival-calendar.js?v=aset-7ce47b43cff4';
+import {createGuestCalendarRepository, GUEST_CREATE_QUOTA} from './site-calendar-guest.js?v=aset-7ce47b43cff4';
 import {
   addCivilDays,
   calendarMonthGrid,
@@ -9,32 +9,39 @@ import {
   formatCivilDate,
   groupCalendarEvents,
   monthGridRange,
-  sortCalendarEvents,
   validCivilDate,
-} from './site-calendar-model.js?v=aset-de88e6e1b0a7';
-import {calendarExpenseSummaryNode, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES} from './site-calendar-expense.js?v=aset-de88e6e1b0a7';
+} from './site-calendar-model.js?v=aset-7ce47b43cff4';
+import {calendarAmountDetailNode, calendarAmountSummaryBlock, expenseCategoryLabel, expenseSummaryFromEntries, EXPENSE_CATEGORY_CHOICES, EXPENSE_CATEGORY_ORDER, formatExpenseAmount} from './site-calendar-expense.js?v=aset-7ce47b43cff4';
 // One version string, matching site-calendar.js: a second query string makes a
 // second module instance, and then the SiteCoreError this file compares against
 // is a different class from the one site-calendar.js throws. site-core.js is
 // unchanged here, so it keeps the version the Calendar already loads.
-import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-de88e6e1b0a7';
-import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-de88e6e1b0a7';
-import {lunarDateLabel, solarToLunar} from './site-calendar-lunar.js?v=aset-de88e6e1b0a7';
+import {CORE_ORIGIN, sendConversationMessage, uploadConversationAttachment, SiteCoreError} from './site-core.js?v=aset-7ce47b43cff4';
+import {calendarDraftLogicalRequestId} from './site-calendar-draft-write.js?v=aset-7ce47b43cff4';
+import {calendarWeatherAttribution, calendarWeatherByDate, calendarWeatherIconNode} from './site-calendar-weather.js?v=aset-7ce47b43cff4';
+import {lunarDateLabel, solarToLunar, lunarDateCompactLabel} from './site-calendar-lunar.js?v=aset-7ce47b43cff4';
 import {
   calendarEventPresentation,
+  calendarItemEndDate,
+  calendarItemsOnDate,
   calendarWeatherPresentation,
   calendarWeekDays,
   calendarWeekTimeGrid,
-  filterScheduleItems,
-  monthCellSummary,
-} from './site-calendar-product.js?v=aset-de88e6e1b0a7';
-import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-de88e6e1b0a7';
-import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-de88e6e1b0a7';
-import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-de88e6e1b0a7';
-import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-de88e6e1b0a7';
-import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-de88e6e1b0a7';
-import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-de88e6e1b0a7';
-import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-de88e6e1b0a7';
+  datetimeClockLabel,
+  dayAmountTotals,
+  koreanClockLabel,
+  lifeRowPresentation,
+  lifeTimelineForDate,
+  lifeTimelineGroup,
+  monthSpanSegments,
+} from './site-calendar-product.js?v=aset-7ce47b43cff4';
+import {getPublicCalendarWeather, resolvePublicWeatherRegion} from './site-calendar-public-weather.js?v=aset-7ce47b43cff4';
+import {readCalendarManualWeatherRegion, writeCalendarManualWeatherRegion} from './site-calendar-weather-region.js?v=aset-7ce47b43cff4';
+import {calendarWeatherRegionCacheKey, readCalendarWeatherCache, writeCalendarWeatherCache} from './site-calendar-weather-cache.js?v=aset-7ce47b43cff4';
+import {BROWSER_NOTIFICATION_PERMISSION, getBrowserNotificationPermissionState, requestBrowserNotificationPermissionForFeature} from './site-calendar-notifications.js?v=aset-7ce47b43cff4';
+import {getCalendarPushConfig, registerCalendarPushSubscriptionWithCore, registerCalendarPushWorker, subscribeCalendarPush} from './site-calendar-push.js?v=aset-7ce47b43cff4';
+import {acquireSharedBrowserCurrentLocation, BrowserLocationError, getBrowserLocationPermissionState, isFreshBrowserCurrentLocation, LOCATION_PERMISSION, LOCATION_RESOLUTION} from './site-current-location.js?v=aset-7ce47b43cff4';
+import {isLocationUsageEnabled, setLocationUsageEnabled, LOCATION_USAGE_EVENT} from './site-location-preference.js?v=aset-7ce47b43cff4';
 
 // The expense summary covers the calendar month itself, not the 42-cell grid:
 // the grid spills into the neighbouring months and those amounts do not belong
@@ -44,6 +51,27 @@ function civilMonthRange(year, month) {
   const nextYear = month === 12 ? year + 1 : year;
   const nextMonth = month === 12 ? 1 : month + 1;
   return {start, end: addCivilDays(formatCivilDate(nextYear, nextMonth, 1), -1)};
+}
+
+function expensePeriod(state) {
+  if (state.mode === 'year') {
+    return Object.freeze({
+      key: `year-${state.year}`,
+      start: formatCivilDate(state.year, 1, 1),
+      end: formatCivilDate(state.year, 12, 31),
+      label: `${state.year}년`,
+      detailLabel: `${state.year}년`,
+      month: null,
+    });
+  }
+  const range = civilMonthRange(state.year, state.month);
+  return Object.freeze({
+    key: `${state.year}-${state.month}`,
+    ...range,
+    label: `${state.month}월`,
+    detailLabel: `${state.year}년 ${state.month}월`,
+    month: state.month,
+  });
 }
 
 const DEFAULT_TIMEZONE = 'Asia/Seoul';
@@ -59,7 +87,12 @@ function weekdayOrder(weekStart = 0) {
 // attentionDates 로 이미 같은 날짜에 표시하고 있었고, 남은 하나 -- 지금 달에 없는
 // 지난 기한 -- 은 일정 보기의 '기한 지남' 묶음이 이어받는다(renderAgenda). 탭만
 // 사라지고 지난 기한이 조용히 사라지지는 않는다.
-const MODES = Object.freeze([['week', '주'], ['month', '월'], ['year', '년'], ['agenda', '일정']]);
+//
+// Embedded legacy callers keep their compact controls. The primary Calendar
+// workspace exposes the complete approved navigation, including 년.
+const MODES = Object.freeze([['week', '주'], ['month', '월'], ['agenda', '목록']]);
+const WORKSPACE_MODES = Object.freeze([['week', '주'], ['month', '월'], ['year', '년'], ['agenda', '일정']]);
+const VIEW_KEYS = Object.freeze(['day', 'month', 'week', 'year', 'agenda']);
 const CALENDAR_SETTINGS_STORAGE_KEY = 'lotbi.calendar.settings.v1';
 const CALENDAR_PUSH_SUBSCRIPTION_STORAGE_KEY = 'lotbi.calendar.push-subscription.v1';
 // 저장된 날씨 지역이 어디서 왔는지. 지역 자체는 site-calendar-weather-region.js 가
@@ -496,7 +529,7 @@ export function readCalendarDisplaySettings(storage = globalThis.localStorage) {
     // Unlike the two settings above, lunar dates are new screen density on
     // every cell rather than a correction to something already shown, so
     // this one ships off until the owner asks for it.
-    showLunarDates: stored.showLunarDates === true,
+    showLunarDates: stored.showLunarDates !== false,
     // Precipitation already shipped on, so it follows showKoreaHolidays/
     // showGridLines rather than showLunarDates: an empty store keeps it on.
     showPrecipitation: stored.showPrecipitation !== false,
@@ -544,11 +577,12 @@ function dateInTimezone(now, timezone) {
 }
 
 function normalizeMode(value) {
-  if (value === 'today' || value === 'all' || value === 'date') return 'month';
+  if (value === 'today' || value === 'date') return 'day';
+  if (value === 'all') return 'month';
   // 'attention' 은 다른 표면(사이드바·딥링크)이 아직 보낼 수 있는 옛 이름이다.
   // 탭이 없어졌으니 그 링크는 기한 지남을 이어받은 일정 보기로 보낸다.
   if (value === 'upcoming' || value === 'attention') return 'agenda';
-  return MODES.some(([mode]) => mode === value) ? value : 'month';
+  return VIEW_KEYS.includes(value) ? value : 'month';
 }
 
 // The fetch range deliberately covers BOTH week starts at once. Changing the
@@ -588,7 +622,7 @@ function shiftCivilMonth(value, delta) {
 
 function eventTime(item) {
   if (!validCivilDate(item?.local_date)) return '미정';
-  return typeof item?.local_datetime === 'string' ? item.local_datetime.slice(11, 16) : '종일';
+  return typeof item?.local_datetime === 'string' ? (datetimeClockLabel(item.local_datetime) || item.local_datetime.slice(11, 16)) : '종일';
 }
 
 function isAllDay(item) {
@@ -628,10 +662,10 @@ function usesFlowingDayDetail() {
   return globalThis.innerWidth <= 900;
 }
 
-export const DAY_DETAIL_PRESENTATION = Object.freeze({FLOW: 'FLOW', SIDE: 'SIDE'});
+export const DAY_DETAIL_PRESENTATION = Object.freeze({PAGE: 'PAGE', FLOW: 'FLOW', SIDE: 'SIDE', SHEET: 'SHEET', MODAL: 'MODAL'});
 
-// Touch widths keep the selected day in document flow; desktop gives it a
-// stable side rail. Neither presentation covers the month grid.
+// Legacy embedded Calendar callers may still opt into FLOW/SIDE. The primary
+// workspace selects MODAL/SHEET through dayDetailPresentationFor below.
 let dayDetailPresentationOverride = null;
 
 export function setDayDetailPresentation(value) {
@@ -642,6 +676,11 @@ export function setDayDetailPresentation(value) {
 export function dayDetailPresentation() {
   return dayDetailPresentationOverride
     || (usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.FLOW : DAY_DETAIL_PRESENTATION.SIDE);
+}
+
+function dayDetailPresentationFor(state) {
+  if (!state?.approvedWorkspace) return dayDetailPresentation();
+  return usesFlowingDayDetail() ? DAY_DETAIL_PRESENTATION.SHEET : DAY_DETAIL_PRESENTATION.MODAL;
 }
 
 function prefersReducedMotion() {
@@ -774,11 +813,52 @@ export function buildCalendarTemporal({localDate, time = '', endDate = '', endTi
   return Object.freeze({kind: 'LOCAL_DATE_TIME', local_datetime: `${date}T${clock}:00`, timezone_name: timezone});
 }
 
-export function normalizeCalendarClockInput(value) {
-  const raw = typeof value === 'string' ? value.trim() : '';
+export function normalizeCalendarClockInput(value, {period = ''} = {}) {
+  const raw = typeof value === 'string' ? value.trim().replace(/\s+/gu, ' ') : '';
   if (!raw) return '';
-  const clock = /^\d{4}$/.test(raw) ? `${raw.slice(0, 2)}:${raw.slice(2)}` : raw;
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(clock) ? clock : null;
+  let said = '';
+  let body = raw;
+  const prefix = /^(오전|오후)\s*/u.exec(body);
+  if (prefix) {
+    said = prefix[1] === '오전' ? 'AM' : 'PM';
+    body = body.slice(prefix[0].length);
+  }
+  let match;
+  let hour;
+  let minute;
+  let written24 = false;
+  if ((match = /^(\d{1,2}):(\d{2})$/u.exec(body)) || (match = /^(\d{1,2})(\d{2})$/u.exec(body))) {
+    hour = Number(match[1]);
+    minute = Number(match[2]);
+    written24 = match[1].length === 2 && match[1].startsWith('0');
+  } else if ((match = /^(\d{1,2})\s*시(?:\s*(\d{1,2})\s*분|\s*(반))?$/u.exec(body))) {
+    hour = Number(match[1]);
+    minute = match[3] ? 30 : Number(match[2] || 0);
+  } else if ((match = /^(\d{1,2})$/u.exec(body))) {
+    hour = Number(match[1]);
+    minute = 0;
+  } else {
+    return null;
+  }
+  if (minute > 59) return null;
+  const chosen = said || (written24 ? '' : period);
+  if (hour >= 1 && hour <= 12 && chosen) hour = chosen === 'AM' ? hour % 12 : (hour % 12) + 12;
+  else if (said && (hour === 0 || hour > 12)) return null;
+  else if (!chosen && !written24 && hour >= 1 && hour <= 6) hour += 12;
+  if (hour > 23) return null;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+export {koreanClockLabel};
+
+export function normalizeCalendarEndClock(value, startClock) {
+  const plain = normalizeCalendarClockInput(value);
+  if (!plain || !startClock || /^\s*(오전|오후)/u.test(String(value))) return plain;
+  const morning = normalizeCalendarClockInput(value, {period: 'AM'});
+  const evening = normalizeCalendarClockInput(value, {period: 'PM'});
+  if (morning && morning >= startClock) return morning;
+  if (evening && evening >= startClock) return evening;
+  return plain;
 }
 
 function defaultRequestId(kind) {
@@ -817,12 +897,20 @@ export function createCalendarMutationController({
       allDay: input?.allDay === true,
       entry: {
         amount_minor: amountMinor,
-        currency: 'KRW',
+        // An edit keeps the currency the record was written in; a new record
+        // is KRW, the only currency the editor offers.
+        currency: typeof input?.currency === 'string' && /^[A-Z]{3}$/.test(input.currency) ? input.currency : 'KRW',
         expense_category: input?.expenseCategory || null,
+        // CALENDAR-DESIGN-04: 예정(PLANNED)·실제(PAID) 지출. 비우면 Core·Guest가
+        // 금액이 있을 때 실제 지출로 읽는다.
+        expense_status: input?.expenseStatus === 'PLANNED' || input?.expenseStatus === 'PAID' ? input.expenseStatus : null,
         memo: typeof input?.memo === 'string' ? input.memo : '',
         place: typeof input?.place === 'string' ? input.place : '',
         merchant: typeof input?.merchant === 'string' ? input.merchant : '',
       },
+      // 반복·알림(로그인 기록만). undefined는 "바꾸지 않음"이라 보내지 않는다.
+      recurrence: input?.recurrence === undefined ? undefined : (input.recurrence || null),
+      reminderOffsets: Array.isArray(input?.reminderOffsets) ? input.reminderOffsets : undefined,
     };
   };
   const guestPayload = (value, temporal) => ({
@@ -840,11 +928,13 @@ export function createCalendarMutationController({
       const temporal = buildCalendarTemporal({...value, timezone});
       if (!authenticated) return guestRepository.create(guestPayload(value, temporal));
       return createLifeActivity(sessionToken, {
-        logicalRequestId: requestId('create'), title: value.title, temporal,
+        logicalRequestId: input?.photoLogicalRequestId || requestId('create'), title: value.title, temporal,
         temporalSemantics: 'USER_PLANNED_TIME', busy: 'UNKNOWN', entry: value.entry,
+        ...(value.recurrence ? {recurrence: value.recurrence} : {}),
+        ...(value.reminderOffsets?.length ? {reminderOffsets: value.reminderOffsets} : {}),
       }, fetchImpl);
     },
-    async update(item, input) {
+    async update(item, input, {scope = null} = {}) {
       if (!calendarItemActionPolicy(item).canUpdate) {
         throw new SiteCoreError('읽기 전용 일정은 수정할 수 없습니다.', {
           code: 'LIFE_ACTION_NOT_ALLOWED',
@@ -869,18 +959,51 @@ export function createCalendarMutationController({
         ...(existingLink.visit_date ? {visit_date: existingLink.visit_date} : {}),
       } : {};
       if (!authenticated) return guestRepository.update(item.id, {...guestPayload(value, temporal), ...sourceLink});
+      // A due date stays a due date. Core only tracks DEADLINE on a date-only
+      // record (it is what feeds 기한 예정 / 기한 지남), so editing the title or
+      // the amount of a bill must not quietly turn it into an ordinary plan.
+      const temporalSemantics = item.temporal_semantics === 'DEADLINE' && temporal.kind === 'DATE_ONLY'
+        ? 'DEADLINE'
+        : 'USER_PLANNED_TIME';
+      const recurring = isRecurringCalendarItem(item);
+      if (recurring && scope === 'OCCURRENCE') {
+        // 이 날짜만: 반복 규칙·알림은 그대로, 이 회차만 다른 내용이 된다.
+        return editLifeActivity(sessionToken, item.activity_id || item.activityId, {
+          logicalRequestId: requestId('edit'),
+          expectedActivityRevision: item.activity_revision ?? item.activityRevision,
+          expectedOccurrenceRevision: item.occurrence_revision ?? item.occurrenceRevision,
+          title: value.title,
+          temporal,
+          temporalSemantics,
+          busy: 'UNKNOWN',
+          entry: {...value.entry, ...sourceLink},
+          scope: 'OCCURRENCE',
+          occurrenceKey: item.occurrence_key,
+        }, fetchImpl);
+      }
+      // 반복 전체: 이 회차에서 날짜를 옮겼다면 반복 시작일도 그만큼 옮긴다.
+      let seriesTemporal = temporal;
+      if (recurring && validCivilDate(item.series_start || '') && validCivilDate(value.localDate) && validCivilDate(item.local_date || '')) {
+        const delta = civilDayNumber(value.localDate) - civilDayNumber(item.local_date);
+        const anchor = shiftCivilDate(item.series_start, delta);
+        const anchorEnd = validCivilDate(value.endDate) ? shiftCivilDate(value.endDate, civilDayNumber(anchor) - civilDayNumber(value.localDate)) : value.endDate;
+        seriesTemporal = buildCalendarTemporal({...value, localDate: anchor, endDate: anchorEnd, timezone});
+      }
       return editLifeActivity(sessionToken, item.activity_id || item.activityId, {
         logicalRequestId: requestId('edit'),
         expectedActivityRevision: item.activity_revision ?? item.activityRevision,
         expectedOccurrenceRevision: item.occurrence_revision ?? item.occurrenceRevision,
         title: value.title,
-        temporal,
-        temporalSemantics: 'USER_PLANNED_TIME',
+        temporal: seriesTemporal,
+        temporalSemantics,
         busy: 'UNKNOWN',
         entry: {...value.entry, ...sourceLink},
+        ...(recurring ? {scope: 'SERIES'} : {}),
+        ...(value.recurrence !== undefined ? {recurrence: value.recurrence} : {}),
+        ...(value.reminderOffsets !== undefined ? {reminderOffsets: value.reminderOffsets} : {}),
       }, fetchImpl);
     },
-    async remove(item) {
+    async remove(item, {scope = null} = {}) {
       if (!calendarItemActionPolicy(item).canRemove) {
         throw new SiteCoreError('읽기 전용 일정은 삭제할 수 없습니다.', {
           code: 'LIFE_ACTION_NOT_ALLOWED',
@@ -888,8 +1011,13 @@ export function createCalendarMutationController({
         });
       }
       if (!authenticated) return guestRepository.remove(item.id);
+      // 반복 기록은 언제나 범위를 밝힌다 — Core는 범위 없는 반복 기록 삭제를
+      // 409(RECURRENCE_SCOPE_REQUIRED)로 거절한다(범위를 모르는 출시 App 보호).
+      const recurring = isRecurringCalendarItem(item);
+      const oneDate = recurring && scope === 'OCCURRENCE';
       return removeLifeActivity(sessionToken, item.activity_id || item.activityId, {
         logicalRequestId: requestId('remove'), expectedRevision: item.activity_revision ?? item.activityRevision,
+        ...(oneDate ? {scope: 'OCCURRENCE', occurrenceKey: item.occurrence_key} : recurring ? {scope: 'SERIES'} : {}),
       }, fetchImpl);
     },
   });
@@ -1018,7 +1146,9 @@ function calendarViewWindow(view, date, timezone, now, weekStart) {
     ? yearBounds(selectedDate)
     : key === 'week'
       ? {...weekBounds(selectedDate, weekStart), ...civilDateParts(selectedDate)}
-      : monthBounds(selectedDate);
+      : key === 'day'
+        ? {start: selectedDate, end: selectedDate, ...civilDateParts(selectedDate)}
+        : monthBounds(selectedDate);
   return {selectedDate, key, range};
 }
 
@@ -1065,7 +1195,7 @@ export async function loadLifeCalendarEnrichment(
   {view = 'month', date, timezone = resolvedTimezone(), now = new Date(), fetchImpl = globalThis.fetch, weatherLocation = null, weekStart = 0} = {},
 ) {
   const {key, range} = calendarViewWindow(view, date, timezone, now, weekStart);
-  const weatherWindow = key === 'month' || key === 'week'
+  const weatherWindow = key === 'day' || key === 'month' || key === 'week'
     ? forecastWindow(range, dateInTimezone(now, timezone))
     : null;
   const weatherRequest = weatherWindow
@@ -1084,13 +1214,15 @@ export async function loadLifeCalendarEnrichment(
         return {providerReady: false, items: [], aiCalls: 0, failure: error};
       })
     : Promise.resolve({providerReady: false, items: [], aiCalls: 0});
-  const holidayRequest = (key === 'month' || key === 'week' || key === 'year')
+  const holidayRequest = (key === 'day' || key === 'month' || key === 'week' || key === 'year')
     ? loadKoreaHolidaysForRange(range, fetchImpl)
     : Promise.resolve({coverageStatus: 'UNAVAILABLE', items: []});
   const [weather, holidays] = await Promise.all([weatherRequest, holidayRequest]);
   return Object.freeze({
     key,
     weather: Object.freeze(weather?.items || []),
+    // CALENDAR-DESIGN-04: 기상청 초단기실황(오늘 "지금 N°"). 없으면 null.
+    weatherCurrent: weather?.current || null,
     weatherProviderReady: weather?.providerReady === true,
     weatherFailureMessage: weatherFailureCopy(weather?.failure),
     holidays: Object.freeze(holidays?.items || []),
@@ -1193,13 +1325,6 @@ function emptyMessage(text) {
   return value;
 }
 
-function attentionStateLabel(value) {
-  if (value === 'UPCOMING') return '기한 예정';
-  if (value === 'DUE_TODAY') return '오늘 기한';
-  if (value === 'OVERDUE') return '기한 지남';
-  return '';
-}
-
 // 09/12 15:00 → 09/13 11:00. A stay, a flight and a rental are one entry with
 // two ends, and showing only the check-in reads as if the owner never leaves.
 // Core sends an ending only when the booking stated one, so an ordinary
@@ -1211,7 +1336,7 @@ export function eventSpanText(item) {
   if (!validCivilDate(item?.local_date) || !validCivilDate(resolvedEnd)) return '';
   const stamp = (date, datetime) => {
     const day = `${date.slice(5, 7)}/${date.slice(8, 10)}`;
-    const clock = typeof datetime === 'string' && datetime.length >= 16 ? datetime.slice(11, 16) : '';
+    const clock = datetimeClockLabel(datetime);
     return clock ? `${day} ${clock}` : day;
   };
   const start = stamp(item.local_date, item.local_datetime);
@@ -1219,148 +1344,484 @@ export function eventSpanText(item) {
   return start === finish ? '' : `${start} → ${finish}`;
 }
 
-function eventMetaText(item) {
-  const parts = [];
-  const span = eventSpanText(item);
-  if (span) parts.push(span);
-  const attention = attentionStateLabel(item?.calendar_attention_state || item?.state);
-  if (attention) parts.push(attention);
-  if (String(item?.id || '').startsWith('guest_')) parts.push('이 기기에 저장');
-  else if (item?.provider_verified === true && item?.confirmation_level === 'PROVIDER_VERIFIED') parts.push('외부 확인됨');
-  else if (item?.source_kind === 'USER_INPUT' || item?.confirmation_level === 'USER_ATTESTED') parts.push('직접 입력');
-  return parts.join(' · ');
+// One record, one row: the time (or 기간 / 마감 / nothing at all) on the left,
+// what it is in the middle, its amount on the right. No type pill on every row,
+// no "직접 입력" / "이 기기에 저장" repeated down the list -- the row says what
+// the owner wrote, and only a deadline's state earns a badge.
+function lifeRow(item, {date, today, onSelect} = {}) {
+  const presentation = lifeRowPresentation(item, {date, today});
+  const li = document.createElement('li');
+  li.className = 'calendar-day-event calendar-life-row';
+  li.dataset.lifeGroup = presentation.group;
+  li.dataset.calendarEventId = item.id || item.activity_id || '';
+  if (presentation.continued) li.dataset.lifeContinued = 'true';
+
+  const timeColumn = document.createElement('span');
+  timeColumn.className = 'calendar-life-time';
+  const time = document.createElement('time');
+  // Keep the deployed CALENDAR-ADD-UX-01 clock structure: narrow week cards
+  // may stack 오전/오후 above the digits without changing the spoken label.
+  const clock = /^(오전|오후) (\d{1,2}:\d{2})$/u.exec(presentation.timeLabel || '');
+  if (clock) {
+    const period = document.createElement('span');
+    period.className = 'calendar-clock-period';
+    period.textContent = clock[1];
+    const digits = document.createElement('span');
+    digits.className = 'calendar-clock-digits';
+    digits.textContent = clock[2];
+    time.append(period, ' ', digits);
+  } else {
+    time.textContent = presentation.timeLabel;
+  }
+  timeColumn.appendChild(time);
+  if (presentation.timeDetail) {
+    const detail = document.createElement('small');
+    detail.textContent = presentation.timeDetail;
+    timeColumn.appendChild(detail);
+  }
+
+  const copy = document.createElement('span');
+  copy.className = 'calendar-life-copy';
+  const title = document.createElement('strong');
+  title.className = 'calendar-life-title';
+  title.textContent = presentation.title || '제목 없음';
+  copy.appendChild(title);
+  if (presentation.categoryLabel) {
+    const category = document.createElement('span');
+    category.className = 'calendar-life-category';
+    category.textContent = presentation.categoryLabel;
+    copy.appendChild(category);
+  }
+  const repeating = isRecurringCalendarItem(item);
+  if (repeating) {
+    const repeat = document.createElement('span');
+    repeat.className = 'calendar-life-repeat';
+    repeat.textContent = recurrenceSummary(item.recurrence);
+    copy.appendChild(repeat);
+  }
+  if (presentation.secondaryText) {
+    const meta = document.createElement('small');
+    meta.className = 'calendar-life-meta';
+    meta.textContent = presentation.secondaryText;
+    copy.appendChild(meta);
+  }
+  if (presentation.statusLabel) {
+    const status = document.createElement('span');
+    status.className = 'calendar-event-status';
+    status.textContent = presentation.statusLabel;
+    copy.appendChild(status);
+  }
+  li.append(timeColumn, copy);
+  if (presentation.amountOnThisDay) {
+    const amount = document.createElement('span');
+    amount.className = 'calendar-life-amount';
+    amount.textContent = presentation.amountLabel;
+    li.appendChild(amount);
+  }
+
+  if (onSelect) {
+    li.tabIndex = 0;
+    li.setAttribute('role', 'button');
+    const spoken = [
+      presentation.timeLabel || '시간 없음',
+      presentation.timeDetail,
+      presentation.title || '제목 없음',
+      presentation.amountOnThisDay ? presentation.amountLabel : '',
+      presentation.secondaryText,
+      presentation.statusLabel,
+      repeating ? `반복 ${recurrenceSummary(item.recurrence)}` : '',
+    ].filter(Boolean).join(', ');
+    li.setAttribute('aria-label', spoken);
+    li.addEventListener('click', event => onSelect(item, event.currentTarget));
+    li.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(item, event.currentTarget); }
+    });
+  }
+  return li;
 }
 
-function eventList(items, {onSelect} = {}) {
+function lifeRowList(items, options) {
   const list = document.createElement('ul');
-  list.className = 'calendar-day-list';
-  for (const item of sortCalendarEvents(items)) {
-    const presentation = calendarEventPresentation(item);
-    const li = document.createElement('li');
-    li.className = 'calendar-day-event';
-    li.dataset.eventKind = presentation.kind;
-    li.dataset.calendarEventId = item.id || item.activity_id || '';
-    const time = document.createElement('time');
-    time.textContent = eventTime(item);
-    const copy = document.createElement('span');
-    const title = document.createElement('strong');
-    title.textContent = item.title;
-    const badges = document.createElement('span');
-    badges.className = 'calendar-event-badges';
-    const type = document.createElement('span');
-    type.className = 'calendar-event-type';
-    type.textContent = presentation.typeLabel;
-    badges.appendChild(type);
-    if (presentation.statusLabel) {
-      const status = document.createElement('span');
-      status.className = 'calendar-event-status';
-      status.textContent = presentation.statusLabel;
-      badges.appendChild(status);
-    }
-    const meta = document.createElement('small');
-    meta.textContent = presentation.metaText || eventMetaText(item);
-    copy.append(title, badges);
-    if (meta.textContent) copy.append(meta);
-    li.append(time, copy);
-    if (onSelect) {
-      li.tabIndex = 0;
-      li.setAttribute('role', 'button');
-      li.setAttribute('aria-label', `${eventTime(item)} ${item.title}${meta.textContent ? `, ${meta.textContent}` : ""}`);
-      li.addEventListener('click', event => onSelect(item, event.currentTarget));
-      li.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(item, event.currentTarget); }
-      });
-    }
-    list.appendChild(li);
-  }
+  list.className = 'calendar-day-list calendar-life-list';
+  for (const item of items) list.appendChild(lifeRow(item, options));
   return list;
 }
 
-function dayPanel(state, groups, actions) {
+// A date's records in day order: 기간 · 마감 first, then the clock, then what
+// has no time. Returns null for an empty date so each caller words its own
+// empty state.
+function lifeTimelineNodes(items, date, {today, onSelect, untimedLabel = true} = {}) {
+  const timeline = lifeTimelineForDate(items, date);
+  if (!timeline.count) return null;
+  const fragment = document.createDocumentFragment();
+  const framed = [...timeline.top, ...timeline.timed];
+  if (framed.length) fragment.appendChild(lifeRowList(framed, {date, today, onSelect}));
+  if (timeline.untimed.length) {
+    if (untimedLabel && framed.length) {
+      const label = document.createElement('p');
+      label.className = 'calendar-life-section-label';
+      label.textContent = '시간 없는 일정';
+      fragment.appendChild(label);
+    }
+    fragment.appendChild(lifeRowList(timeline.untimed, {date, today, onSelect}));
+  }
+  return fragment;
+}
+
+function longKoreanDate(value) {
+  const {month, day} = civilDateParts(value);
+  return `${month}월 ${day}일 ${WEEKDAYS[weekdayOf(value)]}`;
+}
+
+function weekdayOf(value) {
+  const {year, month, day} = civilDateParts(value);
+  return new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
+}
+
+// 반복 기록 전체를 한 회차에서 고칠 때, 그 회차에서 옮긴 날짜만큼 반복 시작일을 옮긴다.
+function civilDayNumber(value) {
+  const {year, month, day} = civilDateParts(value);
+  return Math.round(Date.UTC(year, month - 1, day) / 86400000);
+}
+
+function shiftCivilDate(value, days) {
+  const {year, month, day} = civilDateParts(value);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
+// Core는 월요일=0 … 일요일=6, 화면은 월 화 수 목 금 토 일 순서다.
+const RECURRENCE_WEEKDAY_LABELS = Object.freeze(['월', '화', '수', '목', '금', '토', '일']);
+const RECURRENCE_CHOICES = Object.freeze([
+  ['', '반복 안 함'],
+  ['DAILY', '매일'],
+  ['WEEKLY', '매주'],
+  ['BIWEEKLY', '2주마다'],
+  ['MONTHLY', '매월'],
+  ['YEARLY', '매년'],
+  ['CUSTOM', '사용자 지정'],
+]);
+const REMINDER_CHOICES = Object.freeze([
+  ['', '알림 없음'],
+  ['0', '정각'],
+  ['5', '5분 전'],
+  ['10', '10분 전'],
+  ['30', '30분 전'],
+  ['60', '1시간 전'],
+  ['1440', '1일 전'],
+]);
+
+function mondayWeekday(value) {
+  return (weekdayOf(value) + 6) % 7;
+}
+
+function isRecurringCalendarItem(item) {
+  return Boolean(item && item.recurrence && typeof item.recurrence === 'object' && validCivilDate(item.occurrence_key || ''));
+}
+
+// The editor's repeat choice for a stored rule; a shape the editor cannot
+// produce is kept as-is (KEEP) rather than silently rewritten on save.
+function recurrenceChoice(rule, startDate) {
+  if (!rule || typeof rule !== 'object') return '';
+  const weekdays = Array.isArray(rule.weekdays) ? rule.weekdays : [];
+  const ownDay = validCivilDate(startDate) ? [mondayWeekday(startDate)] : [];
+  const plainWeekdays = !weekdays.length || (weekdays.length === 1 && weekdays[0] === ownDay[0]);
+  const interval = Number(rule.interval || 1);
+  if (rule.frequency === 'DAILY' && interval === 1) return 'DAILY';
+  if (rule.frequency === 'WEEKLY' && interval === 1 && plainWeekdays) return 'WEEKLY';
+  if (rule.frequency === 'WEEKLY' && interval === 2 && plainWeekdays) return 'BIWEEKLY';
+  if (rule.frequency === 'MONTHLY' && interval === 1) return 'MONTHLY';
+  if (rule.frequency === 'YEARLY' && interval === 1) return 'YEARLY';
+  if (rule.frequency === 'WEEKLY') return 'CUSTOM';
+  return 'KEEP';
+}
+
+function recurrenceSummary(rule) {
+  if (!rule) return '';
+  const interval = Number(rule.interval || 1);
+  const weekdays = Array.isArray(rule.weekdays) ? rule.weekdays : [];
+  let text;
+  if (rule.frequency === 'DAILY') text = interval === 1 ? '매일' : `${interval}일마다`;
+  else if (rule.frequency === 'WEEKLY') {
+    const days = weekdays.length ? weekdays.map(day => RECURRENCE_WEEKDAY_LABELS[day]).join('·') : '';
+    const every = interval === 1 ? '매주' : `${interval}주마다`;
+    text = days ? `${every} ${days}` : every;
+  } else if (rule.frequency === 'MONTHLY') text = interval === 1 ? '매월' : `${interval}개월마다`;
+  else text = interval === 1 ? '매년' : `${interval}년마다`;
+  if (validCivilDate(rule.until || '')) text += ` ~${Number(rule.until.slice(5, 7))}/${Number(rule.until.slice(8, 10))}`;
+  return text;
+}
+
+// "☀ 14° / 23°" for a day header: the glyph, then the range when Core sent one.
+// `condition` adds the word for the sky ("☀ 맑음 14° / 23°") where the glyph
+// is the only weather on screen.
+function dayWeatherNode(weather, {precipitation = true, condition = false} = {}) {
+  if (!weather) return null;
+  const node = document.createElement('span');
+  node.className = 'calendar-day-weather';
+  const icon = calendarWeatherIconNode(weather.weatherKind);
+  if (icon) node.appendChild(icon);
+  const presentation = calendarWeatherPresentation(weather);
+  const reading = [condition ? weather.label : '', presentation.weekLabel].filter(Boolean).join(' ');
+  const text = [reading, precipitation ? presentation.precipLabel : ''].filter(Boolean).join(' · ');
+  if (text) {
+    const label = document.createElement('span');
+    label.className = 'calendar-day-weather-text';
+    label.textContent = text;
+    node.appendChild(label);
+  }
+  if (!node.childElementCount) return null;
+  node.setAttribute('aria-label', ['날씨', condition ? '' : weather.label, text].filter(Boolean).join(' '));
+  node.setAttribute('role', 'img');
+  return node;
+}
+
+// CALENDAR-ADD-UX-01: both add paths stay visible directly below the toolbar.
+function addActionsRow(state, actions, {placement}) {
+  const row = document.createElement('div');
+  row.className = 'calendar-add-actions';
+  row.dataset.calendarAddPlacement = placement;
+  const target = validCivilDate(state.selectedDate) ? state.selectedDate : state.todayDate;
+  const {month, day} = civilDateParts(target);
+  const isToday = target === state.todayDate;
+
+  const addImage = button('사진으로 추가', 'calendar-add-button calendar-add-image-button');
+  addImage.dataset.calendarAddImage = '';
+  addImage.setAttribute('aria-label', `사진에서 일정·금액을 읽어 ${month}월 ${day}일 일정 초안 만들기`);
+  addImage.addEventListener('click', () => actions.onAddFromImage?.(target));
+
+  // The panel already names its date; the pinned bar does not, so it says
+  // which day a new record will land on unless that day is today.
+  const label = placement === 'panel' || isToday ? '+ 일정 추가' : `+ ${month}월 ${day}일 일정 추가`;
+  const add = button(label, 'calendar-add-button calendar-add-detail-button');
+  add.dataset.calendarAdd = '';
+  add.setAttribute('aria-label', `${month}월 ${day}일에 일정 추가`);
+  add.addEventListener('click', () => actions.onAdd?.(target));
+
+  row.append(addImage, add);
+  return row;
+}
+
+// What a status line from the picture flow looks like wherever it is shown.
+function addMessageNode(text) {
+  const message = document.createElement('p');
+  message.className = 'calendar-add-message';
+  message.dataset.calendarAddMessage = '';
+  message.setAttribute('role', 'status');
+  message.textContent = text;
+  return message;
+}
+
+function selectedDateWeatherNode(state, date) {
+  const weather = calendarWeatherByDate(state.weather).get(date) || null;
+  const card = document.createElement('section');
+  card.className = 'calendar-day-weather-card';
+  card.dataset.weatherStatus = weather ? 'ready' : state.weatherLoading ? 'loading' : state.weatherMessage ? 'error' : 'unavailable';
+  card.setAttribute('aria-label', `${longKoreanDate(date)} 날씨`);
+
+  if (!weather) {
+    const message = document.createElement('p');
+    message.className = 'calendar-day-weather-unavailable';
+    message.setAttribute('role', 'status');
+    if (state.weatherLoading) message.textContent = '날씨를 확인하는 중…';
+    else if (state.weatherMessage) message.textContent = state.weatherMessage;
+    else if (date < state.todayDate) message.textContent = '지난 날짜의 날씨는 제공되지 않아요.';
+    else if (date > addCivilDays(state.todayDate, 14)) message.textContent = '예보 제공 기간 밖의 날짜입니다.';
+    else message.textContent = '이 날짜의 날씨가 제공되지 않았어요.';
+    card.appendChild(message);
+    return card;
+  }
+
+  const icon = calendarWeatherIconNode(weather.weatherKind);
+  if (icon) {
+    icon.classList.add('calendar-day-weather-card-icon');
+    card.appendChild(icon);
+  }
+  const copy = document.createElement('div');
+  copy.className = 'calendar-day-weather-card-copy';
+  const location = document.createElement('p');
+  location.className = 'calendar-day-weather-location';
+  location.textContent = [state.weatherLocationLabel, weather.label].filter(Boolean).join(' · ') || weather.label;
+  const readings = document.createElement('div');
+  readings.className = 'calendar-day-weather-readings';
+  const current = document.createElement('strong');
+  const currentLabel = date === state.todayDate ? '현재' : '예상';
+  current.textContent = Number.isFinite(weather.temperature)
+    ? `${currentLabel} ${Math.round(weather.temperature)}°`
+    : `${currentLabel} 온도 미제공`;
+  const range = document.createElement('span');
+  const rangeParts = [
+    Number.isFinite(weather.minTemperature) ? `최저 ${Math.round(weather.minTemperature)}°` : '',
+    Number.isFinite(weather.maxTemperature) ? `최고 ${Math.round(weather.maxTemperature)}°` : '',
+  ].filter(Boolean);
+  range.textContent = rangeParts.length ? rangeParts.join(' · ') : '최저·최고 온도 미제공';
+  readings.append(current, range);
+  copy.append(location, readings);
+  card.appendChild(copy);
+  return card;
+}
+
+function selectedDateExpenseNode(state, date) {
+  const section = document.createElement('section');
+  section.className = 'calendar-day-expense-card';
+  section.dataset.calendarDayExpense = state.loading ? 'loading' : 'ready';
+  const label = document.createElement('span');
+  label.className = 'calendar-day-expense-label';
+  label.textContent = date === state.todayDate ? '오늘 지출' : '선택일 지출';
+  const amount = document.createElement('strong');
+  amount.className = 'calendar-day-expense-value';
+  if (state.loading) amount.textContent = '불러오는 중…';
+  else {
+    const totals = dayAmountTotals(state.items, date);
+    amount.textContent = totals.length ? totals.map(total => total.label).join(' · ') : '0원';
+  }
+  section.append(label, amount);
+  return section;
+}
+
+function selectedDateEmptyNode(state, actions, date) {
+  const empty = document.createElement('section');
+  empty.className = 'calendar-day-empty';
+  const icon = toolbarIcon([
+    ['rect', {x: '5', y: '6.5', width: '14', height: '13', rx: '2'}],
+    ['path', {d: 'M8 4v5M16 4v5M5 10.5h14'}],
+  ]);
+  icon.classList.add('calendar-day-empty-icon');
+  const heading = document.createElement('strong');
+  heading.textContent = '등록된 일정이 없습니다.';
+  const copy = document.createElement('p');
+  copy.textContent = '이 날짜의 일정을 추가하고 더 알찬 하루를 만들어보세요.';
+  const add = button('이 날짜에 일정 추가', 'calendar-day-empty-add');
+  add.dataset.calendarAdd = '';
+  add.addEventListener('click', () => actions.onAdd?.(date));
+  empty.append(icon, heading, copy, add);
+  return empty;
+}
+
+// The selected day, read as one day of a life: its weather, what was recorded
+// as an amount, then its records in day order. It is part of the page rather
+// than a window over it -- it shows today when the Calendar opens and follows
+// whichever date is picked, so there is nothing to close and nothing covers the
+// month.
+function dayPanel(state, actions, {includeActions = false, includeMonthSummary = false, presentation = DAY_DETAIL_PRESENTATION.PAGE, closable = false} = {}) {
+  const date = state.selectedDate;
+  const {month, day} = civilDateParts(date);
   const panel = document.createElement('aside');
   panel.className = 'calendar-day-panel';
-  panel.dataset.selectedDate = state.selectedDate;
-  panel.dataset.collapsed = String(state.dayCollapsed);
-  panel.dataset.presentation = dayDetailPresentation();
+  panel.dataset.selectedDate = date;
+  panel.dataset.presentation = presentation;
   panel.dataset.reducedMotion = String(prefersReducedMotion());
-  panel.hidden = !state.detailOpen;
+  panel.setAttribute('aria-label', `${longKoreanDate(date)} 일정`);
 
   const head = document.createElement('div');
   head.className = 'calendar-day-panel-head';
   const heading = document.createElement('h3');
   heading.className = 'calendar-day-heading';
-  const selectedParts = civilDateParts(state.selectedDate);
-  const selectedWeekday = new Date(Date.UTC(selectedParts.year, selectedParts.month - 1, selectedParts.day, 12)).getUTCDay();
-  heading.textContent = `${selectedParts.month}월 ${selectedParts.day}일 ${WEEKDAY_INITIALS[selectedWeekday]}`;
-  const controls = document.createElement('div');
-  controls.className = 'calendar-day-panel-actions';
-  const close = button('×', 'calendar-day-close');
-  close.setAttribute('aria-label', '선택한 날짜 일정 닫기');
-  close.addEventListener('click', () => actions.closeDay());
-  controls.append(close);
-  head.append(heading, controls);
+  // Focus lands here when a date is chosen from the keyboard, so a screen
+  // reader hears which day it is now reading.
+  heading.tabIndex = -1;
+  heading.append(longKoreanDate(date));
+  if (date === state.todayDate) {
+    const todayBadge = document.createElement('span');
+    todayBadge.className = 'calendar-day-today';
+    todayBadge.textContent = '오늘';
+    heading.append(' ', todayBadge);
+  }
+  head.appendChild(heading);
+  const submeta = document.createElement('div');
+  submeta.className = 'calendar-day-submeta';
+  if (state.showLunarDates) {
+    const lunarLabel = lunarDateLabel(solarToLunar(date));
+    if (lunarLabel) {
+      const lunar = document.createElement('span');
+      lunar.className = 'calendar-day-lunar';
+      lunar.textContent = `음력 ${lunarLabel}`;
+      submeta.appendChild(lunar);
+    }
+  }
+  if (submeta.childElementCount) head.appendChild(submeta);
+  if (closable) {
+    const close = button('닫기', 'calendar-day-close');
+    close.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
+    close.setAttribute('aria-label', `${month}월 ${day}일 일정 닫기`);
+    close.addEventListener('click', () => actions.closeDayDetail?.());
+    head.appendChild(close);
+  }
 
   const body = document.createElement('div');
   body.className = 'calendar-day-body';
-  body.hidden = state.dayCollapsed;
-  const selectedHoliday = state.showKoreaHolidays
-    ? holidaysByDate(state.holidays).get(state.selectedDate)
-    : null;
+  body.appendChild(selectedDateWeatherNode(state, date));
+  const selectedHoliday = state.showKoreaHolidays ? holidaysByDate(state.holidays).get(date) : null;
   if (selectedHoliday) {
-    const holiday = document.createElement('div');
+    const holiday = document.createElement('p');
     holiday.className = 'calendar-day-holiday';
     holiday.setAttribute('role', 'note');
-    holiday.textContent = `${selectedHoliday.name} · 대한민국 공휴일`;
+    holiday.textContent = `${selectedHoliday.name} · 공휴일`;
     body.appendChild(holiday);
   }
-  const items = groups.get(state.selectedDate) || [];
-  // Entries first when there are any: what is already on the day is what the
-  // owner opened it to see. The line that adds one sits under them either way.
-  if (items.length) body.appendChild(eventList(items, {onSelect: actions.onEvent}));
-  // Neither control repeats the date: the selected day is already in the panel
-  // heading, the toolbar title and the highlighted cell. It stays in each
-  // accessible name so a screen reader still hears which day.
-  const {month: addMonth, day: addDay} = civilDateParts(state.selectedDate);
-
-  if (state.imageMessage) {
-    const message = document.createElement('p');
-    message.className = 'calendar-add-message';
-    message.dataset.calendarAddMessage = '';
-    message.setAttribute('role', 'status');
-    message.textContent = state.imageMessage;
-    body.appendChild(message);
+  const timeline = lifeTimelineNodes(state.items, date, {today: state.todayDate, onSelect: actions.onEvent});
+  if (timeline) {
+    const timelineSection = document.createElement('section');
+    timelineSection.className = 'calendar-day-timeline';
+    const count = lifeTimelineForDate(state.items, date).count;
+    const title = document.createElement('h4');
+    title.textContent = `일정 ${count}개`;
+    timelineSection.append(title, timeline);
+    body.appendChild(timelineSection);
   }
-
-  // The two ways in, and the only controls the panel offers: a picture, or the
-  // full form. On an empty day the "nothing here" sentence shares their row
-  // rather than taking one of its own -- the panel is small enough that a
-  // spare line is felt.
-  const addRow = document.createElement('div');
-  addRow.className = 'calendar-add-actions';
-  if (!items.length) addRow.appendChild(emptyMessage('등록된 일정이 없어요.'));
-
-  const addImage = button('사진에서 일정 추가', 'calendar-add-button calendar-add-image-button');
-  addImage.dataset.calendarAddImage = '';
-  addImage.setAttribute('aria-label', `${addMonth}월 ${addDay}일에 이미지로 일정 등록`);
-  addImage.addEventListener('click', () => actions.onAddFromImage?.(state.selectedDate));
-
-  const add = button('+ 일정 추가', 'calendar-add-button calendar-add-detail-button');
-  add.dataset.calendarAdd = '';
-  add.setAttribute('aria-label', `${addMonth}월 ${addDay}일 일정을 직접 입력해서 등록`);
-  add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
-
-  addRow.append(addImage, add);
-  body.appendChild(addRow);
-  // What the compact one-row layout keys off: nothing in the body but this row.
-  body.dataset.empty = String(!items.length && !selectedHoliday && !state.imageMessage);
+  // While the read is in flight, nothing is claimed about the day yet.
+  else if (state.loading) body.appendChild(emptyMessage('일정을 불러오는 중…'));
+  else body.appendChild(selectedDateEmptyNode(state, actions, date));
+  body.appendChild(selectedDateExpenseNode(state, date));
+  if (includeMonthSummary) {
+    const amountSummary = renderAmountSummary(state, actions);
+    if (amountSummary) body.appendChild(amountSummary);
+  }
+  if (state.imageMessage && includeActions) body.appendChild(addMessageNode(state.imageMessage));
+  if (includeActions) body.appendChild(addActionsRow(state, actions, {placement: 'panel'}));
+  body.dataset.empty = String(!timeline && !selectedHoliday && !state.loading);
   panel.append(head, body);
   return panel;
+}
+
+function dayDetailOverlay(state, actions) {
+  const presentation = dayDetailPresentationFor(state);
+  const backdrop = document.createElement('div');
+  backdrop.className = 'calendar-day-detail-backdrop calendar-day-sheet-backdrop';
+  backdrop.dataset.calendarDayDetailBackdrop = '';
+  backdrop.dataset.reducedMotion = String(prefersReducedMotion());
+  const panel = dayPanel(state, actions, {includeActions: true, presentation, closable: true});
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-modal', 'true');
+  panel.tabIndex = -1;
+  backdrop.appendChild(panel);
+  backdrop.addEventListener('click', event => {
+    if (event.target === backdrop) actions.closeDayDetail?.();
+  });
+  backdrop.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    actions.closeDayDetail?.();
+  });
+  return backdrop;
+}
+
+function renderDay(state, actions) {
+  const section = document.createElement('section');
+  section.className = 'calendar-day-view';
+  section.dataset.calendarDayView = state.selectedDate;
+  section.appendChild(dayPanel(state, actions, {
+    includeActions: true,
+    presentation: DAY_DETAIL_PRESENTATION.PAGE,
+  }));
+  return section;
 }
 
 function monthEventRow(item, onSelect) {
   const row = button('', 'calendar-event-chip');
   row.dataset.eventChip = '';
   row.dataset.calendarEventId = item.id || item.activity_id || '';
+  row.dataset.expenseCategory = item?.entry?.expense_category || 'UNCLASSIFIED';
   if (!isAllDay(item)) {
     const time = document.createElement('span');
     time.className = 'calendar-event-time';
@@ -1379,9 +1840,50 @@ function monthEventRow(item, onSelect) {
   return row;
 }
 
+// One day's slice of a multi-day bar. Only the first slice in a week row
+// carries the title; the rest keep the bar continuous and are still a way into
+// the same record.
+function monthSpanChip(segment, onSelect) {
+  const {item} = segment;
+  const chip = button('', 'calendar-event-chip calendar-span-chip');
+  chip.dataset.eventChip = '';
+  chip.dataset.spanChip = '';
+  chip.dataset.calendarEventId = item.id || item.activity_id || '';
+  chip.dataset.spanStart = String(segment.startsHere);
+  chip.dataset.spanEnd = String(segment.endsHere);
+  chip.dataset.segmentStart = String(segment.segmentStart);
+  chip.dataset.segmentEnd = String(segment.segmentEnd);
+  const title = document.createElement('span');
+  title.className = 'calendar-event-title';
+  title.textContent = segment.showTitle ? item.title : '';
+  chip.appendChild(title);
+  chip.setAttribute('aria-label', `${item.title}, ${eventSpanText(item) || '기간'}`);
+  chip.addEventListener('click', event => {
+    event.stopPropagation();
+    onSelect(item, event.currentTarget);
+  });
+  return chip;
+}
+
+// What a phone shows in a date cell instead of titles: up to three neutral
+// dots. They are part of the date button, not controls of their own, and the
+// button's own label says how many records the day holds.
+function recordDots(count) {
+  const dots = document.createElement('span');
+  dots.className = 'calendar-record-dots';
+  dots.setAttribute('aria-hidden', 'true');
+  dots.dataset.recordCount = String(count);
+  for (let index = 0; index < Math.min(count, 3); index += 1) {
+    const dot = document.createElement('span');
+    dot.className = 'calendar-record-dot';
+    dots.appendChild(dot);
+  }
+  return dots;
+}
+
 function fitMonthEventDensity(layout) {
-  // monthCellSummary() already caps every cell at two event rows and one +N
-  // control. Marking the settled layout keeps the existing render hook stable
+  // Every cell is capped at two visible rows and one +N control when it is
+  // built. Marking the settled layout keeps the existing render hook stable
   // without measuring every event in a dense month.
   layout.dataset.monthDensity = 'bounded';
 }
@@ -1394,53 +1896,225 @@ function syncMonthLayout(layout) {
 // every hour the same visual size regardless of viewport, which is what
 // makes a 30-minute block and a 2-hour block read as different lengths.
 const CALENDAR_WEEK_HOUR_HEIGHT = 48;
+const CALENDAR_WEEK_DEFAULT_START_HOUR = 6;
 const MINUTES_PER_DAY = 24 * 60;
+const CALENDAR_WEEK_START_MINUTES = CALENDAR_WEEK_DEFAULT_START_HOUR * 60;
 
-function renderWeek(state, actions, weatherCredit = null) {
+// A LOTBI day is displayed from the useful waking hours into the following
+// dawn: 06:00-23:59 first, then 00:00-05:59 at the bottom. Civil dates and the
+// stored event times do not change; this only rotates their visual position.
+function calendarWeekDisplayMinute(minute) {
+  return (minute - CALENDAR_WEEK_START_MINUTES + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+}
+
+function calendarWeekDisplaySegments(start, end) {
+  const displayStart = calendarWeekDisplayMinute(start);
+  const displayEnd = displayStart + (end - start);
+  if (displayEnd <= MINUTES_PER_DAY) return [{start: displayStart, end: displayEnd}];
+  return [
+    {start: displayStart, end: MINUTES_PER_DAY},
+    {start: 0, end: displayEnd - MINUTES_PER_DAY},
+  ];
+}
+
+// A desk reads the week as the familiar time grid. A phone cannot fit seven
+// columns, and scrolling a grid sideways hid most of the week, so a touch
+// width lists the seven days down the left and gives the picked day the rest
+// of the screen. Both read the same items; only the drawing differs.
+export function calendarWeekLayout() {
+  return usesFlowingDayDetail() ? 'vertical' : 'timegrid';
+}
+
+// Week keeps LOTBI's visual language while using the familiar calendar model:
+// dates run left-to-right and clock time runs top-to-bottom. The grid owns its
+// horizontal overflow on narrow screens so the surrounding page never does.
+function renderWeek(state, actions, weatherCredit = null, {timezone} = {}) {
   const section = document.createElement('section');
   section.className = 'calendar-week-agenda';
-  section.setAttribute('aria-label', '주간 일정');
-  const grid = calendarWeekTimeGrid(state.selectedDate, state.items, state.weekStart);
+  const layout = calendarWeekLayout();
+  section.setAttribute('aria-label', layout === 'vertical' ? '주간 일정' : '주간 시간표');
+  section.dataset.weekLayout = layout;
   const weatherByDate = calendarWeatherByDate(state.weather);
   const holidayMap = state.showKoreaHolidays ? holidaysByDate(state.holidays) : new Map();
+  section.appendChild(layout === 'vertical'
+    ? renderWeekVertical(state, actions, {weatherByDate, holidayMap})
+    : renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}));
 
-  // A quick-jump strip above the grid: most useful once the 7 columns need a
-  // horizontal scroll on a narrow screen, where a tap can reach a day that is
-  // currently off-screen without swiping there by hand.
-  const strip = document.createElement('div');
-  strip.className = 'calendar-week-strip';
-  strip.setAttribute('role', 'tablist');
-  strip.setAttribute('aria-label', '이번 주 날짜');
-  const weekControls = [];
-  for (const day of calendarWeekDays(state.selectedDate, state.weekStart)) {
-    const selected = day.date === state.selectedDate;
-    const control = button('', 'calendar-week-date');
-    control.dataset.calendarWeekDate = day.date;
-    control.dataset.selected = String(selected);
-    control.setAttribute('role', 'tab');
-    control.setAttribute('aria-selected', String(selected));
-    control.setAttribute('aria-label', koreanDate(day.date));
-    control.tabIndex = selected ? 0 : -1;
-    const weekday = document.createElement('span');
-    weekday.textContent = WEEKDAY_INITIALS[day.weekday];
-    const number = document.createElement('strong');
-    number.textContent = String(day.day);
-    control.append(weekday, number);
-    control.addEventListener('click', () => { void actions.selectDate(day.date); });
-    weekControls.push(control);
-    strip.appendChild(control);
+  // The phone Week draws one day's weather, so it credits only that day. A
+  // week-wide credit under a past day read as weather that never appeared.
+  if (layout === 'vertical') {
+    const shown = weatherByDate.get(state.selectedDate);
+    weatherCredit = calendarWeatherAttribution(shown ? [shown] : [], {timezone});
   }
-  bindRovingTablist(strip, weekControls);
-  section.appendChild(strip);
+  if (weatherCredit) {
+    const credit = document.createElement('p');
+    credit.className = 'calendar-weather-credit';
+    credit.textContent = weatherCredit.text;
+    section.appendChild(credit);
+  } else if (state.weatherMessage) {
+    const notice = document.createElement('p');
+    notice.className = 'calendar-weather-credit';
+    notice.setAttribute('role', 'status');
+    notice.textContent = state.weatherMessage;
+    section.appendChild(notice);
+  }
+  return section;
+}
 
+// Phone Week: the seven days run down a narrow rail, the picked day's records
+// fill the rest as cards in day order. A tap only redraws -- the week's records
+// are already loaded -- so the right side follows the finger at once.
+function renderWeekVertical(state, actions, {weatherByDate, holidayMap}) {
+  const days = calendarWeekDays(state.selectedDate, state.weekStart);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'calendar-week-vertical';
+
+  const rail = document.createElement('div');
+  rail.className = 'calendar-week-rail';
+  rail.setAttribute('role', 'group');
+  rail.setAttribute('aria-label', '요일 선택');
+  const controls = [];
+  for (const day of days) {
+    const selected = day.date === state.selectedDate;
+    const isToday = day.date === state.todayDate;
+    const holiday = holidayMap.get(day.date);
+    const count = calendarItemsOnDate(state.items, day.date).length;
+    const control = button('', 'calendar-week-rail-day');
+    control.dataset.calendarWeekDate = day.date;
+    control.dataset.weekday = String(day.weekday);
+    control.dataset.selected = String(selected);
+    control.dataset.today = String(isToday);
+    control.dataset.holiday = String(Boolean(holiday));
+    control.dataset.recordCount = String(count);
+    control.setAttribute('aria-pressed', String(selected));
+    if (isToday) control.setAttribute('aria-current', 'date');
+    control.tabIndex = selected ? 0 : -1;
+    control.setAttribute('aria-label', [
+      koreanDate(day.date),
+      isToday ? '오늘' : '',
+      holiday ? holiday.name : '',
+      `일정 ${count}개`,
+    ].filter(Boolean).join(', '));
+    // "4 일" on one line, the record dots under it.
+    const line = document.createElement('span');
+    line.className = 'calendar-week-rail-line';
+    const number = document.createElement('strong');
+    number.className = 'calendar-week-rail-number';
+    number.textContent = String(day.day);
+    const weekday = document.createElement('span');
+    weekday.className = 'calendar-week-rail-weekday';
+    weekday.textContent = WEEKDAY_INITIALS[day.weekday];
+    line.append(number, weekday);
+    const dots = recordDots(count);
+    control.append(line, dots);
+    control.addEventListener('click', () => { void actions.selectDate(day.date); });
+    control.addEventListener('keydown', event => {
+      const index = days.findIndex(entry => entry.date === day.date);
+      const target = event.key === 'ArrowUp' ? addCivilDays(day.date, -1)
+        : event.key === 'ArrowDown' ? addCivilDays(day.date, 1)
+          : event.key === 'Home' ? days[0].date
+            : event.key === 'End' ? days.at(-1).date
+              : '';
+      if (!target || index < 0) return;
+      event.preventDefault();
+      void actions.selectDate(target);
+    });
+    controls.push(control);
+  }
+  rail.append(...controls);
+  wrapper.append(rail, renderWeekDayDetail(state, actions, {weatherByDate, holidayMap}));
+  return wrapper;
+}
+
+// The right side of the phone Week: the picked day's heading, its weather and
+// holiday, then the same life rows the day panel draws, shown as cards.
+function renderWeekDayDetail(state, actions, {weatherByDate, holidayMap}) {
+  const date = state.selectedDate;
+  const detail = document.createElement('section');
+  detail.className = 'calendar-week-day-detail';
+  detail.dataset.selectedDate = date;
+  detail.setAttribute('aria-label', `${longKoreanDate(date)} 일정`);
+
+  const head = document.createElement('div');
+  head.className = 'calendar-week-day-detail-head';
+  const heading = document.createElement('h3');
+  heading.className = 'calendar-week-day-heading';
+  if (date === state.todayDate) {
+    const todayBadge = document.createElement('span');
+    todayBadge.className = 'calendar-day-today';
+    todayBadge.textContent = '오늘';
+    heading.append(todayBadge, ' ');
+  }
+  heading.append(longKoreanDate(date));
+  head.appendChild(heading);
+  if (state.showLunarDates) {
+    const lunarLabel = lunarDateLabel(solarToLunar(date));
+    if (lunarLabel) {
+      const lunar = document.createElement('span');
+      lunar.className = 'calendar-week-day-detail-lunar';
+      lunar.textContent = `음력 ${lunarLabel}`;
+      head.appendChild(lunar);
+    }
+  }
+  const weather = dayWeatherNode(weatherByDate.get(date), {precipitation: state.showPrecipitation !== false, condition: true});
+  if (weather) {
+    head.appendChild(weather);
+  } else if (date < state.todayDate && state.weatherReady && !state.weatherMessage) {
+    // Forecasts start today; Core has nothing for a day already past. Say so
+    // once, quietly, instead of leaving a blank that reads as a fault.
+    const past = document.createElement('span');
+    past.className = 'calendar-week-day-weather-note';
+    past.dataset.calendarWeatherNote = 'past';
+    past.textContent = '지난 날짜 날씨 정보 없음';
+    head.appendChild(past);
+  }
+  detail.appendChild(head);
+
+  const holiday = holidayMap.get(date);
+  if (holiday) {
+    const note = document.createElement('p');
+    note.className = 'calendar-day-holiday calendar-week-day-holiday';
+    note.setAttribute('role', 'note');
+    note.textContent = `${holiday.name} · 공휴일`;
+    detail.appendChild(note);
+  }
+
+  const timeline = lifeTimelineNodes(state.items, date, {today: state.todayDate, onSelect: actions.onEvent});
+  const cards = document.createElement('div');
+  cards.className = 'calendar-week-day-cards';
+  if (timeline) {
+    cards.appendChild(timeline);
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'calendar-week-day-empty';
+    if (state.loading) {
+      empty.appendChild(emptyMessage('일정을 불러오는 중…'));
+    } else {
+      empty.appendChild(emptyMessage(date === state.todayDate ? '오늘은 아직 일정이 없어요.' : '이 날은 일정이 없어요.'));
+      const hint = document.createElement('p');
+      hint.className = 'calendar-week-day-empty-hint';
+      hint.textContent = '위의 + 일정 추가 버튼으로 바로 남길 수 있어요.';
+      empty.appendChild(hint);
+    }
+    cards.appendChild(empty);
+  }
+  detail.dataset.empty = String(!timeline);
+  detail.appendChild(cards);
+  return detail;
+}
+
+// The hour grid is the Week view: seven date columns and a vertical clock.
+function renderWeekTimeGrid(state, actions, {weatherByDate, holidayMap}) {
+  const grid = calendarWeekTimeGrid(state.selectedDate, state.items, state.weekStart);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'calendar-week-timegrid';
   const hasAny = grid.some(day => day.timed.length > 0 || day.allDay.length > 0);
-  if (!hasAny) section.appendChild(emptyMessage('이번 주에는 일정이 없어요.'));
+  if (!hasAny) wrapper.appendChild(emptyMessage('이번 주에는 일정이 없어요.'));
 
   const body = document.createElement('div');
   body.className = 'calendar-week-grid';
 
-  // Sticky column headers: weekday, date and (per the weather icon that used
-  // to sit in the agenda row heading) the day's forecast.
+  // Sticky column headers: weekday, date and the day's forecast.
   const header = document.createElement('div');
   header.className = 'calendar-week-grid-header';
   header.appendChild(document.createElement('div')).className = 'calendar-week-grid-axis-spacer';
@@ -1457,11 +2131,13 @@ function renderWeek(state, actions, weatherCredit = null) {
   const hourAxis = document.createElement('div');
   hourAxis.className = 'calendar-week-hour-axis';
   hourAxis.style.height = `${MINUTES_PER_DAY / 60 * CALENDAR_WEEK_HOUR_HEIGHT}px`;
-  for (let hour = 0; hour < 24; hour += 1) {
+  const displayHours = Array.from({length: 24}, (_, index) => (CALENDAR_WEEK_DEFAULT_START_HOUR + index) % 24);
+  for (const [index, hour] of displayHours.entries()) {
     const label = document.createElement('div');
     label.className = 'calendar-week-hour-label';
-    label.style.top = `${hour * CALENDAR_WEEK_HOUR_HEIGHT}px`;
-    if (hour > 0) label.textContent = `${String(hour).padStart(2, '0')}:00`;
+    label.style.top = `${index * CALENDAR_WEEK_HOUR_HEIGHT}px`;
+    label.dataset.first = String(index === 0);
+    label.textContent = `${String(hour).padStart(2, '0')}:00`;
     hourAxis.appendChild(label);
   }
   scroll.dataset.gridLines = String(state.showGridLines !== false);
@@ -1475,6 +2151,7 @@ function renderWeek(state, actions, weatherCredit = null) {
 
     const headerCell = button('', 'calendar-week-day');
     headerCell.dataset.calendarWeekDate = day.date;
+    headerCell.dataset.weekday = String(day.weekday);
     headerCell.dataset.selected = String(selected);
     headerCell.dataset.holiday = String(Boolean(holiday));
     headerCell.setAttribute('aria-label', koreanDate(day.date));
@@ -1511,6 +2188,7 @@ function renderWeek(state, actions, weatherCredit = null) {
 
     const alldayCell = document.createElement('div');
     alldayCell.className = 'calendar-week-allday-cell';
+    alldayCell.dataset.weekday = String(day.weekday);
     alldayCell.dataset.selected = String(selected);
     alldayCell.dataset.holiday = String(Boolean(holiday));
     if (holiday) {
@@ -1530,64 +2208,56 @@ function renderWeek(state, actions, weatherCredit = null) {
     const group = document.createElement('div');
     group.className = 'calendar-week-grid-day';
     group.dataset.calendarWeekGroup = day.date;
+    group.dataset.weekday = String(day.weekday);
     group.dataset.selected = String(selected);
+    group.dataset.holiday = String(Boolean(holiday));
     group.style.height = columnHeight;
     for (const entry of day.timed) {
       const item = entry.item;
       const presentation = calendarEventPresentation(item);
-      const block = button('', 'calendar-week-grid-event');
-      block.dataset.eventKind = presentation.kind;
-      block.dataset.calendarEventId = item.id || item.activity_id || '';
-      block.style.top = `${(entry.start / MINUTES_PER_DAY) * 100}%`;
-      block.style.height = `${((entry.end - entry.start) / MINUTES_PER_DAY) * 100}%`;
-      block.style.setProperty('--calendar-event-lane', String(entry.lane));
-      block.style.setProperty('--calendar-event-lane-count', String(entry.laneCount));
-      const time = document.createElement('span');
-      time.className = 'calendar-week-grid-event-time';
-      time.textContent = presentation.timeLabel;
-      const title = document.createElement('span');
-      title.className = 'calendar-week-grid-event-title';
-      title.textContent = item.title;
-      block.append(time, title);
-      block.setAttribute('aria-label', `${presentation.timeLabel} ${item.title}`);
-      block.addEventListener('click', event => actions.onEvent(item, event.currentTarget));
-      group.appendChild(block);
+      for (const segment of calendarWeekDisplaySegments(entry.start, entry.end)) {
+        const block = button('', 'calendar-week-grid-event');
+        block.dataset.eventKind = presentation.kind;
+        block.dataset.calendarEventId = item.id || item.activity_id || '';
+        block.style.top = `${(segment.start / MINUTES_PER_DAY) * 100}%`;
+        block.style.height = `${((segment.end - segment.start) / MINUTES_PER_DAY) * 100}%`;
+        block.style.setProperty('--calendar-event-lane', String(entry.lane));
+        block.style.setProperty('--calendar-event-lane-count', String(entry.laneCount));
+        const time = document.createElement('span');
+        time.className = 'calendar-week-grid-event-time';
+        time.textContent = presentation.timeLabel;
+        const title = document.createElement('span');
+        title.className = 'calendar-week-grid-event-title';
+        title.textContent = item.title;
+        block.append(time, title);
+        block.setAttribute('aria-label', `${presentation.timeLabel} ${item.title}`);
+        block.addEventListener('click', event => actions.onEvent(item, event.currentTarget));
+        group.appendChild(block);
+      }
     }
     scroll.appendChild(group);
   }
 
-  body.append(header, alldayRow, scroll);
-  section.appendChild(body);
-  // Land the scroller on the working day rather than midnight; a render is a
-  // fresh mount every time (Week has no state of its own to preserve here),
-  // so resetting the scroll position on every call is the expected result,
-  // not a lost user scroll.
-  requestAnimationFrame(() => {
-    scroll.scrollTop = Math.max(0, 7 * CALENDAR_WEEK_HOUR_HEIGHT - 24);
+  const stickyRows = document.createElement('div');
+  stickyRows.className = 'calendar-week-grid-sticky-rows';
+  stickyRows.append(header, alldayRow);
+  body.append(stickyRows, scroll);
+  wrapper.appendChild(body);
+  return wrapper;
+}
+
+function renderAmountSummary(state, actions) {
+  const period = expensePeriod(state);
+  const amountSettled = state.expense.monthKey === period.key;
+  return calendarAmountSummaryBlock({
+    state: amountSettled ? state.expense.status : 'loading',
+    summary: amountSettled ? state.expense.summary : null,
+    month: period.month,
+    periodLabel: period.label,
+    errorMessage: amountSettled ? state.expense.message : '',
+    onOpen: opener => actions.openAmountDetail?.(opener),
+    onImage: () => actions.onAddFromImage?.(validCivilDate(state.selectedDate) ? state.selectedDate : state.todayDate),
   });
-
-  const addActions = document.createElement('div');
-  addActions.className = 'calendar-week-add-actions';
-  const add = button('+ 일정 추가', 'calendar-add-button');
-  add.addEventListener('click', () => actions.onAdd?.(state.selectedDate));
-  const addImage = button('사진에서 일정 추가', 'calendar-add-button calendar-add-image-button');
-  addImage.addEventListener('click', () => actions.onAddFromImage?.(state.selectedDate));
-  addActions.append(add, addImage);
-  section.appendChild(addActions);
-
-  if (weatherCredit) {
-    const credit = document.createElement('p');
-    credit.className = 'calendar-weather-credit';
-    credit.textContent = weatherCredit.text;
-    section.appendChild(credit);
-  } else if (state.weatherMessage) {
-    const notice = document.createElement('p');
-    notice.className = 'calendar-weather-credit';
-    notice.setAttribute('role', 'status');
-    notice.textContent = state.weatherMessage;
-    section.appendChild(notice);
-  }
-  return section;
 }
 
 function renderMonth(state, actions, weatherCredit = null) {
@@ -1597,7 +2267,7 @@ function renderMonth(state, actions, weatherCredit = null) {
   // The stylesheet needs to know which presentation is in play from the layout
   // itself: the month has to be raised above the sheet's dismiss layer, and
   // that rule cannot reach up from the panel to its parent.
-  layout.dataset.dayDetail = dayDetailPresentation();
+  layout.dataset.dayDetail = dayDetailPresentationFor(state);
   const calendar = document.createElement('section');
   calendar.className = 'calendar-month';
   const weekdays = document.createElement('div');
@@ -1617,15 +2287,22 @@ function renderMonth(state, actions, weatherCredit = null) {
   grid.dataset.weekStart = String(state.weekStart);
   grid.setAttribute('role', 'grid');
   grid.setAttribute('aria-label', `${state.year}년 ${state.month}월`);
-  const groups = groupCalendarEvents(state.items);
   const attentionDates = new Set(state.attention.map(item => item?.due_date).filter(validCivilDate));
   const weatherByDate = calendarWeatherByDate(state.weather);
   const holidayMap = state.showKoreaHolidays ? holidaysByDate(state.holidays) : new Map();
   const cells = calendarMonthGrid(state.year, state.month, state.weekStart);
   grid.dataset.weekCount = String(cells.length / 7);
+  // Multi-day records become bars; each week row hands out its own lanes.
+  const spans = monthSpanSegments(cells, state.items);
+  const VISIBLE_ROWS = 3;
+  const todayParts = civilDateParts(state.todayDate);
+  const passiveFocusDate = todayParts.year === state.year && todayParts.month === state.month
+    ? state.todayDate
+    : `${state.year}-${String(state.month).padStart(2, '0')}-01`;
 
   for (const cell of cells) {
-    const events = groups.get(cell.date) || [];
+    // Everything this date holds, a stay's second night included.
+    const events = calendarItemsOnDate(state.items, cell.date);
     const selected = cell.date === state.selectedDate;
     const today = cell.date === state.todayDate;
     const hasAttention = attentionDates.has(cell.date);
@@ -1654,34 +2331,40 @@ function renderMonth(state, actions, weatherCredit = null) {
     date.dataset.selected = String(selected);
     date.setAttribute('aria-label', buildCalendarAriaLabel(cell, events.length, {today, selected, attention: hasAttention, weather, holiday}));
     if (today) date.setAttribute('aria-current', 'date');
-    date.tabIndex = selected ? 0 : -1;
+    date.tabIndex = selected || (!state.detailOpen && cell.date === passiveFocusDate) ? 0 : -1;
     const number = document.createElement('span');
     number.className = 'calendar-date-number';
     number.textContent = String(cell.day);
     date.textContent = '';
-    date.appendChild(number);
-    if (state.showLunarDates) {
-      const lunarLabel = lunarDateLabel(solarToLunar(cell.date));
-      if (lunarLabel) {
-        const lunar = document.createElement('span');
-        lunar.className = 'calendar-date-lunar';
-        lunar.textContent = lunarLabel;
-        lunar.setAttribute('aria-hidden', 'true');
-        date.appendChild(lunar);
-        date.setAttribute('aria-label', `${date.getAttribute('aria-label')}, 음력 ${lunarLabel}`);
-      }
+    const lunarDate = state.showLunarDates ? solarToLunar(cell.date) : null;
+    const lunarLabel = lunarDateLabel(lunarDate);
+    if (lunarLabel) {
+      // 화면에는 compact 표기, 접근성 이름에는 완전한 음력 날짜를 유지한다.
+      const line = document.createElement('span');
+      line.className = 'calendar-date-line';
+      // 일반 음력 일자는 두 자리여도 양력 숫자 옆 한 줄을 지킨다. 월초·윤달
+      // 시작 표기만 좁은 칸에서 기존처럼 다음 줄을 쓸 수 있다.
+      line.dataset.lunarKind = lunarDate.day === 1 ? 'month-start' : 'ordinary';
+      const lunar = document.createElement('span');
+      lunar.className = 'calendar-date-lunar';
+      lunar.textContent = lunarDateCompactLabel(lunarDate);
+      lunar.setAttribute('aria-hidden', 'true');
+      line.append(number, lunar);
+      date.appendChild(line);
+      cellNode.dataset.lunar = 'true';
+      date.setAttribute('aria-label', `${date.getAttribute('aria-label')}, 음력 ${lunarLabel}`);
+    } else {
+      date.appendChild(number);
     }
+    // On a phone the date button is the whole cell and these dots ride inside
+    // it, so the cell is one target and nothing in it is a separate control.
+    date.appendChild(recordDots(events.length));
     date.addEventListener('click', event => {
       event.stopPropagation();
       void actions.selectDate(cell.date, {openDetail: true});
     });
     date.addEventListener('keydown', event => actions.onDateKey(event, cell.date));
-
-    const count = document.createElement('span');
-    count.className = 'calendar-mobile-event-count';
-    count.textContent = events.length ? `${events.length}개` : '';
-    count.setAttribute('aria-hidden', 'true');
-    header.append(date, count);
+    header.append(date);
     if (weather) {
       const weatherSummary = document.createElement('span');
       weatherSummary.className = 'calendar-weather-summary';
@@ -1728,7 +2411,10 @@ function renderMonth(state, actions, weatherCredit = null) {
         precip.textContent = weatherPresentation.precipLabel;
         weatherSummary.appendChild(precip);
       }
-      if (weatherSummary.childElementCount) header.appendChild(weatherSummary);
+      if (weatherSummary.childElementCount) {
+        header.appendChild(weatherSummary);
+        cellNode.dataset.weather = 'true';
+      }
     }
     if (hasAttention) {
       const marker = document.createElement('span');
@@ -1748,20 +2434,49 @@ function renderMonth(state, actions, weatherCredit = null) {
       holidayLabel.setAttribute('aria-hidden', 'true');
     }
 
+    // Wider screens: at most two rows of titles. Bars for multi-day records
+    // keep their lane (an empty lane is held open so a bar never jumps a line
+    // between two days); single-day records fill what is left, then +N.
     const stack = document.createElement('div');
     stack.className = 'calendar-event-stack';
-    const summary = monthCellSummary(events);
-    for (const item of summary.visible) stack.appendChild(monthEventRow(item, actions.onEvent));
+    const segments = (spans.byDate.get(cell.date) || []).filter(segment => segment.lane < VISIBLE_ROWS);
+    const lanesHere = segments.length ? Math.max(...segments.map(segment => segment.lane)) + 1 : 0;
+    for (let lane = 0; lane < lanesHere; lane += 1) {
+      const segment = segments.find(candidate => candidate.lane === lane);
+      if (segment) {
+        stack.appendChild(monthSpanChip(segment, actions.onEvent));
+      } else {
+        const placeholder = document.createElement('span');
+        placeholder.className = 'calendar-span-placeholder';
+        placeholder.setAttribute('aria-hidden', 'true');
+        stack.appendChild(placeholder);
+      }
+    }
+    // The same day order as the day detail: 마감, then the clock, then what has
+    // no time -- so the two titles a cell has room for are the useful ones.
+    const singleTimeline = lifeTimelineForDate(events.filter(item => !(spans.byDate.get(cell.date) || []).some(segment => segment.item === item)), cell.date);
+    const singles = [...singleTimeline.top, ...singleTimeline.timed, ...singleTimeline.untimed];
+    const shownSingles = singles.slice(0, Math.max(0, VISIBLE_ROWS - lanesHere));
+    for (const item of shownSingles) stack.appendChild(monthEventRow(item, actions.onEvent));
+    const remaining = Math.max(0, events.length - segments.length - shownSingles.length);
     const more = button('', 'calendar-event-overflow');
     more.dataset.eventOverflow = '';
-    more.hidden = !summary.moreLabel;
-    more.textContent = summary.moreLabel;
-    more.setAttribute('aria-label', `${cell.month}월 ${cell.day}일 일정 ${summary.remaining}개 더 보기`);
+    more.hidden = remaining === 0;
+    more.textContent = remaining ? `+${remaining}개 더` : '';
+    more.setAttribute('aria-label', `${cell.month}월 ${cell.day}일 일정 ${remaining}개 더 보기`);
     more.addEventListener('click', event => {
       event.stopPropagation();
       void actions.selectDate(cell.date, {openDetail: true});
     });
     stack.appendChild(more);
+    const dayTotals = dayAmountTotals(events, cell.date);
+    if (dayTotals.length) {
+      const amount = document.createElement('strong');
+      amount.className = 'calendar-cell-day-amount';
+      amount.textContent = dayTotals.map(total => total.label).join(' · ');
+      amount.setAttribute('aria-label', `${cell.month}월 ${cell.day}일 지출 ${amount.textContent}`);
+      stack.appendChild(amount);
+    }
 
     cellNode.addEventListener('click', event => {
       if (event.target.closest('button')) return;
@@ -1796,11 +2511,18 @@ function renderMonth(state, actions, weatherCredit = null) {
     notice.textContent = state.weatherMessage;
     calendar.appendChild(notice);
   }
-  const panel = dayPanel(state, groups, actions);
-  // Order matters: existing runtime checks read layout.children[0] as the month and
-  // layout.children[1] as the selected-day surface. The sheet backdrop is appended
-  // after both so that contract is preserved.
-  layout.append(calendar, panel);
+  if (state.approvedWorkspace) {
+    layout.appendChild(calendar);
+    const amountSummary = renderAmountSummary(state, actions);
+    if (amountSummary) layout.appendChild(amountSummary);
+    if (state.detailOpen) calendar.appendChild(dayDetailOverlay(state, actions));
+  } else {
+    layout.append(calendar, dayPanel(state, actions, {
+      includeActions: true,
+      includeMonthSummary: true,
+      presentation: dayDetailPresentationFor(state),
+    }));
+  }
   if (usesFlowingDayDetail()) {
     bindMonthSwipe(calendar, {
       onPrevious: () => void actions.shiftMonth?.(-1),
@@ -1814,6 +2536,8 @@ function renderMonth(state, actions, weatherCredit = null) {
 }
 
 function renderYear(state, actions) {
+  const view = document.createElement('section');
+  view.className = 'calendar-year-view';
   const grid = document.createElement('div');
   grid.className = 'calendar-year-grid';
   grid.setAttribute('aria-label', `${state.year}년 연간 달력`);
@@ -1835,54 +2559,86 @@ function renderYear(state, actions) {
     for (const cell of month.cells) {
       const day = document.createElement('span'); day.textContent = cell.inCurrentMonth ? String(cell.day) : ''; dates.appendChild(day);
     }
-    const count = document.createElement('span'); count.className = 'calendar-year-event-count'; count.textContent = `일정 ${counts[month.month - 1]}개`;
+    // 년 is for finding a month, not a report: a month with nothing in it says
+    // nothing, and one with records says how many.
+    const count = document.createElement('span'); count.className = 'calendar-year-event-count';
+    count.textContent = counts[month.month - 1] ? `일정 ${counts[month.month - 1]}개` : '';
     card.append(title, weekdays, dates, count);
     card.setAttribute('aria-label', `${state.year}년 ${month.month}월, 일정 ${counts[month.month - 1]}개, 월간 보기`);
     card.addEventListener('click', () => actions.selectMonth(month.month));
     grid.appendChild(card);
   }
-  return grid;
+  view.appendChild(grid);
+  if (state.approvedWorkspace) {
+    const amountSummary = renderAmountSummary(state, actions);
+    if (amountSummary) view.appendChild(amountSummary);
+  }
+  return view;
+}
+
+// 목록: what Month and Week cannot show at a glance. Four filters, each one a
+// question the loaded data can actually answer -- the month's records, what is
+// still ahead, what carries an amount, and what has no date yet. The former
+// 예약 / 일정 filters guessed a kind from the title, and 오늘 / 이번 주 repeated
+// what the day panel and Week already show; their old names still arrive from
+// stored state and links, so they map onto the nearest filter that remains.
+export const AGENDA_SCOPES = Object.freeze([
+  ['month', '이번 달'],
+  ['upcoming', '다가오는'],
+  ['amount', '금액'],
+  ['unscheduled', '날짜 미정'],
+]);
+
+export function normalizeAgendaScope(scope) {
+  if (scope === 'payment') return 'amount';
+  if (scope === 'today' || scope === 'week') return 'upcoming';
+  return AGENDA_SCOPES.some(([value]) => value === scope) ? scope : 'month';
 }
 
 function renderAgenda(state, actions) {
   const section = document.createElement('section');
   section.className = 'calendar-agenda-view';
+  const scope = normalizeAgendaScope(state.agendaScope);
+  section.dataset.agendaViewScope = scope;
 
   const toolbar = document.createElement('div');
   toolbar.className = 'calendar-agenda-toolbar';
-  toolbar.setAttribute('aria-label', '일정 필터');
-  for (const [scope, label] of [
-    ['all', '전체'],
-    ['today', '오늘'],
-    ['week', '이번 주'],
-    ['month', '이번 달'],
-    ['reservation', '예약'],
-    ['payment', '결제'],
-    ['schedule', '일정'],
-  ]) {
+  toolbar.setAttribute('role', 'group');
+  toolbar.setAttribute('aria-label', '목록 필터');
+  for (const [value, label] of AGENDA_SCOPES) {
     const control = button(label, 'calendar-agenda-range');
-    control.dataset.agendaScope = scope;
-    control.setAttribute('aria-pressed', String(state.agendaScope === scope));
-    control.addEventListener('click', () => actions.setAgendaScope(scope));
+    control.dataset.agendaScope = value;
+    control.setAttribute('aria-pressed', String(scope === value));
+    control.addEventListener('click', () => actions.setAgendaScope(value));
     toolbar.appendChild(control);
   }
   section.appendChild(toolbar);
 
-  const filterAnchor = state.agendaScope === 'month'
-    ? `${state.year}-${String(state.month).padStart(2, '0')}-01`
-    : state.todayDate;
-  const items = filterScheduleItems(state.items, state.agendaScope, {
-    today: filterAnchor,
-    weekStart: state.weekStart,
-  });
+  const monthPrefix = `${String(state.year).padStart(4, '0')}-${String(state.month).padStart(2, '0')}-`;
+  const dated = state.items.filter(item => validCivilDate(item?.local_date));
+  const inMonth = dated.filter(item => item.local_date.startsWith(monthPrefix));
+  let items = [];
+  let empty = '';
+  if (scope === 'month') {
+    items = inMonth;
+    empty = '이 달에는 일정이 없어요.';
+  } else if (scope === 'upcoming') {
+    // Ahead of today within what this screen has loaded (the visible month);
+    // a stay that has started but not ended is still ahead.
+    items = dated.filter(item => calendarItemEndDate(item) >= state.todayDate);
+    empty = '이 달에는 다가오는 일정이 없어요.';
+  } else if (scope === 'amount') {
+    items = inMonth.filter(item => Number.isSafeInteger(item?.entry?.amount_minor));
+    empty = '이 달에는 금액을 입력한 일정이 없어요.';
+  }
 
-  // 확인 필요 탭이 유일하게 하던 일 -- 지금 달에 없는 지난 기한 -- 을 여기서
-  // 이어받는다. 달력 칸의 기한 표시(attentionDates)는 그대로 두고, 이 묶음은
-  // 이번 달 범위에서만 나온다: '오늘'·'이번 주' 는 그 날짜의 일정을 보는 자리다.
-  const overdue = (state.agendaScope === 'month' || state.agendaScope === 'all')
+  // The one thing the old 확인 필요 tab did that nothing else does: a deadline
+  // that has passed and is not in this month. Shown with the month's records.
+  const overdue = scope === 'month'
     ? (state.attention || []).filter(item => item?.state === 'OVERDUE' && validCivilDate(item.due_date))
     : [];
-  const showUnscheduled = ['all', 'month', 'schedule'].includes(state.agendaScope) && state.unscheduled.length > 0;
+  const showUnscheduled = (scope === 'month' || scope === 'unscheduled') && state.unscheduled.length > 0;
+
   if (overdue.length) {
     const group = document.createElement('section');
     group.className = 'calendar-overdue-group';
@@ -1892,27 +2648,35 @@ function renderAgenda(state, actions) {
     const note = document.createElement('p');
     note.className = 'calendar-unscheduled-note';
     note.textContent = '기한이 지난 일입니다. 이번 달 달력에 없는 것도 여기 남습니다.';
-    group.append(heading, note, eventList(overdue.map(item => ({
+    group.append(heading, note, lifeRowList(overdue.map(item => ({
       ...item,
       local_date: item.due_date,
       local_datetime: null,
+      temporal_semantics: 'DEADLINE',
       calendar_attention_state: item.state,
-    }))));
+    })), {today: state.todayDate}));
     section.appendChild(group);
-  }
-  if (!items.length && !showUnscheduled && !overdue.length) {
-    section.appendChild(emptyMessage('이 기간에는 일정이 없어요.'));
-    return section;
   }
 
-  const groups = groupCalendarEvents(items);
-  for (const [date, values] of groups) {
-    const group = document.createElement('section');
-    const heading = document.createElement('h3');
-    heading.textContent = koreanDate(date);
-    group.append(heading, eventList(values, {onSelect: actions.onEvent}));
-    section.appendChild(group);
+  if (scope !== 'unscheduled') {
+    if (!items.length && !overdue.length && !showUnscheduled) {
+      section.appendChild(emptyMessage(state.loading ? '일정을 불러오는 중…' : empty));
+      return section;
+    }
+    const groups = groupCalendarEvents(items);
+    for (const [date, values] of groups) {
+      const group = document.createElement('section');
+      group.className = 'calendar-agenda-day';
+      group.dataset.agendaDate = date;
+      const heading = document.createElement('h3');
+      heading.textContent = koreanDate(date);
+      if (date === state.todayDate) heading.dataset.today = 'true';
+      // Same day order as the day panel: 기간 · 마감, the clock, then 시간 없는 기록.
+      group.append(heading, lifeTimelineNodes(values, date, {today: state.todayDate, onSelect: actions.onEvent}) || emptyMessage(''));
+      section.appendChild(group);
+    }
   }
+
   if (showUnscheduled) {
     const group = document.createElement('section');
     group.className = 'calendar-unscheduled-group';
@@ -1920,9 +2684,11 @@ function renderAgenda(state, actions) {
     heading.textContent = '날짜 미정';
     const note = document.createElement('p');
     note.className = 'calendar-unscheduled-note';
-    note.textContent = '날짜를 정하지 않은 일정입니다. 열어서 날짜를 추가하거나 그대로 둘 수 있어요.';
-    group.append(heading, note, eventList(state.unscheduled, {onSelect: actions.onEvent}));
+    note.textContent = '날짜를 정하지 않은 일정입니다. 열어서 날짜를 정하거나 그대로 둘 수 있어요.';
+    group.append(heading, note, lifeRowList(state.unscheduled, {today: state.todayDate, onSelect: actions.onEvent}));
     section.appendChild(group);
+  } else if (scope === 'unscheduled') {
+    section.appendChild(emptyMessage('날짜를 정하지 않은 일정이 없어요.'));
   }
   return section;
 }
@@ -1944,6 +2710,7 @@ function calendarSettingsDialog({root, state, storage, onChange, onRedraw = () =
   heading.id = 'calendar-settings-heading';
   heading.textContent = '캘린더 설정';
   const close = button('×', 'calendar-settings-close');
+  close.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
   close.setAttribute('aria-label', '캘린더 설정 닫기');
   header.append(heading, close);
 
@@ -2515,6 +3282,7 @@ function calendarReadonlyDetailDialog({root, item, opener = null, onClose = () =
   const footer = document.createElement('div');
   footer.className = 'calendar-readonly-actions';
   const done = button('닫기', 'calendar-readonly-done');
+  done.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
   footer.append(done);
   dialog.append(header, title, notice, details, footer);
   backdrop.append(dialog);
@@ -2554,12 +3322,40 @@ function calendarReadonlyDetailDialog({root, item, opener = null, onClose = () =
   return dialog;
 }
 
-function calendarEditorDialog({root, item, selectedDate, initialDraft = null, authenticated, controller, onSaved, onStale, onOpenFestival = null, onClose = () => {}}) {
-  root.querySelector('.calendar-editor-backdrop')?.remove();
+// Amount text as the owner types it: digits only, grouped for reading. An empty
+// box is "no amount", never 0원.
+function amountDigits(value) {
+  return String(value ?? '').replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
+}
+
+function groupedAmount(digits) {
+  return digits ? Number(digits).toLocaleString('ko-KR') : '';
+}
+
+// The record editor. One question first -- 무엇을 남길까요? -- on the date the
+// owner already picked, then small chips for whatever else this record needs:
+// 시간, 금액, 장소, 메모, 종료, 더보기. Nothing behind a chip is shown until it
+// is asked for, so "피부과" + 저장 and "점심" + 금액 12,000 + 저장 are both a few
+// taps. What was already filled in (an edit, a draft) opens with it.
+function calendarEditorDialog({root, item, selectedDate, initialDraft = null, draftSource = '', authenticated, controller, onSaved, onStale, onOpenFestival = null, onClose = () => {}, design = ''}) {
+  root.querySelector('.calendar-editor-backdrop, .c4-editor-backdrop')?.remove();
   document.body.classList.remove('calendar-editor-open');
 
   const backdrop = document.createElement('div'); backdrop.className = 'calendar-editor-backdrop';
+  // A touch screen gets a bottom sheet; a desk gets a panel at the right edge,
+  // where the selected day already lives -- never a narrow box in the middle.
+  backdrop.dataset.editorPresentation = usesFlowingDayDetail() ? 'SHEET' : 'SIDE';
   const dialog = document.createElement('section'); dialog.className = 'calendar-editor-dialog';
+  // CALENDAR-DESIGN-04: 작업 공간의 편집기. 제목 → 날짜·시간·종일 → '필요할 때만' 줄들.
+  const c4 = design === 'c4';
+  if (c4) {
+    // 예전 편집기 겉모양 규칙이 닿지 않도록 바깥 두 겹은 시안 04 창 클래스만 쓴다.
+    backdrop.className = 'c4-dlg-backdrop c4-editor-backdrop';
+    dialog.className = 'c4-dlg c4-editor';
+    backdrop.dataset.design = 'c4';
+    dialog.dataset.design = 'c4';
+    backdrop.dataset.editorPresentation = usesFlowingDayDetail() ? 'SHEET' : 'CENTER';
+  }
   dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'calendar-editor-heading');
   const draft = !item && initialDraft && typeof initialDraft === 'object' ? initialDraft : null;
   // An empty {} still opens this dialog (a caller with nothing to pre-fill
@@ -2567,11 +3363,19 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   // only a draft carrying an actual field reads as one.
   const hasDraftContent = Boolean(draft && (draft.title || draft.localDate));
   const itemPolicy = calendarItemActionPolicy(item);
-  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading'; heading.textContent = item ? '일정 수정' : (hasDraftContent ? '일정 초안 확인' : '일정 등록');
+  const heading = document.createElement('h3'); heading.id = 'calendar-editor-heading';
+  heading.textContent = item
+    ? '일정 수정'
+    : hasDraftContent
+      ? (draftSource === 'image' ? '사진에서 읽은 내용 확인' : '일정 초안 확인')
+      : '일정 추가';
   const editorHeader = document.createElement('div'); editorHeader.className = 'calendar-editor-header';
   const closeButton = button('×', 'calendar-editor-close'); closeButton.setAttribute('aria-label', '닫기');
+  closeButton.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
   editorHeader.append(heading, closeButton);
   const form = document.createElement('form'); form.className = 'calendar-editor-form';
+  // The browser's own "required" bubble would talk over our alert line.
+  form.noValidate = true;
   const editorBody = document.createElement('div'); editorBody.className = 'calendar-editor-body';
 
   document.body.classList.add('calendar-editor-open');
@@ -2590,110 +3394,6 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
     document.body.classList.remove('calendar-editor-open');
   };
 
-  const titleLabel = document.createElement('label'); titleLabel.textContent = '일정 제목 *';
-  const titleInput = document.createElement('input'); titleInput.className = 'calendar-editor-title'; titleInput.name = 'calendar-title'; titleInput.required = true; titleInput.maxLength = 240; titleInput.value = item?.title || draft?.title || '';
-  titleLabel.appendChild(titleInput);
-  const titleNote = document.createElement('small'); titleNote.id = 'calendar-editor-title-note'; titleNote.textContent = '제목만 있으면 저장할 수 있어요. 나머지는 선택 사항입니다.';
-
-  const dateLabel = document.createElement('label'); dateLabel.textContent = '날짜';
-  const dateInput = document.createElement('input'); dateInput.className = 'calendar-editor-date'; dateInput.type = 'date'; dateInput.value = item?.local_date || canonicalActivityLocalDate(item) || (draft ? (draft.localDate || '') : (selectedDate || '')); dateLabel.appendChild(dateInput);
-
-  const allDayLabel = document.createElement('label'); allDayLabel.className = 'calendar-editor-all-day';
-  const allDayInput = document.createElement('input'); allDayInput.type = 'checkbox'; allDayInput.checked = item ? isAllDay(item) : !draft?.localTime; allDayLabel.append(allDayInput, document.createTextNode('종일'));
-
-  const primary = document.createElement('div'); primary.className = 'calendar-editor-primary';
-  const details = document.createElement('details'); details.className = 'calendar-editor-details';
-  const detailsSummary = document.createElement('summary'); detailsSummary.textContent = '장소·생활비·메모 (선택)';
-  details.append(detailsSummary);
-
-  const timeControl = document.createElement('div'); timeControl.className = 'calendar-editor-time-control';
-  const timeLabel = document.createElement('span'); timeLabel.textContent = '시작 시간';
-  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'text'; timeInput.inputMode = 'numeric'; timeInput.maxLength = 5; timeInput.placeholder = 'HH:mm'; timeInput.setAttribute('aria-label', '시작 시간 네 자리 숫자 또는 HH:mm'); timeInput.value = item?.local_datetime?.slice(11, 16) || draft?.localTime || '';
-  const endTimeInput = document.createElement('input'); endTimeInput.className = 'calendar-editor-end-time'; endTimeInput.type = 'text'; endTimeInput.inputMode = 'numeric'; endTimeInput.maxLength = 5; endTimeInput.placeholder = 'HH:mm'; endTimeInput.setAttribute('aria-label', '종료 시간 네 자리 숫자 또는 HH:mm'); endTimeInput.value = item?.local_end_datetime?.slice(11, 16) || draft?.endLocalTime || '';
-  const existingEndDate = item?.local_end_date || item?.local_end_datetime?.slice(0, 10) || draft?.endLocalDate || '';
-  const hasMultiDayEnd = Boolean(existingEndDate && existingEndDate !== dateInput.value);
-  const endDateLabel = document.createElement('label'); endDateLabel.className = 'calendar-editor-end-date-label'; endDateLabel.textContent = '종료 날짜';
-  const endDateInput = document.createElement('input'); endDateInput.className = 'calendar-editor-end-date'; endDateInput.type = 'date'; endDateInput.value = hasMultiDayEnd ? existingEndDate : '';
-  endDateLabel.append(endDateInput);
-  endDateLabel.hidden = !hasMultiDayEnd;
-  const timeTrigger = button('', 'calendar-editor-time-trigger');
-  const endTimeTrigger = button('', 'calendar-editor-end-time-trigger');
-  const timeSheet = document.createElement('div'); timeSheet.className = 'calendar-editor-time-sheet'; timeSheet.hidden = true; timeSheet.setAttribute('role', 'group'); timeSheet.setAttribute('aria-label', '시간 선택');
-  timeSheet.id = 'calendar-editor-time-sheet';
-  for (const trigger of [timeTrigger, endTimeTrigger]) {
-    trigger.setAttribute('aria-controls', timeSheet.id);
-    trigger.setAttribute('aria-expanded', 'false');
-  }
-  const quickTimes = document.createElement('div'); quickTimes.className = 'calendar-editor-time-quick';
-  for (const time of ['09:00', '12:00', '18:00']) {
-    const quick = button(time, 'calendar-editor-time-quick-choice'); quick.dataset.quickTime = time; quickTimes.appendChild(quick);
-  }
-  const clearTime = button('시간 지우기', 'calendar-editor-time-clear');
-  const doneTime = button('완료', 'calendar-editor-time-done');
-  const sheetActions = document.createElement('div'); sheetActions.className = 'calendar-editor-time-actions'; sheetActions.append(clearTime, doneTime);
-  timeSheet.append(quickTimes, timeInput, endTimeInput, sheetActions);
-  timeControl.append(timeLabel, timeTrigger, endTimeTrigger, timeSheet);
-  let activeTimeInput = timeInput;
-  let activeTimeTrigger = timeTrigger;
-  const refreshTimeLabels = () => {
-    timeTrigger.textContent = timeInput.value || '시작 시간 선택';
-    endTimeTrigger.textContent = endTimeInput.value ? `종료 ${endTimeInput.value}` : '종료 시간 추가 (선택)';
-  };
-  const closeTimeSheet = ({restoreFocus = true} = {}) => {
-    timeSheet.hidden = true;
-    timeTrigger.setAttribute('aria-expanded', 'false'); endTimeTrigger.setAttribute('aria-expanded', 'false');
-    timeInput.setAttribute('aria-invalid', 'false'); endTimeInput.setAttribute('aria-invalid', 'false');
-    refreshTimeLabels();
-    if (restoreFocus) activeTimeTrigger.focus();
-  };
-  const openTimeSheet = (input, trigger) => {
-    closeCategorySheet({restoreFocus: false});
-    activeTimeInput = input; activeTimeTrigger = trigger;
-    timeInput.hidden = input !== timeInput; endTimeInput.hidden = input !== endTimeInput;
-    timeSheet.hidden = false;
-    timeTrigger.setAttribute('aria-expanded', String(trigger === timeTrigger));
-    endTimeTrigger.setAttribute('aria-expanded', String(trigger === endTimeTrigger));
-    input.focus();
-  };
-  timeTrigger.addEventListener('click', () => openTimeSheet(timeInput, timeTrigger));
-  endTimeTrigger.addEventListener('click', () => openTimeSheet(endTimeInput, endTimeTrigger));
-  quickTimes.addEventListener('click', event => {
-    const quick = event.target.closest('[data-quick-time]');
-    if (!quick) return;
-    activeTimeInput.value = quick.dataset.quickTime;
-    activeTimeInput.setAttribute('aria-invalid', 'false');
-    activeTimeInput.focus();
-  });
-  clearTime.addEventListener('click', () => {
-    activeTimeInput.value = '';
-    if (activeTimeInput === timeInput) endTimeInput.value = '';
-    closeTimeSheet();
-  });
-  doneTime.addEventListener('click', () => {
-    const normalized = normalizeCalendarClockInput(activeTimeInput.value);
-    if (normalized === null) {
-      activeTimeInput.setAttribute('aria-invalid', 'true'); activeTimeInput.focus(); return;
-    }
-    activeTimeInput.value = normalized;
-    closeTimeSheet();
-  });
-  refreshTimeLabels();
-
-  const syncTemporalControls = () => {
-    const hasDate = Boolean(dateInput.value);
-    allDayInput.disabled = !hasDate;
-    timeControl.hidden = !hasDate || allDayInput.checked;
-    timeInput.disabled = !hasDate || allDayInput.checked;
-    endTimeInput.disabled = !hasDate || allDayInput.checked;
-    timeTrigger.disabled = !hasDate || allDayInput.checked;
-    endTimeTrigger.disabled = !hasDate || allDayInput.checked;
-    if (timeControl.hidden) closeTimeSheet({restoreFocus: false});
-    if (!hasDate) {timeInput.value = ''; endTimeInput.value = ''; refreshTimeLabels();}
-  };
-  dateInput.addEventListener('change', syncTemporalControls);
-  allDayInput.addEventListener('change', syncTemporalControls);
-  syncTemporalControls();
-
   const entry = item?.entry && typeof item.entry === 'object'
     ? item.entry
     : draft?.entry && typeof draft.entry === 'object'
@@ -2704,80 +3404,467 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
           memo: draft.entry.memo,
           place: draft.entry.place,
           merchant: draft.entry.merchant,
+          expense_status: draft.entry.expenseStatus,
         }
       : {};
+  const currency = typeof entry.currency === 'string' && /^[A-Z]{3}$/.test(entry.currency) ? entry.currency : 'KRW';
+
+  // ── 날짜: a chip, because the date was chosen before the editor opened ──
+  const initialDate = item?.local_date || canonicalActivityLocalDate(item) || (draft ? (draft.localDate || '') : (selectedDate || ''));
+  const dateChip = button('', 'calendar-editor-date-chip');
+  dateChip.dataset.editorDateChip = '';
+  const dateField = document.createElement('div'); dateField.className = 'calendar-editor-date-field';
+  dateField.id = 'calendar-editor-date-field';
+  const dateLabel = document.createElement('label'); dateLabel.textContent = '날짜';
+  const dateInput = document.createElement('input'); dateInput.className = 'calendar-editor-date'; dateInput.type = 'date'; dateInput.value = initialDate;
+  dateLabel.appendChild(dateInput);
+  dateField.appendChild(dateLabel);
+  // A record with no date yet (날짜 미정) shows the field straight away.
+  dateField.hidden = Boolean(initialDate);
+  dateChip.setAttribute('aria-controls', dateField.id);
+  const refreshDateChip = () => {
+    const value = dateInput.value;
+    dateChip.textContent = validCivilDate(value) ? `${longKoreanDate(value)} ▾` : '날짜 정하기 ▾';
+    dateChip.setAttribute('aria-label', validCivilDate(value) ? `날짜 ${longKoreanDate(value)}, 바꾸기` : '날짜 정하기');
+    dateChip.setAttribute('aria-expanded', String(!dateField.hidden));
+  };
+  dateChip.addEventListener('click', () => {
+    dateField.hidden = !dateField.hidden;
+    refreshDateChip();
+    if (!dateField.hidden) {
+      dateInput.focus();
+      try { dateInput.showPicker?.(); } catch { /* the field itself is the fallback */ }
+    }
+  });
+
+  // ── 무엇을 남길까요? ─────────────────────────────────────────────────
+  const titleLabel = document.createElement('label'); titleLabel.className = 'calendar-editor-title-field';
+  const titleText = document.createElement('span'); titleText.textContent = c4 ? '제목' : '무엇을 남길까요?';
+  const titleInput = document.createElement('input'); titleInput.className = 'calendar-editor-title'; titleInput.name = 'calendar-title'; titleInput.required = true; titleInput.maxLength = 240;
+  titleInput.placeholder = c4 ? '무엇을 하나요? 예: 친구 점심, 치과 예약' : '예: 피부과, 점심, 엄마 생신';
+  titleInput.autocomplete = 'off';
+  titleInput.enterKeyHint = 'done';
+  titleInput.value = item?.title || draft?.title || '';
+  titleLabel.append(titleText, titleInput);
+
+  // ── 시간 ───────────────────────────────────────────────────────────
+  const initialStartClock = normalizeCalendarClockInput(item?.local_datetime?.slice(11, 16) || draft?.localTime || '') || '';
+  // c4는 오전·오후 버튼 없이 '오후 3:00'을 칸 안에 그대로 쓴다. 그래서 따로 잡아 둔 오전/오후가 없다.
+  let startPeriod = !c4 && initialStartClock ? (initialStartClock < '12:00' ? 'AM' : 'PM') : '';
+  const twelveHourClock = clock => koreanClockLabel(clock).replace(/^(오전|오후) /u, '');
+  const timeInput = document.createElement('input'); timeInput.className = 'calendar-editor-time'; timeInput.type = 'text'; timeInput.inputMode = 'numeric'; timeInput.maxLength = 8; timeInput.placeholder = '예: 3:00'; timeInput.setAttribute('aria-label', '시작 시간, 예: 3:00 또는 15:30'); timeInput.value = c4 ? koreanClockLabel(initialStartClock) : twelveHourClock(initialStartClock); if (c4) timeInput.maxLength = 10;
+  const initialEndClock = normalizeCalendarClockInput(item?.local_end_datetime?.slice(11, 16) || draft?.endLocalTime || '') || '';
+  const endTimeInput = document.createElement('input'); endTimeInput.className = 'calendar-editor-end-time'; endTimeInput.type = 'text'; endTimeInput.inputMode = 'numeric'; endTimeInput.maxLength = 8; endTimeInput.placeholder = '예: 5:00'; endTimeInput.setAttribute('aria-label', '종료 시간, 예: 5:00'); endTimeInput.value = koreanClockLabel(initialEndClock);
+  const readStartClock = () => normalizeCalendarClockInput(timeInput.value, {period: startPeriod});
+  const readEndClock = () => normalizeCalendarEndClock(endTimeInput.value, readStartClock() || '');
+  const existingEndDate = item?.local_end_date || item?.local_end_datetime?.slice(0, 10) || draft?.endLocalDate || '';
+  const endDateInput = document.createElement('input'); endDateInput.className = 'calendar-editor-end-date'; endDateInput.type = 'date';
+  endDateInput.value = existingEndDate && existingEndDate !== initialDate ? existingEndDate : '';
+
+  const timeSection = document.createElement('div'); timeSection.className = 'calendar-editor-section calendar-editor-time-control';
+  const timeSectionLabel = document.createElement('span'); timeSectionLabel.className = 'calendar-editor-section-label'; timeSectionLabel.textContent = '시작 시간';
+  const quickTimes = document.createElement('div'); quickTimes.className = 'calendar-editor-time-quick';
+  for (const [time, words] of [['09:00', '오전 9시'], ['12:00', '낮 12시'], ['18:00', '오후 6시']]) {
+    const quick = button(words, 'calendar-editor-time-quick-choice'); quick.dataset.quickTime = time; quickTimes.appendChild(quick);
+  }
+  const periodChoices = document.createElement('div'); periodChoices.className = 'calendar-editor-time-period';
+  periodChoices.setAttribute('role', 'group'); periodChoices.setAttribute('aria-label', '오전 또는 오후');
+  const periodButtons = [['AM', '오전'], ['PM', '오후']].map(([value, words]) => {
+    const choice = button(words, 'calendar-editor-time-period-choice'); choice.dataset.timePeriod = value;
+    periodChoices.appendChild(choice);
+    return choice;
+  });
+  const syncPeriodButtons = () => {
+    for (const choice of periodButtons) choice.setAttribute('aria-pressed', String(choice.dataset.timePeriod === startPeriod));
+  };
+  syncPeriodButtons();
+  const clearTime = button('시간 지우기', 'calendar-editor-time-clear');
+  const timeRow = document.createElement('div'); timeRow.className = 'calendar-editor-time-row';
+  timeRow.append(periodChoices, timeInput, clearTime);
+  timeSection.append(timeSectionLabel, quickTimes, timeRow);
+
+  // ── 종료 ───────────────────────────────────────────────────────────
+  const endSection = document.createElement('div'); endSection.className = 'calendar-editor-section calendar-editor-end-control';
+  const endTimeLabel = document.createElement('label'); endTimeLabel.className = 'calendar-editor-end-time-label'; endTimeLabel.append('종료 시간', endTimeInput);
+  const endTimeHint = document.createElement('small'); endTimeHint.className = 'calendar-editor-hint'; endTimeHint.textContent = '시작 시간을 정하면 종료 시간도 넣을 수 있어요.';
+  const endDateLabel = document.createElement('label'); endDateLabel.className = 'calendar-editor-end-date-label'; endDateLabel.append('종료 날짜 (여러 날)', endDateInput);
+  endSection.append(endTimeLabel, endTimeHint, endDateLabel);
+
+  // ── 금액 ───────────────────────────────────────────────────────────
   // Not placeholder="0": an empty box showing a grey 0 reads as "0원 recorded"
   // when it actually means "no amount recorded", and the two are different
-  // things in the totals bar — one is a zero, the other is excluded and
-  // counted. The 대표 read a blank 여행 entry as a saved 0 because of it.
-  const amountLabel = document.createElement('label'); amountLabel.textContent = '비용';
-  const amountInput = document.createElement('input'); amountInput.className = 'calendar-editor-amount'; amountInput.type = 'number'; amountInput.inputMode = 'numeric'; amountInput.min = '0'; amountInput.step = '1'; amountInput.value = Number.isInteger(entry.amount_minor) ? String(entry.amount_minor) : ''; amountLabel.appendChild(amountInput);
+  // things in the totals. The 대표 read a blank 여행 entry as a saved 0 because of it.
+  const amountSection = document.createElement('div'); amountSection.className = 'calendar-editor-section calendar-editor-amount-control';
+  const amountLabel = document.createElement('label'); amountLabel.className = 'calendar-editor-amount-field';
+  const amountText = document.createElement('span'); amountText.className = 'calendar-editor-section-label'; amountText.textContent = '금액';
+  const amountBox = document.createElement('span'); amountBox.className = 'calendar-editor-amount-box';
+  const amountInput = document.createElement('input'); amountInput.className = 'calendar-editor-amount'; amountInput.type = 'text'; amountInput.inputMode = 'numeric'; amountInput.autocomplete = 'off';
+  amountInput.setAttribute('aria-label', currency === 'KRW' ? '금액 (원)' : `금액 (${currency})`);
+  amountInput.value = Number.isInteger(entry.amount_minor) ? groupedAmount(String(entry.amount_minor)) : '';
+  const amountUnit = document.createElement('span'); amountUnit.className = 'calendar-editor-amount-unit'; amountUnit.setAttribute('aria-hidden', 'true');
+  amountUnit.textContent = currency === 'KRW' ? '원' : currency;
+  amountBox.append(amountInput, amountUnit);
+  amountLabel.append(amountText, amountBox);
+  amountInput.addEventListener('input', () => {
+    const digits = amountDigits(amountInput.value).slice(0, 13);
+    const next = groupedAmount(digits);
+    if (next !== amountInput.value) amountInput.value = next;
+    refreshChips();
+  });
 
-  const categoryLabel = document.createElement('div'); categoryLabel.className = 'calendar-editor-category-field';
-  const categoryHeading = document.createElement('span'); categoryHeading.textContent = '비용 종류'; categoryLabel.append(categoryHeading);
+  // The category is a choice, not a gate: 미분류 is a fine answer and saving
+  // never waits on it. The hidden select stays the single value store.
+  const categoryField = document.createElement('div'); categoryField.className = 'calendar-editor-category-field';
+  const categoryHeading = document.createElement('span'); categoryHeading.className = 'calendar-editor-section-label'; categoryHeading.textContent = '분류 (선택)';
+  categoryHeading.id = 'calendar-editor-category-heading';
   const categoryInput = document.createElement('select'); categoryInput.className = 'calendar-editor-category';
   categoryInput.hidden = true; categoryInput.setAttribute('aria-hidden', 'true'); categoryInput.tabIndex = -1;
   for (const [value, label] of EXPENSE_CATEGORY_CHOICES) {
     const option = document.createElement('option'); option.value = value; option.textContent = label; categoryInput.appendChild(option);
   }
   categoryInput.value = entry.expense_category === 'UNCLASSIFIED' ? '' : (entry.expense_category || '');
-  categoryLabel.appendChild(categoryInput);
-  const categoryTrigger = button('', 'calendar-editor-category-trigger');
-  const categorySheet = document.createElement('div'); categorySheet.className = 'calendar-editor-category-sheet'; categorySheet.hidden = true;
-  categorySheet.setAttribute('role', 'group'); categorySheet.setAttribute('aria-label', '비용 종류 선택');
-  categorySheet.id = 'calendar-editor-category-sheet';
-  categoryTrigger.setAttribute('aria-controls', categorySheet.id); categoryTrigger.setAttribute('aria-expanded', 'false');
-  const closeCategorySheet = ({restoreFocus = true} = {}) => {
-    categorySheet.hidden = true;
-    categoryTrigger.setAttribute('aria-expanded', 'false');
-    if (restoreFocus) categoryTrigger.focus();
+  const categoryChoices = document.createElement('div'); categoryChoices.className = 'calendar-editor-category-sheet';
+  categoryChoices.setAttribute('role', 'group'); categoryChoices.setAttribute('aria-labelledby', categoryHeading.id);
+  // 음식 · 여행 · 쇼핑 · 생활비 · 기타, then 미분류 last: it is the absence of a choice.
+  const orderedChoices = [...EXPENSE_CATEGORY_CHOICES.filter(([value]) => value), ...EXPENSE_CATEGORY_CHOICES.filter(([value]) => !value)];
+  const categoryButtons = [];
+  const refreshCategoryButtons = () => {
+    for (const choice of categoryButtons) choice.setAttribute('aria-pressed', String(choice.dataset.category === categoryInput.value));
   };
-  const refreshCategoryLabel = () => {
-    categoryTrigger.textContent = EXPENSE_CATEGORY_CHOICES.find(([value]) => value === categoryInput.value)?.[1] || '비용 종류 선택';
-  };
-  for (const [value, label] of EXPENSE_CATEGORY_CHOICES) {
+  for (const [value, label] of orderedChoices) {
     const choice = button(label, 'calendar-editor-category-choice'); choice.dataset.category = value;
-    choice.addEventListener('click', () => {
-      categoryInput.value = value; closeCategorySheet(); refreshCategoryLabel();
-    });
-    categorySheet.append(choice);
+    choice.addEventListener('click', () => { categoryInput.value = value; refreshCategoryButtons(); refreshChips(); });
+    categoryButtons.push(choice);
+    categoryChoices.appendChild(choice);
   }
-  categoryTrigger.addEventListener('click', () => {
-    closeTimeSheet({restoreFocus: false});
-    categorySheet.hidden = false; categoryTrigger.setAttribute('aria-expanded', 'true'); categorySheet.querySelector('button')?.focus();
+  refreshCategoryButtons();
+  categoryField.append(categoryHeading, categoryInput, categoryChoices);
+  amountSection.append(amountLabel, categoryField);
+  // CALENDAR-DESIGN-04: 지출 연결 — 지출 없음 / 예정 지출 / 실제 지출. 예정은 월 합계에
+  // 넣지 않고, '실제 지출로 기록'을 누를 때 한 번만 들어간다.
+  let expenseStatus = Number.isInteger(entry.amount_minor) ? (entry.expense_status === 'PLANNED' ? 'PLANNED' : 'PAID') : '';
+  const statusSeg = document.createElement('div'); statusSeg.className = 'c4-seg3 calendar-editor-expense-status';
+  statusSeg.setAttribute('role', 'group'); statusSeg.setAttribute('aria-label', '지출 구분');
+  const statusButtons = [['', '지출 없음'], ['PLANNED', '예정 지출'], ['PAID', '실제 지출']].map(([value, words]) => {
+    const choice = button(words, 'c4-seg3-b'); choice.dataset.expenseStatus = value;
+    statusSeg.appendChild(choice);
+    return choice;
   });
-  detailsSummary.addEventListener('click', () => {
-    if (details.open) {
-      const categoryHadFocus = categorySheet.contains(document.activeElement);
-      closeCategorySheet({restoreFocus: false});
-      if (categoryHadFocus) detailsSummary.focus();
+  const moneyHint = document.createElement('p'); moneyHint.className = 'c4-hint calendar-editor-money-hint';
+  const syncExpenseStatus = () => {
+    for (const choice of statusButtons) choice.setAttribute('aria-pressed', String(choice.dataset.expenseStatus === expenseStatus));
+    if (!c4) return;
+    amountLabel.hidden = !expenseStatus;
+    categoryField.hidden = !expenseStatus;
+    moneyHint.hidden = !expenseStatus;
+    moneyHint.textContent = expenseStatus === 'PLANNED'
+      ? '예정 지출은 월 합계에 넣지 않아요. 결제한 뒤 ‘실제 지출로 기록’을 누르면 그때 한 번만 들어가요.'
+      : '저장하면 그 달 지출 합계에 바로 들어가요. 분류를 고르지 않으면 미분류예요.';
+  };
+  statusSeg.addEventListener('click', event => {
+    const choice = event.target.closest('[data-expense-status]');
+    if (!choice) return;
+    expenseStatus = choice.dataset.expenseStatus;
+    if (!expenseStatus) {
+      amountInput.value = '';
+      categoryInput.value = '';
+      refreshCategoryButtons();
     }
+    syncExpenseStatus();
+    refreshChips();
+    if (expenseStatus) amountInput.focus();
   });
-  details.addEventListener('toggle', () => {
-    if (!details.open) {
-      const categoryHadFocus = categorySheet.contains(document.activeElement);
-      closeCategorySheet({restoreFocus: false});
-      if (categoryHadFocus) detailsSummary.focus();
-    }
-  });
-  categoryLabel.append(categoryTrigger, categorySheet);
-  refreshCategoryLabel();
+  if (c4) {
+    amountSection.prepend(statusSeg);
+    amountSection.append(moneyHint);
+    syncExpenseStatus();
+  }
 
-  const memoLabel = document.createElement('label'); memoLabel.className = 'calendar-editor-wide'; memoLabel.textContent = '메모';
-  const memoInput = document.createElement('textarea'); memoInput.className = 'calendar-editor-memo'; memoInput.maxLength = 2000; memoInput.rows = 3; memoInput.value = entry.memo || ''; memoLabel.appendChild(memoInput);
-
+  // ── 장소 · 메모 · 더보기 ────────────────────────────────────────────────
+  const placeSection = document.createElement('div'); placeSection.className = 'calendar-editor-section';
   const placeLabel = document.createElement('label'); placeLabel.className = 'calendar-editor-wide'; placeLabel.textContent = '장소';
   const placeInput = document.createElement('input'); placeInput.className = 'calendar-editor-place'; placeInput.maxLength = 240; placeInput.value = entry.place || ''; placeLabel.appendChild(placeInput);
+  placeSection.appendChild(placeLabel);
 
+  const memoSection = document.createElement('div'); memoSection.className = 'calendar-editor-section';
+  const memoLabel = document.createElement('label'); memoLabel.className = 'calendar-editor-wide'; memoLabel.textContent = '메모';
+  const memoInput = document.createElement('textarea'); memoInput.className = 'calendar-editor-memo'; memoInput.maxLength = 2000; memoInput.rows = 3; memoInput.value = entry.memo || ''; memoLabel.appendChild(memoInput);
+  memoSection.appendChild(memoLabel);
+
+  const moreSection = document.createElement('div'); moreSection.className = 'calendar-editor-section';
   const merchantLabel = document.createElement('label'); merchantLabel.className = 'calendar-editor-wide'; merchantLabel.textContent = '상점 · 예약처';
   const merchantInput = document.createElement('input'); merchantInput.className = 'calendar-editor-merchant'; merchantInput.maxLength = 240; merchantInput.value = entry.merchant || ''; merchantLabel.appendChild(merchantInput);
+  moreSection.appendChild(merchantLabel);
+
+  // ── 반복 · 알림 (로그인 기록만: 알림은 서버가 보내고, 반복은 서버가 펼친다) ──
+  const recurringItem = isRecurringCalendarItem(item);
+  const seriesRule = recurringItem ? item.recurrence : null;
+  const seriesStart = recurringItem && validCivilDate(item.series_start || '') ? item.series_start : initialDate;
+  const repeatSection = document.createElement('div'); repeatSection.className = 'calendar-editor-section calendar-editor-repeat-control';
+  const repeatLabel = document.createElement('label'); repeatLabel.className = 'calendar-editor-wide';
+  const repeatText = document.createElement('span'); repeatText.className = 'calendar-editor-section-label'; repeatText.textContent = '반복';
+  const repeatSelect = document.createElement('select'); repeatSelect.className = 'calendar-editor-repeat';
+  for (const [value, label] of RECURRENCE_CHOICES) {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; repeatSelect.appendChild(option);
+  }
+  const initialRepeat = recurrenceChoice(seriesRule, seriesStart);
+  if (initialRepeat === 'KEEP') {
+    const option = document.createElement('option'); option.value = 'KEEP'; option.textContent = `지금 반복 유지 (${recurrenceSummary(seriesRule)})`;
+    repeatSelect.appendChild(option);
+  }
+  repeatSelect.value = initialRepeat;
+  repeatLabel.append(repeatText, repeatSelect);
+  // 사용자 지정: 요일(여러 개) + 몇 주마다.
+  const repeatCustom = document.createElement('div'); repeatCustom.className = 'calendar-editor-repeat-custom';
+  const weekdayGroup = document.createElement('div'); weekdayGroup.className = 'calendar-editor-weekdays';
+  weekdayGroup.setAttribute('role', 'group'); weekdayGroup.setAttribute('aria-label', '반복할 요일');
+  const initialWeekdays = new Set(initialRepeat === 'CUSTOM' && Array.isArray(seriesRule?.weekdays) && seriesRule.weekdays.length
+    ? seriesRule.weekdays
+    : validCivilDate(seriesStart) ? [mondayWeekday(seriesStart)] : []);
+  const weekdayButtons = RECURRENCE_WEEKDAY_LABELS.map((label, weekday) => {
+    const toggle = button(label, 'calendar-editor-weekday'); toggle.dataset.weekday = String(weekday);
+    toggle.setAttribute('aria-pressed', String(initialWeekdays.has(weekday)));
+    toggle.addEventListener('click', () => {
+      toggle.setAttribute('aria-pressed', String(toggle.getAttribute('aria-pressed') !== 'true'));
+      refreshChips();
+    });
+    weekdayGroup.appendChild(toggle);
+    return toggle;
+  });
+  const intervalLabel = document.createElement('label'); intervalLabel.className = 'calendar-editor-repeat-interval-label';
+  const intervalInput = document.createElement('input'); intervalInput.className = 'calendar-editor-repeat-interval'; intervalInput.type = 'number'; intervalInput.inputMode = 'numeric'; intervalInput.min = '1'; intervalInput.max = '12';
+  intervalInput.value = String(initialRepeat === 'CUSTOM' ? Number(seriesRule?.interval || 1) : 1);
+  intervalLabel.append(intervalInput, '주마다');
+  repeatCustom.append(weekdayGroup, intervalLabel);
+  // 반복 종료: 종료 없음 / 날짜까지(그날 포함).
+  const repeatEndRow = document.createElement('div'); repeatEndRow.className = 'calendar-editor-repeat-end';
+  const repeatEndLabel = document.createElement('label'); repeatEndLabel.className = 'calendar-editor-repeat-end-label';
+  const repeatEndSelect = document.createElement('select'); repeatEndSelect.className = 'calendar-editor-repeat-end-mode';
+  for (const [value, label] of [['', '종료 없음'], ['UNTIL', '날짜까지']]) {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; repeatEndSelect.appendChild(option);
+  }
+  const untilInput = document.createElement('input'); untilInput.className = 'calendar-editor-repeat-until'; untilInput.type = 'date';
+  untilInput.setAttribute('aria-label', '반복 마지막 날짜');
+  untilInput.value = validCivilDate(seriesRule?.until || '') ? seriesRule.until : '';
+  repeatEndSelect.value = untilInput.value ? 'UNTIL' : '';
+  repeatEndLabel.append('반복 종료', repeatEndSelect);
+  repeatEndRow.append(repeatEndLabel, untilInput);
+  const repeatHint = document.createElement('small'); repeatHint.className = 'calendar-editor-hint calendar-editor-repeat-hint';
+  repeatSection.append(repeatLabel, repeatCustom, repeatEndRow, repeatHint);
+
+  const reminderSection = document.createElement('div'); reminderSection.className = 'calendar-editor-section calendar-editor-reminder-control';
+  const reminderLabel = document.createElement('label'); reminderLabel.className = 'calendar-editor-wide';
+  const reminderText = document.createElement('span'); reminderText.className = 'calendar-editor-section-label'; reminderText.textContent = '알림';
+  const reminderSelect = document.createElement('select'); reminderSelect.className = 'calendar-editor-reminder';
+  for (const [value, label] of REMINDER_CHOICES) {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; reminderSelect.appendChild(option);
+  }
+  const storedOffsets = Array.isArray(item?.reminder_offsets_minutes) ? item.reminder_offsets_minutes : [];
+  reminderSelect.value = storedOffsets.length && REMINDER_CHOICES.some(([value]) => value === String(storedOffsets[0])) ? String(storedOffsets[0]) : '';
+  reminderLabel.append(reminderText, reminderSelect);
+  const reminderStatus = document.createElement('p'); reminderStatus.className = 'calendar-editor-reminder-status'; reminderStatus.setAttribute('role', 'status');
+  const reminderAllDay = document.createElement('small'); reminderAllDay.className = 'calendar-editor-hint calendar-editor-reminder-all-day';
+  reminderAllDay.textContent = '하루 종일 일정은 그날 오전 9시를 기준으로 알려 드려요.';
+  reminderSection.append(reminderLabel, reminderStatus, reminderAllDay);
+  // 알림 권한 안내: 권한을 여기서 묻지 않는다(설정의 '알림 사용' 버튼만 묻는다).
+  const reminderDeliveryNote = () => {
+    const permission = getBrowserNotificationPermissionState();
+    let subscribed = false;
+    try { subscribed = Boolean(globalThis.localStorage?.getItem(CALENDAR_PUSH_SUBSCRIPTION_STORAGE_KEY)); } catch { subscribed = false; }
+    if (permission === BROWSER_NOTIFICATION_PERMISSION.DENIED) return {state: 'DENIED', text: '이 브라우저는 알림이 꺼져 있어요. 브라우저 사이트 설정에서 알림을 허용해 주세요. LOTBI 앱에서는 앱 알림으로 받을 수 있어요.'};
+    if (permission === BROWSER_NOTIFICATION_PERMISSION.UNAVAILABLE) return {state: 'UNAVAILABLE', text: '이 브라우저에서는 알림을 받을 수 없어요. LOTBI 앱을 쓰면 앱 알림으로 받을 수 있어요.'};
+    if (permission === BROWSER_NOTIFICATION_PERMISSION.GRANTED && subscribed) return {state: 'READY', text: '이 브라우저와 LOTBI 앱으로 알려 드려요.'};
+    return {state: 'SETUP', text: 'LOTBI 앱 알림으로 알려 드려요. 이 브라우저로도 받으려면 캘린더 설정의 알림에서 \'알림 사용\'을 눌러 주세요.'};
+  };
+  const repeatEditable = authenticated && (!item || itemPolicy.canUpdate);
+
+  // ── chips ──────────────────────────────────────────────────────────
+  const shorten = (text, length = 10) => (text.length > length ? `${text.slice(0, length - 1)}…` : text);
+  const repeatValue = () => {
+    const choice = repeatSelect.value;
+    if (!choice) return null;
+    const until = repeatEndSelect.value === 'UNTIL' && validCivilDate(untilInput.value) ? untilInput.value : null;
+    if (choice === 'KEEP') return {...seriesRule, until};
+    if (choice === 'CUSTOM') {
+      const weekdays = weekdayButtons.filter(toggle => toggle.getAttribute('aria-pressed') === 'true').map(toggle => Number(toggle.dataset.weekday));
+      const interval = Math.min(12, Math.max(1, Number.parseInt(intervalInput.value, 10) || 1));
+      return {frequency: 'WEEKLY', interval, weekdays, until};
+    }
+    if (choice === 'BIWEEKLY') return {frequency: 'WEEKLY', interval: 2, weekdays: [], until};
+    return {frequency: choice, interval: 1, weekdays: [], until};
+  };
+  const fields = [
+    {key: 'time', label: '시간', section: timeSection, focus: () => timeInput,
+      summary: () => koreanClockLabel(readStartClock() || '')},
+    ...(repeatEditable ? [
+      {key: 'repeat', label: '반복', section: repeatSection, focus: () => repeatSelect,
+        summary: () => recurrenceSummary(repeatValue())},
+      {key: 'reminder', label: '알림', section: reminderSection, focus: () => reminderSelect,
+        summary: () => (reminderSelect.value ? `알림 ${REMINDER_CHOICES.find(([value]) => value === reminderSelect.value)?.[1] || ''}` : '')},
+    ] : []),
+    {key: 'amount', label: '금액', section: amountSection, focus: () => amountInput,
+      summary: () => {
+        if (c4) {
+          const digitsNow = amountDigits(amountInput.value);
+          const kind = expenseStatus === 'PLANNED' ? '예정' : '실제';
+          const categoryNow = categoryInput.value ? EXPENSE_CATEGORY_CHOICES.find(([value]) => value === categoryInput.value)?.[1] : '';
+          // 금액 없이 분류만 남은 기록도 그 분류를 보여 준다: 수정하다 사라진 줄 알지 않게.
+          if (!expenseStatus) return categoryNow || '';
+          return digitsNow ? [`${kind} ${formatExpenseAmount(Number(digitsNow), currency)}`, categoryNow].filter(Boolean).join(' · ') : `${kind} 지출`;
+        }
+        const digits = amountDigits(amountInput.value);
+        // A category recorded without a price still shows, so an edit never
+        // hides what the record already holds.
+        const amount = digits ? formatExpenseAmount(Number(digits), currency) : '';
+        const category = categoryInput.value ? EXPENSE_CATEGORY_CHOICES.find(([value]) => value === categoryInput.value)?.[1] : '';
+        return [amount, category].filter(Boolean).join(' · ');
+      }},
+    {key: 'place', label: '장소', section: placeSection, focus: () => placeInput,
+      summary: () => (placeInput.value.trim() ? `장소 ${shorten(placeInput.value.trim())}` : '')},
+    {key: 'memo', label: '메모', section: memoSection, focus: () => memoInput,
+      summary: () => (memoInput.value.trim() ? '메모 있음' : '')},
+    {key: 'end', label: '종료', section: endSection, focus: () => (readStartClock() ? endTimeInput : endDateInput),
+      summary: () => {
+        const parts = [];
+        if (validCivilDate(endDateInput.value) && endDateInput.value !== dateInput.value) parts.push(`${Number(endDateInput.value.slice(5, 7))}/${Number(endDateInput.value.slice(8, 10))}`);
+        if (endTimeInput.value.trim()) parts.push(koreanClockLabel(readEndClock() || '') || endTimeInput.value.trim());
+        return parts.length ? `종료 ${parts.join(' ')}` : '';
+      }},
+    {key: 'more', label: '더보기', section: moreSection, focus: () => merchantInput,
+      summary: () => (merchantInput.value.trim() ? `상점 ${shorten(merchantInput.value.trim())}` : '')},
+  ];
+  const chips = document.createElement('div'); chips.className = 'calendar-editor-chips';
+  chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', '더 남길 내용');
+  const sections = document.createElement('div'); sections.className = 'calendar-editor-sections';
+  for (const field of fields) {
+    field.section.id = `calendar-editor-section-${field.key}`;
+    field.section.dataset.editorSection = field.key;
+    field.chip = button(field.label, 'calendar-editor-chip');
+    field.chip.dataset.editorChip = field.key;
+    field.chip.setAttribute('aria-controls', field.section.id);
+    field.chip.addEventListener('click', () => {
+      const opening = field.section.hidden;
+      field.section.hidden = !opening;
+      refreshChips();
+      if (opening) field.focus()?.focus();
+    });
+    chips.appendChild(field.chip);
+  }
+  // Sections stack in reading order regardless of the chip that opened them:
+  // when, until when, how much, where, notes, the rest.
+  for (const key of ['time', 'end', 'repeat', 'reminder', 'amount', 'place', 'memo', 'more']) {
+    const field = fields.find(candidate => candidate.key === key);
+    if (field) sections.appendChild(field.section);
+  }
+  function refreshChips() {
+    for (const field of fields) {
+      const summary = field.summary();
+      const rowValue = c4 ? field.chip.querySelector('.c4-opt-v') : null;
+      if (rowValue) rowValue.textContent = summary || (field.key === 'repeat' ? '안 함' : '없음');
+      else field.chip.textContent = summary || field.label;
+      field.chip.dataset.filled = String(Boolean(summary));
+      field.chip.setAttribute('aria-expanded', String(!field.section.hidden));
+      field.chip.setAttribute('aria-label', summary ? `${field.label}: ${summary}` : `${field.label} 추가`);
+    }
+    const hasStart = Boolean(readStartClock());
+    endTimeInput.disabled = !hasStart;
+    endTimeHint.hidden = c4 || hasStart;
+    if (repeatEditable) {
+      repeatCustom.hidden = repeatSelect.value !== 'CUSTOM';
+      repeatEndRow.hidden = !repeatSelect.value;
+      untilInput.hidden = repeatEndSelect.value !== 'UNTIL';
+      untilInput.min = dateInput.value || '';
+      const day = validCivilDate(dateInput.value) ? Number(dateInput.value.slice(8, 10)) : 0;
+      const clamps = (repeatSelect.value === 'MONTHLY' && day >= 29) || (repeatSelect.value === 'YEARLY' && dateInput.value.slice(5) === '02-29');
+      repeatHint.hidden = !clamps;
+      repeatHint.textContent = repeatSelect.value === 'YEARLY'
+        ? '2월 29일 반복은 평년에는 2월 28일에 표시돼요.'
+        : `${day}일이 없는 달에는 그 달 마지막 날에 표시돼요.`;
+      const note = reminderDeliveryNote();
+      reminderStatus.hidden = !reminderSelect.value;
+      reminderStatus.dataset.reminderDelivery = note.state;
+      reminderStatus.textContent = note.text;
+      reminderAllDay.hidden = !reminderSelect.value || hasStart;
+    }
+  }
+  // Time and amount stay open from the start, matching CALENDAR-ADD-UX-01.
+  for (const field of fields) field.section.hidden = !(field.summary() || (!c4 && (field.key === 'time' || field.key === 'amount')));
+
+  quickTimes.addEventListener('click', event => {
+    const quick = event.target.closest('[data-quick-time]');
+    if (!quick) return;
+    startPeriod = quick.dataset.quickTime < '12:00' ? 'AM' : 'PM';
+    timeInput.value = twelveHourClock(quick.dataset.quickTime);
+    syncPeriodButtons();
+    timeInput.setAttribute('aria-invalid', 'false');
+    refreshChips();
+    timeInput.focus();
+  });
+  periodChoices.addEventListener('click', event => {
+    const choice = event.target.closest('[data-time-period]');
+    if (!choice) return;
+    startPeriod = choice.dataset.timePeriod;
+    const clock = readStartClock();
+    if (clock) timeInput.value = c4 ? koreanClockLabel(clock) : twelveHourClock(clock);
+    syncPeriodButtons();
+    refreshChips();
+  });
+  clearTime.addEventListener('click', () => {
+    timeInput.value = '';
+    endTimeInput.value = '';
+    startPeriod = '';
+    syncPeriodButtons();
+    timeInput.setAttribute('aria-invalid', 'false');
+    endTimeInput.setAttribute('aria-invalid', 'false');
+    refreshChips();
+    timeInput.focus();
+  });
+  for (const input of [timeInput, endTimeInput, placeInput, memoInput, merchantInput]) input.addEventListener('input', refreshChips);
+  for (const control of [repeatSelect, repeatEndSelect, untilInput, intervalInput, reminderSelect]) control.addEventListener('change', refreshChips);
+  intervalInput.addEventListener('input', refreshChips);
+  timeInput.addEventListener('blur', () => {
+    const clock = readStartClock();
+    if (clock) {
+      startPeriod = clock < '12:00' ? 'AM' : 'PM';
+      timeInput.value = c4 ? koreanClockLabel(clock) : twelveHourClock(clock);
+      syncPeriodButtons();
+    }
+    timeInput.setAttribute('aria-invalid', String(clock === null));
+    refreshChips();
+  });
+  endTimeInput.addEventListener('blur', () => {
+    const clock = readEndClock();
+    if (clock) endTimeInput.value = koreanClockLabel(clock);
+    endTimeInput.setAttribute('aria-invalid', String(clock === null));
+    refreshChips();
+  });
+  dateInput.addEventListener('change', () => {
+    refreshDateChip();
+    endDateInput.min = dateInput.value || '';
+    refreshChips();
+  });
+  endDateInput.addEventListener('change', refreshChips);
+  endDateInput.min = initialDate || '';
+
+  const note = draftSource === 'image' ? document.createElement('p') : null;
+  if (note) {
+    note.className = 'calendar-editor-note';
+    note.textContent = '사진에서 읽은 내용이에요. 사진 자체는 캘린더에 저장되지 않아요.';
+  }
 
   const error = document.createElement('p'); error.className = 'calendar-editor-error'; error.setAttribute('role', 'alert');
   const actions = document.createElement('div'); actions.className = 'calendar-editor-actions';
   const cancel = button('취소', 'calendar-editor-cancel');
   const save = button('저장', 'calendar-editor-save'); save.type = 'submit';
+  // 저장 waits for a title (and for a save already in flight); 취소 never
+  // waits on anything.
+  let saveInFlight = false;
+  let saveTop = null;
+  const refreshSave = () => { save.disabled = saveInFlight || !titleInput.value.trim(); if (saveTop) saveTop.disabled = save.disabled; };
+  titleInput.addEventListener('input', refreshSave);
+  refreshSave();
   actions.append(cancel);
-  if (!item || itemPolicy.canUpdate) actions.prepend(save);
+  if (!item || itemPolicy.canUpdate) actions.append(save);
 
   let cleanupDeleteConfirmation = () => {};
   let deleteRequestInFlight = false;
@@ -2807,6 +3894,11 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
       const confirmationDescription = document.createElement('p');
       confirmationDescription.id = 'calendar-delete-confirm-description';
       confirmationDescription.textContent = '삭제한 일정은 복구할 수 없습니다.';
+      if (recurringItem) {
+        // 반복 기록은 이 날짜만 지울지, 반복 전체를 지울지 고른다.
+        confirmationTitle.textContent = '반복 일정을 삭제하시겠습니까?';
+        confirmationDescription.textContent = `${longKoreanDate(item.local_date)} 한 번만 지우거나 반복 전체를 지울 수 있어요. 삭제한 일정은 복구할 수 없습니다.`;
+      }
       const confirmationError = document.createElement('p');
       confirmationError.className = 'calendar-delete-confirm-error';
       confirmationError.setAttribute('role', 'alert');
@@ -2814,8 +3906,15 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
       const confirmationActions = document.createElement('div');
       confirmationActions.className = 'calendar-delete-confirm-actions';
       const cancelDelete = button('취소', 'calendar-delete-confirm-cancel');
+      cancelDelete.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
       const confirmDelete = button('삭제', 'calendar-delete-confirm-submit');
-      confirmationActions.append(cancelDelete, confirmDelete);
+      const deleteOneDate = recurringItem ? button('이 날짜만 삭제', 'calendar-delete-confirm-occurrence') : null;
+      if (deleteOneDate) {
+        confirmDelete.textContent = '반복 전체 삭제';
+        confirmationActions.append(cancelDelete, deleteOneDate, confirmDelete);
+      } else {
+        confirmationActions.append(cancelDelete, confirmDelete);
+      }
       confirmationDialog.append(confirmationTitle, confirmationDescription, confirmationError, confirmationActions);
       confirmationBackdrop.appendChild(confirmationDialog);
 
@@ -2848,7 +3947,7 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
           return;
         }
         if (event.key !== 'Tab') return;
-        const focusable = [cancelDelete, confirmDelete].filter(control => !control.disabled);
+        const focusable = [cancelDelete, deleteOneDate, confirmDelete].filter(control => control && !control.disabled);
         if (!focusable.length) {
           event.preventDefault();
           return;
@@ -2864,15 +3963,16 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
         }
       });
 
-      confirmDelete.addEventListener('click', async () => {
+      const runDelete = async scope => {
         if (deleteRequestInFlight) return;
         deleteRequestInFlight = true;
         confirmationError.textContent = '';
         remove.disabled = true;
         cancelDelete.disabled = true;
         confirmDelete.disabled = true;
+        if (deleteOneDate) deleteOneDate.disabled = true;
         try {
-          await controller.remove(item);
+          await controller.remove(item, {scope});
           cleanupDeleteConfirmation({restoreFocus: false});
           releaseEditorEnvironment();
           backdrop.remove();
@@ -2882,12 +3982,15 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
           remove.disabled = false;
           cancelDelete.disabled = false;
           confirmDelete.disabled = false;
+          if (deleteOneDate) deleteOneDate.disabled = false;
           confirmationError.textContent = caught?.code === 'STALE_REVISION'
-            ? '일정이 변경되었습니다. 저장 상태를 확인한 뒤 다시 시도해주세요.'
-            : '일정을 삭제하지 못했습니다. 다시 시도해주세요.';
+            ? '일정이 바뀌었어요. 저장 상태를 확인한 뒤 다시 시도해 주세요.'
+            : '일정을 삭제하지 못했어요. 다시 시도해 주세요.';
           confirmDelete.focus();
         }
-      });
+      };
+      confirmDelete.addEventListener('click', () => runDelete(recurringItem ? 'SERIES' : null));
+      deleteOneDate?.addEventListener('click', () => runDelete('OCCURRENCE'));
 
       root.appendChild(confirmationBackdrop);
       queueMicrotask(() => cancelDelete.focus());
@@ -2903,12 +4006,89 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
     });
   }
 
-  primary.append(titleLabel, titleNote, dateLabel, allDayLabel, timeControl);
-  details.append(placeLabel, merchantLabel, memoLabel, amountLabel, categoryLabel);
-  if (hasMultiDayEnd) detailsSummary.after(endDateLabel);
-  editorBody.append(primary, details, error);
+  const dateRow = document.createElement('div'); dateRow.className = 'calendar-editor-date-row';
+  dateRow.append(dateChip, dateField);
+  if (c4) {
+    // 날짜 · 시간 · 종일 한 줄. 날짜를 고르고 들어오면 그 날짜가 이미 채워져 있다.
+    const whenRow = c4El('div', 'c4-when');
+    const dateBlock = c4El('div', 'c4-when-date');
+    const dateCaption = c4El('span', 'c4-flab', '날짜');
+    if (!item && validCivilDate(initialDate)) dateCaption.append(' ', c4El('span', 'c4-auto', hasDraftContent ? '사진에서 읽음' : '선택한 날짜'));
+    dateBlock.append(dateCaption, dateRow);
+    const timeBlock = c4El('div', 'c4-when-time');
+    const times = c4El('div', 'c4-time');
+    timeInput.placeholder = '시작 (예: 15:30)';
+    endTimeInput.placeholder = '끝 (선택)';
+    const allDay = button('', 'c4-switch');
+    allDay.dataset.calendarAllDay = '';
+    allDay.setAttribute('aria-pressed', String(Boolean(item) && !initialStartClock));
+    allDay.append(c4El('span', 'c4-sw'), c4El('span', '', '종일'));
+    const applyAllDay = on => {
+      allDay.setAttribute('aria-pressed', String(on));
+      if (on) { timeInput.value = ''; endTimeInput.value = ''; }
+      timeInput.disabled = on;
+      refreshChips();
+      if (on) endTimeInput.disabled = true;
+    };
+    allDay.addEventListener('click', () => {
+      const on = allDay.getAttribute('aria-pressed') !== 'true';
+      applyAllDay(on);
+      if (!on) timeInput.focus();
+    });
+    if (allDay.getAttribute('aria-pressed') === 'true') timeInput.disabled = true;
+    times.append(timeInput, c4El('span', 'c4-dash', '–'), endTimeInput);
+    const timeHead = c4El('div', 'c4-when-head');
+    timeHead.append(c4El('span', 'c4-flab', '시간'), allDay);
+    timeBlock.append(timeHead, times);
+    whenRow.append(dateBlock, timeBlock);
+    endTimeLabel.hidden = true;
+    // 필요할 때만 펼치는 줄: 지출 연결 · 반복 · 알림 · 장소 · 메모 · 여러 날 · 상점.
+    const optionList = c4El('div', 'c4-opts');
+    const rowMeta = {amount: ['won', '지출 연결'], repeat: ['repeat', '반복'], reminder: ['bell', '알림'], place: ['pin', '장소'], memo: ['memo', '메모'], end: ['range', '여러 날'], more: ['store', '상점·예약처']};
+    for (const key of ['amount', 'repeat', 'reminder', 'place', 'memo', 'end', 'more']) {
+      const field = fields.find(candidate => candidate.key === key);
+      if (!field) continue;
+      const [icon, words] = rowMeta[key];
+      field.label = words;
+      if (key === 'end') {
+        field.summary = () => (validCivilDate(endDateInput.value) && endDateInput.value !== dateInput.value
+          ? `${Number(endDateInput.value.slice(5, 7))}월 ${Number(endDateInput.value.slice(8, 10))}일까지` : '');
+        field.focus = () => endDateInput;
+      }
+      field.chip.classList.add('c4-opt');
+      field.chip.replaceChildren(c4Icon(icon), c4El('span', 'c4-opt-l', words), c4El('span', 'c4-opt-v', ''), c4Icon('down', 'c4-ico c4-opt-ch'));
+      optionList.append(field.chip, field.section);
+    }
+    const amountField = fields.find(candidate => candidate.key === 'amount');
+    amountField.chip.addEventListener('click', () => {
+      if (amountField.section.hidden || expenseStatus) return;
+      const today = dateInTimezone(new Date(), resolvedTimezone());
+      expenseStatus = validCivilDate(dateInput.value) && dateInput.value > today ? 'PLANNED' : 'PAID';
+      syncExpenseStatus();
+      refreshChips();
+      amountInput.focus();
+    });
+    editorBody.append(titleLabel, whenRow, c4El('div', 'c4-more', '필요할 때만 더 입력하세요'), optionList);
+    // 휴대폰: 키보드가 열려도 보이도록 '저장'을 머리글 오른쪽에 둔다.
+    form.id = `calendar-editor-form-${Math.random().toString(36).slice(2, 10)}`;
+    const cancelTop = button('취소', 'c4-top-cancel');
+    cancelTop.addEventListener('click', () => close());
+    saveTop = button('저장', 'c4-top-save');
+    saveTop.type = 'submit';
+    saveTop.setAttribute('form', form.id);
+    saveTop.dataset.calendarEditorSaveTop = '';
+    editorHeader.prepend(cancelTop);
+    editorHeader.append(saveTop);
+    refreshSave();
+  } else {
+    editorBody.append(dateRow, titleLabel, chips, sections);
+  }
+  if (note) editorBody.appendChild(note);
+  editorBody.appendChild(error);
   form.append(editorBody, actions);
   dialog.append(editorHeader, form); backdrop.appendChild(dialog); root.appendChild(backdrop);
+  refreshDateChip();
+  refreshChips();
 
   const close = () => {
     cleanupDeleteConfirmation({restoreFocus: false});
@@ -2920,25 +4100,20 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
   cancel.addEventListener('click', close);
   backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
   dialog.addEventListener('keydown', event => {
-    if (!details.open && !categorySheet.hidden) closeCategorySheet({restoreFocus: false});
-    const activeSheet = !timeSheet.hidden && !timeControl.hidden ? timeSheet
-      : !categorySheet.hidden && details.open ? categorySheet : dialog;
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      if (activeSheet === timeSheet) {closeTimeSheet(); return;}
-      if (activeSheet === categorySheet) {closeCategorySheet(); return;}
       close();
       return;
     }
     if (event.key !== 'Tab') return;
-    const focusable = [...activeSheet.querySelectorAll('button, input, select, textarea, summary')]
+    const focusable = [...dialog.querySelectorAll('button, input, select, textarea')]
       .filter(control => !control.disabled && !control.hidden && control.getClientRects().length && control.tabIndex !== -1);
     if (!focusable.length) {event.preventDefault(); return;}
     const first = focusable[0], last = focusable[focusable.length - 1];
     if (event.shiftKey && document.activeElement === first) {event.preventDefault(); last.focus();}
     else if (!event.shiftKey && document.activeElement === last) {event.preventDefault(); first.focus();}
-    else if (!activeSheet.contains(document.activeElement)) {event.preventDefault(); first.focus();}
+    else if (!dialog.contains(document.activeElement)) {event.preventDefault(); first.focus();}
   });
   form.addEventListener('focusin', event => {
     if (!usesFlowingDayDetail()) return;
@@ -2948,47 +4123,1949 @@ function calendarEditorDialog({root, item, selectedDate, initialDraft = null, au
     if (typeof globalThis.requestAnimationFrame === 'function') globalThis.requestAnimationFrame(reveal);
     else setTimeout(reveal, 0);
   });
+  const revealField = field => {
+    if (!field) return;
+    field.section.hidden = false;
+    refreshChips();
+    field.focus()?.focus();
+  };
+  // 반복 기록 수정 범위: 이 날짜만 / 반복 전체 / 취소(null).
+  const chooseRecurringScope = () => new Promise(resolve => {
+    const scopeBackdrop = document.createElement('div'); scopeBackdrop.className = 'calendar-delete-confirm-backdrop calendar-scope-confirm-backdrop';
+    const scopeDialog = document.createElement('section'); scopeDialog.className = 'calendar-delete-confirm-dialog calendar-scope-confirm-dialog';
+    scopeDialog.setAttribute('role', 'dialog'); scopeDialog.setAttribute('aria-modal', 'true');
+    scopeDialog.setAttribute('aria-labelledby', 'calendar-scope-confirm-title');
+    const scopeTitle = document.createElement('h4'); scopeTitle.id = 'calendar-scope-confirm-title'; scopeTitle.textContent = '반복 일정을 어떻게 바꿀까요?';
+    const scopeDescription = document.createElement('p'); scopeDescription.textContent = `${longKoreanDate(item.local_date)} 한 번만 바꾸거나, 반복 전체를 바꿀 수 있어요.`;
+    const scopeActions = document.createElement('div'); scopeActions.className = 'calendar-delete-confirm-actions';
+    const scopeCancel = button('취소', 'calendar-scope-confirm-cancel');
+    const scopeOne = button('이 날짜만', 'calendar-scope-confirm-occurrence');
+    const scopeAll = button('반복 전체', 'calendar-scope-confirm-series');
+    scopeActions.append(scopeCancel, scopeOne, scopeAll);
+    scopeDialog.append(scopeTitle, scopeDescription, scopeActions);
+    scopeBackdrop.appendChild(scopeDialog);
+    dialog.inert = true;
+    const finish = value => {
+      scopeBackdrop.remove();
+      dialog.inert = false;
+      resolve(value);
+      if (!value) save.focus();
+    };
+    scopeCancel.addEventListener('click', () => finish(null));
+    scopeOne.addEventListener('click', () => finish('OCCURRENCE'));
+    scopeAll.addEventListener('click', () => finish('SERIES'));
+    scopeBackdrop.addEventListener('click', event => { if (event.target === scopeBackdrop) finish(null); });
+    scopeDialog.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); finish(null); return; }
+      if (event.key !== 'Tab') return;
+      const order = [scopeCancel, scopeOne, scopeAll];
+      const index = order.indexOf(document.activeElement);
+      event.preventDefault();
+      order[(index + (event.shiftKey ? order.length - 1 : 1)) % order.length].focus();
+    });
+    root.appendChild(scopeBackdrop);
+    queueMicrotask(() => scopeOne.focus());
+  });
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.textContent = '';
     if (item && !itemPolicy.canUpdate) {
-      error.textContent = '읽기 전용 일정은 수정할 수 없습니다.';
+      error.textContent = '읽기 전용 일정은 수정할 수 없어요.';
       return;
     }
-    const startClock = normalizeCalendarClockInput(timeInput.value);
-    const endClock = normalizeCalendarClockInput(endTimeInput.value);
-    if (!allDayInput.checked && (startClock === null || endClock === null)) {
-      error.textContent = '시간을 HH:mm 형식으로 입력해 주세요.';
-      openTimeSheet(startClock === null ? timeInput : endTimeInput,
-        startClock === null ? timeTrigger : endTimeTrigger);
+    if (!titleInput.value.trim()) {
+      error.textContent = '무엇을 남길지 한 단어라도 적어 주세요.';
+      titleInput.focus();
       return;
     }
-    if (!allDayInput.checked) { timeInput.value = startClock; endTimeInput.value = endClock; refreshTimeLabels(); }
+    const startClock = readStartClock();
+    const endClock = readEndClock();
+    if (startClock === null || endClock === null) {
+      error.textContent = '시간을 3:30이나 15:30처럼 입력하거나 위의 시간 버튼을 눌러 주세요.';
+      const target = startClock === null ? timeInput : endTimeInput;
+      target.setAttribute('aria-invalid', 'true');
+      revealField(fields.find(field => field.key === (startClock === null ? 'time' : 'end')));
+      target.focus();
+      return;
+    }
+    // An end time without a start time means nothing; it is dropped, not an error.
+    const effectiveEndClock = startClock ? endClock : '';
+    timeInput.value = c4 ? koreanClockLabel(startClock) : twelveHourClock(startClock); endTimeInput.value = koreanClockLabel(effectiveEndClock); refreshChips();
+    const digits = amountDigits(amountInput.value);
+    const endDate = validCivilDate(endDateInput.value) && endDateInput.value !== dateInput.value ? endDateInput.value : '';
+    const repeat = repeatEditable ? repeatValue() : undefined;
+    const reminderOffsets = repeatEditable ? (reminderSelect.value ? [Number(reminderSelect.value)] : []) : undefined;
+    if (repeat) {
+      const repeatError = !validCivilDate(dateInput.value)
+        ? '반복하려면 날짜를 정해 주세요.'
+        : repeat.frequency === 'WEEKLY' && repeatSelect.value === 'CUSTOM' && !repeat.weekdays.length
+          ? '반복할 요일을 하나 이상 골라 주세요.'
+          : repeat.until && repeat.until < (recurringItem ? seriesStart : dateInput.value)
+            ? '반복 종료일은 시작일 이후로 정해 주세요.'
+            : digits
+              ? '반복 일정에는 금액을 함께 저장할 수 없어요. 금액을 지우거나 반복을 끄고 저장해 주세요.'
+              : '';
+      if (repeatError) {
+        error.textContent = repeatError;
+        const amountProblem = repeatError.startsWith('반복 일정에는 금액');
+        revealField(fields.find(field => field.key === (amountProblem ? 'amount' : 'repeat')));
+        return;
+      }
+    }
+    if (reminderOffsets?.length && !validCivilDate(dateInput.value)) {
+      error.textContent = '알림을 받으려면 날짜를 정해 주세요.';
+      revealField(fields.find(field => field.key === 'reminder'));
+      return;
+    }
+    // 반복 기록을 고칠 때: 반복·알림을 바꿨다면 반복 전체, 아니면 이 날짜만/반복 전체를 묻는다.
+    let scope = null;
+    if (recurringItem) {
+      const seriesChanged = JSON.stringify(repeat ?? null) !== JSON.stringify(seriesRule ? {...seriesRule, weekdays: seriesRule.weekdays || [], until: seriesRule.until || null} : null)
+        || JSON.stringify(reminderOffsets ?? []) !== JSON.stringify(storedOffsets);
+      scope = seriesChanged ? 'SERIES' : await chooseRecurringScope();
+      if (!scope) return;
+    }
     const value = {
       title: titleInput.value,
       localDate: dateInput.value,
-      time: timeInput.value,
-      endTime: endTimeInput.value,
-      endDate: endDateInput.value,
-      allDay: allDayInput.checked,
-      amountMinor: amountInput.value,
+      time: startClock,
+      endTime: effectiveEndClock,
+      endDate,
+      // No start time is a date-only record (and, with an end date, a range):
+      // nothing is filled in on the owner's behalf.
+      allDay: !startClock,
+      amountMinor: digits,
+      currency,
+      // The category is kept as recorded, with or without an amount: a 여행
+      // entry whose price was never written must not lose 여행 on its next edit.
       expenseCategory: categoryInput.value || null,
+      // 지출 구분: 금액이 있을 때만 의미가 있다. 고르지 않았으면 실제 지출.
+      expenseStatus: digits ? (expenseStatus || 'PAID') : null,
       memo: memoInput.value,
       place: placeInput.value,
       merchant: merchantInput.value,
+      ...(repeatEditable ? {recurrence: repeat, reminderOffsets} : {}),
     };
-    save.disabled = true;
+    saveInFlight = true; refreshSave();
     try {
-      if (item) await controller.update(item, value); else await controller.create(value);
+      if (item) await controller.update(item, value, {scope}); else await controller.create(value);
       cleanupDeleteConfirmation({restoreFocus: false});
       releaseEditorEnvironment();
-      backdrop.remove(); await onSaved();
+      backdrop.remove(); await onSaved(value.localDate);
     } catch (caught) {
       if (caught?.code === 'STALE_REVISION') { error.textContent = '다른 변경이 반영되어 일정을 새로 불러왔어요.'; await onStale(); }
-      else error.textContent = caught instanceof Error ? caught.message : '일정을 저장하지 못했습니다.';
-      save.disabled = false;
+      // The guest quota itself is unchanged; only its words follow the Calendar's.
+      else if (caught?.code === 'GUEST_CALENDAR_CREATE_QUOTA_REACHED') error.textContent = `로그인 없이 남길 수 있는 일정 ${GUEST_CREATE_QUOTA}개를 모두 썼어요. 로그인하면 계속 남길 수 있어요.`;
+      else error.textContent = caught instanceof Error ? caught.message : '일정을 저장하지 못했어요.';
+      saveInFlight = false; refreshSave();
     }
   });
   queueMicrotask(() => titleInput.focus());
+}
+
+// 사진에서 읽었어요 — the short confirmation a photo draft gets before anything
+// is written. It shows only what was legible, says that the photo itself is
+// not kept, and offers two things: save as read, or open the full editor.
+// Saving needs a title and a date; without either, 수정 is the way forward.
+function calendarPhotoConfirmDialog({root, draft, fallbackDate, controller, onSaved, onEdit, onClose = () => {}}) {
+  root.querySelector('.calendar-photo-confirm-backdrop')?.remove();
+  const backdrop = document.createElement('div');
+  backdrop.className = 'calendar-photo-confirm-backdrop';
+  backdrop.dataset.editorPresentation = usesFlowingDayDetail() ? 'SHEET' : 'SIDE';
+  const dialog = document.createElement('section');
+  dialog.className = 'calendar-photo-confirm-dialog';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'calendar-photo-confirm-heading');
+
+  const header = document.createElement('div');
+  header.className = 'calendar-photo-confirm-header';
+  const heading = document.createElement('h3');
+  heading.id = 'calendar-photo-confirm-heading';
+  heading.textContent = '사진에서 읽었어요';
+  const close = button('×', 'calendar-photo-confirm-close');
+  close.setAttribute('aria-label', '닫기');
+  close.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
+  header.append(heading, close);
+
+  const localDate = validCivilDate(draft?.localDate) ? draft.localDate : '';
+  const entry = draft?.entry || {};
+  const title = typeof draft?.title === 'string' ? draft.title.trim() : '';
+  const card = document.createElement('div');
+  card.className = 'calendar-photo-confirm-card';
+  const titleNode = document.createElement('strong');
+  titleNode.className = 'calendar-photo-confirm-title';
+  titleNode.textContent = title || '제목을 확인해 주세요';
+  if (!title) titleNode.dataset.missing = 'true';
+  card.appendChild(titleNode);
+  if (Number.isSafeInteger(entry.amountMinor)) {
+    const amount = document.createElement('p');
+    amount.className = 'calendar-photo-confirm-amount';
+    amount.textContent = formatExpenseAmount(entry.amountMinor, entry.currency || 'KRW');
+    card.appendChild(amount);
+  }
+  const category = entry.expenseCategory && entry.expenseCategory !== 'UNCLASSIFIED'
+    ? EXPENSE_CATEGORY_CHOICES.find(([value]) => value === entry.expenseCategory)?.[1] : '';
+  const whenNode = document.createElement('p');
+  whenNode.className = 'calendar-photo-confirm-when';
+  if (category) whenNode.append(category, ' · ');
+  if (localDate) {
+    let span = `${longKoreanDate(localDate)}${draft.localTime ? ` ${draft.localTime}` : ''}`;
+    if (validCivilDate(draft.endLocalDate) && (draft.endLocalDate !== localDate || draft.endLocalTime)) {
+      span += ` → ${Number(draft.endLocalDate.slice(5, 7))}/${Number(draft.endLocalDate.slice(8, 10))}${draft.endLocalTime ? ` ${draft.endLocalTime}` : ''}`;
+    }
+    whenNode.append(span);
+  } else {
+    // Only what is missing is marked, not the category read beside it.
+    const missing = document.createElement('span');
+    missing.dataset.missing = 'true';
+    missing.textContent = '날짜 확인 필요';
+    whenNode.append(missing);
+  }
+  card.appendChild(whenNode);
+  const where = [entry.place, entry.merchant].filter(value => typeof value === 'string' && value.trim() && value.trim() !== title);
+  if (where.length) {
+    const whereNode = document.createElement('p');
+    whereNode.className = 'calendar-photo-confirm-where';
+    whereNode.textContent = [...new Set(where.map(value => value.trim()))].join(' · ');
+    card.appendChild(whereNode);
+  }
+  const note = document.createElement('p');
+  note.className = 'calendar-photo-confirm-note';
+  note.textContent = '사진 자체는 캘린더에 저장되지 않아요.';
+  for (const notice of draft?.reviewNotices || []) {
+    const noticeNode = document.createElement('p');
+    noticeNode.className = 'calendar-photo-confirm-note';
+    noticeNode.textContent = notice;
+    card.appendChild(noticeNode);
+  }
+  const error = document.createElement('p');
+  error.className = 'calendar-photo-confirm-error';
+  error.setAttribute('role', 'alert');
+
+  const actions = document.createElement('div');
+  actions.className = 'calendar-photo-confirm-actions';
+  const edit = button('수정', 'calendar-photo-confirm-edit');
+  const save = button('저장', 'calendar-photo-confirm-save');
+  const ready = Boolean(title && localDate);
+  save.disabled = !ready;
+  if (!ready) {
+    // Name exactly what the picture did not give, so 수정 has one job.
+    const missingWords = !title && !localDate ? '제목과 날짜를' : !title ? '제목을' : '날짜를';
+    error.textContent = `${missingWords} 정한 뒤 저장할 수 있어요. [수정]을 눌러 채워 주세요.`;
+    error.removeAttribute('role');
+    error.dataset.hint = 'true';
+  }
+  actions.append(edit, save);
+  dialog.append(header, card, note, error, actions);
+  backdrop.appendChild(dialog);
+  root.appendChild(backdrop);
+
+  let settled = false;
+  const dismiss = ({notify = true} = {}) => {
+    if (settled) return;
+    settled = true;
+    backdrop.remove();
+    if (notify) onClose();
+  };
+  close.addEventListener('click', () => dismiss());
+  backdrop.addEventListener('click', event => { if (event.target === backdrop) dismiss(); });
+  edit.addEventListener('click', () => {
+    dismiss({notify: false});
+    onEdit(localDate || fallbackDate, draft);
+  });
+  save.addEventListener('click', async () => {
+    if (!ready || save.disabled) return;
+    save.disabled = true;
+    edit.disabled = true;
+    error.textContent = '';
+    try {
+      const time = validCivilDate(localDate) && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(draft.localTime || '') ? draft.localTime : '';
+      const endTime = time && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(draft.endLocalTime || '') ? draft.endLocalTime : '';
+      const endDate = validCivilDate(draft.endLocalDate) && draft.endLocalDate > localDate ? draft.endLocalDate : '';
+      await controller.create({
+        title,
+        photoLogicalRequestId: calendarDraftLogicalRequestId(draft),
+        localDate,
+        time,
+        endTime,
+        endDate,
+        allDay: !time,
+        amountMinor: Number.isSafeInteger(entry.amountMinor) ? entry.amountMinor : '',
+        currency: entry.currency || 'KRW',
+        expenseCategory: Number.isSafeInteger(entry.amountMinor) ? (entry.expenseCategory && entry.expenseCategory !== 'UNCLASSIFIED' ? entry.expenseCategory : null) : null,
+        memo: entry.memo || '',
+        place: entry.place || '',
+        merchant: entry.merchant || '',
+      });
+      dismiss({notify: false});
+      await onSaved(localDate);
+    } catch (caught) {
+      error.dataset.hint = 'false';
+      error.setAttribute('role', 'alert');
+      error.textContent = caught instanceof Error && caught.message ? caught.message : '저장하지 못했어요. 다시 시도해 주세요.';
+      save.disabled = false;
+      edit.disabled = false;
+    }
+  });
+  dialog.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      dismiss();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = [close, edit, save].filter(control => !control.disabled);
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  });
+  queueMicrotask(() => (ready ? save : edit).focus());
+  return dialog;
+}
+
+// The month's amounts, broken down -- opened from the one-line summary. A
+// sheet on a phone, a panel on a desk; read-only, so it only needs 닫기.
+function calendarAmountDialog({root, monthLabel, summary, local, opener = null}) {
+  root.querySelector('.calendar-amount-backdrop')?.remove();
+  const backdrop = document.createElement('div');
+  backdrop.className = 'calendar-amount-backdrop';
+  backdrop.dataset.editorPresentation = usesFlowingDayDetail() ? 'SHEET' : 'SIDE';
+  const dialog = document.createElement('section');
+  dialog.className = 'calendar-amount-dialog';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'calendar-amount-heading');
+  const header = document.createElement('div');
+  header.className = 'calendar-amount-header';
+  const heading = document.createElement('h3');
+  heading.id = 'calendar-amount-heading';
+  heading.textContent = `${monthLabel} 생활비 합계`;
+  const close = button('×', 'calendar-amount-close');
+  close.setAttribute('aria-label', '닫기');
+  close.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: the phone's back presses this (site-conversation.js).
+  header.append(heading, close);
+  const done = button('닫기', 'calendar-amount-done');
+  const footer = document.createElement('div');
+  footer.className = 'calendar-amount-actions';
+  footer.appendChild(done);
+  // The heading already names the month; the body only says what the number is.
+  dialog.append(header, calendarAmountDetailNode({summary, local}), footer);
+  backdrop.appendChild(dialog);
+  root.appendChild(backdrop);
+  const dismiss = () => {
+    backdrop.remove();
+    // A background render may have replaced the line while the breakdown was
+    // open; focus goes back to whichever line is on screen now.
+    const target = opener instanceof HTMLElement && opener.isConnected
+      ? opener : root.querySelector('[data-calendar-amount-summary="ready"]');
+    target?.focus();
+  };
+  close.addEventListener('click', dismiss);
+  done.addEventListener('click', dismiss);
+  backdrop.addEventListener('click', event => { if (event.target === backdrop) dismiss(); });
+  dialog.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); dismiss(); return; }
+    if (event.key !== 'Tab') return;
+    const first = close, last = done;
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  });
+  queueMicrotask(() => done.focus());
+  return dialog;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// CALENDAR-DESIGN-04 — 소유자 확정 시안 04(2026-10-14)의 캘린더 작업 화면.
+// 캘린더 작업 공간(approvedWorkspace)에서만 쓴다. 위의 기존 화면 함수는 작업
+// 공간 밖에서 띄우는 검사·다른 진입점을 위해 그대로 둔다.
+//  - 대표 버튼은 한 화면에 하나: 머리글 '+ M월 D일 일정 추가'(날짜를 고르면 문구가 바뀐다).
+//  - '사진으로 추가'는 보조 버튼 하나: 넓은 화면은 가계부 카드, 휴대폰은 아래 가계부 줄.
+//  - 날짜 띠: 선택한 날짜 · 공휴일 이름 · 음력 · 날씨(지금/예보, 기상청).
+//  - 주: 왼쪽 7일 + 선택한 날 시간표. 일정 없는 시간은 한 줄로 접는다.
+//  - 월: 넓은 화면은 오른쪽 '선택한 날' 카드, 휴대폰은 달력 아래 목록. 겹침 창이 없다.
+//  - 가계부: 실제 지출만 합계, 예정 금액은 따로 보여 준다.
+// ─────────────────────────────────────────────────────────────────────────
+
+const C4_CATEGORY_KEYS = Object.freeze({FOOD: 'food', TRAVEL: 'travel', SHOPPING: 'shop', LIVING: 'living', OTHER: 'other', UNCLASSIFIED: 'uncat'});
+const C4_AGENDA_ORDER = Object.freeze([['upcoming', '다가오는'], ['month', '이번 달'], ['amount', '금액 있는'], ['unscheduled', '날짜 미정']]);
+
+function c4El(tag, className = '', text = '') {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
+
+const C4_ICON_PATHS = Object.freeze({
+  plus: 'M12 5v14M5 12h14',
+  camera: 'M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM15.5 13.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z',
+  left: 'M15 6l-6 6 6 6',
+  right: 'M9 6l6 6-6 6',
+  up: 'M6 15l6-6 6 6',
+  down: 'M6 9l6 6 6-6',
+  close: 'M6 6l12 12M18 6L6 18',
+  repeat: 'M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3',
+  bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0',
+  pin: 'M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21zM14.5 9.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z',
+  memo: 'M5 4h14v16H5zM8 9h8M8 13h8M8 17h5',
+  won: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM7.5 8.5l2 7 2.5-6 2.5 6 2-7M7 11.5h10',
+  calendar: 'M6 5h12a2.5 2.5 0 0 1 2.5 2.5V18a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 18V7.5A2.5 2.5 0 0 1 6 5zM3.5 10h17M8 3v4M16 3v4',
+  info: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM12 11v5M12 8h.01',
+  check: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8 12.5l2.8 2.8L16.5 9.5',
+  range: 'M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4',
+  store: 'M4 9l1.5-4h13L20 9M4 9h16v11H4zM9 20v-6h6v6',
+});
+
+function c4Icon(name, className = 'c4-ico') {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', className);
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', C4_ICON_PATHS[name] || '');
+  svg.appendChild(path);
+  return svg;
+}
+
+function c4Button(label, className, icon = '') {
+  const control = button('', className);
+  if (icon) control.appendChild(c4Icon(icon));
+  if (label) control.appendChild(c4El('span', 'c4-btn-label', label));
+  return control;
+}
+
+// 일정 카드·점·합계의 색은 지출 분류에서 온다. 금액이 없는 일정은 회색(none).
+function c4CategoryKey(item) {
+  const entry = item?.entry && typeof item.entry === 'object' ? item.entry : {};
+  if (!Number.isSafeInteger(entry.amount_minor)) return 'none';
+  return C4_CATEGORY_KEYS[entry.expense_category] || 'uncat';
+}
+
+function c4ExpenseStatus(entry) {
+  if (!Number.isSafeInteger(entry?.amount_minor)) return null;
+  return entry.expense_status === 'PLANNED' ? 'PLANNED' : 'PAID';
+}
+
+// 이 날짜 줄에 보일 금액(여러 날 일정의 금액은 시작한 날에만).
+function c4Money(item, date) {
+  const presentation = lifeRowPresentation(item, {date});
+  const status = c4ExpenseStatus(item?.entry);
+  if (!presentation.amountOnThisDay || !status) return null;
+  return Object.freeze({label: presentation.amountLabel, status, tag: status === 'PLANNED' ? '예정' : '지출'});
+}
+
+function c4MoneyNode(money) {
+  const amount = c4El('span', 'c4-ev-amt');
+  amount.append(c4El('span', `c4-tag ${money.status === 'PLANNED' ? 'plan' : 'paid'}`, money.tag), money.label);
+  return amount;
+}
+
+function c4DaySums(items, date) {
+  let paid = 0;
+  let planned = 0;
+  const onDate = calendarItemsOnDate(items, date);
+  for (const item of onDate) {
+    if (item?.local_date !== date) continue;
+    const entry = item?.entry || {};
+    if (!Number.isSafeInteger(entry.amount_minor)) continue;
+    if (entry.currency && entry.currency !== 'KRW') continue;
+    if (entry.expense_status === 'PLANNED') planned += entry.amount_minor;
+    else paid += entry.amount_minor;
+  }
+  return {paid, planned, count: onDate.length};
+}
+
+function c4DaySubline(items, date, loading) {
+  if (loading) return '일정을 불러오는 중…';
+  const sums = c4DaySums(items, date);
+  if (!sums.count) return '일정 없음';
+  return [
+    `일정 ${sums.count}개`,
+    sums.paid ? `지출 ${formatExpenseAmount(sums.paid, 'KRW')}` : '',
+    sums.planned ? `예정 ${formatExpenseAmount(sums.planned, 'KRW')}` : '',
+  ].filter(Boolean).join(' · ');
+}
+
+function c4ReminderLabel(item) {
+  const offsets = Array.isArray(item?.reminder_offsets_minutes) ? item.reminder_offsets_minutes : [];
+  if (!offsets.length || !Number.isInteger(offsets[0])) return '';
+  return REMINDER_CHOICES.find(([value]) => value === String(offsets[0]))?.[1] || '';
+}
+
+function c4TimeText(presentation, item) {
+  if (!presentation.timeLabel) return validCivilDate(item?.local_date || '') ? '시간 없음' : '날짜 미정';
+  if (presentation.timeLabel === '미정') return '날짜 미정';
+  // '오전 9:00 ~10:00' 대신 시안 표기 '오전 9:00–10:00'.
+  return presentation.timeDetail ? `${presentation.timeLabel}${presentation.timeDetail.replace(/^~/u, '–')}` : presentation.timeLabel;
+}
+
+function c4Clock(isoValue) {
+  const at = new Date(String(isoValue || ''));
+  if (!Number.isFinite(at.getTime())) return '';
+  try {
+    return new Intl.DateTimeFormat('ko-KR', {timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(at);
+  } catch {
+    return '';
+  }
+}
+
+function c4ShortDate(date) {
+  const {month, day} = civilDateParts(date);
+  return `${month}월 ${day}일 (${WEEKDAY_INITIALS[weekdayOf(date)]})`;
+}
+
+// 주간 카드: 제목·시간·분류·금액(예정/지출 글자표)·반복·알림.
+function c4EventCard(item, {date, today, onSelect}) {
+  const presentation = lifeRowPresentation(item, {date, today});
+  const money = c4Money(item, date);
+  const card = button('', `c4-ev c4-cat-${c4CategoryKey(item)}`);
+  card.dataset.calendarEventId = item.id || item.activity_id || '';
+  const bar = c4El('span', 'c4-ev-bar');
+  bar.setAttribute('aria-hidden', 'true');
+  const inner = c4El('span', 'c4-ev-in');
+  const row = c4El('span', 'c4-ev-row');
+  row.appendChild(c4El('span', 'c4-ev-t', presentation.title || '제목 없음'));
+  if (money) row.appendChild(c4MoneyNode(money));
+  const meta = c4El('span', 'c4-ev-meta');
+  const timeText = c4TimeText(presentation, item);
+  meta.appendChild(c4El('span', 'c4-ev-time', timeText));
+  if (presentation.categoryLabel) meta.appendChild(c4El('span', 'c4-ev-cat', presentation.categoryLabel));
+  const repeating = isRecurringCalendarItem(item);
+  if (repeating) {
+    const repeat = c4El('span', 'c4-ev-x');
+    repeat.append(c4Icon('repeat'), recurrenceSummary(item.recurrence));
+    meta.appendChild(repeat);
+  }
+  const reminder = c4ReminderLabel(item);
+  if (reminder) {
+    const bell = c4El('span', 'c4-ev-x');
+    bell.append(c4Icon('bell'), reminder);
+    meta.appendChild(bell);
+  }
+  if (presentation.statusLabel) meta.appendChild(c4El('span', 'c4-ev-status', presentation.statusLabel));
+  inner.append(row, meta);
+  card.append(bar, inner);
+  card.setAttribute('aria-label', [
+    timeText,
+    presentation.title || '제목 없음',
+    money ? `${money.tag} ${money.label}` : '',
+    presentation.categoryLabel,
+    repeating ? `반복 ${recurrenceSummary(item.recurrence)}` : '',
+    reminder ? `알림 ${reminder}` : '',
+    presentation.statusLabel,
+  ].filter(Boolean).join(', '));
+  if (onSelect) card.addEventListener('click', event => onSelect(item, event.currentTarget));
+  return card;
+}
+
+// 날짜 띠: 선택한 날짜 · 오늘 · 공휴일 이름 · 음력 · 날씨.
+function c4Strip(state) {
+  const date = state.selectedDate;
+  const strip = c4El('section', 'c4-strip');
+  strip.setAttribute('aria-label', '선택한 날짜 정보');
+  strip.dataset.selectedDate = date;
+  const left = c4El('div', 'c4-strip-l');
+  left.appendChild(c4El('strong', 'c4-sdate', longKoreanDate(date)));
+  if (date === state.todayDate) left.appendChild(c4El('span', 'c4-pill today', '오늘'));
+  const holiday = state.showKoreaHolidays ? holidaysByDate(state.holidays).get(date) : null;
+  if (holiday) left.appendChild(c4El('span', 'c4-pill hol', `${holiday.name} · 공휴일`));
+  if (state.showLunarDates) {
+    const lunar = lunarDateLabel(solarToLunar(date));
+    if (lunar) left.appendChild(c4El('span', 'c4-lunar', `음력 ${lunar}`));
+  }
+  strip.append(left, c4StripWeather(state, date));
+  return strip;
+}
+
+function c4StripWeather(state, date) {
+  const right = c4El('div', 'c4-strip-r');
+  const weather = calendarWeatherByDate(state.weather).get(date) || null;
+  const current = date === state.todayDate ? state.weatherCurrent : null;
+  if (!weather && !current) {
+    let text = '';
+    if (state.weatherLoading) text = '날씨를 확인하는 중…';
+    else if (state.weatherMessage) text = state.weatherMessage;
+    else if (date < state.todayDate) text = '';
+    else if (state.weather.length) {
+      const last = state.weather.map(item => item.date).filter(validCivilDate).sort().at(-1);
+      if (last && date > last) {
+        const {month, day} = civilDateParts(last);
+        text = `날씨 예보는 ${month}월 ${day}일까지 볼 수 있어요`;
+      } else text = '이 날짜는 예보가 아직 없어요';
+    } else if (!state.weatherLocationLabel) text = '설정에서 지역을 고르면 날씨가 보여요';
+    if (text) right.appendChild(c4El('span', 'c4-wx-note', text));
+    right.dataset.weatherStatus = state.weatherLoading ? 'loading' : state.weatherMessage ? 'error' : 'unavailable';
+    return right;
+  }
+  right.dataset.weatherStatus = 'ready';
+  const precipitationKind = current?.precipitationKind || 'NONE';
+  const iconKind = weather?.weatherKind || (precipitationKind === 'NONE' ? '' : precipitationKind.includes('SNOW') ? 'SNOW' : 'RAIN');
+  const icon = iconKind ? calendarWeatherIconNode(iconKind) : null;
+  if (icon) {
+    icon.classList.add('c4-wx-ic');
+    right.appendChild(icon);
+  }
+  const spoken = [];
+  if (current) {
+    right.appendChild(c4El('span', 'c4-wx-kind now', '지금'));
+    const main = `${Math.round(current.temperature)}°${weather ? ` ${weather.label}` : ''}`;
+    right.appendChild(c4El('strong', 'c4-wx-main', main));
+    spoken.push(`지금 ${main}`);
+  } else {
+    const kind = date === state.todayDate ? '오늘 예보' : '예보';
+    right.appendChild(c4El('span', 'c4-wx-kind fc', kind));
+    right.appendChild(c4El('strong', 'c4-wx-main', weather.label));
+    spoken.push(`${kind} ${weather.label}`);
+  }
+  if (weather) {
+    const range = [
+      Number.isFinite(weather.minTemperature) ? `최저 ${Math.round(weather.minTemperature)}°` : '',
+      Number.isFinite(weather.maxTemperature) ? `최고 ${Math.round(weather.maxTemperature)}°` : '',
+    ].filter(Boolean).join(' · ');
+    if (range) {
+      right.appendChild(c4El('span', 'c4-wx-range', range));
+      spoken.push(range);
+    }
+    const precip = state.showPrecipitation !== false ? calendarWeatherPresentation(weather).precipLabel : '';
+    if (precip) right.appendChild(c4El('span', 'c4-wx-range c4-wx-precip', precip));
+  }
+  if (state.weatherLocationLabel) right.appendChild(c4El('span', 'c4-wx-loc', state.weatherLocationLabel));
+  const issued = weather ? c4Clock(weather.issuedAt) : '';
+  const sourceText = current
+    ? `기상청 실황${c4Clock(current.observedAt) ? ` · ${c4Clock(current.observedAt)}` : ''}`
+    : `기상청 예보${issued ? ` · ${issued} 발표` : ''}`;
+  const source = c4El('span', 'c4-src', sourceText);
+  source.dataset.calendarWeatherCredit = '';
+  right.appendChild(source);
+  right.setAttribute('aria-label', ['날씨', ...spoken, state.weatherLocationLabel, sourceText].filter(Boolean).join(', '));
+  return right;
+}
+
+// ── 주 ──────────────────────────────────────────────────────────────────
+function c4RenderWeek(state, actions) {
+  const view = c4El('section', 'c4-wk');
+  view.dataset.calendarWeekView = state.selectedDate;
+  const rail = c4El('div', 'c4-rail');
+  rail.setAttribute('role', 'group');
+  rail.setAttribute('aria-label', '이번 주 날짜');
+  const holidayMap = state.showKoreaHolidays ? holidaysByDate(state.holidays) : new Map();
+  for (const day of calendarWeekDays(state.selectedDate, state.weekStart)) {
+    const sums = c4DaySums(state.items, day.date);
+    const holiday = holidayMap.get(day.date) || null;
+    const isToday = day.date === state.todayDate;
+    const selected = day.date === state.selectedDate;
+    const control = button('', 'c4-rd');
+    control.dataset.calendarWeekDate = day.date;
+    control.dataset.weekday = String(day.weekday);
+    control.dataset.selected = String(selected);
+    control.dataset.today = String(isToday);
+    control.dataset.holiday = String(Boolean(holiday));
+    control.setAttribute('aria-pressed', String(selected));
+    if (isToday) control.setAttribute('aria-current', 'date');
+    control.tabIndex = selected ? 0 : -1;
+    const top = c4El('span', 'c4-rd-top');
+    if (isToday) top.appendChild(c4El('span', 'c4-mini-today', '오늘'));
+    top.append(c4El('span', 'c4-rd-num', String(day.day)), c4El('span', 'c4-rd-wd', WEEKDAY_INITIALS[day.weekday]));
+    control.appendChild(top);
+    if (holiday) control.appendChild(c4El('span', 'c4-rd-hol', holiday.name));
+    control.appendChild(c4El('span', 'c4-rd-meta', sums.count
+      ? [`${sums.count}개`, sums.paid ? formatExpenseAmount(sums.paid, 'KRW') : ''].filter(Boolean).join(' · ')
+      : '일정 없음'));
+    const dots = c4El('span', 'c4-rd-dots');
+    dots.setAttribute('aria-hidden', 'true');
+    for (const item of calendarItemsOnDate(state.items, day.date).slice(0, 3)) dots.appendChild(c4El('i', `c4-cat-${c4CategoryKey(item)}`));
+    control.appendChild(dots);
+    control.setAttribute('aria-label', [
+      longKoreanDate(day.date), isToday ? '오늘' : '', holiday ? `${holiday.name} 공휴일` : '',
+      sums.count ? `일정 ${sums.count}개` : '일정 없음',
+      sums.paid ? `지출 ${formatExpenseAmount(sums.paid, 'KRW')}` : '',
+    ].filter(Boolean).join(', '));
+    control.addEventListener('click', () => { void actions.selectDate(day.date); });
+    control.addEventListener('keydown', event => {
+      const offset = {ArrowUp: -1, ArrowLeft: -1, ArrowDown: 1, ArrowRight: 1}[event.key];
+      if (!offset) return;
+      event.preventDefault();
+      void actions.selectDate(addCivilDays(day.date, offset));
+    });
+    rail.appendChild(control);
+  }
+  const dayView = c4El('div', 'c4-dayv');
+  const head = c4El('div', 'c4-dayv-hd');
+  const title = c4El('h3', 'c4-dayv-t calendar-day-heading', longKoreanDate(state.selectedDate));
+  title.tabIndex = -1;
+  head.append(title, c4El('p', 'c4-dayv-s', c4DaySubline(state.items, state.selectedDate, state.loading)));
+  dayView.appendChild(head);
+  dayView.append(...c4DaySlots(state, actions));
+  view.append(rail, dayView);
+  return view;
+}
+
+function c4Minutes(clock) {
+  const [hours, minutes] = String(clock).split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+function c4ClockFromMinutes(value) {
+  const bounded = Math.max(0, Math.min(1439, value));
+  return `${String(Math.floor(bounded / 60)).padStart(2, '0')}:${String(bounded % 60).padStart(2, '0')}`;
+}
+
+function c4RangeLabel(startClock, endClock) {
+  const start = koreanClockLabel(startClock);
+  const end = koreanClockLabel(endClock);
+  return start.slice(0, 2) === end.slice(0, 2) ? `${start}–${end.slice(3)}` : `${start}–${end}`;
+}
+
+// 선택한 날의 시간표: 기간·마감 → 시각별(같은 시각은 한 칸에 함께) → 시간 없는 일정.
+// 한 시간 넘게 비는 구간은 '오후 1:00–3:30 비어 있음' 한 줄로 접는다.
+function c4DaySlots(state, actions) {
+  const date = state.selectedDate;
+  const timeline = lifeTimelineForDate(state.items, date);
+  if (!timeline.count) {
+    if (state.loading) return [emptyMessage('일정을 불러오는 중…')];
+    const {month, day} = civilDateParts(date);
+    const empty = c4El('div', 'c4-empty-day');
+    empty.append(
+      c4El('strong', '', `${month}월 ${day}일에는 일정이 없어요`),
+      c4El('span', '', `위의 ‘+ ${month}월 ${day}일 일정 추가’를 누르면 이 날짜로 바로 등록돼요.`),
+    );
+    return [empty];
+  }
+  const nodes = [];
+  const slot = (label, items, note = '') => {
+    const node = c4El('div', 'c4-slot');
+    const heading = c4El('div', 'c4-slot-t', label);
+    if (note) heading.appendChild(c4El('span', 'c4-slot-n', note));
+    const events = c4El('div', 'c4-slot-evs');
+    for (const item of items) events.appendChild(c4EventCard(item, {date, today: state.todayDate, onSelect: actions.onEvent}));
+    node.append(heading, events);
+    return node;
+  };
+  if (timeline.top.length) {
+    const groups = new Set(timeline.top.map(item => lifeTimelineGroup(item, date)));
+    nodes.push(slot(groups.size > 1 ? '기간·마감' : groups.has('DEADLINE') ? '마감' : '기간', timeline.top));
+  }
+  const byClock = new Map();
+  for (const item of timeline.timed) {
+    const clock = String(item.local_datetime || '').slice(11, 16);
+    if (!byClock.has(clock)) byClock.set(clock, []);
+    byClock.get(clock).push(item);
+  }
+  let lastEnd = null;
+  for (const [clock, items] of byClock) {
+    const start = c4Minutes(clock);
+    if (lastEnd !== null && start - lastEnd >= 60) {
+      const gap = c4El('div', 'c4-gap');
+      gap.setAttribute('aria-hidden', 'true');
+      gap.append(c4El('span', 'c4-gap-l'), c4El('span', 'c4-gap-t', `${c4RangeLabel(c4ClockFromMinutes(lastEnd), clock)} 비어 있음`), c4El('span', 'c4-gap-l'));
+      nodes.push(gap);
+    }
+    const end = Math.max(...items.map(item => {
+      const endValue = typeof item.local_end_datetime === 'string' && item.local_end_datetime.slice(0, 10) === date
+        ? c4Minutes(item.local_end_datetime.slice(11, 16)) : null;
+      return endValue !== null && endValue > start ? endValue : start + 60;
+    }));
+    lastEnd = lastEnd === null ? end : Math.max(lastEnd, end);
+    nodes.push(slot(koreanClockLabel(clock), items, items.length > 1 ? `같은 시간 ${items.length}개` : ''));
+  }
+  if (timeline.untimed.length) nodes.push(slot('시간 없음', timeline.untimed));
+  return nodes;
+}
+
+// ── 월 ──────────────────────────────────────────────────────────────────
+function c4RenderMonth(state, actions) {
+  const view = c4El('section', 'c4-mo');
+  view.dataset.calendarMonthView = `${state.year}-${String(state.month).padStart(2, '0')}`;
+  const head = c4El('div', 'c4-mo-wd');
+  head.setAttribute('aria-hidden', 'true');
+  for (const weekday of weekdayOrder(state.weekStart)) {
+    const label = c4El('span', '', WEEKDAY_INITIALS[weekday]);
+    label.dataset.weekday = String(weekday);
+    head.appendChild(label);
+  }
+  const grid = c4El('div', 'c4-mo-g');
+  grid.setAttribute('role', 'grid');
+  grid.setAttribute('aria-label', `${state.year}년 ${state.month}월`);
+  const weatherByDate = calendarWeatherByDate(state.weather);
+  const holidayMap = state.showKoreaHolidays ? holidaysByDate(state.holidays) : new Map();
+  const attentionDates = new Set(state.attention.map(item => item?.due_date).filter(validCivilDate));
+  const cells = calendarMonthGrid(state.year, state.month, state.weekStart);
+  grid.dataset.weekCount = String(cells.length / 7);
+  for (const cell of cells) grid.appendChild(c4MonthCell(state, actions, cell, {weatherByDate, holidayMap, attentionDates}));
+  view.append(head, grid, c4DayList(state, actions, {variant: 'agenda'}));
+  if (usesFlowingDayDetail()) {
+    bindMonthSwipe(grid, {
+      onPrevious: () => void actions.shiftMonth?.(-1),
+      onNext: () => void actions.shiftMonth?.(1),
+      isBusy: () => Boolean(state.loading),
+    });
+  }
+  return view;
+}
+
+function c4MonthCell(state, actions, cell, {weatherByDate, holidayMap, attentionDates}) {
+  const events = calendarItemsOnDate(state.items, cell.date);
+  const selected = cell.date === state.selectedDate;
+  const today = cell.date === state.todayDate;
+  const holiday = holidayMap.get(cell.date) || null;
+  const weather = weatherByDate.get(cell.date) || null;
+  const hasAttention = attentionDates.has(cell.date);
+  const node = button('', 'c4-mc');
+  node.dataset.calendarDateTrigger = cell.date;
+  node.dataset.calendarDate = cell.date;
+  node.dataset.currentMonth = String(cell.inCurrentMonth);
+  node.dataset.weekday = String(cell.weekday);
+  node.dataset.selected = String(selected);
+  node.dataset.today = String(today);
+  node.dataset.holiday = String(Boolean(holiday));
+  node.dataset.attention = String(hasAttention);
+  node.setAttribute('role', 'gridcell');
+  node.setAttribute('aria-selected', String(selected));
+  if (today) node.setAttribute('aria-current', 'date');
+  node.tabIndex = selected ? 0 : -1;
+  const top = c4El('span', 'c4-mc-top');
+  top.appendChild(c4El('span', 'c4-mc-num', String(cell.day)));
+  let lunarLabel = '';
+  if (state.showLunarDates) {
+    const lunar = solarToLunar(cell.date);
+    lunarLabel = lunarDateLabel(lunar) || '';
+    const compact = lunarDateCompactLabel(lunar);
+    if (compact) {
+      const label = c4El('span', 'c4-mc-lunar', `음 ${compact.replace(/^음\s*/u, '')}`);
+      label.setAttribute('aria-hidden', 'true');
+      top.appendChild(label);
+    }
+  }
+  node.appendChild(top);
+  if (holiday) {
+    const label = c4El('span', 'c4-mc-hol', holiday.name);
+    label.setAttribute('aria-hidden', 'true');
+    node.appendChild(label);
+  }
+  const timeline = lifeTimelineForDate(state.items, cell.date);
+  const ordered = [...timeline.top, ...timeline.timed, ...timeline.untimed];
+  const chips = c4El('span', 'c4-mc-evs');
+  chips.setAttribute('aria-hidden', 'true');
+  for (const item of ordered.slice(0, 3)) {
+    const chip = c4El('span', `c4-mc-ev c4-cat-${c4CategoryKey(item)}`);
+    chip.append(c4El('span', 'c4-mc-dot'), c4El('span', 'c4-mc-evt', item.title || '제목 없음'));
+    chips.appendChild(chip);
+  }
+  if (ordered.length > 3) chips.appendChild(c4El('span', 'c4-mc-more', `+${ordered.length - 3}개 더`));
+  node.appendChild(chips);
+  const dots = c4El('span', 'c4-mc-dots');
+  dots.setAttribute('aria-hidden', 'true');
+  for (const item of ordered.slice(0, 3)) dots.appendChild(c4El('i', `c4-cat-${c4CategoryKey(item)}`));
+  if (ordered.length > 3) dots.appendChild(c4El('b', '', '+'));
+  node.appendChild(dots);
+  if (weather) {
+    const summary = c4El('span', 'c4-mc-wx');
+    summary.setAttribute('aria-hidden', 'true');
+    const icon = calendarWeatherIconNode(weather.weatherKind);
+    if (icon) summary.appendChild(icon);
+    const label = calendarWeatherPresentation(weather).monthLabel;
+    if (label) summary.appendChild(c4El('span', '', label.replace(/\s+/g, '')));
+    node.appendChild(summary);
+    node.dataset.weather = 'true';
+  }
+  node.setAttribute('aria-label', `${buildCalendarAriaLabel(cell, events.length, {today, selected, attention: hasAttention, weather, holiday})}${lunarLabel ? `, 음력 ${lunarLabel}` : ''}`);
+  node.addEventListener('click', () => { void actions.selectDate(cell.date); });
+  node.addEventListener('keydown', event => actions.onDateKey(event, cell.date));
+  return node;
+}
+
+// 선택한 날의 일정 목록. 넓은 화면은 오른쪽 카드(card), 휴대폰은 달력 아래(agenda).
+function c4DayList(state, actions, {variant}) {
+  const date = state.selectedDate;
+  const section = c4El('section', variant === 'card' ? 'c4-card c4-daycard' : 'c4-agenda');
+  section.dataset.selectedDate = date;
+  section.setAttribute('aria-label', `${longKoreanDate(date)} 일정`);
+  const heading = c4El('h3', 'c4-dc-t calendar-day-heading', variant === 'card' ? longKoreanDate(date) : c4ShortDate(date));
+  heading.tabIndex = -1;
+  section.append(heading, c4El('p', 'c4-dc-s', c4DaySubline(state.items, date, state.loading)));
+  const timeline = lifeTimelineForDate(state.items, date);
+  const ordered = [...timeline.top, ...timeline.timed, ...timeline.untimed];
+  if (ordered.length) {
+    const list = c4El('div', 'c4-dc-list');
+    for (const item of ordered) list.appendChild(c4DayRow(item, {date, today: state.todayDate, onSelect: actions.onEvent}));
+    section.appendChild(list);
+  } else if (!state.loading) {
+    const {month, day} = civilDateParts(date);
+    const empty = c4El('div', 'c4-empty-day');
+    empty.append(c4El('strong', '', '일정이 없어요'), c4El('span', '', `위의 ‘+ ${month}월 ${day}일 일정 추가’로 바로 등록돼요.`));
+    section.appendChild(empty);
+  }
+  return section;
+}
+
+function c4DayRow(item, {date, today, onSelect}) {
+  const presentation = lifeRowPresentation(item, {date, today});
+  const money = c4Money(item, date);
+  const row = button('', `c4-dc-ev c4-cat-${c4CategoryKey(item)}`);
+  row.dataset.calendarEventId = item.id || item.activity_id || '';
+  const timeText = presentation.timeLabel || '시간 없음';
+  const main = c4El('span', 'c4-dc-main');
+  main.appendChild(c4El('span', 'c4-dc-tt', presentation.title || '제목 없음'));
+  const sub = c4El('span', 'c4-dc-sub');
+  sub.appendChild(c4El('span', 'c4-dc-cat', presentation.categoryLabel || presentation.statusLabel || ''));
+  if (money) sub.appendChild(c4MoneyNode(money));
+  main.appendChild(sub);
+  row.append(c4El('span', 'c4-dc-time', timeText), main);
+  row.setAttribute('aria-label', [timeText, presentation.title || '제목 없음', money ? `${money.tag} ${money.label}` : '', presentation.categoryLabel, presentation.statusLabel].filter(Boolean).join(', '));
+  if (onSelect) row.addEventListener('click', event => onSelect(item, event.currentTarget));
+  return row;
+}
+
+// ── 년 ──────────────────────────────────────────────────────────────────
+// 월별 일정 수와 실제 지출의 흐름만 본다. 세부 일정은 달을 눌러 월에서 본다.
+function c4YearFigures(state) {
+  const prefix = `${String(state.year).padStart(4, '0')}-`;
+  const months = Array.from({length: 12}, () => ({count: 0, paid: 0, days: new Map()}));
+  const seenSeries = new Set();
+  for (const item of state.items) {
+    if (!validCivilDate(item?.local_date || '') || !item.local_date.startsWith(prefix)) continue;
+    const month = months[Number(item.local_date.slice(5, 7)) - 1];
+    month.count += 1;
+    const day = Number(item.local_date.slice(8, 10));
+    month.days.set(day, (month.days.get(day) || 0) + 1);
+    const entry = item.entry || {};
+    if (!Number.isSafeInteger(entry.amount_minor) || entry.expense_status === 'PLANNED') continue;
+    if (entry.currency && entry.currency !== 'KRW') continue;
+    // Core와 같은 규칙: 반복 일정의 금액은 처음 한 번만 더한다.
+    if (isRecurringCalendarItem(item)) {
+      const key = item.activity_id || item.id;
+      if (seenSeries.has(key)) continue;
+      seenSeries.add(key);
+    }
+    month.paid += entry.amount_minor;
+  }
+  return months;
+}
+
+function c4ShortWon(amount) {
+  if (!amount) return '';
+  if (amount < 10000) return formatExpenseAmount(amount, 'KRW');
+  const man = amount / 10000;
+  return `${man >= 100 ? Math.round(man) : Math.round(man * 10) / 10}만`;
+}
+
+function c4RenderYear(state, actions) {
+  const view = c4El('section', 'c4-yr');
+  view.dataset.calendarYearView = String(state.year);
+  const months = c4YearFigures(state);
+  const period = expensePeriod(state);
+  const krw = state.expense.monthKey === period.key && state.expense.status === 'ready'
+    ? (state.expense.summary?.currencies || []).find(row => row.currency === 'KRW') || null
+    : null;
+  const summedPaid = months.reduce((sum, month) => sum + month.paid, 0);
+  const totalPaid = krw ? krw.totalAmountMinor : summedPaid;
+  const totalCount = months.reduce((sum, month) => sum + month.count, 0);
+  const todayParts = civilDateParts(state.todayDate);
+  const elapsed = state.year < todayParts.year ? 12 : state.year === todayParts.year ? todayParts.month : 0;
+  const summary = c4El('div', 'c4-yr-sum');
+  const figure = (label, value) => {
+    const box = c4El('div', 'c4-yr-fig');
+    box.append(c4El('span', 'c4-yr-k', label), c4El('strong', 'c4-yr-v', value));
+    return box;
+  };
+  summary.appendChild(figure(`${state.year}년 실제 지출`, formatExpenseAmount(totalPaid, 'KRW')));
+  summary.appendChild(figure('일정', `${totalCount}개`));
+  if (elapsed) summary.appendChild(figure(`한 달 평균 지출 (1–${elapsed}월)`, formatExpenseAmount(Math.round(totalPaid / elapsed), 'KRW')));
+  view.appendChild(summary);
+
+  const max = Math.max(1, ...months.map(month => month.paid));
+  const chart = c4El('div', 'c4-yr-chart');
+  chart.setAttribute('role', 'img');
+  chart.setAttribute('aria-label', `${state.year}년 월별 실제 지출: ${months.map((month, index) => `${index + 1}월 ${month.paid ? formatExpenseAmount(month.paid, 'KRW') : '없음'}`).join(', ')}`);
+  const labels = c4El('div', 'c4-yr-lb');
+  labels.setAttribute('aria-hidden', 'true');
+  months.forEach((month, index) => {
+    const future = state.year > todayParts.year || (state.year === todayParts.year && index + 1 > todayParts.month);
+    const current = state.year === todayParts.year && index + 1 === todayParts.month;
+    const column = c4El('div', 'c4-yb');
+    column.dataset.state = current ? 'current' : future ? 'future' : 'past';
+    column.appendChild(c4El('span', 'c4-yb-v', c4ShortWon(month.paid)));
+    const bar = c4El('span', 'c4-yb-bar');
+    bar.style.setProperty('--c4-bar-p', month.paid ? String(Math.max(0.04, month.paid / max)) : '0');
+    column.appendChild(bar);
+    chart.appendChild(column);
+    labels.appendChild(c4El('span', '', `${index + 1}월`));
+  });
+  view.append(chart, labels);
+
+  const grid = c4El('div', 'c4-yr-g');
+  months.forEach((month, index) => {
+    const monthNumber = index + 1;
+    const current = state.year === todayParts.year && monthNumber === todayParts.month;
+    const card = button('', 'c4-ym');
+    card.dataset.yearMonth = String(monthNumber);
+    card.dataset.current = String(current);
+    const head = c4El('span', 'c4-ym-hd');
+    head.append(c4El('span', 'c4-ym-n', `${monthNumber}월`), c4El('span', 'c4-ym-c', month.count ? `일정 ${month.count}개` : '일정 없음'));
+    const dots = c4El('span', 'c4-ym-dots');
+    dots.setAttribute('aria-hidden', 'true');
+    const first = `${String(state.year).padStart(4, '0')}-${String(monthNumber).padStart(2, '0')}-01`;
+    const offset = (weekdayOf(first) - normalizeWeekStart(state.weekStart) + 7) % 7;
+    for (let blank = 0; blank < offset; blank += 1) dots.appendChild(c4El('i', 'c4-yd x'));
+    const length = new Date(Date.UTC(state.year, monthNumber, 0)).getUTCDate();
+    for (let day = 1; day <= length; day += 1) {
+      const count = month.days.get(day) || 0;
+      dots.appendChild(c4El('i', `c4-yd l${count === 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : 3}`));
+    }
+    const bar = c4El('span', 'c4-ym-bar');
+    bar.setAttribute('aria-hidden', 'true');
+    const fill = c4El('i');
+    fill.style.width = month.paid ? `${Math.round(month.paid / max * 100)}%` : '0%';
+    bar.appendChild(fill);
+    const amount = c4El('span', `c4-ym-a${month.paid ? '' : ' zero'}`, month.paid ? formatExpenseAmount(month.paid, 'KRW') : '지출 없음');
+    card.append(head, dots, bar, amount);
+    card.setAttribute('aria-label', `${state.year}년 ${monthNumber}월, ${month.count ? `일정 ${month.count}개` : '일정 없음'}, ${month.paid ? `실제 지출 ${formatExpenseAmount(month.paid, 'KRW')}` : '지출 없음'}, 월간 보기로 이동`);
+    card.addEventListener('click', () => actions.selectMonth(monthNumber));
+    grid.appendChild(card);
+  });
+  view.appendChild(grid);
+  return view;
+}
+
+// ── 일정 목록 ────────────────────────────────────────────────────────────
+function c4ListRow(item, {date, today, onSelect}) {
+  const presentation = lifeRowPresentation(item, {date, today});
+  const money = c4Money(item, date);
+  const row = button('', `c4-lr c4-cat-${c4CategoryKey(item)}`);
+  row.dataset.calendarEventId = item.id || item.activity_id || '';
+  const timeText = c4TimeText(presentation, item);
+  const bar = c4El('span', 'c4-lr-bar');
+  bar.setAttribute('aria-hidden', 'true');
+  const main = c4El('span', 'c4-lr-main');
+  main.appendChild(c4El('span', 'c4-lr-t', presentation.title || '제목 없음'));
+  const meta = c4El('span', 'c4-lr-m');
+  meta.appendChild(c4El('span', 'c4-lr-when', timeText));
+  if (presentation.categoryLabel) meta.appendChild(c4El('span', 'c4-ev-cat', presentation.categoryLabel));
+  if (isRecurringCalendarItem(item)) meta.appendChild(c4El('span', 'c4-ev-x', `반복 ${recurrenceSummary(item.recurrence)}`));
+  const reminder = c4ReminderLabel(item);
+  if (reminder) meta.appendChild(c4El('span', 'c4-ev-x', `알림 ${reminder}`));
+  if (presentation.statusLabel) meta.appendChild(c4El('span', 'c4-ev-status', presentation.statusLabel));
+  main.appendChild(meta);
+  row.append(c4El('span', 'c4-lr-time', timeText), bar, main);
+  if (money) row.appendChild(c4MoneyNode(money));
+  row.setAttribute('aria-label', [timeText, presentation.title || '제목 없음', money ? `${money.tag} ${money.label}` : '', presentation.categoryLabel, presentation.statusLabel].filter(Boolean).join(', '));
+  if (onSelect) row.addEventListener('click', event => onSelect(item, event.currentTarget));
+  return row;
+}
+
+function c4ListGroup(label, sub, rows, {className = 'c4-lg', dataset = {}} = {}) {
+  const group = c4El('section', className);
+  for (const [key, value] of Object.entries(dataset)) group.dataset[key] = value;
+  const heading = c4El('h3', 'c4-lg-hd', label);
+  if (sub) heading.appendChild(c4El('span', 'c4-lg-sub', sub));
+  group.appendChild(heading);
+  for (const row of rows) group.appendChild(row);
+  return group;
+}
+
+function c4EmptyState({compact = false} = {}) {
+  const empty = c4El('div', 'c4-empty');
+  empty.dataset.calendarEmpty = '';
+  const art = document.createElementNS(SVG_NS, 'svg');
+  art.setAttribute('class', 'c4-empty-art');
+  art.setAttribute('viewBox', '0 0 120 96');
+  art.setAttribute('aria-hidden', 'true');
+  for (const [tag, attrs] of [
+    ['rect', {x: '14', y: '14', width: '80', height: '70', rx: '12', class: 'c4-art-fill'}],
+    ['path', {d: 'M14 34h80M36 8v14M72 8v14', class: 'c4-art-line'}],
+    ['rect', {x: '30', y: '46', width: '14', height: '12', rx: '3', class: 'c4-art-soft'}],
+    ['rect', {x: '52', y: '46', width: '14', height: '12', rx: '3', class: 'c4-art-soft'}],
+    ['circle', {cx: '94', cy: '72', r: '16', class: 'c4-art-dot'}],
+    ['path', {d: 'M94 65v14M87 72h14', class: 'c4-art-plus'}],
+  ]) {
+    const shape = document.createElementNS(SVG_NS, tag);
+    for (const [name, value] of Object.entries(attrs)) shape.setAttribute(name, value);
+    art.appendChild(shape);
+  }
+  empty.append(art, c4El('strong', 'c4-empty-t', '아직 등록된 일정이 없어요'),
+    c4El('p', 'c4-empty-s', compact ? '제목과 날짜만 넣으면 바로 등록돼요.' : '제목과 날짜만 넣으면 바로 등록돼요. 영수증·안내문·초대장이 있으면 사진으로 올려도 돼요.'));
+  const ways = c4El('div', 'c4-ways');
+  const way = (icon, title, text, className) => {
+    const box = c4El('div', `c4-way ${className}`);
+    const badge = c4El('span', 'c4-way-ic');
+    badge.appendChild(c4Icon(icon));
+    const copy = c4El('span', 'c4-way-copy');
+    copy.append(c4El('strong', '', title), c4El('span', '', text));
+    box.append(badge, copy);
+    return box;
+  };
+  ways.append(
+    way('plus', '직접 입력', '위의 ‘+ 일정 추가’ → 제목·날짜 입력 → 저장', 'direct'),
+    way('camera', '사진으로 등록', '‘사진으로 추가’ → 일정·금액을 읽고 확인 후 등록', 'photo'),
+  );
+  empty.appendChild(ways);
+  return empty;
+}
+
+function c4RenderAgenda(state, actions) {
+  const section = c4El('section', 'c4-ls');
+  const scope = normalizeAgendaScope(state.agendaScope);
+  section.dataset.agendaViewScope = scope;
+  const monthPrefix = `${String(state.year).padStart(4, '0')}-${String(state.month).padStart(2, '0')}-`;
+  const dated = state.items.filter(item => validCivilDate(item?.local_date || ''));
+  const inMonth = dated.filter(item => item.local_date.startsWith(monthPrefix));
+  const lists = {
+    month: inMonth,
+    upcoming: dated.filter(item => calendarItemEndDate(item) >= state.todayDate),
+    amount: inMonth.filter(item => Number.isSafeInteger(item?.entry?.amount_minor)),
+    unscheduled: state.unscheduled || [],
+  };
+  const chips = c4El('div', 'c4-chips');
+  chips.setAttribute('role', 'group');
+  chips.setAttribute('aria-label', '일정 고르기');
+  for (const [value, label] of C4_AGENDA_ORDER) {
+    const control = button('', 'c4-chip calendar-agenda-range');
+    control.dataset.agendaScope = value;
+    control.setAttribute('aria-pressed', String(scope === value));
+    control.append(c4El('span', '', label), c4El('span', 'c4-chip-n', String(lists[value].length)));
+    control.setAttribute('aria-label', `${label} ${lists[value].length}개`);
+    control.addEventListener('click', () => actions.setAgendaScope(value));
+    chips.appendChild(control);
+  }
+  section.appendChild(chips);
+  if (state.loading && !state.items.length) {
+    section.appendChild(emptyMessage('일정을 불러오는 중…'));
+    return section;
+  }
+  const nothingAtAll = !dated.length && !lists.unscheduled.length;
+  const overdue = scope === 'month'
+    ? (state.attention || []).filter(item => item?.state === 'OVERDUE' && validCivilDate(item.due_date))
+    : [];
+  if (overdue.length) {
+    const rows = overdue.map(item => c4ListRow({
+      ...item, local_date: item.due_date, local_datetime: null, temporal_semantics: 'DEADLINE', calendar_attention_state: item.state,
+    }, {date: item.due_date, today: state.todayDate, onSelect: null}));
+    section.appendChild(c4ListGroup('기한 지남', '기한이 지난 일입니다', rows, {className: 'c4-lg calendar-overdue-group', dataset: {calendarOverdueGroup: ''}}));
+  }
+  if (scope !== 'unscheduled') {
+    const items = lists[scope];
+    if (!items.length && !overdue.length) {
+      if (nothingAtAll) section.appendChild(c4EmptyState());
+      else section.appendChild(c4El('p', 'c4-note', {
+        month: '이 달에는 일정이 없어요.',
+        upcoming: '이 달에는 다가오는 일정이 없어요.',
+        amount: '이 달에는 금액을 입력한 일정이 없어요.',
+      }[scope] || ''));
+    }
+    for (const [date, values] of groupCalendarEvents(items)) {
+      const sums = c4DaySums(values, date);
+      const prefix = date === state.todayDate ? '오늘 · ' : date === addCivilDays(state.todayDate, 1) ? '내일 · ' : '';
+      const sub = [sums.paid ? `지출 ${formatExpenseAmount(sums.paid, 'KRW')}` : '', sums.planned ? `예정 ${formatExpenseAmount(sums.planned, 'KRW')}` : ''].filter(Boolean).join(' · ');
+      const timeline = lifeTimelineForDate(values, date);
+      const ordered = [...timeline.top, ...timeline.timed, ...timeline.untimed];
+      const rows = ordered.map(item => c4ListRow(item, {date, today: state.todayDate, onSelect: actions.onEvent}));
+      section.appendChild(c4ListGroup(`${prefix}${c4ShortDate(date)}`, sub, rows, {dataset: {agendaDate: date}}));
+    }
+  }
+  if ((scope === 'month' || scope === 'unscheduled') && lists.unscheduled.length) {
+    const rows = lists.unscheduled.map(item => c4ListRow(item, {date: '', today: state.todayDate, onSelect: actions.onEvent}));
+    section.appendChild(c4ListGroup('날짜 미정', '날짜를 정하면 캘린더에 들어가요', rows, {className: 'c4-lg calendar-unscheduled-group'}));
+  } else if (scope === 'unscheduled') {
+    section.appendChild(nothingAtAll ? c4EmptyState() : c4El('p', 'c4-note', '날짜를 정하지 않은 일정이 없어요.'));
+  }
+  return section;
+}
+
+// ── 가계부 ───────────────────────────────────────────────────────────────
+function c4LedgerFigures(state) {
+  const period = expensePeriod(state);
+  const settled = state.expense.monthKey === period.key;
+  const status = settled ? state.expense.status : 'loading';
+  const summary = settled ? state.expense.summary : null;
+  const krw = (summary?.currencies || []).find(row => row.currency === 'KRW') || null;
+  const byCategory = new Map((krw?.categories || []).map(row => [row.expenseCategory, row]));
+  const total = krw?.totalAmountMinor || 0;
+  const planned = krw?.plannedAmountMinor || 0;
+  const rows = EXPENSE_CATEGORY_ORDER.map(category => {
+    const amount = byCategory.get(category)?.amountMinor || 0;
+    return Object.freeze({
+      category,
+      key: C4_CATEGORY_KEYS[category],
+      label: expenseCategoryLabel(category),
+      amount,
+      share: total ? amount / total : 0,
+    });
+  });
+  const others = (summary?.currencies || []).filter(row => row.currency !== 'KRW' && row.totalAmountMinor);
+  return {period, status, total, planned, rows, others, message: settled ? state.expense.message : '', local: state.expense.local === true};
+}
+
+function c4LedgerError(figures) {
+  return figures.message || '지출 합계를 불러오지 못했어요.';
+}
+
+// 합계 단추의 이름: 준비됨 = 금액과 여는 동작, 실패 = 실패 이유, 그 밖 = 계산 중.
+function c4LedgerAria(figures, openWords) {
+  if (figures.status === 'ready') return `${figures.period.label} 실제 지출 ${formatExpenseAmount(figures.total, 'KRW')}, ${openWords}`;
+  if (figures.status === 'error') return `${figures.period.label} 지출 합계: ${c4LedgerError(figures)}`;
+  return `${figures.period.label} 지출 합계를 계산하는 중`;
+}
+
+// 원화 합계에 더하지 않는 다른 통화와, 비로그인 기록의 출처를 알리는 줄.
+function c4LedgerNotes(figures) {
+  const notes = figures.others.map(other => c4El('p', 'c4-lc-msg', `${other.currency} ${formatExpenseAmount(other.totalAmountMinor, other.currency)}는 원화 합계와 따로 있어요.`));
+  if (figures.local) notes.push(c4El('p', 'c4-lc-msg c4-lc-local', '이 기기에 저장한 일정의 금액이에요.'));
+  return notes;
+}
+
+function c4PhotoButton(state, actions, className) {
+  const target = validCivilDate(state.selectedDate) ? state.selectedDate : state.todayDate;
+  const control = c4Button('사진으로 추가', `c4-btn c4-sec ${className}`, 'camera');
+  control.dataset.calendarAddImage = '';
+  control.setAttribute('aria-label', '사진으로 추가: 영수증·안내문·초대장 사진에서 일정과 금액 읽기');
+  control.addEventListener('click', () => actions.onAddFromImage?.(target));
+  return control;
+}
+
+function c4LedgerCard(state, actions) {
+  const figures = c4LedgerFigures(state);
+  const card = c4El('section', 'c4-card c4-ledger');
+  card.dataset.calendarAmountSummary = figures.status;
+  card.setAttribute('aria-label', `${figures.period.label} 지출`);
+  const head = c4El('div', 'c4-lc-hd');
+  const total = button('', 'c4-lc-tot');
+  total.dataset.calendarAmountOpen = '';
+  const caption = c4El('span', 'c4-lc-cap', `${figures.period.label} 지출`);
+  caption.appendChild(c4Icon('right'));
+  const number = c4El('strong', 'c4-lc-num', figures.status === 'ready' ? formatExpenseAmount(figures.total, 'KRW') : figures.status === 'error' ? '—' : '…');
+  total.append(caption, number);
+  total.disabled = figures.status !== 'ready';
+  total.setAttribute('aria-label', c4LedgerAria(figures, '내역 보기'));
+  total.addEventListener('click', event => actions.openAmountDetail?.(event.currentTarget));
+  head.append(total, c4PhotoButton(state, actions, 'c4-lc-photo'));
+  card.appendChild(head);
+  if (figures.status === 'error') {
+    const message = c4El('p', 'c4-lc-msg', c4LedgerError(figures));
+    message.setAttribute('role', 'status');
+    card.appendChild(message);
+    return card;
+  }
+  if (figures.status !== 'ready') {
+    card.appendChild(c4El('p', 'c4-lc-msg', '합계를 계산하는 중…'));
+    return card;
+  }
+  const bar = c4El('div', 'c4-lc-bar');
+  bar.setAttribute('aria-hidden', 'true');
+  for (const row of figures.rows) {
+    if (!row.amount) continue;
+    const segment = c4El('span', `c4-lc-seg c4-cat-${row.key}`);
+    segment.style.flexGrow = String(row.amount);
+    bar.appendChild(segment);
+  }
+  card.appendChild(bar);
+  const grid = c4El('div', 'c4-lc-g');
+  for (const row of figures.rows) {
+    const cell = c4El('div', `c4-lc-i c4-cat-${row.key}`);
+    cell.dataset.expenseCategory = row.category;
+    const label = c4El('span', 'c4-lc-l');
+    label.append(c4El('span', 'c4-dot'), row.label);
+    cell.append(label, c4El('span', `c4-lc-a${row.amount ? '' : ' zero'}`, formatExpenseAmount(row.amount, 'KRW')));
+    grid.appendChild(cell);
+  }
+  card.appendChild(grid);
+  if (figures.planned) {
+    const plan = c4El('div', 'c4-lc-plan');
+    plan.append(c4El('span', 'c4-tag plan', '예정'), c4El('span', '', '결제 전 '), c4El('strong', '', formatExpenseAmount(figures.planned, 'KRW')), c4El('span', 'c4-lc-plan-note', '합계에 넣지 않음'));
+    card.appendChild(plan);
+  }
+  card.append(...c4LedgerNotes(figures));
+  const link = button('', 'c4-lc-link');
+  link.append(c4El('span', '', `${figures.period.label} 지출 내역 보기`), c4Icon('right'));
+  link.addEventListener('click', event => actions.openAmountDetail?.(event.currentTarget));
+  card.appendChild(link);
+  return card;
+}
+
+// 휴대폰: 아래에 접힌 가계부 한 줄(합계 + 사진으로 추가). 누르면 펼친다.
+function c4Dock(state, actions) {
+  const figures = c4LedgerFigures(state);
+  const dock = c4El('div', 'c4-dock');
+  dock.dataset.calendarAmountSummary = figures.status;
+  if (figures.status === 'error') {
+    // 못 불러왔으면 누를 것이 없다: 단추 대신 이유를 읽어 주는 상태 줄.
+    const failed = c4El('div', 'c4-dock-sum c4-dock-err');
+    failed.setAttribute('role', 'status');
+    failed.append(c4El('span', 'c4-dock-k', `${figures.period.label} 지출`), c4El('span', 'c4-dock-msg', c4LedgerError(figures)));
+    dock.append(failed, c4PhotoButton(state, actions, 'c4-dock-photo'));
+    return dock;
+  }
+  const sum = button('', 'c4-dock-sum');
+  sum.dataset.calendarAmountOpen = '';
+  const caption = c4El('span', 'c4-dock-k', `${figures.period.label} 지출`);
+  caption.appendChild(c4Icon('up'));
+  sum.append(caption, c4El('strong', 'c4-dock-v', figures.status === 'ready' ? formatExpenseAmount(figures.total, 'KRW') : '…'));
+  sum.disabled = figures.status !== 'ready';
+  sum.setAttribute('aria-label', c4LedgerAria(figures, '눌러서 자세히 보기'));
+  sum.addEventListener('click', event => actions.openAmountDetail?.(event.currentTarget));
+  dock.append(sum, c4PhotoButton(state, actions, 'c4-dock-photo'));
+  return dock;
+}
+
+// ── 겹침 창(상세 · 지출 내역 · 사진 확인) ───────────────────────────────────
+// 창 하나에 스크롤은 하나: 머리글과 바닥 버튼은 고정, 본문만 움직인다.
+function c4Dialog({className, labelledBy}) {
+  const backdrop = c4El('div', 'c4-dlg-backdrop');
+  backdrop.dataset.editorPresentation = usesFlowingDayDetail() ? 'SHEET' : 'CENTER';
+  const dialog = c4El('section', `c4-dlg ${className}`);
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', labelledBy);
+  dialog.tabIndex = -1;
+  backdrop.appendChild(dialog);
+  return {backdrop, dialog};
+}
+
+function c4DialogHeader({id, title, subtitle = '', onClose, lead = null}) {
+  const head = c4El('div', 'c4-dlg-hd');
+  const copy = c4El('div', 'c4-dlg-copy');
+  const heading = c4El('h3', 'c4-dlg-t', title);
+  heading.id = id;
+  copy.appendChild(heading);
+  if (subtitle) copy.appendChild(c4El('p', 'c4-dlg-s', subtitle));
+  if (lead) head.appendChild(lead);
+  const close = c4Button('', 'c4-x', 'close');
+  close.setAttribute('aria-label', '닫기');
+  close.dataset.subviewBack = '';   // SUBVIEW-BACK-NAVIGATION-01: 휴대폰 뒤로 가기가 이것을 누른다.
+  close.addEventListener('click', onClose);
+  head.append(copy, close);
+  return {head, heading, close};
+}
+
+function c4TrapFocus(dialog, onEscape) {
+  dialog.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      onEscape();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = [...dialog.querySelectorAll('button, input, select, textarea')]
+      .filter(control => !control.disabled && control.tabIndex !== -1 && control.getClientRects().length);
+    if (!focusable.length) { event.preventDefault(); return; }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    else if (!dialog.contains(document.activeElement)) { event.preventDefault(); first.focus(); }
+  });
+}
+
+function c4AmountInput({value = '', label = '금액'} = {}) {
+  const input = c4El('input', 'c4-inp c4-amt-inp');
+  input.type = 'text';
+  input.inputMode = 'numeric';
+  input.autocomplete = 'off';
+  input.setAttribute('aria-label', `${label} (원)`);
+  input.value = value;
+  input.addEventListener('input', () => {
+    const digits = amountDigits(input.value).slice(0, 13);
+    const next = groupedAmount(digits);
+    if (next !== input.value) input.value = next;
+  });
+  return input;
+}
+
+// 저장된 일정을 편집기 저장 값 모양으로 되돌린다(‘실제 지출로 기록’이 금액·상태만 바꿀 때).
+function c4ValueFromItem(item, overrides = {}) {
+  const entry = item?.entry && typeof item.entry === 'object' ? item.entry : {};
+  const timed = item?.all_day !== true && typeof item?.local_datetime === 'string' && /T\d\d:\d\d/.test(item.local_datetime);
+  const startClock = timed ? item.local_datetime.slice(11, 16) : '';
+  const endDatetime = typeof item?.local_end_datetime === 'string' ? item.local_end_datetime : '';
+  const endClock = startClock && endDatetime ? endDatetime.slice(11, 16) : '';
+  const rawEndDate = item?.local_end_date || endDatetime.slice(0, 10) || '';
+  return {
+    title: item?.title || '',
+    localDate: item?.local_date || '',
+    time: startClock,
+    endTime: endClock,
+    endDate: validCivilDate(rawEndDate) && rawEndDate !== item?.local_date ? rawEndDate : '',
+    allDay: !startClock,
+    amountMinor: Number.isSafeInteger(entry.amount_minor) ? entry.amount_minor : '',
+    currency: typeof entry.currency === 'string' && /^[A-Z]{3}$/.test(entry.currency) ? entry.currency : 'KRW',
+    expenseCategory: entry.expense_category && entry.expense_category !== 'UNCLASSIFIED' ? entry.expense_category : null,
+    expenseStatus: entry.expense_status || null,
+    memo: entry.memo || '',
+    place: entry.place || '',
+    merchant: entry.merchant || '',
+    ...overrides,
+  };
+}
+
+function c4ConfirmDelete({root, item, controller, onDone, onCancel}) {
+  root.querySelector('.calendar-delete-confirm-backdrop')?.remove();
+  const recurring = isRecurringCalendarItem(item);
+  const backdrop = c4El('div', 'calendar-delete-confirm-backdrop');
+  const dialog = c4El('section', 'calendar-delete-confirm-dialog');
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'c4-delete-title');
+  const title = c4El('h4', '', recurring ? '반복 일정을 삭제하시겠습니까?' : '이 일정을 삭제하시겠습니까?');
+  title.id = 'c4-delete-title';
+  const description = c4El('p', '', recurring
+    ? `${longKoreanDate(item.local_date)} 한 번만 지우거나 반복 전체를 지울 수 있어요. 삭제한 일정은 복구할 수 없습니다.`
+    : '삭제한 일정은 복구할 수 없습니다.');
+  const error = c4El('p', 'calendar-delete-confirm-error');
+  error.setAttribute('role', 'alert');
+  const row = c4El('div', 'calendar-delete-confirm-actions');
+  const cancel = button('취소', 'calendar-delete-confirm-cancel');
+  cancel.dataset.subviewBack = '';
+  const one = recurring ? button('이 날짜만 삭제', 'calendar-delete-confirm-occurrence') : null;
+  const confirm = button(recurring ? '반복 전체 삭제' : '삭제', 'calendar-delete-confirm-submit');
+  row.append(...[cancel, one, confirm].filter(Boolean));
+  dialog.append(title, description, error, row);
+  backdrop.appendChild(dialog);
+  let busy = false;
+  const finish = () => { backdrop.remove(); };
+  const cancelAll = () => { if (busy) return; finish(); onCancel?.(); };
+  const run = async scope => {
+    if (busy) return;
+    busy = true;
+    for (const control of [cancel, one, confirm].filter(Boolean)) control.disabled = true;
+    error.textContent = '';
+    try {
+      await controller.remove(item, {scope});
+      finish();
+      await onDone();
+    } catch (caught) {
+      busy = false;
+      for (const control of [cancel, one, confirm].filter(Boolean)) control.disabled = false;
+      error.textContent = caught?.code === 'STALE_REVISION'
+        ? '일정이 바뀌었어요. 저장 상태를 확인한 뒤 다시 시도해 주세요.'
+        : '일정을 삭제하지 못했어요. 다시 시도해 주세요.';
+    }
+  };
+  cancel.addEventListener('click', cancelAll);
+  one?.addEventListener('click', () => run('OCCURRENCE'));
+  confirm.addEventListener('click', () => run(recurring ? 'SERIES' : null));
+  backdrop.addEventListener('click', event => { if (event.target === backdrop) cancelAll(); });
+  c4TrapFocus(dialog, cancelAll);
+  root.appendChild(backdrop);
+  queueMicrotask(() => cancel.focus());
+}
+
+// 일정 상세: 금액(예정/실제)과 ‘실제 지출로 기록’, 반복·알림·장소·메모, 수정·삭제.
+function c4EventDetailDialog({root, item, controller, onEdit, onSaved, onClose = () => {}}) {
+  root.querySelector('.c4-detail-backdrop')?.remove();
+  const policy = calendarItemActionPolicy(item);
+  const {backdrop, dialog} = c4Dialog({className: `c4-detail c4-cat-${c4CategoryKey(item)}`, labelledBy: 'c4-detail-heading'});
+  backdrop.classList.add('c4-detail-backdrop');
+  const presentation = lifeRowPresentation(item, {date: item.local_date});
+  const dated = validCivilDate(item.local_date || '');
+  const when = dated ? `${c4ShortDate(item.local_date)} · ${c4TimeText(presentation, item)}` : '날짜 미정';
+  const bar = c4El('span', 'c4-dt-bar');
+  bar.setAttribute('aria-hidden', 'true');
+  let settled = false;
+  const dismiss = ({notify = true} = {}) => {
+    if (settled) return;
+    settled = true;
+    backdrop.remove();
+    document.body.classList.remove('c4-dialog-open');
+    if (notify) onClose();
+  };
+  const {head} = c4DialogHeader({
+    id: 'c4-detail-heading',
+    title: presentation.title || '제목 없음',
+    subtitle: [when, presentation.categoryLabel].filter(Boolean).join(' · '),
+    onClose: () => dismiss(),
+    lead: bar,
+  });
+  const body = c4El('div', 'c4-dlg-bd');
+  const error = c4El('p', 'c4-dlg-err');
+  error.setAttribute('role', 'alert');
+  const entry = item.entry && typeof item.entry === 'object' ? item.entry : {};
+  const status = c4ExpenseStatus(entry);
+  if (status) {
+    const monthLabel = dated ? `${civilDateParts(item.local_date).month}월` : '이번 달';
+    const pay = c4El('div', 'c4-pay');
+    pay.dataset.expenseStatus = status;
+    pay.append(
+      c4El('span', `c4-tag ${status === 'PLANNED' ? 'plan' : 'paid'} c4-pay-tag`, status === 'PLANNED' ? '예정 지출' : '실제 지출'),
+      c4El('strong', 'c4-pay-amt', formatExpenseAmount(entry.amount_minor, entry.currency || 'KRW')),
+      c4El('p', 'c4-pay-s', status === 'PLANNED' ? `아직 ${monthLabel} 합계에 넣지 않았어요.` : `${monthLabel} 합계에 한 번만 들어가 있어요.`),
+    );
+    if (status === 'PLANNED' && policy.canUpdate) {
+      const act = c4El('div', 'c4-pay-act');
+      const input = c4AmountInput({value: groupedAmount(String(entry.amount_minor)), label: '결제한 금액'});
+      const record = c4Button('실제 지출로 기록', 'c4-btn c4-pri', 'check');
+      record.dataset.calendarMarkPaid = '';
+      act.append(input, c4El('span', 'c4-amt-u', '원'), record);
+      pay.appendChild(act);
+      record.addEventListener('click', async () => {
+        const digits = amountDigits(input.value);
+        if (!digits) { error.textContent = '결제한 금액을 적어 주세요.'; input.focus(); return; }
+        record.disabled = true;
+        error.textContent = '';
+        try {
+          await controller.update(item, c4ValueFromItem(item, {amountMinor: digits, expenseStatus: 'PAID'}));
+          dismiss({notify: false});
+          await onSaved(item.local_date);
+        } catch (caught) {
+          record.disabled = false;
+          error.textContent = caught?.code === 'STALE_REVISION'
+            ? '일정이 바뀌었어요. 다시 열어 확인해 주세요.'
+            : '기록하지 못했어요. 다시 시도해 주세요.';
+        }
+      });
+    }
+    body.appendChild(pay);
+  }
+  const rows = c4El('div', 'c4-dt-rows');
+  const addRow = (icon, label, value) => {
+    const row = c4El('div', 'c4-dt-r');
+    row.append(c4Icon(icon), c4El('span', 'c4-dt-k', label), c4El('span', 'c4-dt-v', value));
+    rows.appendChild(row);
+  };
+  addRow('calendar', '날짜', when);
+  addRow('repeat', '반복', isRecurringCalendarItem(item) ? recurrenceSummary(item.recurrence) : '안 함');
+  addRow('bell', '알림', c4ReminderLabel(item) || (item.reminder_configured ? '설정됨' : '없음'));
+  addRow('pin', '장소', entry.place || '없음');
+  addRow('memo', '메모', entry.memo || '없음');
+  if (entry.merchant) addRow('store', '상점', entry.merchant);
+  body.append(rows, error);
+  const foot = c4El('div', 'c4-dlg-ft');
+  if (policy.canRemove) {
+    const remove = c4Button('삭제', 'c4-btn c4-danger c4-ft-l');
+    remove.dataset.calendarDetailDelete = '';
+    remove.addEventListener('click', () => {
+      dialog.inert = true;
+      c4ConfirmDelete({
+        root, item, controller,
+        onDone: async () => { dismiss({notify: false}); await onSaved(item.local_date); },
+        onCancel: () => { dialog.inert = false; remove.focus(); },
+      });
+    });
+    foot.appendChild(remove);
+  }
+  if (policy.canUpdate) {
+    const edit = c4Button('수정', 'c4-btn c4-ghost');
+    edit.dataset.calendarDetailEdit = '';
+    edit.addEventListener('click', () => { dismiss({notify: false}); onEdit(item); });
+    foot.appendChild(edit);
+  }
+  const done = c4Button('닫기', 'c4-btn c4-ghost');
+  done.addEventListener('click', () => dismiss());
+  foot.appendChild(done);
+  dialog.append(head, body, foot);
+  backdrop.addEventListener('click', event => { if (event.target === backdrop) dismiss(); });
+  c4TrapFocus(dialog, () => dismiss());
+  document.body.classList.add('c4-dialog-open');
+  root.appendChild(backdrop);
+  queueMicrotask(() => (dialog.querySelector('[data-calendar-mark-paid]') || done).focus());
+  return dialog;
+}
+
+function c4LedgerItems(state, period) {
+  const seen = new Set();
+  const items = [];
+  for (const item of state.items) {
+    const date = item?.local_date;
+    const entry = item?.entry || {};
+    if (!validCivilDate(date || '') || date < period.start || date > period.end) continue;
+    if (!Number.isSafeInteger(entry.amount_minor)) continue;
+    if (entry.currency && entry.currency !== 'KRW') continue;
+    if (isRecurringCalendarItem(item)) {
+      const key = item.activity_id || item.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    items.push(item);
+  }
+  return items.sort((left, right) => String(right.local_date).localeCompare(String(left.local_date))
+    || String(left.local_datetime || '').localeCompare(String(right.local_datetime || '')));
+}
+
+// 지출 내역: 실제 지출 / 예정(결제 전) 두 칸, 분류로 거르고 날짜별로 본다.
+function c4LedgerDialog({root, state, onSelectItem, opener = null}) {
+  root.querySelector('.c4-ledger-backdrop')?.remove();
+  const figures = c4LedgerFigures(state);
+  const {period} = figures;
+  const {backdrop, dialog} = c4Dialog({className: 'c4-ledger-dlg', labelledBy: 'c4-ledger-heading'});
+  backdrop.classList.add('c4-ledger-backdrop');
+  const dismiss = () => {
+    backdrop.remove();
+    document.body.classList.remove('c4-dialog-open');
+    // 여는 단추가 다시 그려졌으면, 지금 보이는 합계 단추(넓은 화면 카드 / 휴대폰 아래 줄)로.
+    const target = opener instanceof HTMLElement && opener.isConnected && opener.getClientRects().length
+      ? opener
+      : [...root.querySelectorAll('[data-calendar-amount-open]')].find(node => node.getClientRects().length);
+    target?.focus?.();
+  };
+  const {head} = c4DialogHeader({id: 'c4-ledger-heading', title: `${period.detailLabel} 지출 내역`, subtitle: '일정에 적은 금액을 모아 보여 줘요', onClose: dismiss});
+  const body = c4El('div', 'c4-dlg-bd');
+  const all = c4LedgerItems(state, period);
+  const paidItems = all.filter(item => item.entry.expense_status !== 'PLANNED');
+  const plannedItems = all.filter(item => item.entry.expense_status === 'PLANNED');
+  let tab = 'paid';
+  let category = '';
+  const summary = c4El('div', 'c4-lsum');
+  summary.append(c4El('span', 'c4-lc-cap', `${period.label} 실제 지출`), c4El('strong', 'c4-lc-num', formatExpenseAmount(figures.total, 'KRW')));
+  const bar = c4El('div', 'c4-lc-bar');
+  bar.setAttribute('aria-hidden', 'true');
+  for (const row of figures.rows) {
+    if (!row.amount) continue;
+    const segment = c4El('span', `c4-lc-seg c4-cat-${row.key}`);
+    segment.style.flexGrow = String(row.amount);
+    bar.appendChild(segment);
+  }
+  const grid = c4El('div', 'c4-lc-g');
+  for (const row of figures.rows) {
+    const cell = c4El('div', `c4-lc-i c4-cat-${row.key}`);
+    const label = c4El('span', 'c4-lc-l');
+    label.append(c4El('span', 'c4-dot'), row.label);
+    cell.append(label, c4El('span', `c4-lc-a${row.amount ? '' : ' zero'}`, formatExpenseAmount(row.amount, 'KRW')));
+    grid.appendChild(cell);
+  }
+  summary.append(bar, grid, ...c4LedgerNotes(figures));
+  const tabs = c4El('div', 'c4-tabs2');
+  tabs.setAttribute('role', 'group');
+  tabs.setAttribute('aria-label', '지출 구분');
+  const tabButtons = [['paid', '실제 지출', figures.total], ['planned', '예정 (결제 전)', figures.planned]].map(([value, label, amount]) => {
+    const control = button('', 'c4-tab2');
+    control.dataset.ledgerTab = value;
+    control.append(c4El('span', 'c4-tab2-k', label), c4El('strong', 'c4-tab2-v', formatExpenseAmount(amount, 'KRW')));
+    control.addEventListener('click', () => { tab = value; draw(); });
+    tabs.appendChild(control);
+    return control;
+  });
+  const chips = c4El('div', 'c4-chips');
+  chips.setAttribute('role', 'group');
+  chips.setAttribute('aria-label', '분류 고르기');
+  const chipButtons = [['', '전체'], ...EXPENSE_CATEGORY_ORDER.map(value => [value, expenseCategoryLabel(value)])].map(([value, label]) => {
+    const control = button('', `c4-chip${value ? ` c4-cat-${C4_CATEGORY_KEYS[value]}` : ''}`);
+    control.dataset.ledgerCategory = value;
+    if (value) control.appendChild(c4El('span', 'c4-dot'));
+    control.appendChild(c4El('span', '', label));
+    control.addEventListener('click', () => { category = value; draw(); });
+    chips.appendChild(control);
+    return control;
+  });
+  const list = c4El('div', 'c4-led');
+  const rule = c4El('p', 'c4-rule');
+  const draw = () => {
+    for (const control of tabButtons) control.setAttribute('aria-pressed', String(control.dataset.ledgerTab === tab));
+    for (const control of chipButtons) control.setAttribute('aria-pressed', String(control.dataset.ledgerCategory === category));
+    const source = (tab === 'paid' ? paidItems : plannedItems)
+      .filter(item => !category || (item.entry.expense_category || 'UNCLASSIFIED') === category);
+    list.replaceChildren();
+    if (!source.length) list.appendChild(c4El('p', 'c4-note', tab === 'paid' ? '이 기간에 기록한 실제 지출이 없어요.' : '결제 전 예정 금액이 없어요.'));
+    for (const [date, values] of groupCalendarEvents(source)) {
+      const group = c4El('section', 'c4-led-g');
+      const total = values.reduce((sum, item) => sum + item.entry.amount_minor, 0);
+      const heading = c4El('h4', 'c4-led-d', c4ShortDate(date));
+      heading.appendChild(c4El('span', '', formatExpenseAmount(total, 'KRW')));
+      group.appendChild(heading);
+      for (const item of values) {
+        const presentation = lifeRowPresentation(item, {date});
+        const row = button('', `c4-led-r c4-cat-${c4CategoryKey(item)}`);
+        row.dataset.calendarEventId = item.id || item.activity_id || '';
+        const copy = c4El('span', 'c4-led-copy');
+        copy.append(
+          c4El('span', 'c4-led-t', presentation.title || '제목 없음'),
+          c4El('span', 'c4-led-m', [expenseCategoryLabel(item.entry.expense_category || 'UNCLASSIFIED'), c4TimeText(presentation, item), '일정에 연결됨'].join(' · ')),
+        );
+        row.append(c4El('span', 'c4-dot'), copy, c4El('strong', 'c4-led-a', formatExpenseAmount(item.entry.amount_minor, 'KRW')));
+        row.addEventListener('click', () => { dismiss(); onSelectItem?.(item); });
+        group.appendChild(row);
+      }
+      list.appendChild(group);
+    }
+    rule.textContent = tab === 'paid'
+      ? '같은 결제는 한 번만 더해요. 예정 금액은 ‘실제 지출로 기록’ 전까지 합계에 넣지 않아요.'
+      : `결제 전 금액이라 ${period.label} 합계에 넣지 않았어요.`;
+  };
+  draw();
+  body.append(summary, tabs, chips, list, rule);
+  const foot = c4El('div', 'c4-dlg-ft');
+  const done = c4Button('닫기', 'c4-btn c4-ghost');
+  done.addEventListener('click', dismiss);
+  foot.appendChild(done);
+  dialog.append(head, body, foot);
+  backdrop.addEventListener('click', event => { if (event.target === backdrop) dismiss(); });
+  c4TrapFocus(dialog, dismiss);
+  document.body.classList.add('c4-dialog-open');
+  root.appendChild(backdrop);
+  queueMicrotask(() => tabButtons[0].focus());
+  return dialog;
+}
+
+// 사진 확인: 원본 사진을 옆에 두고 일정 카드와 지출 카드를 고친 뒤 등록한다.
+// 날짜가 같으면 금액이 들어간 일정 하나, 다르면 두 건으로 등록한다.
+// 등록을 누르기 전에는 아무것도 저장하지 않는다.
+export function c4PhotoConfirmDialog({root, draft, previewUrl = '', fallbackDate, todayDate, controller, onSaved, onRetake, onClose = () => {}}) {
+  root.querySelector('.c4-photo-backdrop')?.remove();
+  root.querySelector('.calendar-photo-confirm-backdrop')?.remove();
+  const {backdrop, dialog} = c4Dialog({className: 'c4-photo-dlg calendar-photo-confirm-dialog', labelledBy: 'c4-photo-heading'});
+  backdrop.classList.add('c4-photo-backdrop');
+  let settled = false;
+  const dismiss = ({notify = true} = {}) => {
+    if (settled) return;
+    settled = true;
+    backdrop.remove();
+    document.body.classList.remove('c4-dialog-open');
+    if (previewUrl) { try { URL.revokeObjectURL(previewUrl); } catch { /* 이미 해제됨 */ } }
+    if (notify) onClose();
+  };
+  const {head} = c4DialogHeader({
+    id: 'c4-photo-heading',
+    title: '사진에서 찾은 내용 확인',
+    subtitle: '고친 뒤 등록하세요. 등록 전에는 저장되지 않아요.',
+    onClose: () => dismiss(),
+  });
+  const entry = draft?.entry && typeof draft.entry === 'object' ? draft.entry : {};
+  const draftDate = validCivilDate(draft?.localDate || '') ? draft.localDate : '';
+  const clockOf = value => (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value || '') ? value : '');
+  const hasAmount = Number.isSafeInteger(entry.amountMinor);
+  const body = c4El('div', 'c4-dlg-bd');
+  const layout = c4El('div', 'c4-pgrid');
+  // 원본 사진
+  const photo = c4El('figure', 'c4-photo');
+  if (previewUrl) {
+    const image = document.createElement('img');
+    image.src = previewUrl;
+    image.alt = '올린 사진';
+    image.className = 'c4-photo-img';
+    photo.appendChild(image);
+  } else {
+    photo.appendChild(c4El('span', 'c4-photo-empty', '원본 사진'));
+  }
+  const caption = c4El('figcaption', 'c4-photo-cap');
+  caption.appendChild(c4El('span', '', '원본 사진 · 캘린더에는 저장하지 않아요'));
+  const retake = c4Button('다른 사진', 'c4-btn c4-ghost c4-sm');
+  retake.addEventListener('click', () => { dismiss({notify: false}); onRetake?.(); });
+  caption.appendChild(retake);
+  photo.appendChild(caption);
+  layout.appendChild(photo);
+
+  const found = c4El('div', 'c4-found');
+  const foundLine = c4El('p', 'c4-found-s');
+  foundLine.append(c4Icon('check'), c4El('span', '', hasAmount ? '일정과 금액을 찾았어요. 맞는지 확인해 주세요.' : '일정을 찾았어요. 맞는지 확인해 주세요.'));
+  found.appendChild(foundLine);
+  const field = (label, control, className = '') => {
+    const wrap = c4El('label', `c4-fld ${className}`.trim());
+    wrap.append(c4El('span', 'c4-flab', label), control);
+    return wrap;
+  };
+  const textInput = (value, {type = 'text', placeholder = ''} = {}) => {
+    const input = c4El('input', 'c4-inp');
+    input.type = type;
+    input.value = value;
+    if (placeholder) input.placeholder = placeholder;
+    return input;
+  };
+  // 일정 카드
+  const eventCard = c4El('section', 'c4-fc');
+  const eventToggle = c4El('input', 'c4-cb');
+  eventToggle.type = 'checkbox';
+  eventToggle.checked = true;
+  const eventHead = c4El('label', 'c4-fc-hd');
+  eventHead.append(eventToggle, c4El('span', 'c4-fc-t', '일정'));
+  const titleInput = textInput(typeof draft?.title === 'string' ? draft.title.trim() : '', {placeholder: '제목'});
+  titleInput.maxLength = 240;
+  const dateInput = textInput(draftDate, {type: 'date'});
+  const startInput = textInput(koreanClockLabel(clockOf(draft?.localTime)), {placeholder: '예: 오후 3:00'});
+  startInput.inputMode = 'text';
+  const endInput = textInput(koreanClockLabel(clockOf(draft?.endLocalTime)), {placeholder: '끝 (선택)'});
+  const reminderSelect = c4El('select', 'c4-inp c4-sel');
+  for (const [value, label] of REMINDER_CHOICES) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    reminderSelect.appendChild(option);
+  }
+  const eventGrid = c4El('div', 'c4-fg');
+  eventGrid.append(
+    field('제목', titleInput, 'span2'),
+    field('날짜', dateInput),
+    field('시작 시간', startInput),
+    field('끝나는 시간', endInput),
+    field('알림', reminderSelect),
+  );
+  eventCard.append(eventHead, eventGrid);
+  found.appendChild(eventCard);
+  // 지출 카드
+  const expenseCard = c4El('section', 'c4-fc');
+  const expenseToggle = c4El('input', 'c4-cb');
+  expenseToggle.type = 'checkbox';
+  expenseToggle.checked = hasAmount;
+  const expenseHead = c4El('label', 'c4-fc-hd');
+  expenseHead.append(expenseToggle, c4El('span', 'c4-fc-t', '지출'));
+  const merchant = typeof entry.merchant === 'string' ? entry.merchant.trim() : '';
+  const whatInput = textInput(merchant, {placeholder: '예: 체험비 납부'});
+  whatInput.maxLength = 240;
+  const amountInput = c4AmountInput({value: hasAmount ? groupedAmount(String(entry.amountMinor)) : ''});
+  const amountBox = c4El('span', 'c4-amt');
+  amountBox.append(amountInput, c4El('span', 'c4-amt-u', '원'));
+  const expenseDateInput = textInput(draftDate, {type: 'date'});
+  let expenseStatus = entry.expenseStatus === 'PLANNED' || entry.expenseStatus === 'PAID'
+    ? entry.expenseStatus
+    : (draftDate && todayDate && draftDate > todayDate ? 'PLANNED' : 'PAID');
+  const statusSeg = c4El('div', 'c4-seg3 c4-seg2');
+  statusSeg.setAttribute('role', 'group');
+  statusSeg.setAttribute('aria-label', '지출 구분');
+  const statusButtons = [['PLANNED', '예정 지출'], ['PAID', '실제 지출']].map(([value, label]) => {
+    const control = button(label, 'c4-seg3-b');
+    control.dataset.expenseStatus = value;
+    control.addEventListener('click', () => { expenseStatus = value; refresh(); });
+    statusSeg.appendChild(control);
+    return control;
+  });
+  let category = entry.expenseCategory && entry.expenseCategory !== 'UNCLASSIFIED' ? entry.expenseCategory : '';
+  const cats = c4El('div', 'c4-cats');
+  cats.setAttribute('role', 'group');
+  cats.setAttribute('aria-label', '분류');
+  const catButtons = EXPENSE_CATEGORY_CHOICES.filter(([value]) => value).map(([value, label]) => {
+    const control = button('', `c4-cc c4-cat-${C4_CATEGORY_KEYS[value]}`);
+    control.dataset.category = value;
+    control.append(c4El('span', 'c4-dot'), c4El('span', '', label));
+    control.addEventListener('click', () => { category = category === value ? '' : value; refresh(); });
+    cats.appendChild(control);
+    return control;
+  });
+  const expenseGrid = c4El('div', 'c4-fg');
+  const statusField = c4El('div', 'c4-fld span2');
+  statusField.append(c4El('span', 'c4-flab', '구분'), statusSeg);
+  const catField = c4El('div', 'c4-fld span2');
+  catField.append(c4El('span', 'c4-flab', '분류 (고르지 않으면 미분류)'), cats);
+  expenseGrid.append(field('내용', whatInput), field('금액', amountBox), field('지출 날짜', expenseDateInput), statusField, catField);
+  const splitHint = c4El('p', 'c4-hint');
+  expenseCard.append(expenseHead, expenseGrid, splitHint);
+  found.appendChild(expenseCard);
+  for (const notice of draft?.reviewNotices || []) found.appendChild(c4El('p', 'c4-hint c4-hint-warn', notice));
+  layout.appendChild(found);
+  const error = c4El('p', 'c4-dlg-err');
+  error.setAttribute('role', 'alert');
+  body.append(layout, error);
+
+  const foot = c4El('div', 'c4-dlg-ft');
+  const countLabel = c4El('span', 'c4-ft-l c4-ft-note');
+  // 사진 확인의 취소는 등록 중에만 잠근다: 일정·지출 두 건 중 하나만 남는 일을 막는다.
+  // (일정 편집기의 취소는 언제나 눌린다 -- validate_calendar_editor_footer_contrast_01.)
+  const photoCancel = c4Button('취소', 'c4-btn c4-ghost');
+  const save = c4Button('등록', 'c4-btn c4-pri');
+  save.dataset.calendarPhotoSave = '';
+  foot.append(countLabel, photoCancel, save);
+  dialog.append(head, body, foot);
+
+  const plan = () => {
+    const eventOn = eventToggle.checked;
+    const expenseOn = expenseToggle.checked;
+    const eventDate = dateInput.value;
+    const expenseDate = expenseDateInput.value || eventDate;
+    const digits = amountDigits(amountInput.value);
+    const sameDay = eventOn && expenseOn && expenseDate === eventDate;
+    const records = (eventOn ? 1 : 0) + (expenseOn && !sameDay ? 1 : 0);
+    return {eventOn, expenseOn, eventDate, expenseDate, digits, sameDay, records};
+  };
+  const refresh = () => {
+    for (const control of statusButtons) control.setAttribute('aria-pressed', String(control.dataset.expenseStatus === expenseStatus));
+    for (const control of catButtons) control.setAttribute('aria-pressed', String(control.dataset.category === category));
+    eventCard.dataset.off = String(!eventToggle.checked);
+    expenseCard.dataset.off = String(!expenseToggle.checked);
+    for (const control of eventGrid.querySelectorAll('input, select')) control.disabled = !eventToggle.checked;
+    for (const control of expenseGrid.querySelectorAll('input, button')) control.disabled = !expenseToggle.checked;
+    const next = plan();
+    splitHint.hidden = !(next.eventOn && next.expenseOn);
+    splitHint.textContent = next.sameDay
+      ? '날짜가 같아 일정 하나에 금액이 함께 들어가요.'
+      : '날짜가 달라 일정과 지출을 두 건으로 등록해요.';
+    const ready = next.records > 0
+      && (!next.eventOn || (titleInput.value.trim() && validCivilDate(next.eventDate)))
+      && (!next.expenseOn || (next.digits && validCivilDate(next.expenseDate)));
+    save.disabled = !ready;
+    save.querySelector('.c4-btn-label').textContent = next.records > 1 ? `${next.records}건 등록` : '등록';
+    countLabel.textContent = next.records ? `${next.records}건 선택됨` : '등록할 내용을 골라 주세요';
+  };
+  for (const control of [eventToggle, expenseToggle, dateInput, expenseDateInput]) control.addEventListener('change', refresh);
+  for (const control of [titleInput, amountInput, whatInput]) control.addEventListener('input', refresh);
+  for (const control of [startInput, endInput]) {
+    control.addEventListener('blur', () => {
+      const clock = normalizeCalendarClockInput(control.value);
+      if (clock) control.value = koreanClockLabel(clock);
+      control.setAttribute('aria-invalid', String(clock === null));
+    });
+  }
+  refresh();
+
+  save.addEventListener('click', async () => {
+    if (save.disabled) return;
+    const next = plan();
+    const start = normalizeCalendarClockInput(startInput.value);
+    const end = start ? normalizeCalendarEndClock(endInput.value, start) : '';
+    if (next.eventOn && (start === null || end === null)) {
+      error.textContent = '시간을 오후 3:00이나 15:30처럼 적어 주세요.';
+      (start === null ? startInput : endInput).focus();
+      return;
+    }
+    save.disabled = true;
+    photoCancel.disabled = true;
+    error.textContent = '';
+    const baseId = calendarDraftLogicalRequestId(draft);
+    const amountMinor = next.digits ? Number(next.digits) : '';
+    const title = titleInput.value.trim();
+    const expenseTitle = whatInput.value.trim() || (title ? `${title} 결제` : '사진에서 읽은 지출');
+    const reminderOffsets = reminderSelect.value ? [Number(reminderSelect.value)] : undefined;
+    try {
+      if (next.eventOn) {
+        await controller.create({
+          title,
+          photoLogicalRequestId: baseId,
+          localDate: next.eventDate,
+          time: start || '',
+          endTime: end || '',
+          endDate: '',
+          allDay: !start,
+          amountMinor: next.sameDay ? amountMinor : '',
+          currency: entry.currency || 'KRW',
+          expenseCategory: next.sameDay ? (category || null) : null,
+          expenseStatus: next.sameDay ? expenseStatus : null,
+          memo: entry.memo || '',
+          place: entry.place || '',
+          merchant: next.sameDay ? (whatInput.value.trim() || merchant) : merchant,
+          ...(reminderOffsets ? {reminderOffsets} : {}),
+        });
+      }
+      if (next.expenseOn && !next.sameDay) {
+        const expenseId = baseId ? `${String(baseId).slice(0, 77)}.x` : undefined;
+        await controller.create({
+          title: expenseTitle,
+          ...(expenseId ? {photoLogicalRequestId: expenseId} : {}),
+          localDate: next.expenseDate,
+          time: '',
+          endTime: '',
+          endDate: '',
+          allDay: true,
+          amountMinor,
+          currency: entry.currency || 'KRW',
+          expenseCategory: category || null,
+          expenseStatus,
+          memo: '',
+          place: '',
+          merchant: whatInput.value.trim() || merchant,
+        });
+      }
+      dismiss({notify: false});
+      await onSaved(next.eventOn ? next.eventDate : next.expenseDate);
+    } catch (caught) {
+      error.textContent = caught instanceof Error && caught.message ? caught.message : '등록하지 못했어요. 다시 시도해 주세요.';
+      photoCancel.disabled = false;
+      refresh();
+    }
+  });
+  photoCancel.addEventListener('click', () => dismiss());
+  backdrop.addEventListener('click', event => { if (event.target === backdrop) dismiss(); });
+  c4TrapFocus(dialog, () => dismiss());
+  document.body.classList.add('c4-dialog-open');
+  root.appendChild(backdrop);
+  queueMicrotask(() => (titleInput.value ? save : titleInput).focus());
+  return dialog;
 }
 
 export async function mountLifeCalendarManager({
@@ -3009,6 +6086,7 @@ export async function mountLifeCalendarManager({
   onOpenFestival = null,
 } = {}) {
   if (!(root instanceof HTMLElement)) return false;
+  const approvedWorkspace = Boolean(root.closest('.consumer-workspace[data-workspace="calendar"]'));
   const authenticated = typeof sessionToken === 'string' && Boolean(sessionToken.trim());
   const clock = typeof now === 'function'
     ? now
@@ -3041,7 +6119,8 @@ export async function mountLifeCalendarManager({
     : null);
   const displaySettings = readCalendarDisplaySettings(settingsStorage);
   const state = {
-    mode: normalizeMode(initialView), selectedDate: initialDate, todayDate,
+    // CALENDAR-DESIGN-04: 작업 공간에는 따로 '일' 보기가 없다. 그날은 주 보기 오른쪽에서 본다.
+    mode: approvedWorkspace && normalizeMode(initialView) === 'day' ? 'week' : normalizeMode(initialView), selectedDate: initialDate, todayDate,
     year: initialParts.year, month: initialParts.month, items: [], attention: [], unscheduled: [], weather: [], holidays: [], loading: false,
     showKoreaHolidays: displaySettings.showKoreaHolidays,
     showGridLines: displaySettings.showGridLines,
@@ -3051,12 +6130,14 @@ export async function mountLifeCalendarManager({
     manualWeatherRegion: storedManualWeatherRegion,
     weatherRegionOrigin: storedWeatherRegionOrigin,
     // 날씨 읽기가 실패했을 때 날씨 자리에 남기는 한 줄. 빈 문자열이면 아무 말도 없다.
-    weatherMessage: '',
-    // Closed on mount, on every width. A phone used to open the Calendar with
-    // the day panel already up for whatever date happened to be selected --
-    // a window for a date nobody had pressed. Opening the Calendar shows the
-    // Calendar; only selectDate({openDetail: true}) raises this panel.
-    detailOpen: false, dayCollapsed: false, agendaScope: 'month',
+    weatherMessage: '', weatherLoading: true, weatherCurrent: null,
+    weatherLocationLabel: currentWeatherLocation?.label || storedManualWeatherRegion?.label || '',
+    // The month opens at full width. A day detail appears only after the owner
+    // picks a date, as an overlay over the unchanged calendar.
+    detailOpen: !approvedWorkspace, dayCollapsed: false, agendaScope: 'month',
+    approvedWorkspace,
+    // Week shows a life list by default; a wide screen may switch to 시간표.
+    weekLayout: 'list',
     locationInFlight: false,
     locationPermission: LOCATION_PERMISSION.UNKNOWN,
     locationResolution: currentWeatherLocation?.source === 'BROWSER_CURRENT' ? LOCATION_RESOLUTION.RESOLVED : LOCATION_RESOLUTION.IDLE,
@@ -3084,6 +6165,10 @@ export async function mountLifeCalendarManager({
   const next = button('다음', 'calendar-nav-button'); next.setAttribute('aria-label', '다음 달');
   next.dataset.calendarNavigation = 'next';
   const today = button('오늘', 'calendar-today-button');
+  today.dataset.calendarMode = 'day';
+  const primaryAddButton = button('+ 일정 추가', 'calendar-primary-add-button');
+  primaryAddButton.dataset.calendarAdd = '';
+  primaryAddButton.setAttribute('aria-label', '선택한 날짜에 일정 추가');
   const settingsButton = button('', 'calendar-settings-button');
   settingsButton.appendChild(toolbarIcon(SETTINGS_ICON_SHAPES));
   const settingsLabel = document.createElement('span');
@@ -3094,12 +6179,26 @@ export async function mountLifeCalendarManager({
   settingsButton.title = '캘린더 설정';
   const modes = document.createElement('div'); modes.className = 'calendar-mode-tabs'; modes.setAttribute('role', 'tablist'); modes.setAttribute('aria-label', '캘린더 보기');
   const modeButtons = new Map();
-  for (const [mode, label] of MODES) {
+  for (const [mode, label] of approvedWorkspace ? WORKSPACE_MODES : MODES) {
     const control = button(label, 'calendar-mode-tab'); control.dataset.calendarMode = mode; control.setAttribute('role', 'tab'); modeButtons.set(mode, control); modes.appendChild(control);
   }
   bindRovingTablist(modes, modeButtons.values());
-  toolbar.append(previous, title, next, today, settingsButton, modes);
+  const modalHeader = root.closest('.site-calendar-modal')?.querySelector(':scope > .site-modal-header') || null;
+  let modalActions = null;
+  if (modalHeader) {
+    modalHeader.querySelector('[data-calendar-modal-actions]')?.remove();
+    modalActions = document.createElement('div');
+    modalActions.className = 'calendar-modal-actions';
+    modalActions.dataset.calendarModalActions = '';
+    modalActions.append(primaryAddButton, settingsButton);
+    const close = modalHeader.querySelector('.site-modal-close');
+    if (close) modalHeader.insertBefore(modalActions, close);
+    else modalHeader.appendChild(modalActions);
+  }
+  toolbar.append(previous, title, next, today, modes);
+  if (!modalHeader) toolbar.append(primaryAddButton, settingsButton);
   const status = document.createElement('div'); status.className = 'calendar-status'; status.setAttribute('aria-live', 'polite');
+  const amountSlot = document.createElement('div'); amountSlot.className = 'calendar-amount-slot';
   const locationButton = button('현재 위치 사용', 'calendar-today-button');
   const locationToggle = button('OFF', 'calendar-location-switch');
   locationToggle.setAttribute('role', 'switch');
@@ -3108,59 +6207,146 @@ export async function mountLifeCalendarManager({
   locationButton.dataset.calendarCurrentLocation = 'true';
   locationButton.setAttribute('aria-label', '현재 위치를 캘린더 날씨에 사용');
   const viewport = document.createElement('div'); viewport.className = 'calendar-viewport';
-  // The expense bar is a shell row, not a viewport child: the month view clips
-  // its content box, so anything trailing the month grid inside the viewport is
-  // invisible on desktop.
-  const expenseSlot = document.createElement('div'); expenseSlot.className = 'calendar-expense-slot';
-  shell.append(toolbar, status, viewport, expenseSlot); root.replaceChildren(shell);
+  // + 기록 and 사진에서 기록 읽기 when they are not inside the day panel: pinned
+  // to the bottom of the Calendar on a touch screen, a plain row on a desk.
+  const actionSlot = document.createElement('div'); actionSlot.className = 'calendar-action-slot';
+  shell.append(toolbar, amountSlot, status, viewport, actionSlot); root.replaceChildren(shell);
+  // CALENDAR-DESIGN-04 작업 공간 배치: 날짜 띠 → [캘린더 카드 | 오른쪽 가계부] → 휴대폰 아래 가계부 줄.
+  const c4 = approvedWorkspace;
+  const c4Parts = c4 ? {
+    strip: c4El('div', 'c4-strip-slot'),
+    cols: c4El('div', 'c4-cols'),
+    card: c4El('section', 'c4-cal'),
+    side: c4El('aside', 'c4-side'),
+    dock: c4El('div', 'c4-dock-slot'),
+  } : null;
+  if (c4) {
+    shell.dataset.design = 'c4';
+    root.dataset.calendarDesign = 'c4';
+    const page = root.closest('.site-calendar-page');
+    if (page) {
+      page.dataset.calendarDesign = 'c4';
+      page.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest';
+    }
+    modes.classList.add('c4-seg');
+    toolbar.classList.add('c4-navr');
+    previous.replaceChildren(c4Icon('left'));
+    next.replaceChildren(c4Icon('right'));
+    title.tabIndex = -1;
+    toolbar.replaceChildren(previous, title, today, next);
+    c4Parts.side.setAttribute('aria-label', '선택한 날과 지출');
+    c4Parts.card.append(modes, toolbar, viewport);
+    c4Parts.cols.append(c4Parts.card, c4Parts.side);
+    amountSlot.hidden = true;
+    actionSlot.hidden = true;
+    shell.replaceChildren(c4Parts.strip, status, c4Parts.cols, c4Parts.dock);
+    primaryAddButton.classList.add('c4-btn', 'c4-pri');
+    primaryAddButton.replaceChildren(c4Icon('plus'), c4El('span', 'c4-btn-label', '일정 추가'));
+    settingsButton.classList.add('c4-btn', 'c4-ghost');
+    if (!modalHeader) {
+      const head = c4El('div', 'c4-head');
+      head.append(primaryAddButton, settingsButton);
+      shell.prepend(head);
+    }
+  }
 
+  // The title remains a shortcut between 월 and 년, while 년 also has its own
+  // visible tab so the approved navigation never depends on discovering the
+  // title button.
   const updateChrome = () => {
     if (state.mode === 'year') {
       title.textContent = `${state.year}년`;
-      title.setAttribute('aria-label', `${state.year}년 연간 보기`);
+      title.setAttribute('aria-label', `${state.year}년 연간 보기. 누르면 ${state.month}월로 돌아갑니다`);
     } else if (state.mode === 'week') {
       const days = calendarWeekDays(state.selectedDate, state.weekStart);
       const first = days[0];
       const last = days.at(-1);
-      title.textContent = `${first.month}월 ${first.day}일–${last.month}월 ${last.day}일`;
-      title.setAttribute('aria-label', `${first.year}년 ${first.month}월 ${first.day}일부터 ${last.month}월 ${last.day}일까지 주간 보기`);
+      // Short enough for a phone's title button: "10월 4–10일", "9/28–10/4".
+      title.textContent = first.month === last.month
+        ? `${first.month}월 ${first.day}–${last.day}일`
+        : `${first.month}/${first.day}–${last.month}/${last.day}`;
+      title.setAttribute('aria-label', `${first.year}년 ${first.month}월 ${first.day}일부터 ${last.month}월 ${last.day}일까지 주간 보기. 누르면 연도와 월을 고릅니다`);
+    } else if (state.mode === 'day') {
+      title.textContent = longKoreanDate(state.selectedDate);
+      title.setAttribute('aria-label', `${longKoreanDate(state.selectedDate)} 일간 보기`);
     } else {
       title.textContent = `${state.year}년 ${state.month}월`;
-      title.setAttribute('aria-label', `${state.year}년 ${state.month}월 월간 보기`);
+      title.setAttribute('aria-label', `${state.year}년 ${state.month}월. 누르면 연도와 월을 고릅니다`);
     }
-    const navigationUnit = state.mode === 'year' ? '해' : state.mode === 'week' ? '주' : '달';
+    title.setAttribute('aria-expanded', String(state.mode === 'year'));
+    title.dataset.yearOpen = String(state.mode === 'year');
+    const navigationUnit = state.mode === 'year' ? '해' : state.mode === 'week' ? '주' : state.mode === 'day' ? '날' : '달';
     previous.setAttribute('aria-label', `이전 ${navigationUnit}`);
     next.setAttribute('aria-label', `다음 ${navigationUnit}`);
     for (const [mode, control] of modeButtons) {
-      const selected = state.mode === mode; control.setAttribute('aria-selected', String(selected)); control.tabIndex = selected ? 0 : -1;
+      const selected = state.mode === mode;
+      control.setAttribute('aria-selected', String(selected));
+      control.tabIndex = selected ? 0 : -1;
     }
+    today.setAttribute('aria-pressed', String(state.mode === 'day'));
+    today.dataset.selected = String(state.mode === 'day');
     root.dataset.calendarManagerView = state.mode;
     root.dataset.calendarAccess = authenticated ? 'authenticated' : 'guest';
+    if (c4) {
+      // 대표 버튼 하나. 날짜를 고르는 보기(주·월)에서는 그 날짜를 문구에 넣는다.
+      const datedView = state.mode === 'week' || state.mode === 'month';
+      const target = datedView && validCivilDate(state.selectedDate) ? state.selectedDate : state.todayDate;
+      const {month, day} = civilDateParts(target);
+      const label = datedView ? `${month}월 ${day}일 일정 추가` : '일정 추가';
+      const labelNode = primaryAddButton.querySelector('.c4-btn-label');
+      if (labelNode) labelNode.textContent = label;
+      primaryAddButton.setAttribute('aria-label', `${month}월 ${day}일에 일정 추가`);
+      primaryAddButton.dataset.calendarAddDate = target;
+      title.setAttribute('aria-expanded', 'false');
+    }
   };
 
-  function focusSelectedCalendarTarget({detail = false, date = state.selectedDate} = {}) {
+  function focusSelectedCalendarTarget({detail = false, date = state.selectedDate, focusDetail = false, revealWeekDay = false} = {}) {
     queueMicrotask(() => {
-      let selector = '';
-      let preventFocusScroll = false;
-      if (detail && state.mode === 'month') {
-        const panel = root.querySelector('.calendar-day-panel');
-        if (panel instanceof HTMLElement && panel.dataset.presentation === DAY_DETAIL_PRESENTATION.FLOW) {
-          panel.scrollIntoView({block: 'nearest', inline: 'nearest'});
-          preventFocusScroll = true;
+      if (c4) {
+        if (focusDetail) {
+          const heading = [...root.querySelectorAll('.c4-daycard .calendar-day-heading, .c4-agenda .calendar-day-heading, .c4-dayv .calendar-day-heading')]
+            .find(node => node.getClientRects().length);
+          if (heading) { heading.focus({preventScroll: true}); heading.scrollIntoView({block: 'nearest', inline: 'nearest'}); return; }
         }
-        selector = '.calendar-day-close';
-      } else if (state.mode === 'week') {
-        selector = `[data-calendar-week-date="${date}"]`;
-      } else if (state.mode === 'month') {
-        selector = `[data-calendar-date-trigger="${date}"]`;
+        const target = state.mode === 'month'
+          ? root.querySelector(`[data-calendar-date-trigger="${date}"]`)
+          : state.mode === 'week' ? root.querySelector(`[data-calendar-week-date="${date}"]`) : null;
+        if (target instanceof HTMLElement) target.focus({preventScroll: true});
+        return;
       }
-      if (!selector) return;
-      const target = root.querySelector(selector);
-      if (target instanceof HTMLElement) target.focus(preventFocusScroll ? {preventScroll: true} : undefined);
+      const reduced = prefersReducedMotion();
+      if (state.mode === 'month') {
+        const panel = root.querySelector('.calendar-day-panel');
+        const heading = panel?.querySelector('.calendar-day-heading');
+        if (focusDetail && heading instanceof HTMLElement) {
+          heading.focus({preventScroll: true});
+          heading.scrollIntoView({block: 'nearest', inline: 'nearest'});
+          return;
+        }
+        const close = panel?.querySelector('.calendar-day-close');
+        if (detail && close instanceof HTMLElement) {
+          close.focus({preventScroll: true});
+          return;
+        }
+        const trigger = root.querySelector(`[data-calendar-date-trigger="${date}"]`);
+        if (trigger instanceof HTMLElement) trigger.focus({preventScroll: true});
+        return;
+      }
+      if (state.mode === 'week') {
+        const target = root.querySelector(`.calendar-week-strip [data-calendar-week-date="${date}"]`)
+          || root.querySelector(`[data-calendar-week-date="${date}"]`);
+        if (target instanceof HTMLElement) target.focus({preventScroll: true});
+        if (revealWeekDay) {
+          root.querySelector(`.calendar-week-list [data-calendar-week-group="${date}"]`)
+            ?.scrollIntoView({block: 'start', behavior: reduced ? 'auto' : 'smooth'});
+        }
+      }
     });
   }
 
   let openEditor = () => {};
+  let openDetail = () => {};
   // Guards month navigation so a burst of fast swipes cannot skip months.
   let monthShiftInFlight = false;
   // State equality cannot distinguish "never moved" from "moved away and
@@ -3169,24 +6355,45 @@ export async function mountLifeCalendarManager({
   let calendarContextGeneration = 0;
   const markCalendarContextNavigation = () => { calendarContextGeneration += 1; };
   const actions = {
-    selectDate: async (date, {openDetail = false} = {}) => {
+    // Month opens a day overlay only for an explicit click/tap or Enter/Space.
+    // The calendar keeps its full width underneath it.
+    selectDate: async (date, {openDetail = false, focusDetail = false, revealWeekDay = false} = {}) => {
       markCalendarContextNavigation();
       const parts = civilDateParts(date);
       const monthChanged = parts.year !== state.year || parts.month !== state.month;
+      // Week has the whole week's records already: a day inside it only
+      // redraws, even when the week straddles two months. Leaving the week
+      // reads the new one.
+      const leavesLoadedWeek = state.mode === 'week'
+        && !calendarWeekDays(state.selectedDate, state.weekStart).some(day => day.date === date);
       state.selectedDate = date;
       state.year = parts.year;
       state.month = parts.month;
-      state.detailOpen = openDetail;
+      state.detailOpen = state.mode === 'month' && (state.approvedWorkspace ? openDetail : true);
       state.dayCollapsed = false;
-      if (monthChanged) await afterMonthChange(); else render();
-      focusSelectedCalendarTarget({detail: openDetail, date});
+      if (state.mode === 'week') {
+        if (leavesLoadedWeek) await refresh(); else render();
+      } else if (monthChanged) await afterMonthChange(); else render();
+      focusSelectedCalendarTarget({detail: openDetail, date, focusDetail, revealWeekDay});
+    },
+    closeDayDetail: () => {
+      if (state.approvedWorkspace) {
+        state.detailOpen = false;
+        render();
+      }
+      focusSelectedCalendarTarget({date: state.selectedDate});
     },
     selectMonth: async month => {
       markCalendarContextNavigation();
       state.month = month;
-      state.selectedDate = `${state.year}-${String(month).padStart(2, "0")}-01`;
+      // The month you pick opens on its first day -- or on today, when you
+      // picked this month.
+      const todayParts = civilDateParts(state.todayDate);
+      state.selectedDate = todayParts.year === state.year && todayParts.month === month
+        ? state.todayDate
+        : `${state.year}-${String(month).padStart(2, "0")}-01`;
       state.mode = 'month';
-      state.detailOpen = false;
+      state.detailOpen = !state.approvedWorkspace;
       await refresh();
     },
     onDateKey: (event, date) => {
@@ -3206,31 +6413,15 @@ export async function mountLifeCalendarManager({
         case 'PageDown':
           event.preventDefault(); void actions.selectDate(shiftCivilMonth(date, 1)); break;
         case 'Enter': case ' ':
-          event.preventDefault(); void actions.selectDate(date, {openDetail: true}); break;
-        case 'Escape':
-          if (state.detailOpen) { event.preventDefault(); actions.closeDay(); }
-          break;
+          event.preventDefault(); void actions.selectDate(date, {openDetail: true, focusDetail: true}); break;
         default: break;
       }
     },
-    closeDay: () => {
-      markCalendarContextNavigation();
-      const date = state.selectedDate;
-      state.detailOpen = false;
-      state.dayCollapsed = false;
-      render();
-      focusSelectedCalendarTarget({date});
-    },
-    toggleDay: () => {
-      markCalendarContextNavigation();
-      state.dayCollapsed = !state.dayCollapsed;
-      render();
-      queueMicrotask(() => root.querySelector('.calendar-day-toggle')?.focus());
-    },
     setAgendaScope: async scope => {
       markCalendarContextNavigation();
-      state.agendaScope = ['all', 'month', 'today', 'week', 'reservation', 'payment', 'schedule'].includes(scope) ? scope : 'month';
-      if (state.agendaScope === 'today' || state.agendaScope === 'week') {
+      state.agendaScope = normalizeAgendaScope(scope);
+      // 다가오는 is measured from today, so it reads today's month.
+      if (state.agendaScope === 'upcoming') {
         const parts = civilDateParts(state.todayDate);
         const monthChanged = parts.year !== state.year || parts.month !== state.month;
         state.selectedDate = state.todayDate;
@@ -3243,11 +6434,37 @@ export async function mountLifeCalendarManager({
       }
       queueMicrotask(() => root.querySelector(`[data-agenda-scope="${state.agendaScope}"]`)?.focus());
     },
-    // 직접 등록 opens the full form on the day the panel is showing; the picture
-    // route and an existing entry go to the same dialog.
+    setWeekLayout: value => {
+      markCalendarContextNavigation();
+      state.weekLayout = value === 'timegrid' ? 'timegrid' : 'list';
+      render();
+      queueMicrotask(() => root.querySelector(`[data-week-layout-option="${state.weekLayout}"]`)?.focus());
+    },
+    // + 기록 opens the editor straight away on the day being looked at; there
+    // is no "what kind of record?" step in between. The picture route and an
+    // existing record go to the same editor.
     onAdd: date => openEditor(null, date),
     onAddFromImage: date => { void addFromImage(date); },
-    onEvent: (item, opener) => openEditor(item, item.local_date || item.due_date || '', null, opener),
+    // CALENDAR-DESIGN-04: 작업 공간에서는 먼저 상세(금액·실제 지출로 기록·수정·삭제)를 연다.
+    onEvent: (item, opener) => {
+      if (c4 && !calendarItemActionPolicy(item).readOnly) { openDetail(item, opener); return; }
+      openEditor(item, item.local_date || item.due_date || '', null, opener);
+    },
+    openAmountDetail: opener => {
+      const period = expensePeriod(state);
+      if (state.expense.monthKey !== period.key || state.expense.status !== 'ready') return;
+      if (c4) {
+        c4LedgerDialog({root, state, opener, onSelectItem: item => actions.onEvent(item)});
+        return;
+      }
+      calendarAmountDialog({
+        root,
+        monthLabel: period.detailLabel,
+        summary: state.expense.summary,
+        local: state.expense.local === true,
+        opener,
+      });
+    },
     openSettings: () => calendarSettingsDialog({
       root,
       state,
@@ -3284,21 +6501,24 @@ export async function mountLifeCalendarManager({
     }),
   };
 
+  // Escape inside the day panel steps back to its date in the grid before it
+  // can reach the surface around the Calendar; a second Escape leaves. Open
+  // dialogs (editor, settings, photo confirmation, amounts) handle their own.
   root.addEventListener('keydown', event => {
-    // Settings is the top layer. This listener runs in capture phase, before
-    // the Settings dialog can consume Escape itself, so explicitly defer to it
-    // instead of closing the selected-day detail underneath.
-    if (event.key === 'Escape' && root.querySelector('.calendar-settings-dialog')) return;
+    if (event.key !== 'Escape') return;
+    if (root.querySelector('.calendar-settings-dialog')) return;
     if (
-      event.key === 'Escape'
-      && state.mode === 'month'
-      && state.detailOpen
-      && !root.querySelector('.calendar-editor-dialog')
-    ) {
-      event.preventDefault();
-      event.stopPropagation();
-      actions.closeDay();
-    }
+      (state.mode !== 'month' && state.mode !== 'week')
+      || root.querySelector('.calendar-editor-dialog')
+      || root.querySelector('.c4-dlg')
+      || root.querySelector('.calendar-photo-confirm-dialog, .calendar-amount-dialog, .calendar-readonly-dialog')
+      // 시안 04: 선택한 날 카드(넓은 화면)·달력 아래 목록(휴대폰)·주의 하루 칸도 같다.
+      || !document.activeElement?.closest?.('.calendar-day-panel, .c4-daycard, .c4-agenda, .c4-dayv')
+    ) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (state.mode === 'month' && state.detailOpen) actions.closeDayDetail();
+    else focusSelectedCalendarTarget({date: state.selectedDate});
   }, true);
 
   let refreshGeneration = 0;
@@ -3325,6 +6545,7 @@ export async function mountLifeCalendarManager({
 
   // 보이는 달/주 범위 중 예보 가능한 부분. 년 보기에는 날씨가 없다.
   function visibleWeatherWindow() {
+    if (state.mode === 'day') return forecastWindow({start: state.selectedDate, end: state.selectedDate}, state.todayDate);
     if (state.mode === 'month') return forecastWindow(monthBounds(state.selectedDate), state.todayDate);
     if (state.mode === 'week') return forecastWindow(weekBounds(state.selectedDate, state.weekStart), state.todayDate);
     return null;
@@ -3363,16 +6584,33 @@ export async function mountLifeCalendarManager({
     // 배경 갱신이 실행되면, data-calendar-date-trigger 값만 보고 이 root 안의
     // 같은 날짜 칸으로 포커스를 끌어오는 잘못을 막는다.
     const focusedWithinRoot = root.contains(document.activeElement);
-    const focusedDayDetail = focusedWithinRoot
-      && state.mode === 'month'
-      && state.detailOpen
-      && Boolean(document.activeElement?.closest?.('.calendar-day-panel'));
-    const focusedCalendarDate = focusedWithinRoot ? document.activeElement?.getAttribute('data-calendar-date-trigger') : null;
+    const active = focusedWithinRoot ? document.activeElement : null;
+    const focusedDayDetail = Boolean(active)
+      && (state.mode === 'month' || state.mode === 'week')
+      && Boolean(active?.closest?.('.calendar-day-panel'));
+    const focusedEventId = active?.closest?.('[data-calendar-event-id]')?.dataset.calendarEventId || '';
+    const focusedAddControl = active?.matches?.('[data-calendar-add]') ? '[data-calendar-add]'
+      : active?.matches?.('[data-calendar-add-image]') ? '[data-calendar-add-image]' : '';
+    const focusedCalendarDate = active ? active.getAttribute('data-calendar-date-trigger') : null;
+    const focusedRailDate = active?.closest?.('.calendar-week-rail') ? active.getAttribute('data-calendar-week-date') : null;
     render();
-    if (focusedDayDetail && state.mode === 'month' && state.detailOpen) {
-      root.querySelector('.calendar-day-close')?.focus();
+    if (focusedAddControl) {
+      root.querySelector(focusedAddControl)?.focus({preventScroll: true});
+    } else if (focusedDayDetail) {
+      // Record ids are guest_<uuid> / activity_<hex>: safe inside a selector.
+      const sameRow = /^[A-Za-z0-9_-]+$/.test(focusedEventId)
+        ? root.querySelector(`.calendar-day-panel [data-calendar-event-id="${focusedEventId}"]`)
+        : null;
+      (sameRow || root.querySelector('.calendar-day-heading'))?.focus({preventScroll: true});
     } else if (focusedCalendarDate && state.mode === 'month' && focusedCalendarDate === state.selectedDate) {
-      root.querySelector(`[data-calendar-date-trigger="${focusedCalendarDate}"]`)?.focus();
+      root.querySelector(`[data-calendar-date-trigger="${focusedCalendarDate}"]`)?.focus({preventScroll: true});
+    } else if (focusedRailDate && state.mode === 'week' && validCivilDate(focusedRailDate)) {
+      // The phone Week's day rail keeps its place when weather or holidays
+      // arrive after a tap.
+      root.querySelector(`.calendar-week-rail [data-calendar-week-date="${focusedRailDate}"]`)?.focus({preventScroll: true});
+    } else if (/^[A-Za-z0-9_-]+$/.test(focusedEventId)) {
+      // A record in Week's or 목록's list keeps focus through a background render.
+      root.querySelector(`[data-calendar-event-id="${focusedEventId}"]`)?.focus({preventScroll: true});
     }
   }
 
@@ -3381,13 +6619,14 @@ export async function mountLifeCalendarManager({
   // 최신으로 맞춰 두는 것은 호출하는 쪽의 책임이다.
   async function refreshWeatherOnly() {
     const requestGeneration = ++weatherGeneration;
+    state.weatherLoading = true;
     seedCachedWeatherForVisibleRange();
     renderPreservingFocus();
     const weather = authenticated
       ? await loadLifeCalendarEnrichment(sessionToken, {
           view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl,
           weatherLocation: currentWeatherLocation, weekStart: state.weekStart,
-        }).then(enrichment => ({items: enrichment.weather, providerReady: enrichment.weatherProviderReady}), () => null)
+        }).then(enrichment => ({items: enrichment.weather, current: enrichment.weatherCurrent, providerReady: enrichment.weatherProviderReady}), () => null)
       : await (async () => {
           const range = visibleWeatherWindow();
           if (!range || currentWeatherLocation?.latitude == null || currentWeatherLocation?.longitude == null) {
@@ -3402,9 +6641,16 @@ export async function mountLifeCalendarManager({
           });
         })();
     if (!root.isConnected || requestGeneration !== weatherGeneration) return;
-    if (!weather) return;
+    if (!weather) {
+      state.weatherLoading = false;
+      state.weatherMessage = '날씨를 불러오지 못했어요.';
+      renderPreservingFocus();
+      return;
+    }
     state.weather = weather.items || [];
+    state.weatherCurrent = weather.current || null;
     state.weatherMessage = weatherFailureCopy(weather.failure);
+    state.weatherLoading = false;
     persistCalendarWeatherCache(weather.items);
     renderPreservingFocus();
   }
@@ -3416,8 +6662,10 @@ export async function mountLifeCalendarManager({
       ? yearBounds(state.selectedDate)
       : state.mode === 'week'
         ? weekBounds(state.selectedDate, state.weekStart)
-        : monthBounds(state.selectedDate);
-    if (!(state.mode === 'month' || state.mode === 'week' || state.mode === 'year')) return;
+        : state.mode === 'day'
+          ? {start: state.selectedDate, end: state.selectedDate}
+          : monthBounds(state.selectedDate);
+    if (!(state.mode === 'day' || state.mode === 'month' || state.mode === 'week' || state.mode === 'year')) return;
     const holidays = await loadKoreaHolidaysForRange(range, fetchImpl);
     if (!root.isConnected || requestGeneration !== holidayGeneration) return;
     state.holidays = holidays.items || [];
@@ -3640,13 +6888,46 @@ export async function mountLifeCalendarManager({
   }
 
 
+  // CALENDAR-DESIGN-04: 작업 공간 한 장을 그린다. 겹침 창(날짜 상세)이 없고, 같은 역할의
+  // 버튼을 두 번 그리지 않는다(일정 추가는 머리글, 사진으로 추가는 가계부 쪽 하나).
+  function renderC4() {
+    state.detailOpen = false;
+    status.replaceChildren();
+    if (state.loading) {
+      const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '일정을 불러오는 중'; status.appendChild(loading);
+    } else {
+      root.dataset.locationPermission = state.locationPermission;
+      root.dataset.locationResolution = state.locationResolution;
+      syncLocationSettingsControl();
+    }
+    const strip = [c4Strip(state)];
+    if (state.imageMessage) strip.push(addMessageNode(state.imageMessage));
+    c4Parts.strip.replaceChildren(...strip);
+    if (state.mode === 'year') viewport.replaceChildren(c4RenderYear(state, actions));
+    else if (state.mode === 'agenda') viewport.replaceChildren(c4RenderAgenda(state, actions));
+    else if (state.mode === 'month') viewport.replaceChildren(c4RenderMonth(state, actions));
+    else viewport.replaceChildren(c4RenderWeek(state, actions));
+    const side = [];
+    if (state.mode === 'month') side.push(c4DayList(state, actions, {variant: 'card'}));
+    side.push(c4LedgerCard(state, actions));
+    c4Parts.side.replaceChildren(...side);
+    c4Parts.dock.replaceChildren(c4Dock(state, actions));
+  }
+
   function render() {
+    state.weatherLocationLabel = currentWeatherLocation?.label || state.manualWeatherRegion?.label || '';
+    shell.dataset.calendarMode = state.mode;
     updateChrome();
+    if (c4) { renderC4(); return; }
     // Release the previous day-sheet visualViewport listeners before the node is
     // replaced, so repeated renders cannot accumulate them.
     const staleSheet = viewport.querySelector('.calendar-day-panel[data-visual-viewport-bound="true"], .calendar-day-panel[data-day-panel-bound="true"]');
     if (staleSheet) staleSheet.dispatchEvent(new CustomEvent('lotbi:day-sheet-release'));
     status.replaceChildren();
+    // The month's amount total belongs to the month view only.
+    amountSlot.replaceChildren();
+    amountSlot.hidden = true;
+    shell.dataset.amountVisible = 'false';
     if (state.loading) {
       const loading = document.createElement('div'); loading.className = 'calendar-skeleton'; loading.textContent = '일정을 불러오는 중'; status.appendChild(loading);
     } else {
@@ -3661,7 +6942,20 @@ export async function mountLifeCalendarManager({
       syncLocationSettingsControl();
     }
     if (state.mode === 'year') viewport.replaceChildren(renderYear(state, actions));
-    else if (state.mode === 'week') viewport.replaceChildren(renderWeek(state, actions, calendarWeatherAttribution(state.weather, {timezone})));
+    else if (state.mode === 'day') viewport.replaceChildren(renderDay(state, actions));
+    else if (state.mode === 'week') {
+      // Weather is on when there is a place to forecast for (or Core already
+      // sent some); only then does a past day say it has none.
+      state.weatherReady = Boolean(currentWeatherLocation) || state.weather.length > 0;
+      viewport.replaceChildren(renderWeek(state, actions, calendarWeatherAttribution(state.weather, {timezone}), {timezone}));
+      const fixedAmountSummary = renderAmountSummary(state, actions);
+      if (fixedAmountSummary) {
+        fixedAmountSummary.dataset.calendarFixedExpense = 'week';
+        amountSlot.replaceChildren(fixedAmountSummary);
+        amountSlot.hidden = false;
+        shell.dataset.amountVisible = 'true';
+      }
+    }
     else if (state.mode === 'agenda') viewport.replaceChildren(renderAgenda(state, actions));
     else {
       const layout = renderMonth(state, actions, calendarWeatherAttribution(state.weather, {timezone}));
@@ -3675,25 +6969,19 @@ export async function mountLifeCalendarManager({
       syncMonthLayout(layout);
     }
 
-    if (state.mode === 'month') {
-      const monthKey = `${state.year}-${state.month}`;
-      // Totals belonging to another month are never shown under this month's
-      // heading: until the bar catches up it reads as loading.
-      const settled = state.expense.status === 'guest' || state.expense.monthKey === monthKey;
-      expenseSlot.hidden = false;
-      expenseSlot.replaceChildren(calendarExpenseSummaryNode({
-        state: settled ? state.expense.status : 'loading',
-        summary: settled ? state.expense.summary : null,
-        monthLabel: `${state.year}년 ${state.month}월`,
-        showHeading: root.closest('.consumer-workspace') !== null,
-        errorMessage: settled ? state.expense.message : '',
-        // Signed out, the numbers come from this browser alone. The bar says so
-        // rather than letting them read as kept somewhere safe.
-        local: state.expense.local === true,
-      }));
+    // CALENDAR-ADD-UX-01 keeps both add paths immediately below the toolbar.
+    viewport.before(actionSlot);
+    if (state.mode === 'year') {
+      actionSlot.hidden = true;
+      actionSlot.replaceChildren();
+      actionSlot.dataset.calendarActionBar = 'none';
     } else {
-      expenseSlot.hidden = true;
-      expenseSlot.replaceChildren();
+      actionSlot.hidden = false;
+      actionSlot.dataset.calendarActionBar = 'top';
+      const nodes = [];
+      if (state.imageMessage) nodes.push(addMessageNode(state.imageMessage));
+      nodes.push(addActionsRow(state, actions, {placement: 'bar'}));
+      actionSlot.replaceChildren(...nodes);
     }
   }
 
@@ -3707,10 +6995,13 @@ export async function mountLifeCalendarManager({
   // The picture becomes a draft the owner reviews — never a saved entry. The
   // editor opens prefilled with whatever was legible and blank everywhere else;
   // nothing is guessed, and nothing is written until they press save.
+  // What the picture route can and cannot do, said where it is used: it reads
+  // schedule and payment details (a receipt, a booking, a ticket) into a draft;
+  // it does not keep the photo. Nothing is saved until the owner says so.
   async function addFromImage(date) {
-    const say = text => { state.imageMessage = text; render(); };
+    const say = text => { state.imageMessage = text; renderPreservingFocus(); };
     if (!authenticated) {
-      say('이미지로 일정을 만들려면 LOTBI에 로그인해 주세요.');
+      say('사진으로 추가하려면 LOTBI에 로그인해 주세요. + 일정 추가는 로그인 없이도 쓸 수 있어요.');
       return;
     }
     say('');
@@ -3725,7 +7016,12 @@ export async function mountLifeCalendarManager({
       imagePicker.click();
     });
     if (!file) return;
-    say('이미지에서 일정을 읽는 중…');
+    // CALENDAR-DESIGN-04: 확인 창에서 원본 사진을 옆에 보여 준다. 이 브라우저 안의 임시 주소일
+    // 뿐이고 어디에도 올리지 않으며, 창을 닫으면 지운다.
+    let previewUrl = '';
+    if (c4) { try { previewUrl = URL.createObjectURL(file); } catch { previewUrl = ''; } }
+    const releasePreview = () => { if (previewUrl) { try { URL.revokeObjectURL(previewUrl); } catch { /* 이미 해제됨 */ } previewUrl = ''; } };
+    say('사진에서 일정·거래 정보를 읽는 중… 사진 자체는 캘린더에 저장되지 않아요.');
 
     try {
       // The upload contract names it `id`, not `attachmentId`.
@@ -3744,17 +7040,46 @@ export async function mountLifeCalendarManager({
         [],
         {logicalRequestId: requestId, turnId: requestId},
       );
-      if (!root.isConnected) return;
+      if (!root.isConnected) { releasePreview(); return; }
       const draft = response?.calendarDraft || null;
-      if (!draft) {
-        say('이미지에서 일정을 읽지 못했습니다. 아래 직접 등록으로 입력해 주세요.');
+      // A family, travel or pet photo comes back as NOT_A_TRANSACTION with
+      // nothing in it. That is an honest "nothing to read", not an empty form.
+      const legible = Boolean(draft) && draft.documentKind !== 'NOT_A_TRANSACTION' && Boolean(
+        draft.title || draft.localDate || Number.isSafeInteger(draft.entry?.amountMinor) || draft.entry?.place || draft.entry?.merchant,
+      );
+      if (!legible) {
+        const reason = draft?.documentKind === 'NOT_A_TRANSACTION' ? draft.reviewNotices?.[0] : '';
+        releasePreview();
+        say(reason || '이 사진에서 일정·거래 정보를 찾지 못했어요. 사진 자체는 캘린더에 저장되지 않아요. + 일정 추가로 직접 남길 수 있어요.');
         return;
       }
       say('');
-      // A draft, not an entry: the editor opens with whatever was legible and
-      // blank everywhere else, and nothing is written until the owner saves.
-      openEditor(null, draft.localDate || date || state.selectedDate, draft);
+      // A draft, not an entry: a short confirmation shows what was legible,
+      // and nothing is written until the owner presses 저장 (or 수정 → 저장).
+      const fallbackDate = date || state.selectedDate;
+      if (c4) {
+        c4PhotoConfirmDialog({
+          root, draft, previewUrl, fallbackDate, todayDate: state.todayDate, controller: mutationController,
+          onSaved: async savedDate => { await showSavedRecord(savedDate); },
+          onRetake: () => { void addFromImage(date); },
+          onClose: () => focusSelectedCalendarTarget({date: state.selectedDate}),
+        });
+        previewUrl = '';
+        return;
+      }
+      calendarPhotoConfirmDialog({
+        root,
+        draft,
+        fallbackDate,
+        controller: mutationController,
+        onEdit: (editDate, editDraft) => openEditor(null, editDate, editDraft, document.activeElement, {draftSource: 'image'}),
+        onSaved: async savedDate => {
+          await showSavedRecord(savedDate);
+        },
+        onClose: () => focusSelectedCalendarTarget({date: state.selectedDate}),
+      });
     } catch (error) {
+      releasePreview();
       if (!root.isConnected) return;
       // A 401 is the session itself, and site-core.js already announces that —
       // the Calendar closes and the owner signs in again. A 403 is this one
@@ -3762,15 +7087,32 @@ export async function mountLifeCalendarManager({
       // send them to a login screen, so it says what they can do instead.
       const refused = error instanceof SiteCoreError && error.status === 403;
       say(refused
-        ? '지금은 이미지로 일정을 만들 수 없습니다. 아래 직접 등록으로 입력해 주세요.'
-        : '이미지를 읽지 못했습니다. 다시 시도하거나 직접 입력해 주세요.');
+        ? '지금은 사진으로 추가할 수 없어요. + 일정 추가로 직접 남겨 주세요.'
+        : '사진을 읽지 못했어요. 다시 시도하거나 + 일정 추가로 직접 남겨 주세요.');
     }
   }
 
-  // A signed-in owner re-fetches the month; a signed-out one already holds every
-  // entry, so only the totals need recomputing. Both paths go through here, so a
-  // month change can never leave the bar showing another month's numbers — or,
-  // with the monthKey guard, a loader that never resolves.
+  // After a save that may belong to another day (a photo of last week's
+  // receipt, a date changed in the editor): go to that day in Month and Week
+  // so the new record is in front of the owner, and say where it went.
+  async function showSavedRecord(savedDate) {
+    if (validCivilDate(savedDate) && savedDate !== state.selectedDate && (state.mode === 'month' || state.mode === 'week')) {
+      markCalendarContextNavigation();
+      const parts = civilDateParts(savedDate);
+      state.selectedDate = savedDate;
+      state.year = parts.year;
+      state.month = parts.month;
+    }
+    await refresh({settleExpense: authenticated && (state.mode === 'month' || state.mode === 'week')});
+    window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh', {detail: {source: root}}));
+    if (validCivilDate(savedDate)) {
+      const {month, day} = civilDateParts(savedDate);
+      announceLocation(`${month}월 ${day}일에 저장했어요.`);
+    }
+  }
+
+  // A signed-in owner re-fetches the visible month or year; a signed-out one
+  // already holds every entry, so only the totals need recomputing.
   async function afterMonthChange() {
     if (authenticated) { await refresh(); return; }
     render();
@@ -3780,6 +7122,7 @@ export async function mountLifeCalendarManager({
   let expenseGeneration = 0;
 
   async function refreshExpenseSummary() {
+    const period = expensePeriod(state);
     if (!authenticated) {
       // A signed-out owner already records amounts — the guest repository keeps
       // entry.amount_minor and entry.expense_category like any other entry. The
@@ -3788,18 +7131,16 @@ export async function mountLifeCalendarManager({
       //
       // Wrapped because the month grid has to outlive this: a totals bar that
       // cannot compute is a missing bar, never a broken Calendar.
-      const monthKey = `${state.year}-${state.month}`;
       try {
-        const {start, end} = civilMonthRange(state.year, state.month);
         const inMonth = (repository?.list() || []).filter(event => {
           const date = event?.local_date;
-          return typeof date === 'string' && date >= start && date <= end;
+          return typeof date === 'string' && date >= period.start && date <= period.end;
         });
         state.expense = {
           status: 'ready',
-          summary: expenseSummaryFromEntries(inMonth, {startDate: start, endDate: end}),
+          summary: expenseSummaryFromEntries(inMonth, {startDate: period.start, endDate: period.end}),
           message: '',
-          monthKey,
+          monthKey: period.key,
           local: true,
         };
       } catch {
@@ -3809,34 +7150,32 @@ export async function mountLifeCalendarManager({
           status: 'error',
           summary: null,
           message: '이 브라우저의 기록을 읽지 못해 합계를 낼 수 없어요.',
-          monthKey,
+          monthKey: period.key,
           local: true,
         };
       }
-      render();
+      renderPreservingFocus();
       return;
     }
     const generation = ++expenseGeneration;
-    const monthKey = `${state.year}-${state.month}`;
-    const {start, end} = civilMonthRange(state.year, state.month);
     state.expense = {...state.expense, status: 'loading', message: '', monthKey: ''};
-    render();
+    renderPreservingFocus();
     try {
-      const summary = await getLifeExpenseSummary(sessionToken, {timezone, start, end}, fetchImpl);
+      const summary = await getLifeExpenseSummary(sessionToken, {timezone, start: period.start, end: period.end}, fetchImpl);
       if (!root.isConnected || generation !== expenseGeneration) return;
-      state.expense = {status: 'ready', summary, message: '', monthKey, local: false};
+      state.expense = {status: 'ready', summary, message: '', monthKey: period.key, local: false};
     } catch (error) {
       if (!root.isConnected || generation !== expenseGeneration) return;
       state.expense = {
         status: 'error',
         summary: null,
-        monthKey,
+        monthKey: period.key,
         // Only an expired session is worth sending the user back to sign in.
         // A 403 here is the server refusing this route, which signing in again
         // does not fix, so it gets the plain failure line.
         message: error instanceof SiteCoreError && error.status === 401
-          ? '지출 합계를 보려면 LOTBI에 다시 로그인해 주세요.'
-          : '지출 합계를 불러오지 못했습니다.',
+          ? '생활비 합계를 보려면 LOTBI에 다시 로그인해 주세요.'
+          : '생활비 합계를 불러오지 못했어요.',
       };
     }
     // A delayed accessory response must not discard the Calendar focus chosen
@@ -3849,7 +7188,10 @@ export async function mountLifeCalendarManager({
   async function refresh({settleExpense = false} = {}) {
     const requestGeneration = ++refreshGeneration;
     let expenseRefresh = null;
-    state.loading = true; render(); root.setAttribute('aria-busy', 'true');
+    // A refresh is often nobody's keystroke (a save elsewhere, a settings
+    // change, coming back to the tab): whoever is reading the day detail or
+    // sitting on a date keeps their place through it.
+    state.loading = true; renderPreservingFocus(); root.setAttribute('aria-busy', 'true');
     try {
       if (
         currentWeatherLocation?.source === 'BROWSER_CURRENT'
@@ -3864,6 +7206,7 @@ export async function mountLifeCalendarManager({
         state.locationMessage = currentWeatherLocation ? '' : '현재 위치가 오래되어 다시 확인이 필요해요.';
       }
       if (authenticated) {
+        state.weatherLoading = Boolean(visibleWeatherWindow());
         seedCachedWeatherForVisibleRange();
         const viewOptions = {view: state.mode, date: state.selectedDate, timezone, now: currentNow(), fetchImpl, weekStart: state.weekStart};
         const weatherToken = ++weatherGeneration;
@@ -3877,18 +7220,28 @@ export async function mountLifeCalendarManager({
           state.attention = result.attention || [];
         }
         // 일정은 여기서 이미 화면에 오른다 -- 날씨·공휴일은 기다리지 않는다.
-        state.loading = false; render();
-        if (state.mode === 'month') expenseRefresh = refreshExpenseSummary();
+        state.loading = false; renderPreservingFocus();
+        if (state.mode === 'month' || state.mode === 'week' || (state.approvedWorkspace && (state.mode === 'year' || state.mode === 'agenda'))) expenseRefresh = refreshExpenseSummary();
         // 날씨·공휴일은 따로 도착한다. 그 사이 다른 달로 넘어갔거나(새
         // refreshGeneration) 위치/지역이 다시 바뀌었으면(새 weatherGeneration) 이
         // 응답은 조용히 버려진다 -- 화면은 이미 최신 요청이 맡고 있다.
         void enrichmentPromise.then(enrichment => {
-          if (!enrichment || !root.isConnected || requestGeneration !== refreshGeneration) return;
+          if (!root.isConnected || requestGeneration !== refreshGeneration) return;
+          if (!enrichment) {
+            if (weatherToken === weatherGeneration) {
+              state.weatherLoading = false;
+              state.weatherMessage = '날씨를 불러오지 못했어요.';
+              renderPreservingFocus();
+            }
+            return;
+          }
           const applyWeather = weatherToken === weatherGeneration;
           const applyHolidays = holidayToken === holidayGeneration;
           if (applyWeather) {
-            if (result.key === 'month' || result.key === 'week') {
+            state.weatherLoading = false;
+            if (result.key === 'day' || result.key === 'month' || result.key === 'week') {
               state.weather = enrichment.weather || [];
+              state.weatherCurrent = enrichment.weatherCurrent || null;
               state.weatherMessage = enrichment.weatherFailureMessage || '';
               persistCalendarWeatherCache(enrichment.weather);
             } else {
@@ -3896,13 +7249,14 @@ export async function mountLifeCalendarManager({
               state.weatherMessage = '';
             }
           }
-          if (applyHolidays && (result.key === 'month' || result.key === 'week' || result.key === 'year')) {
+          if (applyHolidays && (result.key === 'day' || result.key === 'month' || result.key === 'week' || result.key === 'year')) {
             state.holidays = enrichment.holidays || [];
           }
           if (applyWeather || applyHolidays) renderPreservingFocus();
         });
       } else {
         if (!root.isConnected || requestGeneration !== refreshGeneration) return;
+        state.weatherLoading = Boolean(visibleWeatherWindow());
         seedCachedWeatherForVisibleRange();
         const guestItems = repository.list();
         state.items = guestItems.filter(item => validCivilDate(item.local_date));
@@ -3913,8 +7267,8 @@ export async function mountLifeCalendarManager({
         // when public enrichment is slow or unavailable. Render local data first,
         // then decorate it with weather/holiday data fail-soft.
         state.loading = false;
-        render();
-        if (state.mode === 'month') expenseRefresh = refreshExpenseSummary();
+        renderPreservingFocus();
+        if (state.mode === 'month' || state.mode === 'week' || (state.approvedWorkspace && (state.mode === 'year' || state.mode === 'agenda'))) expenseRefresh = refreshExpenseSummary();
 
         // Which dates the guest month/week grid can show weather for is a
         // property of the visible date range intersected with the forecast
@@ -3941,8 +7295,10 @@ export async function mountLifeCalendarManager({
           ? yearBounds(state.selectedDate)
           : state.mode === 'week'
             ? weekBounds(state.selectedDate, state.weekStart)
-            : monthBounds(state.selectedDate);
-        const holidayRequest = (state.mode === 'month' || state.mode === 'week' || state.mode === 'year') && state.showKoreaHolidays
+            : state.mode === 'day'
+              ? {start: state.selectedDate, end: state.selectedDate}
+              : monthBounds(state.selectedDate);
+        const holidayRequest = (state.mode === 'day' || state.mode === 'month' || state.mode === 'week' || state.mode === 'year') && state.showKoreaHolidays
           ? loadKoreaHolidaysForRange(holidayRange, fetchImpl)
           : Promise.resolve({coverageStatus: 'UNAVAILABLE', items: []});
         void Promise.all([weatherRequest, holidayRequest]).then(([guestWeather, holidayResult]) => {
@@ -3951,10 +7307,12 @@ export async function mountLifeCalendarManager({
           const applyHolidays = holidayToken === holidayGeneration;
           if (applyWeather) {
             state.weather = guestWeather.items || [];
+            state.weatherCurrent = guestWeather.current || null;
             state.weatherMessage = weatherFailureCopy(guestWeather.failure);
+            state.weatherLoading = false;
             persistCalendarWeatherCache(guestWeather.items);
           }
-          if (applyHolidays && (state.mode === 'month' || state.mode === 'week' || state.mode === 'year')) {
+          if (applyHolidays && (state.mode === 'day' || state.mode === 'month' || state.mode === 'week' || state.mode === 'year')) {
             state.holidays = holidayResult.items || [];
           }
           if (applyWeather || applyHolidays) renderPreservingFocus();
@@ -3962,7 +7320,7 @@ export async function mountLifeCalendarManager({
       }
     } catch (error) {
       if (!root.isConnected || requestGeneration !== refreshGeneration) return;
-      state.loading = false; render();
+      state.loading = false; renderPreservingFocus();
       const message = document.createElement('p'); message.className = 'life-calendar-error';
       message.textContent = error instanceof SiteCoreError && (error.status === 401 || error.status === 403)
         ? '일정을 보려면 LOTBI에 다시 로그인해 주세요.' : '일정을 불러오지 못했습니다.';
@@ -3974,11 +7332,11 @@ export async function mountLifeCalendarManager({
         state.expense = {
           status: 'error',
           summary: null,
-          message: '지출 합계를 불러오지 못했습니다.',
+          message: '생활비 합계를 불러오지 못했어요.',
           monthKey: `${state.year}-${state.month}`,
           local: !authenticated,
         };
-        render();
+        renderPreservingFocus();
       }
     } finally {
       if (requestGeneration === refreshGeneration) root.removeAttribute('aria-busy');
@@ -3993,11 +7351,15 @@ export async function mountLifeCalendarManager({
     queueMicrotask(() => {
       if (!isCurrent()) return;
       const eventId = item?.id || item?.activity_id || '';
+      // 시안 04는 같은 일정이 숨은 휴대폰 목록과 보이는 카드에 함께 있을 수 있다.
+      // 보이는 쪽으로 돌아간다.
       const eventCandidate = eventId
-        ? root.querySelector(`[data-calendar-event-id="${eventId}"]`)
+        ? ([...root.querySelectorAll(`[data-calendar-event-id="${eventId}"]`)].find(node => node.getClientRects().length) || null)
         : null;
       const dateTarget = origin.mode === 'month'
-        ? root.querySelector(`[data-calendar-date-trigger="${origin.selectedDate}"]`)
+        ? (origin.detailOpen
+            ? (root.querySelector('.calendar-day-close') || root.querySelector('.calendar-day-heading'))
+            : root.querySelector(`[data-calendar-date-trigger="${origin.selectedDate}"]`))
         : null;
       const agendaTarget = origin.mode === 'agenda'
         ? root.querySelector(`[data-agenda-scope="${origin.agendaScope}"]`)
@@ -4012,7 +7374,7 @@ export async function mountLifeCalendarManager({
     });
   };
 
-  openEditor = (item, date, draft = null, opener = document.activeElement) => {
+  openEditor = (item, date, draft = null, opener = document.activeElement, {draftSource = ''} = {}) => {
     const origin = Object.freeze({
       mode: state.mode,
       selectedDate: state.selectedDate,
@@ -4039,11 +7401,21 @@ export async function mountLifeCalendarManager({
         onClose: () => focusCalendarContext(origin, item),
       });
     }
+    // Month already presents the selected day as a modal/sheet. Replace that
+    // layer while editing instead of stacking a second modal over it. Closing
+    // the editor restores the same day detail; saving restores it through the
+    // existing refresh path below.
+    const replacedDayDetail = origin.mode === 'month' && origin.detailOpen;
+    if (replacedDayDetail) {
+      state.detailOpen = state.mode === 'month' && !state.approvedWorkspace;
+      render();
+    }
     const festivalLink = item ? festivalLinkFromCalendarItem(item, settingsStorage) : null;
     return calendarEditorDialog({
-      root, item, selectedDate: date, initialDraft: draft, authenticated, controller: mutationController,
+      root, item, selectedDate: date, initialDraft: draft, draftSource, authenticated, controller: mutationController,
+      design: c4 ? 'c4' : '',
       onOpenFestival: festivalLink && typeof onOpenFestival === 'function' ? () => onOpenFestival(festivalLink) : null,
-      onSaved: async () => {
+      onSaved: async savedDate => {
         state.mode = origin.mode;
         state.selectedDate = origin.selectedDate;
         state.year = origin.year;
@@ -4051,17 +7423,56 @@ export async function mountLifeCalendarManager({
         state.agendaScope = origin.agendaScope;
         state.detailOpen = origin.detailOpen;
         state.dayCollapsed = origin.dayCollapsed;
-        await refresh({settleExpense: authenticated && origin.mode === 'month'});
+        // A record saved onto another day (the date chip was changed) is
+        // followed there in Month and Week, so it is in front of the owner.
+        const moved = validCivilDate(savedDate) && savedDate !== origin.selectedDate
+          && (origin.mode === 'month' || origin.mode === 'week');
+        if (moved) {
+          const parts = civilDateParts(savedDate);
+          state.selectedDate = savedDate;
+          state.year = parts.year;
+          state.month = parts.month;
+        }
+        const context = moved
+          ? Object.freeze({...origin, selectedDate: state.selectedDate, year: state.year, month: state.month})
+          : origin;
+        await refresh({settleExpense: authenticated && (origin.mode === 'month' || origin.mode === 'week')});
         window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh', {detail: {source: root}}));
+        if (moved) {
+          const {month, day} = civilDateParts(savedDate);
+          announceLocation(`${month}월 ${day}일에 저장했어요.`);
+        }
         // Expense may have taken time to settle; a newer navigation owns focus.
-        if (sameCalendarContext(origin)) focusCalendarContext(origin, item, () => sameCalendarContext(origin));
+        if (sameCalendarContext(context)) focusCalendarContext(context, item, () => sameCalendarContext(context));
       },
       onStale: refresh,
+      onClose: () => {
+        if (replacedDayDetail) {
+          state.detailOpen = origin.detailOpen;
+          render();
+        }
+        focusCalendarContext(origin, item);
+      },
+    });
+  };
+
+  openDetail = (item, opener = document.activeElement) => {
+    const origin = Object.freeze({mode: state.mode, selectedDate: state.selectedDate, year: state.year, month: state.month, agendaScope: state.agendaScope, detailOpen: false, dayCollapsed: false, generation: calendarContextGeneration});
+    c4EventDetailDialog({
+      root, item, controller: mutationController,
+      onEdit: target => openEditor(target, target.local_date || target.due_date || '', null, opener),
+      onSaved: async savedDate => {
+        await refresh({settleExpense: authenticated});
+        window.dispatchEvent(new CustomEvent('lotbi:life-calendar-refresh', {detail: {source: root}}));
+        if (validCivilDate(savedDate || '')) announceLocation('저장했어요.');
+        focusCalendarContext(origin, null);
+      },
       onClose: () => focusCalendarContext(origin, item),
     });
   };
 
   settingsButton.addEventListener('click', () => actions.openSettings());
+  primaryAddButton.addEventListener('click', () => actions.onAdd(c4 ? (primaryAddButton.dataset.calendarAddDate || state.selectedDate) : state.selectedDate));
 
   // One path for "use my current location", shared by the Settings control and
   // any future entry point. Location is an accessory of an accessory: every exit
@@ -4099,20 +7510,20 @@ export async function mountLifeCalendarManager({
       state.locationResolution = LOCATION_RESOLUTION.IDLE;
       state.locationMessage = '위치 권한이 꺼져 있어요.';
       if (!auto) announceLocation(state.locationMessage);
-      render();
+      renderPreservingFocus();
       return;
     }
     if (previousPermission === LOCATION_PERMISSION.UNAVAILABLE) {
       state.locationResolution = LOCATION_RESOLUTION.ERROR;
       state.locationMessage = '이 브라우저에서는 현재 위치를 사용할 수 없어요.';
       if (!auto) announceLocation(state.locationMessage);
-      render();
+      renderPreservingFocus();
       return;
     }
     // 자동 호출은 허용된 권한에만 붙는다. 다시 읽은 값이 허용이 아니면 그냥 물러난다:
     // 미결정 상태에서 좌표를 물으면 그 순간 권한 팝업이 뜬다.
     if (auto && previousPermission !== LOCATION_PERMISSION.GRANTED) {
-      render();
+      renderPreservingFocus();
       return;
     }
 
@@ -4123,7 +7534,7 @@ export async function mountLifeCalendarManager({
       state.locationInFlight = true;
       state.locationResolution = LOCATION_RESOLUTION.REQUESTING;
       state.locationMessage = '';
-      render();
+      renderPreservingFocus();
     }
     try {
       // 공통 계층을 통해 가져온다: 축제가 방금 읽어 둔 좌표가 아직 신선하면
@@ -4209,7 +7620,7 @@ export async function mountLifeCalendarManager({
     } finally {
       if (!auto && requestGeneration === locationRequestGeneration) {
         state.locationInFlight = false;
-        render();
+        renderPreservingFocus();
       }
     }
   }
@@ -4319,13 +7730,23 @@ export async function mountLifeCalendarManager({
         const parts = civilDateParts(state.selectedDate);
         state.year = parts.year;
         state.month = parts.month;
+      } else if (state.mode === 'day') {
+        state.selectedDate = addCivilDays(state.selectedDate, delta);
+        const parts = civilDateParts(state.selectedDate);
+        state.year = parts.year;
+        state.month = parts.month;
       } else {
         state.month += delta;
         while (state.month < 1) { state.month += 12; state.year -= 1; }
         while (state.month > 12) { state.month -= 12; state.year += 1; }
-        state.selectedDate = `${state.year}-${String(state.month).padStart(2, '0')}-01`;
+        // Coming back to this month lands on today, so its records are what
+        // the day panel shows; any other month opens on its first day.
+        const todayParts = civilDateParts(state.todayDate);
+        state.selectedDate = todayParts.year === state.year && todayParts.month === state.month
+          ? state.todayDate
+          : `${state.year}-${String(state.month).padStart(2, '0')}-01`;
       }
-      state.detailOpen = false;
+      state.detailOpen = state.mode === 'month' && !state.approvedWorkspace;
       if (state.mode === 'agenda') state.agendaScope = 'month';
       await refresh();
     } finally {
@@ -4337,19 +7758,38 @@ export async function mountLifeCalendarManager({
   previous.addEventListener('click', () => { void shiftMonth(-1); });
   next.addEventListener('click', () => { void shiftMonth(1); });
   today.addEventListener('click', async () => {
+    if (c4) {
+      if (state.mode === 'week' || state.mode === 'month') { await actions.selectDate(state.todayDate); return; }
+      markCalendarContextNavigation();
+      const parts = civilDateParts(state.todayDate);
+      state.year = parts.year;
+      state.month = parts.month;
+      state.selectedDate = state.todayDate;
+      await refresh();
+      return;
+    }
+    // The phone Week already is a day view beside its rail, so 오늘 brings
+    // today's week and today's records there instead of leaving the week.
+    if (state.mode === 'week' && calendarWeekLayout() === 'vertical') {
+      await actions.selectDate(state.todayDate);
+      return;
+    }
     markCalendarContextNavigation();
     const parts = civilDateParts(state.todayDate);
     state.year = parts.year;
     state.month = parts.month;
     state.selectedDate = state.todayDate;
-    state.detailOpen = state.mode === 'month';
+    if (state.mode === 'day' || state.mode === 'year') state.mode = 'month';
+    state.detailOpen = state.mode === 'month' && !state.approvedWorkspace;
     state.dayCollapsed = false;
     await refresh();
   });
   title.addEventListener('click', async () => {
+    if (c4) return;
     markCalendarContextNavigation();
+    if (state.mode === 'day') return;
     state.mode = state.mode === 'year' ? 'month' : 'year';
-    state.detailOpen = false;
+    state.detailOpen = state.mode === 'month' && !state.approvedWorkspace;
     state.agendaScope = 'month';
     await refresh();
   });
@@ -4357,22 +7797,33 @@ export async function mountLifeCalendarManager({
     if (state.mode !== mode) {
       markCalendarContextNavigation();
       state.mode = mode;
-      state.detailOpen = false;
+      state.detailOpen = mode === 'month' && !state.approvedWorkspace;
       state.dayCollapsed = false;
       if (mode !== 'agenda') state.agendaScope = 'month';
       await refresh();
     }
   });
 
-  let lastDayDetailPresentation = dayDetailPresentation();
+  let lastDayDetailPresentation = dayDetailPresentationFor(state);
+  let lastWeekLayout = calendarWeekLayout();
   const onResize = () => {
-    const nextDayDetailPresentation = dayDetailPresentation();
+    const nextDayDetailPresentation = dayDetailPresentationFor(state);
+    // Week swaps between the phone rail and the desk grid on its own width
+    // rule, which a fixed day-detail presentation does not follow.
+    const nextWeekLayout = calendarWeekLayout();
+    const weekLayoutChanged = nextWeekLayout !== lastWeekLayout;
+    lastWeekLayout = nextWeekLayout;
+    if (weekLayoutChanged && state.mode === 'week' && nextDayDetailPresentation === lastDayDetailPresentation) {
+      render();
+      return;
+    }
     if (nextDayDetailPresentation !== lastDayDetailPresentation) {
       lastDayDetailPresentation = nextDayDetailPresentation;
-      const detailOwnedFocus = state.detailOpen
-        && Boolean(document.activeElement?.closest?.('.calendar-day-panel'));
-      if (state.mode === 'month') render();
-      if (detailOwnedFocus) focusSelectedCalendarTarget({detail: true});
+      const detailOwnedFocus = Boolean(document.activeElement?.closest?.('.calendar-day-panel'));
+      // Month moves its panel and its actions; Week gains or loses 시간표; the
+      // list's actions move between the pinned bar and an inline row.
+      if (state.mode !== 'year') render();
+      if (detailOwnedFocus) focusSelectedCalendarTarget({detail: true, focusDetail: true});
       return;
     }
     const layout = viewport.querySelector('.calendar-month-layout');
@@ -4392,10 +7843,10 @@ export async function mountLifeCalendarManager({
       state.year = parts.year;
       state.month = parts.month;
       if (monthChanged) await afterMonthChange();
-      else render();
+      else renderPreservingFocus();
       return;
     }
-    render();
+    renderPreservingFocus();
   };
 
   const cleanupLifecycle = () => {
@@ -4412,7 +7863,7 @@ export async function mountLifeCalendarManager({
     if (!root.isConnected) { cleanupLifecycle(); return; }
     void refreshTodayIfNeeded();
     void syncLocationPermission().then(() => {
-      if (root.isConnected) render();
+      if (root.isConnected) renderPreservingFocus();
     });
   };
   const onVisibilityChange = () => {
@@ -4566,7 +8017,7 @@ export async function mountLifeCalendarManager({
   // 이미 허용된 권한이면 여기서 곧바로 현재 위치를 쓴다 -- 버튼을 누를 필요가 없다.
   // 로그인 여부와 무관하게 필요하다: 손님 캘린더도 같은 날씨를 본다.
   void syncLocationPermission().then(() => {
-    if (root.isConnected) render();
+    if (root.isConnected) renderPreservingFocus();
   });
   return true;
 }
