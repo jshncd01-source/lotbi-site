@@ -15,7 +15,7 @@
 //   instead of being shown as a fact;
 // * a filed form is not 접수 until there is a 접수번호: 'SUBMITTED' can be
 //   chosen only once the situation's receipt_field_id holds one.
-import {CORE_ORIGIN} from './site-core.js?v=aset-95f232f1d240';
+import {CORE_ORIGIN} from './site-core.js?v=aset-a72d9d8f460d';
 
 export const TROUBLE_HELPER_PATH = '/v2/trouble-helper/guides';
 export const TROUBLE_HELPER_STORAGE_KEY = 'lotbi.site.ux.v1.trouble-helper';
@@ -25,12 +25,55 @@ export const SHARE_SAFETY_LINE = '인증번호·비밀번호는 가족에게도 
 export const SHARE_TITLE = '막막할 때 롯비';
 export const SHARE_URL = 'https://lotbiai.com/';
 export const FIELD_MAX_CHARS = 2000;
-// The result screen's tabs, in this order, with these names (App the same).
-export const RESULT_VIEWS = Object.freeze(['steps', 'help', 'summary']);
-export const RESULT_TAB_LABELS = Object.freeze({steps: '할 일', help: '증거·창구', summary: '정리표'});
-export const NARROW_TITLE = '내 상황에 맞게 좁히기';
-export const NARROW_HINT = '답을 고르면 내 상황에 맞지 않는 할 일이 빠져요.';
-export const PORTAL_SENTENCE_HINT = '내 상황에 맞게 좁히기에서 답하면 포털에 붙여 넣을 문장을 만들어 드려요';
+// TROUBLE-HELPER-PAGE-01 (owner-approved design 2026-10-14, "팝업 형태로 되면
+// 안돼 페이지로 해야돼"): a page, not a dialog. Inside one situation the page
+// shows, one at a time: the first screen (눌러서 답하기 · 바로 도움받기), one
+// question per screen, the result (지금 할 일 · 챙길 것 · 도움받을 곳) and the
+// 상황 정리표. Records saved on the old tabs ('steps', 'help') open on the result.
+export const PAGE_VIEWS = Object.freeze(['start', 'ask', 'result', 'summary']);
+const LEGACY_VIEWS = Object.freeze({steps: 'result', help: 'result', question: 'result'});
+export const PORTAL_SENTENCE_HINT = '질문에 답하면 포털에 붙여 넣을 문장을 만들어 드려요';
+// The page's own words (the guide sentences still all come from Core). Only
+// what exists is offered: tapping answers — no photo reading, no free text
+// understanding, no generated letters, no ratio or repair cost.
+export const PAGE_COPY = Object.freeze({
+  hubTitle: '무슨 일이 있으셨나요?',
+  hubSub: '해당하는 것을 눌러 주세요.',
+  resume: '적어 둔 내용이 있어요 · 이어서 보기',
+  startTitle: '무슨 일이 있으셨나요?',
+  startSub: '질문에 답하시면 내 상황에 맞게 알려 드려요.',
+  tapLabel: '눌러서 답하기',
+  tapHint: '질문에 버튼만 누르면 돼요',
+  direct: '바로 도움받기',
+  firstAsk: '하나씩 여쭤볼게요',
+  nextAsk: '한 가지만 더 알려주세요',
+  unknown: '잘 모르겠어요',
+  stopAsking: '질문 그만하고 결과 보기',
+  given: '고른 답',
+  change: '바꾸기',
+  resultTitle: '이렇게 하세요',
+  todo: '지금 할 일',
+  keep: '챙길 것',
+  help: '도움받을 곳',
+  more: '자세히',
+  less: '접기',
+  keepLine: '지우지 말고 모아 두세요.',
+  told: '알려 주신 내용',
+  toldNone: '질문에 답하시면 내 상황에 맞게 바뀌어요.',
+  script: '전화할 때 이렇게 말하세요',
+  sheetSection: '정리표를 만들어 드릴게요',
+  sheetEntry: '상황 정리표',
+  sheetEntryHint: '적어 두고 인쇄하거나 카카오로 보내요',
+  sheetTitle: '상황 정리표',
+  sheetSub: '적어 두고 상담할 때 보여 주세요.',
+  pickOther: '다른 상황 고르기',
+});
+// Required on the page as written (owner brief §11).
+export const DISCLAIMER = 'LOTBI의 결과는 참고용이며 법률·보험·수리비의 최종 판단이 아닙니다.';
+export const NO_AUTO_SEND = '신고·전화·접수는 직접 하셔야 해요. LOTBI가 대신 보내지 않아요.';
+// No emergency-number line on top of the page (owner 2026-10-14: "누가 119·112
+// 몰라서 롯비를 열어? 삭제해"). The guide's own steps (e.g. 다친 사람이 있으면
+// 119) keep their call buttons inside 지금 할 일.
 // The only sentences not taken from Core: what to do when Core cannot be read.
 export const FALLBACK_MESSAGE = '안내를 불러오지 못했어요. 급하면 112·119, 법률 고민은 132에 전화해 주세요.';
 export const FALLBACK_CALLS = Object.freeze([
@@ -443,22 +486,67 @@ export function normalizeRecord(situation, raw, today = localDay()) {
   const stepIds = new Set(situation.steps.map(step => step.id));
   const evidenceIds = new Set(situation.evidence.map(entry => entry.id));
   const fieldIds = new Set(situation.summaryFields.map(field => field.id));
+  const questionIds = new Set(situation.questions.map(question => question.id));
   const flags = (value, allowed) => Object.fromEntries(Object.entries(plain(value) || {}).filter(([key, on]) => allowed.has(key) && on === true));
   const fields = Object.fromEntries(Object.entries(plain(item.fields) || {})
     .filter(([key, value]) => fieldIds.has(key) && typeof value === 'string' && value)
     .map(([key, value]) => [key, value.slice(0, FIELD_MAX_CHARS)]));
   let status = STATUS_IDS.includes(item.status) ? item.status : 'PREPARE';
   if (!canChooseStatus(situation, fields, status)) status = 'PREPARE';
-  // The three tabs. There is no question screen any more: a record saved on
-  // one ('question', before TROUBLE-HELPER-URGENT-FIRST-01) opens on 할 일.
+  const view = PAGE_VIEWS.includes(item.view) ? item.view : (LEGACY_VIEWS[item.view] || 'start');
+  // 'skipped': questions answered with the page's own "잘 모르겠어요" (no such
+  // option in the guide) — not answered, so nothing is hidden, and not asked again.
+  const skipped = flags(item.skipped, questionIds);
+  for (const id of Object.keys(answers)) delete skipped[id];
   return {
     answers,
+    skipped,
     done: flags(item.done, stepIds),
     evidence: flags(item.evidence, evidenceIds),
     fields,
     status,
-    view: RESULT_VIEWS.includes(item.view) ? item.view : 'steps',
+    view,
     createdOn: DAY_RE.test(item.createdOn || '') ? item.createdOn : today,
+  };
+}
+
+// ── TROUBLE-HELPER-PAGE-01 rules ─────────────────────────────────────────
+// The guide already offers "잘 모르겠어요" for some questions; the page adds one
+// only where it does not, so the reader is never stuck on a question.
+export function hasUnknownOption(question) {
+  return Boolean(question?.options.some(option => option.id === 'unknown' || option.label === PAGE_COPY.unknown));
+}
+
+// The next question to put on screen: one on view, not answered, not skipped.
+export function nextQuestion(situation, answers = {}, skipped = {}) {
+  const clean = cleanAnswers(situation, answers);
+  return visibleQuestions(situation, clean).find(question => !Object.hasOwn(clean, question.id) && skipped?.[question.id] !== true) || null;
+}
+
+// The first sentence of a guide sentence, for a card that shows one or two.
+export function firstSentence(value) {
+  const textValue = text(value, 400);
+  const match = /^.+?[.!?](?=\s|$)/u.exec(textValue);
+  return match ? match[0] : textValue;
+}
+
+// The three result cards' short lines, all from Core's guide.
+export function cardModel(guides, situation, answers = {}) {
+  const steps = visibleSteps(situation, answers);
+  const lead = steps.find(step => step.urgent) || steps[0] || null;
+  const evidence = situation.evidence.map(entry => entry.label);
+  const channels = situation.channelIds.map(id => guides?.channels?.get(id)).filter(Boolean);
+  // 112 · 119 stay with the steps that name them; 도움받을 곳 leads with the rest.
+  const helpers = channels.filter(channel => !QUICK_CALL_PHONES.includes(channel.phone));
+  const main = helpers.find(channel => channel.phone || channel.onlineUrl) || null;
+  return {
+    todo: {count: steps.length, title: lead?.title || '', sentence: lead ? firstSentence(lead.body) : ''},
+    keep: {count: evidence.length, line: evidence.length > 1 ? `${evidence[0]} 등 ${evidence.length}가지` : evidence.join('')},
+    help: {
+      count: channels.length,
+      line: helpers.length ? `${helpers.slice(0, 2).map(channel => channel.name).join(', ')}에 물어볼 수 있어요.` : '',
+      main,
+    },
   };
 }
 
