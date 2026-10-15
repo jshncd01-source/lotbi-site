@@ -91,6 +91,22 @@ try {
         if(r.exceptionDetails) throw new Error(JSON.stringify(r.exceptionDetails));
         return r.result.value;
       };
+      // Under load a 350–450ms card turn can still be running when a fixed 450ms
+      // sleep ends (gate run 20261014T234442Z failed "reverse wrap: center faces
+      // forward" that way). Keep the 450ms floor, then wait, bounded, until the
+      // browser reports every finite orbit card animation finished.
+      const settle=async()=>{
+        await sleep(450);
+        await evaluate(`(async () => {
+          const deadline = performance.now() + 4000;
+          const busy = () => [...document.querySelectorAll('.lotbi-place-orbit-card')]
+            .flatMap(card => card.getAnimations({subtree: true}))
+            .some(a => a.playState === 'running' && a.effect && a.effect.getTiming().iterations !== Infinity);
+          while (busy() && performance.now() < deadline) await new Promise(r => requestAnimationFrame(r));
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          return true;
+        })()`);
+      };
       await page.send('Page.enable');
       await page.send('Emulation.setDeviceMetricsOverride',{width,height:780,deviceScaleFactor:1,mobile:width===360});
       await page.send('Page.navigate',{url:`${origin}/scripts/${path.basename(dir)}/inner.html`});
@@ -99,7 +115,7 @@ try {
         return value && value!=='pending'?JSON.parse(value):null;
       },label,60000);
       assert.equal(ready.ok,true,ready.error);
-      await sleep(450);
+      await settle();
       const initial=await evaluate(probe);
       if (count) assert.equal(initial.theme,dark?'dark':'light',`${label}: actual theme applied`);
       check(initial,count,0,label);
@@ -151,17 +167,17 @@ try {
         const outgoing=midway.cards.find(c=>c.index===0),incoming=midway.cards.find(c=>c.index===1);
         assert.ok(Math.abs(outgoing.rotation)>.005 && Math.abs(incoming.rotation)>.005,`${label}: both cards rotate during transition`);
         assert.ok(incoming.duration.split(',').some(d=>Number.parseFloat(d)>=.35 && Number.parseFloat(d)<=.45),`${label}: 350–450ms transition`);
-        await sleep(450);
+        await settle();
         check(await evaluate(probe),count,1,label);
         for (let i=0;i<count;i+=1) await select(i);
-        await sleep(450);
+        await settle();
         check(await evaluate(probe),count,count-1,`${label}: rapid dot selection`);
         await evaluate("document.querySelector('[data-orbit-dot][aria-current=true]').focus()");
         const key=async name=>{
           const codes={ArrowRight:39,ArrowLeft:37,Home:36,End:35,Enter:13};
           await page.send('Input.dispatchKeyEvent',{type:'keyDown',key:name,code:name,windowsVirtualKeyCode:codes[name],...(name==='Enter'?{text:'\r'}:{})});
           await page.send('Input.dispatchKeyEvent',{type:'keyUp',key:name,code:name,windowsVirtualKeyCode:codes[name]});
-          await sleep(450);
+          await settle();
         };
         await key('ArrowRight');check(await evaluate(probe),count,0,`${label}: forward wrap`);
         await key('ArrowLeft');check(await evaluate(probe),count,count-1,`${label}: reverse wrap`);
@@ -180,7 +196,7 @@ try {
       if (evidence && count===5) {
         fs.mkdirSync(evidence,{recursive:true});
         await page.send('Emulation.setEmulatedMedia',{features:[]});
-        await select(0);await sleep(450);
+        await select(0);await settle();
         await evaluate("document.getElementById('drift-result').style.display='none'");
         const shot=await page.send('Page.captureScreenshot',{format:'png'});
         fs.writeFileSync(path.join(evidence,`${label}.png`),Buffer.from(shot.data,'base64'));

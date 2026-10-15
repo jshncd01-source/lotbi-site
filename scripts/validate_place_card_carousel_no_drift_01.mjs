@@ -150,6 +150,9 @@ try {
   return html.replace(runtime[0], harness);
 }
 
+// Read-only: PROBE splices the scroll and anchor logs, so polling must not call it.
+const CENTER_INDEX = `Number(document.querySelector('.lotbi-place-orbit [data-orbit-slot="CENTER"]')?.dataset.orbitIndex)`;
+
 const PROBE = `(() => {
   const rail = document.querySelector('.lotbi-place-orbit');
   const center = rail.querySelector('[data-orbit-slot="CENTER"]');
@@ -331,6 +334,13 @@ async function runCase(browser, origin, dir, testCase) {
       const before = await evaluate(PROBE);
       await action(before);
       await sleep(450);
+      // A tap becomes a click asynchronously; under load the selection can land
+      // after the fixed 450ms. Wait, bounded and read-only, for the expected
+      // center before taking the PROBE snapshot (the asserts below are unchanged).
+      if (nextExpected !== undefined) {
+        const want = ((nextExpected % count) + count) % count;
+        await waitFor(async () => await evaluate(CENTER_INDEX) === want, `${testCase.label}: ${name}`, 3000).catch(() => null);
+      }
       const after = await evaluate(PROBE);
       log.push(`${name}:${before.activeIndex}->${after.activeIndex}@${after.scrollLeft}`);
       const where = `${testCase.label}: ${name} (${log.join(' ')})`;
